@@ -36,14 +36,12 @@ import (
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
-
-// ControllerName is the name of the controller.
-const ControllerName = "remoteResourceSlice"
 
 // NewRemoteResourceSliceReconciler returns a new RemoteResourceSliceReconciler.
 func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, config *rest.Config,
@@ -257,7 +255,7 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceRemote).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
 		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
 		Complete(r)
@@ -300,7 +298,7 @@ func withCSR() predicate.Funcs {
 		if !ok {
 			return false
 		}
-		return rs.Spec.CSR != nil && len(rs.Spec.CSR) > 0
+		return len(rs.Spec.CSR) > 0
 	})
 }
 

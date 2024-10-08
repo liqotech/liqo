@@ -117,7 +117,7 @@ func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConnection).
 		For(&networkingv1beta1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }

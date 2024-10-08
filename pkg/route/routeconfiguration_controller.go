@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
@@ -191,7 +192,7 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlRouteConfiguration).
 		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewRouteWatchSource(src, NewRouteWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)

@@ -32,11 +32,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-const (
-	// IPControllerName is the name of the controller.
-	IPControllerName = "ipMapping"
-)
-
 // IPReconciler manage IP.
 type IPReconciler struct {
 	client.Client
@@ -113,7 +108,7 @@ func (r *IPReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).Named(IPControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlIPRemapping).
 		For(&ipamv1alpha1.IP{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
 }

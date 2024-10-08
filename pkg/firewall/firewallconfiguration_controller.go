@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
@@ -172,7 +173,7 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 	go func() {
 		utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
 	}()
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfiguration).
 		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)

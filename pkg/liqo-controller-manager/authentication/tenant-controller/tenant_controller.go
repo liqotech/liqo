@@ -263,7 +263,7 @@ func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
 
 // SetupWithManager sets up the TenantReconciler with the Manager.
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlTenant).
 		For(&authv1beta1.Tenant{}).
 		Owns(&corev1.Namespace{}).
 		Complete(r)

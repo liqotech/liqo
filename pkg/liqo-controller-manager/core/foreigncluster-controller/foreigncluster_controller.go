@@ -168,7 +168,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers in
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlForeignCluster).
 		For(&liqov1beta1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Watches(&networkingv1beta1.Connection{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&networkingv1beta1.GatewayServer{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).

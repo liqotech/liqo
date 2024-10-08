@@ -187,7 +187,7 @@ func isConfigurationConfigured(cfg *networkingv1beta1.Configuration) bool {
 
 // SetupWithManager register the ConfigurationReconciler to the manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationExternal).
 		For(&networkingv1beta1.Configuration{}).
 		Owns(&ipamv1alpha1.Network{}).
 		Complete(r)

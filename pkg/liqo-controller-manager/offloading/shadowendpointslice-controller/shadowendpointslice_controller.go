@@ -38,7 +38,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -113,7 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Name:      shadowEps.Name,
 			Namespace: shadowEps.Namespace,
 			Labels: labels.Merge(shadowEps.Labels, labels.Set{
-				liqoconsts.ManagedByLabelKey: liqoconsts.ManagedByShadowEndpointSliceValue}),
+				consts.ManagedByLabelKey: consts.ManagedByShadowEndpointSliceValue}),
 			Annotations: shadowEps.Annotations,
 		},
 		AddressType: shadowEps.Spec.Template.AddressType,
@@ -244,7 +244,7 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowEndpointSlice).
 		For(&offloadingv1beta1.ShadowEndpointSlice{}).
 		Owns(&discoveryv1.EndpointSlice{}).
 		Watches(&liqov1beta1.ForeignCluster{},

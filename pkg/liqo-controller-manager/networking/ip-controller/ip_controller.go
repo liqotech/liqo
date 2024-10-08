@@ -34,6 +34,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
@@ -184,7 +185,7 @@ func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, w
 		return requests
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlIP).
 		For(&ipamv1alpha1.IP{}).
 		Owns(&v1.Service{}).
 		Owns(&discoveryv1.EndpointSlice{}).

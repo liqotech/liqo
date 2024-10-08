@@ -36,9 +36,6 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
-// ControllerName is the name of the controller.
-const ControllerName = "localResourceSlice"
-
 // NewLocalResourceSliceReconciler returns a new LocalResourceSliceReconciler.
 func NewLocalResourceSliceReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
@@ -120,7 +117,7 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if resourceSlice.Spec.CSR == nil || len(resourceSlice.Spec.CSR) == 0 {
+	if len(resourceSlice.Spec.CSR) == 0 {
 		// Generate a CSR for the remote cluster.
 		CSR, err := authentication.GenerateCSRForResourceSlice(privateKey, &resourceSlice)
 		if err != nil {
@@ -153,7 +150,7 @@ func (r *LocalResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceLocal).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(localResSliceFilter)).
 		Complete(r)
 }

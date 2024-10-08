@@ -31,13 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
-
-// ControllerName is the name of the controller.
-const ControllerName = "externalConfiguration"
 
 // ConfigurationReconciler manage Configuration.
 type ConfigurationReconciler struct {
@@ -93,7 +91,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationRoute).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Watches(
 			&networkingv1beta1.GatewayServer{},

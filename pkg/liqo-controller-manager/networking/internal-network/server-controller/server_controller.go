@@ -35,11 +35,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
-const (
-	// ControllerName is the name of the controller.
-	ControllerName = "internalServer"
-)
-
 // ServerReconciler manage GatewayServer lifecycle.
 type ServerReconciler struct {
 	client.Client
@@ -149,7 +144,7 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 
 // SetupWithManager register the ServerReconciler to the manager.
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayServerInternal).
 		Owns(&networkingv1beta1.InternalFabric{}).
 		For(&networkingv1beta1.GatewayServer{}).
 		Complete(r)

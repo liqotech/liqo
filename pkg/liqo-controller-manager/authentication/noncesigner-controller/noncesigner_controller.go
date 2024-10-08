@@ -37,11 +37,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
-const (
-	// ControllerName is the name of the controller.
-	ControllerName = "nonceSigner"
-)
-
 // NewNonceSignerReconciler returns a new SecretReconciler.
 func NewNonceSignerReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder,
@@ -153,7 +148,7 @@ func (r *NonceSignerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return selector.Matches(labels.Set(o.GetLabels()))
 	})
 
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlSecretNonceSigner).
 		For(&corev1.Secret{}, builder.WithPredicates(filter)).
 		Complete(r)
 }

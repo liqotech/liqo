@@ -28,6 +28,7 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
@@ -126,7 +127,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 // SetupWithManager register the InternalFabricReconciler to the manager.
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalFabricFabric).
 		For(&networkingv1beta1.InternalFabric{}).
 		Complete(r)
 }

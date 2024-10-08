@@ -95,13 +95,13 @@ func main() {
 			clusterID, namespaceManager),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
-		klog.Error(err, "unable to setup the crdreplicator-operator")
+		klog.Error(err, "unable to setup the crdReplicator controller")
 		os.Exit(1)
 	}
 
-	klog.Info("Starting crdreplicator-operator")
+	klog.Info("Starting crdReplicator manager")
 	if err := mgr.Start(ctx); err != nil {
-		klog.Error(err, "problem running manager")
+		klog.Error(err, "unable to start the crdReplicator manager")
 		os.Exit(1)
 	}
 }

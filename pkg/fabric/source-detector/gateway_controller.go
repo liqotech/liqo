@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
@@ -115,7 +116,7 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlPodGateway).
 		For(&corev1.Pod{}, builder.WithPredicates(filterByLabelsGatewayPods)).
 		Complete(r)
 }

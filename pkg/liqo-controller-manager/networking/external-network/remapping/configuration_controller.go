@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
@@ -47,9 +48,6 @@ type RemappingReconciler struct {
 	EventsRecorder record.EventRecorder
 	Options        *Options
 }
-
-// ConfigurationControllerName is the name of the controller.
-const ConfigurationControllerName = "configurationRemapping"
 
 // NewRemappingReconciler returns a new PublicKeysReconciler.
 func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) (*RemappingReconciler, error) {
@@ -104,7 +102,7 @@ func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).Named(ConfigurationControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationRemapping).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }

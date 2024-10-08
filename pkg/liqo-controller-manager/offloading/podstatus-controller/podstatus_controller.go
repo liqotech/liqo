@@ -29,11 +29,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
 
-const (
-	// ControllerName is the name of the controller.
-	ControllerName = "podStatus"
-)
-
 // HasRemoteUnavailableLabel return true if the pod has the remote unavailable label.
 func HasRemoteUnavailableLabel(pod *corev1.Pod) bool {
 	value, ok := pod.Labels[consts.RemoteUnavailableKey]
@@ -115,7 +110,7 @@ func (r *PodStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 // SetupWithManager monitors updates on nodes.
 func (r *PodStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlPodStatus).
 		For(&corev1.Node{}).
 		Complete(r)
 }
