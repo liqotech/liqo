@@ -52,6 +52,7 @@ func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, localPodCIDR, l
 			Selector: &metav1.LabelSelector{
 				MatchLabels: matchLabels,
 			},
+			Replicas: opts.Spec.Replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      depLabels,

@@ -102,6 +102,28 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	eb := record.NewBroadcaster()
+	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
+
+	// active-passive leader election; blocking leader election.
+	// here we have multiple virtual kubelet pods running for the same virtual node.
+	// We want to avoid that multiple virtual kubelet pods reflect the same resources.
+	if leader, err := leaderelection.Blocking(ctx, localConfig, eb, &leaderelection.Opts{
+		PodInfo: leaderelection.PodInfo{
+			PodName:   c.PodName,
+			Namespace: c.TenantNamespace,
+		},
+		LeaderElectorName: c.NodeName,
+		LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
+		RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,
+		RetryPeriod:       c.VirtualKubeletLeaseRetryPeriod,
+	}); err != nil {
+		return err
+	} else if !leader {
+		klog.Error("This virtual-kubelet is not the leader")
+		os.Exit(1)
+	}
+
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient, cl.Scheme()) // Do not use the cached version, as leveraged only once.
 	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
@@ -190,9 +212,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		NetConfiguration: netConfiguration,
 	}
 
-	eb := record.NewBroadcaster()
-	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
-
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
 	if err != nil {
 		return err
@@ -208,6 +227,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	// The leader election avoids that multiple virtual node targeting the same cluster reflect some resources.
+	// This is important when we have multiple virtual nodes targeting the same cluster.
 	if c.VirtualKubeletLeaseEnabled {
 		leaderelectionOpts := &leaderelection.Opts{
 			PodInfo: leaderelection.PodInfo{

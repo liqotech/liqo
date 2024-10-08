@@ -92,6 +92,19 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
+	// Get the VirtualKubeletOptions from the VirtualNode Spec if specified,
+	// otherwise use the default template passed to the webhook.
+	vkOptsRef := w.vkOptsDefaultTemplate
+	if virtualnode.Spec.VkOptionsTemplateRef != nil {
+		vkOptsRef = virtualnode.Spec.VkOptionsTemplateRef
+	}
+	nsName := types.NamespacedName{Namespace: vkOptsRef.Namespace, Name: vkOptsRef.Name}
+	var vkOpts offloadingv1beta1.VkOptionsTemplate
+	if err = w.client.Get(ctx, nsName, &vkOpts); err != nil {
+		klog.Errorf("Failed getting VkOptionsTemplate %q: %v", nsName, err)
+		return admission.Denied(err.Error())
+	}
+
 	if req.Operation == admissionv1.Create {
 		// VirtualNode name and the created Node have the same name.
 		// This checks if the Node already exists in the cluster to avoid duplicates.
@@ -101,25 +114,12 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 			return admission.Denied(err.Error())
 		}
 
-		// Get the VirtualKubeletOptions from the VirtualNode Spec if specified,
-		// otherwise use the default template passed to the webhook.
-		vkOptsRef := w.vkOptsDefaultTemplate
-		if virtualnode.Spec.VkOptionsTemplateRef != nil {
-			vkOptsRef = virtualnode.Spec.VkOptionsTemplateRef
-		}
-		nsName := types.NamespacedName{Namespace: vkOptsRef.Namespace, Name: vkOptsRef.Name}
-		var vkOpts offloadingv1beta1.VkOptionsTemplate
-		if err = w.client.Get(ctx, nsName, &vkOpts); err != nil {
-			klog.Errorf("Failed getting VkOptionsTemplate %q: %v", nsName, err)
-			return admission.Denied(err.Error())
-		}
-
 		overrideVKOptionsFromExistingVirtualNode(&vkOpts, virtualnode)
 		w.initVirtualNodeDeployment(virtualnode, &vkOpts)
 		mutateSpec(virtualnode, &vkOpts)
 	}
 
-	mutateSpecInTemplate(virtualnode)
+	mutateSpecInTemplate(virtualnode, &vkOpts)
 
 	return w.CreatePatchResponse(&req, virtualnode)
 }
