@@ -37,9 +37,9 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -185,14 +185,14 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 
 // ForConfiguration waits until the status on the Configuration resource states that the configuration has been
 // successfully applied.
-func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1beta1.Configuration) error {
+func (w *Waiter) ForConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for configuration to be applied")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		ok, err := configuration.IsConfigurationStatusSet(ctx, w.CRClient, conf.Name, conf.Namespace)
+		conf, err := getters.GetConfigurationByClusterID(ctx, w.CRClient, remoteClusterID)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-		return ok, nil
+		return networkingutils.IsConfigurationStatusSet(conf.Status), nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for configuration to be applied: %s", output.PrettyErr(err)))
