@@ -20,6 +20,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -29,20 +30,20 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 )
 
-// DefaultPublicKeyName returns the default name of a PublicKey.
-func DefaultPublicKeyName(remoteClusterID liqov1beta1.ClusterID) string {
+// defaultPublicKeyName returns the default name of a PublicKey.
+func defaultPublicKeyName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // PublicKey forges a PublicKey.
-func PublicKey(name, namespace string, remoteClusterID liqov1beta1.ClusterID, key []byte) (*networkingv1beta1.PublicKey, error) {
+func PublicKey(namespace string, name *string, remoteClusterID liqov1beta1.ClusterID, key []byte) (*networkingv1beta1.PublicKey, error) {
 	pubKey := &networkingv1beta1.PublicKey{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1beta1.PublicKeyKind,
 			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      ptr.Deref(name, defaultPublicKeyName(remoteClusterID)),
 			Namespace: namespace,
 			Labels: map[string]string{
 				consts.RemoteClusterID:      string(remoteClusterID),
@@ -88,7 +89,7 @@ func PublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
 			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultPublicKeyName(clusterID),
+			Name: defaultPublicKeyName(clusterID),
 			Labels: map[string]string{
 				consts.RemoteClusterID:      string(clusterID),
 				consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,

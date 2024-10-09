@@ -82,7 +82,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	pubKey, err := forge.PublicKey(opts.Name, opts.Namespace, o.RemoteClusterID.GetClusterID(), o.PublicKey)
+	pubKey, err := forge.PublicKey(opts.Namespace, &opts.Name, o.RemoteClusterID.GetClusterID(), o.PublicKey)
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
