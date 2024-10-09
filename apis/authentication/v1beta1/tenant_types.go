@@ -21,6 +21,19 @@ import (
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 )
 
+// AuthzPolicy is the policy used by the cluster to authorize or reject an incoming ResourceSlice.
+type AuthzPolicy string
+
+const (
+	// KeysExchange indicates that a keys exchange must be performed before accepting any ResourceSlice.
+	KeysExchange AuthzPolicy = "KeysExchange"
+	// TolerateNoHandshake indicates that the local cluster accepts ResourceSlices even when there
+	// never have been a key exchange with the peer cluster.
+	TolerateNoHandshake AuthzPolicy = "TolerateNoHandshake"
+	// DefaultAuthzPolicy is the default authorization policy if nothing is provided.
+	DefaultAuthzPolicy AuthzPolicy = KeysExchange
+)
+
 // TenantResource is the name of the tenant resources.
 var TenantResource = "tenants"
 
@@ -33,10 +46,23 @@ var TenantGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resour
 // TenantGroupVersionResource is groupResourceVersion used to register these objects.
 var TenantGroupVersionResource = GroupVersion.WithResource(TenantResource)
 
+// GetAuthzPolicyValue returns the value of the pointer to an AuthzPolicy type, if the pointer is nil it returns the default value.
+func GetAuthzPolicyValue(policy *AuthzPolicy) AuthzPolicy {
+	if policy == nil {
+		return DefaultAuthzPolicy
+	}
+	return *policy
+}
+
 // TenantSpec defines the desired state of Tenant.
 type TenantSpec struct {
 	// ClusterID is the id of the consumer cluster.
 	ClusterID liqov1beta1.ClusterID `json:"clusterID,omitempty"`
+	// AuthzPolicy is the policy used by the cluster to authorize or reject an incoming ResourceSlice.
+	// Default is KeysExchange.
+	// +kubebuilder:validation:Enum=KeysExchange;TolerateNoHandshake
+	// +kubebuilder:default=KeysExchange
+	*AuthzPolicy `json:"authzPolicy,omitempty"`
 	// PublicKey is the public key of the tenant cluster.
 	PublicKey []byte `json:"publicKey,omitempty"`
 	// CSR is the Certificate Signing Request of the tenant cluster.

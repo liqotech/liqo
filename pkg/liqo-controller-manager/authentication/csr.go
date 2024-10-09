@@ -90,7 +90,7 @@ func IsControlPlaneUser(groups []string) bool {
 
 // CheckCSRForControlPlane checks a CSR for a control plane.
 func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.ClusterID) error {
-	return checkCSR(csr, publicKey,
+	return checkCSR(csr, publicKey, true,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterID) {
 				return fmt.Errorf("invalid common name")
@@ -106,8 +106,8 @@ func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
-func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.ResourceSlice) error {
-	return checkCSR(resourceSlice.Spec.CSR, publicKey,
+func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
+	return checkCSR(resourceSlice.Spec.CSR, publicKey, checkPublicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {
 				return fmt.Errorf("invalid common name")
@@ -122,7 +122,7 @@ func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.Resou
 		})
 }
 
-func checkCSR(csr, publicKey []byte, commonName, organization CSRChecker) error {
+func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
 	pemCsr, rst := pem.Decode(csr)
 	if pemCsr == nil || len(rst) != 0 {
 		return fmt.Errorf("invalid CSR")
@@ -141,18 +141,27 @@ func checkCSR(csr, publicKey []byte, commonName, organization CSRChecker) error 
 		return err
 	}
 
-	// if the pub key is 0-terminated, drop it
-	if publicKey[len(publicKey)-1] == 0 {
-		publicKey = publicKey[:len(publicKey)-1]
-	}
-
-	switch crtKey := x509Csr.PublicKey.(type) {
-	case ed25519.PublicKey:
-		if !bytes.Equal(crtKey, publicKey) {
+	if checkPublicKey {
+		// Check the length of the public key and return an error if invalid
+		if len(publicKey) == 0 {
 			return fmt.Errorf("invalid public key")
 		}
-	default:
-		return fmt.Errorf("invalid public key type %T", crtKey)
+
+		// if the pub key is 0-terminated, drop it
+		if publicKey[len(publicKey)-1] == 0 {
+			publicKey = publicKey[:len(publicKey)-1]
+		}
+
+		// Check that the public key used the expected algorithm and verify that the CSR has been
+		// signed with the key provided by the peer at peering time.
+		switch crtKey := x509Csr.PublicKey.(type) {
+		case ed25519.PublicKey:
+			if !bytes.Equal(crtKey, publicKey) {
+				return fmt.Errorf("invalid public key")
+			}
+		default:
+			return fmt.Errorf("invalid public key type %T", crtKey)
+		}
 	}
 
 	return nil
