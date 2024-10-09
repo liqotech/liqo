@@ -29,8 +29,8 @@ import (
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
-// DefaultConfigurationName returns the default name for a Configuration.
-func DefaultConfigurationName(remoteClusterID liqov1beta1.ClusterID) string {
+// defaultConfigurationName returns the default name for a Configuration.
+func defaultConfigurationName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
@@ -91,7 +91,7 @@ func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultConfigurationName(clusterID),
+			Name: defaultConfigurationName(clusterID),
 			Labels: map[string]string{
 				consts.RemoteClusterID: string(clusterID),
 			},

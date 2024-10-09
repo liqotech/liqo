@@ -22,8 +22,8 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// GenerateNonceSecretName generates the name of the Secret object to store the nonce.
-func GenerateNonceSecretName() string {
+// generateNonceSecretName generates the name of the Secret object to store the nonce.
+func generateNonceSecretName() string {
 	return "liqo-nonce"
 }
 
@@ -35,7 +35,7 @@ func Nonce(tenantNamespace string) *corev1.Secret {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      GenerateNonceSecretName(),
+			Name:      generateNonceSecretName(),
 			Namespace: tenantNamespace,
 		},
 	}

@@ -30,9 +30,9 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	gwforge "github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
@@ -198,8 +198,8 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1beta
 func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
-	confReady, err := configuration.IsConfigurationStatusSet(ctx, c.local.CRClient,
-		forge.DefaultConfigurationName(remoteClusterID), c.local.Namespace)
+	// Get the network Configuration.
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
@@ -207,7 +207,9 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID l
 	case apierrors.IsNotFound(err):
 		s.Fail(fmt.Sprintf("Network Configuration not found. Initialize the network first with `liqoctl network init`: %v", output.PrettyErr(err)))
 		return err
-	case !confReady:
+	}
+
+	if !networkingutils.IsConfigurationStatusSet(conf.Status) {
 		err := fmt.Errorf("network Configuration status is not set yet. Retry later or initialize the network again with `liqoctl network init`")
 		s.Fail(err)
 		return err
@@ -344,17 +346,21 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 }
 
 // DeleteConfiguration deletes a Configuration.
-func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
+func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting network configuration")
 
-	conf := &networkingv1beta1.Configuration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.local.Namespace,
-		},
+	// Retrieve Configuration.
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail("An error occurred while retrieving network configuration: ", output.PrettyErr(err))
+		return err
+	} else if apierrors.IsNotFound(err) {
+		s.Success("Network configuration already deleted")
+		return nil
 	}
 
-	err := c.local.CRClient.Delete(ctx, conf)
+	// Delete Configuration.
+	err = c.local.CRClient.Delete(ctx, conf)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail("An error occurred while deleting network configuration: ", output.PrettyErr(err))
