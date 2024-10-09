@@ -151,7 +151,8 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.Context,
 	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
 	// check that the CSR is valid
-	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice); err != nil {
+	shouldCheckPublicKey := authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake
+	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice, shouldCheckPublicKey); err != nil {
 		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
 		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		denyAuthentication(resourceSlice, r.eventRecorder)
