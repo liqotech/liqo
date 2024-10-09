@@ -72,7 +72,7 @@ var _ = Describe("Reflector tests", func() {
 
 		manager = NewManager(local, localClusterID, workers, 0)
 		manager.Start(ctx, []resources.Resource{res})
-		reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace)
+		reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace, "")
 	})
 
 	AfterEach(func() { cancel() })
@@ -157,7 +157,7 @@ var _ = Describe("Reflector tests", func() {
 				Eventually(func() bool { return reflector.resources[gvr].initialized }).Should(BeTrue())
 			})
 
-			JustBeforeEach(func() { err = reflector.stopForResource(gvr) })
+			JustBeforeEach(func() { err = reflector.stopForResource(gvr, false) })
 
 			When("no object is present", func() {
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })

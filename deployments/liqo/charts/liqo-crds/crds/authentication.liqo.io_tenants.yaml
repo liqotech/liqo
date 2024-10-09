@@ -50,6 +50,15 @@ spec:
           spec:
             description: TenantSpec defines the desired state of Tenant.
             properties:
+              authzPolicy:
+                default: KeyExchange
+                description: |-
+                  AuthzPolicy is the policy used by the cluster to authorize or reject an incoming ResourceSlice.
+                  Default is KeyExchange.
+                enum:
+                - KeyExchange
+                - TolerateNoHandshake
+                type: string
               clusterID:
                 description: ClusterID is the id of the consumer cluster.
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -79,6 +88,8 @@ spec:
                 - Cordoned
                 - Drained
                 type: string
+            required:
+            - authzPolicy
             type: object
           status:
             description: TenantStatus defines the observed state of Tenant.
