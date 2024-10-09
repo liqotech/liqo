@@ -35,6 +35,7 @@ type VkOptionsTemplateSpec struct {
 	ExtraLabels             map[string]string           `json:"extraLabels,omitempty"`
 	NodeExtraAnnotations    map[string]string           `json:"nodeExtraAnnotations,omitempty"`
 	NodeExtraLabels         map[string]string           `json:"nodeExtraLabels,omitempty"`
+	Replicas                *int32                      `json:"replicas,omitempty"`
 }
 
 // ReflectorConfig contains configuration parameters of the reflector.
