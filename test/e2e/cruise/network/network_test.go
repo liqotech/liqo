@@ -33,6 +33,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	networkflags "github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
@@ -255,6 +256,7 @@ func RestartPods(cl client.Client) {
 		cl.List(ctx, podList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{
 				gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
+				concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
 			}),
 		}),
 	).To(Succeed())
@@ -272,6 +274,7 @@ func RestartPods(cl client.Client) {
 		if err := cl.List(ctx, deploymentList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{
 				gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
+				concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
 			}),
 		}); err != nil {
 			return err

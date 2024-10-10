@@ -35,6 +35,9 @@ spec:
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
+              volumes: 
+              - name: ipc 
+                emptyDir: {} 
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
@@ -45,6 +48,7 @@ spec:
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --mode=client
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8080
@@ -60,6 +64,9 @@ spec:
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8080
@@ -70,6 +77,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   privileged: true
                   capabilities:
@@ -93,6 +104,9 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8083
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8082
@@ -115,12 +129,16 @@ spec:
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --mode=server
                 - --geneve-port={{ .Values.networking.genevePort }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8084
@@ -131,6 +149,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   capabilities:
                     add:
