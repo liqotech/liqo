@@ -271,7 +271,11 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceRemote).
-		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
+		For(
+			&authv1beta1.ResourceSlice{},
+			// With GenerationChangedPredicate we prevent to reconcile multiple times when the status of the resource changes
+			builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR(), predicate.GenerationChangedPredicate{})),
+		).
 		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
 		Complete(r)
 }
