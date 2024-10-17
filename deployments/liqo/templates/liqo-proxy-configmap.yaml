@@ -1,5 +1,7 @@
 {{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
 
+{{- if .Values.proxy.enabled }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -74,3 +76,5 @@ data:
                        socket_address:
                          address: kubernetes.default
                          port_value: 443
+
+{{- end }}

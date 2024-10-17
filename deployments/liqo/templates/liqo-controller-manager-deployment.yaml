@@ -118,6 +118,7 @@ spec:
           {{- if gt .Values.controllerManager.replicas 1.0 }}
           - --enable-leader-election=true
           {{- end }}
+          - --enable-api-server-ip-remapping={{ .Values.proxy.enabled }}
         env:
           - name: CLUSTER_ID
             valueFrom:
