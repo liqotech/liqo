@@ -842,6 +842,26 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 	}
 }
 
+// GetPublicKeyByClusterID returns the PublicKey resource with the given clusterID.
+func GetPublicKeyByClusterID(ctx context.Context, cl client.Client,
+	remoteClusterID liqov1beta1.ClusterID) (*networkingv1beta1.PublicKey, error) {
+	publicKeys, err := ListPublicKeysByLabel(ctx, cl, corev1.NamespaceAll, labels.SelectorFromSet(map[string]string{
+		consts.RemoteClusterID: string(remoteClusterID),
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(publicKeys.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(networkingv1beta1.PublicKeyGroupResource, networkingv1beta1.PublicKeyResource)
+	case 1:
+		return &publicKeys.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple PublicKeys found for ForeignCluster %s", remoteClusterID)
+	}
+}
+
 // ListPhysicalNodes returns the list of physical nodes. (i.e. nodes not created by Liqo).
 func ListPhysicalNodes(ctx context.Context, cl client.Client) (*corev1.NodeList, error) {
 	req, err := labels.NewRequirement(consts.TypeLabel, selection.DoesNotExist, nil)

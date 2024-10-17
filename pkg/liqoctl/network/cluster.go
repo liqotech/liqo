@@ -322,8 +322,18 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, opts *forge.GwClientO
 func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1beta1.ClusterID,
 	key []byte, ownerGateway metav1.Object) error {
 	s := c.local.Printer.StartSpinner("Creating public key")
-	pubKey, err := forge.PublicKey(forge.DefaultPublicKeyName(remoteClusterID), c.local.Namespace,
-		remoteClusterID, key)
+
+	// Check if the PublicKey already exists.
+	var name *string
+	pk, err := getters.GetPublicKeyByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("An error occurred while retrieving public key: %v", output.PrettyErr(err)))
+		return err
+	} else if err == nil {
+		name = &pk.Name // reutilize the existing PublicKey name
+	}
+
+	pubKey, err := forge.PublicKey(c.local.Namespace, name, remoteClusterID, key)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging public key: %v", output.PrettyErr(err)))
 		return err
