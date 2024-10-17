@@ -43,6 +43,9 @@ type GatewayClientSpec struct {
 	MTU int `json:"mtu,omitempty"`
 	// Endpoint specifies the endpoint of the tunnel.
 	Endpoint EndpointStatus `json:"endpoint,omitempty"`
+	// SecretRef specifies the reference to the secret containing configurations.
+	// Leave it empty to let the operator create a new secret.
+	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // GatewayClientStatus defines the observed state of GatewayClient.
