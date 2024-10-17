@@ -316,11 +316,6 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 	port := service.Spec.Ports[0].NodePort
 	protocol := &service.Spec.Ports[0].Protocol
 
-	// Every node IP is a valid endpoint. For convenience, we get the IP of all nodes hosting replicas of the deployment
-	// (i.e., WireGuard gateway servers).
-	var addresses []string
-	var internalAddress string
-	var nodeName string
 	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
 	var podList corev1.PodList
 	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
@@ -336,7 +331,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 
 	pod := &podList.Items[0]
 
-	internalAddress = pod.Status.PodIP
+	internalAddress := pod.Status.PodIP
 	if internalAddress == "" {
 		err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
 		klog.Error(err)
