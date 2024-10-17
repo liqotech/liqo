@@ -112,13 +112,15 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("unable to get the kubeconfig secret from identity %q: %w", identity.Name, err)
 	}
 
-	// Forge the VirtualNodeOptions from the ResourceSlice.
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, nil)
-
 	// CreateOrUpdate the VirtualNode.
 	virtualNode := forge.VirtualNode(resourceSlice.Name, resourceSlice.Namespace)
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, virtualNode, func() error {
-		if err := forge.MutateVirtualNode(virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil); err != nil {
+		// Forge the VirtualNodeOptions from the ResourceSlice.
+		vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name,
+			virtualNode.Spec.VkOptionsTemplateRef)
+
+		if err := forge.MutateVirtualNode(ctx, r.Client,
+			virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil); err != nil {
 			return err
 		}
 		if virtualNode.Labels == nil {

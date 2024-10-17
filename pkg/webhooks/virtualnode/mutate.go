@@ -173,10 +173,17 @@ func overrideVKOptionsArgs(opts *offloadingv1beta1.VkOptionsTemplate, args []str
 	}
 }
 
-func mutateSpecInTemplate(vn *offloadingv1beta1.VirtualNode) {
+func mutateSpecInTemplate(vn *offloadingv1beta1.VirtualNode, vkOpts *offloadingv1beta1.VkOptionsTemplate) {
 	mutateSecretArg(vn)
 	mutateNodeCreate(vn)
 	mutateNodeCheckNetwork(vn)
+	mutateReplicas(vn, vkOpts)
+}
+
+func mutateReplicas(vn *offloadingv1beta1.VirtualNode, vkOpts *offloadingv1beta1.VkOptionsTemplate) {
+	if vkOpts.Spec.Replicas != nil {
+		vn.Spec.Template.Spec.Replicas = vkOpts.Spec.Replicas
+	}
 }
 
 // mutateSecretArg mutate the foreigncluster kubeconfig secret name in the virtual kubelet deployment.

@@ -186,6 +186,7 @@
 | virtualKubelet.metrics.podMonitor.labels | object | `{}` | Labels for the virtualkubelet podmonitor. |
 | virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` | Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | virtualKubelet.metrics.port | int | `5872` | Port used to expose metrics. |
+| virtualKubelet.replicas | int | `1` | The number of virtual kubelet instances to run, which can be increased for active/passive high availability. |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | Extra annotations for the virtual node. |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | Extra labels for the virtual node. |
 | webhook.failurePolicy | string | `"Fail"` | Webhook failure policy, either Ignore or Fail. |

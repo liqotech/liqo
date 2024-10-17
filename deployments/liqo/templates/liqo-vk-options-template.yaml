@@ -25,6 +25,7 @@ metadata:
   labels:
     {{- include "liqo.labels" $kubeletConfig | nindent 4 }}
 spec:
+  replicas: {{ .Values.virtualKubelet.replicas }}
   createNode: {{ .Values.offloading.createNode }}
   disableNetworkCheck: {{ .Values.offloading.disableNetworkCheck }}
   containerImage: {{ .Values.virtualKubelet.image.name }}{{ include "liqo.suffix" $kubeletConfig }}:{{ include "liqo.version" $kubeletConfig }}
