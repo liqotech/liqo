@@ -1,5 +1,7 @@
 {{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking"  "version" .Values.proxy.image.version) .) -}}
 
+{{- if .Values.proxy.enabled }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +9,7 @@ metadata:
     {{- include "liqo.labels" $proxyConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $proxyConfig }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.proxy.replicas }}
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $proxyConfig | nindent 6 }}
@@ -66,3 +68,5 @@ spec:
       {{- if .Values.proxy.pod.priorityClassName }}
       priorityClassName: {{ .Values.proxy.pod.priorityClassName }}
       {{- end }}
+      
+{{- end }}

@@ -616,6 +616,12 @@ uninstaller:
     version: ""
 
 proxy:
+  # -- Enable/Disable the proxy pod.
+  # This pod is mandatory to allow in-band peering 
+  # and to connect to the consumer k8s api server from a remotly offloaded pod.
+  enabled: true
+  # -- Set the number of replicas for the proxy deployments 
+  replicas: 1
   pod:
     # -- Annotations for the proxy pod.
     annotations: {}

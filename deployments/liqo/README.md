@@ -146,6 +146,7 @@
 | openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
+| proxy.enabled | bool | `true` | Enable/Disable the proxy pod. This pod is mandatory to allow in-band peering  and to connect to the consumer k8s api server from a remotly offloaded pod. |
 | proxy.image.name | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
 | proxy.image.version | string | `""` | Custom version for the proxy image. If not specified, the global tag is used. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
@@ -153,6 +154,7 @@
 | proxy.pod.labels | object | `{}` | Labels for the proxy pod. |
 | proxy.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the proxy pod. |
 | proxy.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
+| proxy.replicas | int | `1` | Set the number of replicas for the proxy deployments  |
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |

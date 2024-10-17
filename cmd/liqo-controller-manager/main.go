@@ -163,6 +163,9 @@ func main() {
 	shadowEndpointSliceWorkers := pflag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 
+	// CROSS MODULE
+	enableAPIServerIPRemapping := pflag.Bool("enable-api-server-ip-remapping", true, "Enable the API server IP remapping")
+
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
 	flagsutils.InitKlogFlags(nil)
@@ -382,9 +385,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
-			klog.Errorf("Unable to enforce the API server IP remapping: %v", err)
-			os.Exit(1)
+		if *enableAPIServerIPRemapping {
+			if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
+				klog.Errorf("Unable to enforce the API server IP remapping: %v", err)
+				os.Exit(1)
+			}
 		}
 
 		if err := ipamips.EnforceAPIServerProxyIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
