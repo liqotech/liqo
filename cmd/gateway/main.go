@@ -210,6 +210,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		connoptions.GwOptions.PodName,
 		connoptions.GwOptions.Name,
 		connoptions.GwOptions.Namespace,
+		connoptions.GwOptions.ConcurrentContainersNames,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create concurrent runnable: %w", err)

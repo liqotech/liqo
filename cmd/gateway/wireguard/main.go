@@ -167,7 +167,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to register prometheus collector: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGuest("wireguard")
+	runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
 	if err != nil {
 		return fmt.Errorf("unable to create runnable guest: %w", err)
 	}

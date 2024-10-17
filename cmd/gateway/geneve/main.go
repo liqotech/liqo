@@ -109,7 +109,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGuest("geneve")
+	runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
 	if err != nil {
 		return fmt.Errorf("unable to create runnable guest: %w", err)
 	}
