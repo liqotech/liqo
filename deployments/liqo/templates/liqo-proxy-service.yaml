@@ -1,5 +1,7 @@
 {{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
 
+{{- if .Values.proxy.enabled }}
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -19,3 +21,5 @@ spec:
       protocol: TCP
   selector:
     {{- include "liqo.selectorLabels" $proxyConfig | nindent 4 }}
+
+{{- end }}
