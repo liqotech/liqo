@@ -52,6 +52,8 @@ spec:
                 - --node-name={{"$(NODE_NAME)"}}
                 - --pod-name={{"$(POD_NAME)"}}
                 - --mode=client
+                - --container-name=gateway
+                - --concurrent-containers-names=wireguard,geneve
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8080
                 {{- end }}
@@ -60,9 +62,7 @@ spec:
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
-                {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
-                {{- end }}
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
@@ -98,6 +98,7 @@ spec:
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=client
+                - --container-name=wireguard
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
                 - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
@@ -136,6 +137,7 @@ spec:
                 - --node-name={{"$(NODE_NAME)"}}
                 - --pod-name={{"$(POD_NAME)"}}
                 - --mode=server
+                - --container-name=geneve
                 - --geneve-port={{ .Values.networking.genevePort }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084

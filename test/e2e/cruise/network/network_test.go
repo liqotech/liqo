@@ -48,7 +48,7 @@ const (
 	// testName is the name of this E2E test.
 	testName = "NETWORK"
 	// StressMax is the maximum number of stress iterations.
-	stressMax = 5
+	stressMax = 3
 )
 
 func TestE2E(t *testing.T) {

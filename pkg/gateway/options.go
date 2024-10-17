@@ -28,10 +28,13 @@ type Options struct {
 	RemoteClusterID string
 	NodeName        string
 	PodName         string
+	ContainerName   string
 
 	GatewayUID string
 
 	Mode Mode
+
+	ConcurrentContainersNames []string
 
 	LeaderElection              bool
 	LeaderElectionLeaseDuration time.Duration

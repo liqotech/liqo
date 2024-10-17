@@ -40,7 +40,7 @@ type RunnableGateway struct {
 }
 
 // NewRunnableGateway creates a new Runnable.
-func NewRunnableGateway(cl client.Client, podName, deploymentName, namespace string) (*RunnableGateway, error) {
+func NewRunnableGateway(cl client.Client, podName, deploymentName, namespace string, containerNames []string) (*RunnableGateway, error) {
 	guestConnections := ipc.NewGuestConnections(containerNames)
 
 	socket, err := ipc.CreateListenSocket(unixSocketPath)

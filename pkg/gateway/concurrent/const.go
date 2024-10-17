@@ -16,6 +16,3 @@ package concurrent
 
 // UnixSocketPath is the path of the Unix socket.
 const unixSocketPath string = "/ipc/leader.sock"
-
-// ContainerNames is the list of container names.
-var containerNames = []string{"wireguard", "geneve"}
