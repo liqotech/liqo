@@ -37,11 +37,11 @@ jobs:
           echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "master=false" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
         elif [ "${{ github.ref_name }}" == "master" ]; then
           echo "master=true" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         else
           echo "master=false" >> $GITHUB_OUTPUT
@@ -95,6 +95,14 @@ jobs:
         - gateway/geneve
         - fabric
     steps:
+      - name: Set architectures
+        id: set-architectures
+        run: |
+          ARCHITECTURES=${{ needs.configure.outputs.architectures }}
+          if [ "${{ matrix.component }}" == "proxy" ]; then
+            ARCHITECTURES=$(echo ${ARCHITECTURES} | sed 's/,linux\/arm\/v7//')
+          fi
+          echo "ARCHITECTURES=${ARCHITECTURES}" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.2.0
         with:
@@ -138,7 +146,7 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
-          platforms: ${{ needs.configure.outputs.architectures }}
+          platforms: ${{ env.ARCHITECTURES }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
@@ -205,10 +213,15 @@ jobs:
     strategy:
       matrix:
         goos: [ linux, windows, darwin ]
-        goarch: [ arm64, amd64 ]
+        goarch: [ arm64, amd64, arm ]
         exclude:
           - goarch: arm64
             goos: windows
+          - goarch: arm
+            goos: windows
+          - goarch: arm
+            goos: darwin
+
 
     steps:
 
