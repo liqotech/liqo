@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -190,7 +191,9 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 			fc.Status.TenantNamespace.Local = tenant.Status.TenantNamespace
 		}
 
-		if tenant.Status.AuthParams == nil || tenant.Status.TenantNamespace == "" {
+		// Define the status of the authentication module based on whether the keys exchange has been performed.
+		expectKeysExchange := authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake
+		if expectKeysExchange && tenant.Status.AuthParams == nil || tenant.Status.TenantNamespace == "" {
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Authentication,
 				liqov1beta1.AuthTenantStatusCondition, liqov1beta1.ConditionStatusNotReady,
 				tenantNotReadyReason, tenantNotReadyMessage)

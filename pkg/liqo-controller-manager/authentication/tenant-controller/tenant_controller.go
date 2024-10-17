@@ -134,38 +134,41 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	clusterID := tenant.Spec.ClusterID
 
-	// get the nonce for the tenant
+	// If no handshake is tolerated, then do not perform the checks on the exchanged keys.
+	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
+		// get the nonce for the tenant
 
-	nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID)
-	if err != nil {
-		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
-		return ctrl.Result{}, err
-	}
+		nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID)
+		if err != nil {
+			klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
+			return ctrl.Result{}, err
+		}
 
-	nonce, err := authgetters.GetNonceFromSecret(nonceSecret)
-	if err != nil {
-		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
-		return ctrl.Result{}, err
-	}
+		nonce, err := authgetters.GetNonceFromSecret(nonceSecret)
+		if err != nil {
+			klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
+			return ctrl.Result{}, err
+		}
 
-	// check the signature
+		// check the signature
 
-	if !authentication.VerifyNonce(ed25519.PublicKey(tenant.Spec.PublicKey), nonce, tenant.Spec.Signature) {
-		err = fmt.Errorf("signature verification failed for Tenant %q", req.Name)
-		klog.Error(err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
-		return ctrl.Result{}, nil
-	}
+		if !authentication.VerifyNonce(ed25519.PublicKey(tenant.Spec.PublicKey), nonce, tenant.Spec.Signature) {
+			err = fmt.Errorf("signature verification failed for Tenant %q", req.Name)
+			klog.Error(err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
+			return ctrl.Result{}, nil
+		}
 
-	// check that the CSR is created with the same public key
+		// check that the CSR is created with the same public key
 
-	if err = authentication.CheckCSRForControlPlane(
-		tenant.Spec.CSR, tenant.Spec.PublicKey, tenant.Spec.ClusterID); err != nil {
-		klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
-		return ctrl.Result{}, nil
+		if err = authentication.CheckCSRForControlPlane(
+			tenant.Spec.CSR, tenant.Spec.PublicKey, tenant.Spec.ClusterID); err != nil {
+			klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
+			return ctrl.Result{}, nil
+		}
 	}
 
 	// create the tenant namespace
@@ -192,44 +195,47 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 	}()
 
-	// create the CSR and forge the AuthParams
+	// If no handshake is performed, then the user is charge of creating the authentication params and bind the right permissions.
+	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
+		// create the CSR and forge the AuthParams
 
-	authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
-		Cluster:         tenant.Spec.ClusterID,
-		TenantNamespace: tenant.Status.TenantNamespace,
-		IdentityType:    authv1beta1.ControlPlaneIdentityType,
-		Name:            tenant.Name,
-		SigningRequest:  tenant.Spec.CSR,
+		authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
+			Cluster:         tenant.Spec.ClusterID,
+			TenantNamespace: tenant.Status.TenantNamespace,
+			IdentityType:    authv1beta1.ControlPlaneIdentityType,
+			Name:            tenant.Name,
+			SigningRequest:  tenant.Spec.CSR,
 
-		APIServerAddressOverride: r.APIServerAddressOverride,
-		CAOverride:               r.CAOverride,
-		TrustedCA:                r.TrustedCA,
-		ProxyURL:                 tenant.Spec.ProxyURL,
-	})
-	if err != nil {
-		klog.Errorf("Unable to forge the AuthParams for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
-		return ctrl.Result{}, err
-	}
+			APIServerAddressOverride: r.APIServerAddressOverride,
+			CAOverride:               r.CAOverride,
+			TrustedCA:                r.TrustedCA,
+			ProxyURL:                 tenant.Spec.ProxyURL,
+		})
+		if err != nil {
+			klog.Errorf("Unable to forge the AuthParams for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
+			return ctrl.Result{}, err
+		}
 
-	tenant.Status.AuthParams = authParams
+		tenant.Status.AuthParams = authParams
 
-	// bind permissions
+		// bind permissions
 
-	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID,
-		tenant, r.tenantClusterRoles...)
-	if err != nil {
-		klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
-		return ctrl.Result{}, err
-	}
+		_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID,
+			tenant, r.tenantClusterRoles...)
+		if err != nil {
+			klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
+			return ctrl.Result{}, err
+		}
 
-	_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
-		tenant, r.tenantClusterRolesClusterWide...)
-	if err != nil {
-		klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
-		return ctrl.Result{}, err
+		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
+			tenant, r.tenantClusterRolesClusterWide...)
+		if err != nil {
+			klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

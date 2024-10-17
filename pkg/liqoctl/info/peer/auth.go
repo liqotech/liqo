@@ -74,18 +74,20 @@ func (ac *AuthChecker) Collect(ctx context.Context, options info.Options) {
 		authStatus := Auth{}
 		ac.collectStatusInfo(clusterID, options.ClustersInfo, &authStatus)
 
-		if options.ClustersInfo[clusterID].Status.Role == liqov1beta1.ProviderRole {
-			if err := ac.collectAPIAddress(ctx, options.CRClient, clusterID, &authStatus); err != nil {
-				ac.AddCollectionError(fmt.Errorf("unable to get API server address of cluster %q: %w", clusterID, err))
+		if authStatus.Status != common.ModuleDisabled {
+			if options.ClustersInfo[clusterID].Status.Role == liqov1beta1.ProviderRole {
+				if err := ac.collectAPIAddress(ctx, options.CRClient, clusterID, &authStatus); err != nil {
+					ac.AddCollectionError(fmt.Errorf("unable to get API server address of cluster %q: %w", clusterID, err))
+				}
 			}
-		}
 
-		// Get the ResourceSlices related to the given remote clusterID
-		resSlices, err := getters.ListResourceSlicesByClusterID(ctx, options.CRClient, clusterID)
-		if err != nil {
-			ac.AddCollectionError(fmt.Errorf("unable to get ResourceSlices of cluster %q: %w", clusterID, err))
-		} else {
-			ac.collectResourceSlices(resSlices, &authStatus)
+			// Get the ResourceSlices related to the given remote clusterID
+			resSlices, err := getters.ListResourceSlicesByClusterID(ctx, options.CRClient, clusterID)
+			if err != nil {
+				ac.AddCollectionError(fmt.Errorf("unable to get ResourceSlices of cluster %q: %w", clusterID, err))
+			} else {
+				ac.collectResourceSlices(resSlices, &authStatus)
+			}
 		}
 
 		ac.data[clusterID] = authStatus
