@@ -116,7 +116,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	cfg := config.GetConfigOrDie()
 
 	// Create the client. This client should be used only outside the reconciler.
-	// This client don't need a cache.
+	// This client does not need a cache.
 	cl, err := client.New(cfg, client.Options{
 		Scheme: scheme,
 	})
