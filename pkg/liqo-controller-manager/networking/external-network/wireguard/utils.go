@@ -120,18 +120,18 @@ func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Obje
 	}
 }
 
-func checkServiceOverrides(service *corev1.Service, addresses *[]string, port *int32) error {
+func checkServiceOverrides(service *corev1.Service, address *string, port *int32) error {
 	if service == nil {
 		return nil
 	}
 
-	if addresses == nil || port == nil {
+	if address == nil || port == nil {
 		return fmt.Errorf("addresses and port must be non-nil")
 	}
 
 	if service.Annotations != nil {
 		if v, ok := service.Annotations[consts.OverrideAddressAnnotation]; ok {
-			*addresses = []string{v}
+			*address = v
 		}
 		if v, ok := service.Annotations[consts.OverridePortAnnotation]; ok {
 			p, err := strconv.ParseInt(v, 10, 32)

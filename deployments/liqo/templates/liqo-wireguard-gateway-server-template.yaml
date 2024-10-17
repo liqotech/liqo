@@ -28,7 +28,7 @@ spec:
           {{- end }}
         spec:
           selector:
-            {{- include "liqo.labelsTemplate" $templateConfig | nindent 12 }}
+            {{- include "liqo.labelsTemplate" (merge (dict "isService" true) $templateConfig) | nindent 12 }}
           type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
           ports:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
@@ -53,6 +53,9 @@ spec:
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
+              volumes: 
+              - name: ipc 
+                emptyDir: {} 
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
@@ -62,8 +65,11 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
+                - --container-name=gateway
+                - --concurrent-containers-names=wireguard,geneve
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8080
                 {{- end }}
@@ -72,12 +78,13 @@ spec:
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
-                {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
-                {{- end }}
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8080
@@ -88,6 +95,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   privileged: true
                   capabilities:
@@ -103,6 +114,7 @@ spec:
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
+                - --container-name=wireguard
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --listen-port={{"{{ .Spec.Endpoint.Port }}"}}
                 {{- if .Values.metrics.enabled }}
@@ -110,6 +122,9 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8083
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8082
@@ -131,13 +146,18 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
+                - --container-name=geneve
                 - --geneve-port={{ .Values.networking.genevePort }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8084
@@ -148,6 +168,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   capabilities:
                     add:
