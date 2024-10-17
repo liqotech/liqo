@@ -163,19 +163,31 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if err := r.handleSecretRefStatus(ctx, wgServer); err != nil {
+		klog.Errorf("Error while handling secret ref status: %v", err)
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "SecretRefStatusFailed", fmt.Sprintf("Failed to handle secret ref status: %s", err))
 		return ctrl.Result{}, err
 	}
 
 	if err := r.handleInternalEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
+		klog.Errorf("Error while handling internal endpoint status: %v", err)
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "InternalEndpointStatusFailed", fmt.Sprintf("Failed to handle internal endpoint status: %s", err))
 		return ctrl.Result{}, err
 	}
 
 	if wgServer.Spec.SecretRef.Name == "" {
 		// Ensure WireGuard keys secret (create or update)
 		if err = ensureKeysSecret(ctx, r.Client, wgServer, gateway.ModeServer); err != nil {
+			r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "KeysSecretEnforcedFailed", "Failed to enforce keys secret")
 			return ctrl.Result{}, err
 		}
 		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "KeysSecretEnforced", "Enforced keys secret")
+	} else {
+		// Check that the secret exists and is correctly labeled
+		if err = checkExistingKeysSecret(ctx, r.Client, wgServer.Status.SecretRef.Name, wgServer.Namespace); err != nil {
+			r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "KeysSecretCheckFailed", fmt.Sprintf("Failed to check keys secret: %s", err))
+			return ctrl.Result{}, err
+		}
+		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "KeysSecretChecked", "Checked keys secret")
 	}
 
 	// Ensure deployment (create or update)

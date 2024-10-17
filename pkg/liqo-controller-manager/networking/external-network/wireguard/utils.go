@@ -143,6 +143,27 @@ func ensureKeysSecret(ctx context.Context, cl client.Client, wgObj metav1.Object
 	}
 }
 
+func checkExistingKeysSecret(ctx context.Context, cl client.Client, secretName, namespace string) error {
+	var s corev1.Secret
+	if err := cl.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &s); err != nil {
+		return err
+	}
+
+	// check labels
+	if s.Labels == nil {
+		return fmt.Errorf("missing labels in secret %q", secretName)
+	}
+
+	if s.Labels[consts.GatewayResourceLabel] != consts.GatewayResourceLabelValue {
+		return fmt.Errorf("missing %q label in secret %q", consts.GatewayResourceLabel, secretName)
+	}
+	if v, ok := s.Labels[consts.RemoteClusterID]; !ok || v == "" {
+		return fmt.Errorf("missing %q label in secret %q", consts.RemoteClusterID, secretName)
+	}
+
+	return nil
+}
+
 func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Object) (*corev1.Secret, error) {
 	wgObjNsName := types.NamespacedName{Name: wgObj.GetName(), Namespace: wgObj.GetNamespace()}
 
