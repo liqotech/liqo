@@ -164,13 +164,15 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if err := r.handleSecretRefStatus(ctx, wgServer); err != nil {
 		klog.Errorf("Error while handling secret ref status: %v", err)
-		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "SecretRefStatusFailed", fmt.Sprintf("Failed to handle secret ref status: %s", err))
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "SecretRefStatusFailed",
+			fmt.Sprintf("Failed to handle secret ref status: %s", err))
 		return ctrl.Result{}, err
 	}
 
 	if err := r.handleInternalEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
 		klog.Errorf("Error while handling internal endpoint status: %v", err)
-		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "InternalEndpointStatusFailed", fmt.Sprintf("Failed to handle internal endpoint status: %s", err))
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "InternalEndpointStatusFailed",
+			fmt.Sprintf("Failed to handle internal endpoint status: %s", err))
 		return ctrl.Result{}, err
 	}
 
