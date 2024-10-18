@@ -20,12 +20,14 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -33,6 +35,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
@@ -50,10 +53,12 @@ var (
 )
 
 func init() {
+	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1beta1.AddToScheme(scheme))
 }
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 
 func main() {
 	var cmd = cobra.Command{
@@ -109,6 +114,15 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()
+
+	// Create the client. This client should be used only outside the reconciler.
+	// This client does not need a cache.
+	cl, err := client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create client: %w", err)
+	}
 
 	// Create the manager.
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -189,6 +203,21 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+	}
+
+	runnable, err := concurrent.NewRunnableGateway(
+		cl,
+		connoptions.GwOptions.PodName,
+		connoptions.GwOptions.Name,
+		connoptions.GwOptions.Namespace,
+		connoptions.GwOptions.ConcurrentContainersNames,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create concurrent runnable: %w", err)
+	}
+
+	if err := mgr.Add(runnable); err != nil {
+		return fmt.Errorf("unable to add concurrent runnable: %w", err)
 	}
 
 	// Start the manager.

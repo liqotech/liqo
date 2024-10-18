@@ -17,7 +17,6 @@ package wireguard
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -286,26 +285,18 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 		return nil
 	}
 
-	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
+	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
 	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
 		return err
 	}
 
-	if len(podList.Items) == 0 {
-		err := fmt.Errorf("no pods found for deployment %s/%s", dep.Namespace, dep.Name)
+	if len(podList.Items) != 1 {
+		err := fmt.Errorf("wrong number of pods for deployment %s/%s: %d (must be 1)", dep.Namespace, dep.Name, len(podList.Items))
 		klog.Error(err)
 		return err
 	}
-
-	// sort pods by creation timestamp (older first), and name
-	sort.Slice(podList.Items, func(i, j int) bool {
-		if podList.Items[i].CreationTimestamp.Equal(&podList.Items[j].CreationTimestamp) {
-			return podList.Items[i].Name < podList.Items[j].Name
-		}
-		return podList.Items[i].CreationTimestamp.Before(&podList.Items[j].CreationTimestamp)
-	})
 
 	if podList.Items[0].Status.PodIP == "" {
 		err := fmt.Errorf("pod %s/%s has no IP", podList.Items[0].Namespace, podList.Items[0].Name)

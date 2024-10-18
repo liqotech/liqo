@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"golang.org/x/exp/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -384,94 +383,44 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 	port := service.Spec.Ports[0].NodePort
 	protocol := &service.Spec.Ports[0].Protocol
 
-	// Every node IP is a valid endpoint. For convenience, we get the IP of all nodes hosting replicas of the deployment
-	// (i.e., WireGuard gateway servers).
-	var addresses []string
-	var internalAddress string
-	var nodeName string
-	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
+	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
 	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
 		return nil, nil, err
 	}
 
-	// Check if the number of pods found (i.e., in cache) matches the number of desired replicas.
-	if err := r.numPodsMatchesDesiredReplicas(len(podList.Items), dep); err != nil {
-		return nil, nil, err
-	}
-
-	switch len(podList.Items) {
-	case 0:
-		err := fmt.Errorf("pods of deployment %s/%s not found", dep.Namespace, dep.Name)
+	if len(podList.Items) != 1 {
+		err := fmt.Errorf("wrong number of pods for deployment %s/%s: %d (must be 1)", dep.Namespace, dep.Name, len(podList.Items))
 		klog.Error(err)
 		return nil, nil, err
-	default:
-		// TODO: if using active-passive, it should get the IP of the active node
-		// Get all nodes hosting pod replicas of the WireGuard server deployment
-		var nodes []*corev1.Node
-		for i := range podList.Items {
-			pod := &podList.Items[i]
-			// get node hosting pod
-			var node corev1.Node
-			err := r.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
-			if err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("Unable to get node %q: %v", pod.Spec.NodeName, err)
-				return nil, nil, err
-			}
-			if !apierrors.IsNotFound(err) {
-				nodes = append(nodes, &node)
-			}
-		}
-		// For every node, get IP address. We avoid duplicate utilizing a map and then converting to array.
-		// Note that duplicates should not happen if the deployment correctly have replicas spread across different nodes,
-		// but we double check anyway.
-		addressesMap := make(map[string]string)
-		for i := range nodes {
-			if utils.IsNodeReady(nodes[i]) {
-				address, err := utils.GetAddress(nodes[i])
-				if err == nil {
-					addressesMap[address] = nodes[i].Name
-				}
-			}
-		}
-		// If addressesMap is empty, it could be due to temporary not ready nodes.
-		// In this case, we choose a random one (e.g., the first)
-		if len(addressesMap) == 0 {
-			if len(nodes) > 0 {
-				address, err := utils.GetAddress(nodes[0])
-				if err == nil {
-					addressesMap[address] = nodes[0].Name
-				}
-			}
-		}
-		// If addressesMap is still empty, we raise an error
-		if len(addressesMap) == 0 {
-			err := fmt.Errorf("no valid addresses found for WireGuard server %s/%s", service.Namespace, service.Name)
-			klog.Error(err)
-			return nil, nil, err
-		}
-		// Addresses contains only the keys to avoid duplicates
-		addresses = maps.Keys(addressesMap)
-		// TODO: if using active-passive, it should get the IP of the active node
-		nodeName = addressesMap[addresses[0]]
 	}
 
-	// get the ip of the pod running on the node
-	for i := range podList.Items {
-		pod := &podList.Items[i]
-		if pod.Spec.NodeName == nodeName {
-			internalAddress = pod.Status.PodIP
-			if internalAddress == "" {
-				err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
-				klog.Error(err)
-				return nil, nil, err
-			}
-			break
+	pod := &podList.Items[0]
+
+	node := &corev1.Node{}
+	err := r.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, node)
+	if err != nil && !apierrors.IsNotFound(err) {
+		klog.Errorf("Unable to get node %q: %v", pod.Spec.NodeName, err)
+		return nil, nil, err
+	}
+
+	addresses := make([]string, 1)
+	if utils.IsNodeReady(node) {
+		if addresses[0], err = utils.GetAddress(node); err != nil {
+			klog.Errorf("Unable to get address of node %q: %v", pod.Spec.NodeName, err)
+			return nil, nil, err
 		}
 	}
 
 	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
+		return nil, nil, err
+	}
+
+	internalAddress := pod.Status.PodIP
+	if internalAddress == "" {
+		err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
+		klog.Error(err)
 		return nil, nil, err
 	}
 
@@ -481,28 +430,8 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 			Addresses: addresses,
 		}, &networkingv1beta1.InternalGatewayEndpoint{
 			IP:   ptr.To(networkingv1beta1.IP(internalAddress)),
-			Node: &nodeName,
+			Node: &pod.Spec.NodeName,
 		}, nil
-}
-
-func (r *WgGatewayServerReconciler) numPodsMatchesDesiredReplicas(numPods int, dep *appsv1.Deployment) error {
-	var desiredReplicas int
-	if dep.Spec.Replicas != nil {
-		desiredReplicas = int(*dep.Spec.Replicas)
-	} else {
-		desiredReplicas = 1 // default value if field is nil, as specified in the official API
-	}
-
-	if numPods != desiredReplicas {
-		// The number of pods listed does not match the desired replicas, possibly due to a cache sync error.
-		// We raise an error to force requeue.
-		err := fmt.Errorf("pods found for deployment %s/%s (%d) does not match desired replicas (%d), possible cache sync error",
-			dep.Namespace, dep.Name, numPods, desiredReplicas)
-		klog.Warning(err)
-		return err
-	}
-
-	return nil
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *corev1.Service) (*networkingv1beta1.EndpointStatus, error) {

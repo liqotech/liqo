@@ -22,7 +22,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -31,9 +30,9 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
-	"github.com/liqotech/liqo/pkg/gateway/forge"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -90,17 +89,7 @@ func run(cmd *cobra.Command, _ []string) error {
 			BindAddress: options.GwOptions.MetricsAddress,
 		},
 		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
-		LeaderElection:         options.GwOptions.LeaderElection,
-		LeaderElectionID: fmt.Sprintf(
-			"%s.%s.%s.genevegateway.liqo.io",
-			forge.GatewayResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
-		),
-		LeaderElectionNamespace:       options.GwOptions.Namespace,
-		LeaderElectionReleaseOnCancel: true,
-		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
+		LeaderElection:         false,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
@@ -119,6 +108,15 @@ func run(cmd *cobra.Command, _ []string) error {
 	if err := inr.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
 	}
+
+	runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
+	if err != nil {
+		return fmt.Errorf("unable to create runnable guest: %w", err)
+	}
+	if err := runnable.Start(cmd.Context()); err != nil {
+		return fmt.Errorf("unable to start runnable guest: %w", err)
+	}
+	defer runnable.Close()
 
 	// Start the manager.
 	return mgr.Start(cmd.Context())
