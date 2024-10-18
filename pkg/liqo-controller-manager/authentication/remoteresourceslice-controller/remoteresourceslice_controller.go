@@ -17,9 +17,10 @@ package remoteresourceslicecontroller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -98,7 +99,7 @@ type RemoteResourceSliceReconciler struct {
 func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	var resourceSlice authv1beta1.ResourceSlice
 	if err = r.Get(ctx, req.NamespacedName, &resourceSlice); err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			klog.V(4).Infof("resourceSlice %q not found", req.NamespacedName)
 			return ctrl.Result{}, nil
 		}
@@ -135,6 +136,19 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		}
 	}()
 
+	// Make sure that the resource slice has been created in the tentant namespace dedicated to the current consumer
+	err = validateRSNamespace(ctx, r.Client, req.Namespace, string(*resourceSlice.Spec.ConsumerClusterID))
+	switch {
+	case kerrors.IsBadRequest(err):
+		klog.Errorf("Invalid ResourceSlice %q provided: %s", req.NamespacedName, err)
+		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "Invalid ResourceSlice", err.Error())
+		denyAuthentication(&resourceSlice, r.eventRecorder)
+		return ctrl.Result{}, nil
+	case err != nil:
+		klog.Errorf("unable to get tenant Namespace of ResourceSlice %q: %v", req.NamespacedName, err)
+		return ctrl.Result{}, err
+	}
+
 	// Handle the ResourceSlice authentication status
 	if err = r.handleAuthenticationStatus(ctx, &resourceSlice, tenant); err != nil {
 		return ctrl.Result{}, err
@@ -151,7 +165,8 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.Context,
 	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
 	// check that the CSR is valid
-	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice); err != nil {
+	shouldCheckPublicKey := authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake
+	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice, shouldCheckPublicKey); err != nil {
 		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
 		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		denyAuthentication(resourceSlice, r.eventRecorder)
@@ -256,7 +271,11 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceRemote).
-		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
+		For(
+			&authv1beta1.ResourceSlice{},
+			// With GenerationChangedPredicate we prevent to reconcile multiple times when the status of the resource changes
+			builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR(), predicate.GenerationChangedPredicate{})),
+		).
 		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
 		Complete(r)
 }
@@ -387,4 +406,24 @@ func isInResourceClasses(resourceSlice *authv1beta1.ResourceSlice, classes ...au
 		}
 	}
 	return false
+}
+
+// validateRSNamespace makes sure that the ResourceSlice has been created in the tenant namespace dedicated to the consumer cluster.
+func validateRSNamespace(ctx context.Context, c client.Client, namespace, consumerClusterID string) error {
+	var tenantNamespace corev1.Namespace
+	if err := c.Get(ctx, types.NamespacedName{Name: namespace}, &tenantNamespace); err != nil {
+		return err
+	}
+
+	if tenantLabel, labelPresent := tenantNamespace.Labels[consts.TenantNamespaceLabel]; !labelPresent || strings.EqualFold(tenantLabel, "false") {
+		return kerrors.NewBadRequest("A ResourceSlice cannot be created in a namespace different than the Tenant namespace")
+	}
+
+	if clusterIDLabel, labelPresent := tenantNamespace.Labels[consts.RemoteClusterID]; !labelPresent || clusterIDLabel != consumerClusterID {
+		return kerrors.NewBadRequest(
+			fmt.Sprintf("ResourceSlice belonging to %q has been created in the Tenant namespace of %q", consumerClusterID, clusterIDLabel),
+		)
+	}
+
+	return nil
 }
