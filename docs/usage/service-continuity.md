@@ -6,6 +6,22 @@ It reports the main architectural design choices and the options to better handl
 For simplicity, we consider a simple consumer-provider setup, where the consumer/local cluster offloads an application to a provider/remote cluster.
 Since a single peering is unidirectional and between two clusters, all the following considerations can be extended to more complex setups involving bidirectional peerings and/or multiple clusters.
 
+(ServiceContinuityHA)=
+
+## High-availability Liqo components
+
+Liqo allows to deploy the most critical Liqo components in high availability.
+This is achieved by deploying multiple replicas of the same component in an **active/passive** fashion.
+This ensures that, even after eventual pod restarts or node failures, exactly one replica is always active while the remaining ones run on standby.
+
+The supported components (pods) in high availability are:
+
+- ***liqo-controller-manager*** (active-passive): ensures the Liqo control plane logic is always enforced. The number of replicas is configurable through the Helm value `controllerManager.replicas`
+- ***wireguard gateway server and client*** (active-passive): ensures no cross-cluster connectivity downtime. The number of replicas is configurable through the Helm value `networking.gatewayTemplates.replicas`
+- ***webhook*** (active-passive): ensures the enforcement of Liqo resources is responsive, as at least one liqo webhook pod is always active and reachable from its Service. The number of replicas is configurable through the Helm value `webhook.replicas`
+- ***virtual-kubelet*** (active-passive): improves VirtualNodes responsiveness when the leading virtual-kubelet has some failures or is restarted. The number of replicas is configurable through the Helm value `virtualKubelet.replicas`
+- ***ipam*** (active-passive): ensures IPs and Networks management is always up and responsive. The number of replicas is configurable through the Helm value `ipam.internal.replicas`
+
 ## Resilience to cluster failures/unavailability
 
 Liqo performs periodic checks to ensure the availability and readiness of all peered clusters.
@@ -102,16 +118,3 @@ Enabling the controller can have some minor drawbacks: when the pod is force-del
 This means that in the (rare) case that the failed node becomes ready again and without an OS restart, the containers in the pod will not be gracefully deleted by the API server because the entry is not in the database anymore.
 The side effect is that zombie processes associated with the pod will remain in the node until the next OS restart or manual cleanup.
 ```
-
-## High-availability Liqo components
-
-Liqo allows to deploy the most critical Liqo components in high availability.
-This is achieved by deploying multiple replicas of the same component in an **active/standby** fashion.
-This ensures that, even after eventual pod restarts or node failures, exactly one replica is always active while the remaining ones run on standby.
-
-The supported components in high availability are:
-
-- ***liqo-gateway***: ensures no cross-cluster connectivity downtime. The number of replicas is configurable through the Helm value `gateway.replicas`
-- ***liqo-controller-manager***: ensures the Liqo control plane logic is always enforced. The number of replicas is configurable through the Helm value `controllerManager.replicas`
-
-Look at the [install customization options section](InstallCustomization) for further details on how to configure high availability during Liqo installation.
