@@ -156,8 +156,6 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().Var(&clusterLabels, "cluster-labels",
 		"The set of labels (i.e., key/value pairs, separated by comma) identifying the current cluster, and propagated to the virtual nodes")
 
-	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false,
-		"Enable the support for high-availability of Liqo components, currently supported by the gateway and the controller manager.")
 	cmd.PersistentFlags().Var(&reservedSubnets, "reserved-subnets",
 		"The private CIDRs to be excluded, as already in use (e.g., the subnet of the cluster nodes); PodCIDR and ServiceCIDR shall not be included.")
 

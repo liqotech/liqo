@@ -388,7 +388,6 @@ Before listing all the parameters, we start here with some general consideration
 
 The main global flags, besides those concerning the installation of [development versions](InstallationDevelopmentVersions), include:
 
-* `--enable-ha`: enables the support for **high-availability of the Liqo components**, starting two replicas (in an active/standby configuration) of the **gateway** to ensure no cross-cluster connectivity downtime in case one of the replicas is restarted, as well as of the **controller manager**, which embeds the Liqo control plane logic.
 * `--enable-metrics`: exposes Liqo **metrics** through **Prometheus** (see the dedicated [Prometheus metrics page](/usage/prometheus-metrics.md) for additional details).
 * `--timeout`: configures the timeout for the completion of the installation/upgrade process.
   Once expired, the process is aborted and Liqo is rolled back to the previous version.
@@ -416,6 +415,12 @@ The main networking flags include:
 
 * `--reserved-subnets`: the list of **private CIDRs to be excluded** from the ones used by Liqo to remap remote clusters in case of address conflicts, as already in use (e.g., the subnet of the cluster nodes).
 The Pod CIDR and the Service CIDR shall not be manually specified, as automatically included in the reserved list.
+
+### High availability components
+
+Enables the support for **high-availability of the Liqo components**, starting multiple replicas of the same pod in an active/passive fashion.
+This ensures that, even after eventual pod restarts or node failures, exactly one replica is always active while the remaining ones run on standby.
+Refer to this [page](ServiceContinuityHA) to see which components you can configure in HA and how to set the the number of desired replicas.
 
 (InstallationHelm)=
 
