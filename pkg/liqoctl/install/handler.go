@@ -94,7 +94,6 @@ type CommonOptions struct {
 	ClusterID     liqov1beta1.ClusterID
 	ClusterLabels map[string]string
 
-	EnableHA         bool
 	EnableMetrics    bool
 	DisableTelemetry bool
 
@@ -350,11 +349,6 @@ func (o *Options) isRelease() bool {
 }
 
 func (o *Options) preProviderValues() map[string]interface{} {
-	replicas := 1
-	if o.EnableHA {
-		replicas = 2
-	}
-
 	return map[string]interface{}{
 		"tag": o.Version,
 
@@ -373,10 +367,6 @@ func (o *Options) preProviderValues() map[string]interface{} {
 				"clusterID":     string(o.ClusterID),
 				"clusterLabels": util.GetInterfaceMap(o.ClusterLabels),
 			},
-		},
-
-		"controllerManager": map[string]interface{}{
-			"replicas": float64(replicas),
 		},
 
 		"ipam": map[string]interface{}{
