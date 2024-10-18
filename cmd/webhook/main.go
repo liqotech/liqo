@@ -75,7 +75,7 @@ func main() {
 	webhookPort := pflag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := pflag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := pflag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
-	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
+	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for the webhook pod")
 
 	// Global parameters
 	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
