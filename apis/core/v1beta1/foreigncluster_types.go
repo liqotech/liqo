@@ -96,8 +96,11 @@ const (
 	APIServerStatusCondition ConditionType = "APIServerStatus"
 
 	// NETWORKING
+	// NetworkConfigurationStatusCondition tells whether the network configuration of the peer cluster is present.
+	NetworkConfigurationStatusCondition ConditionType = "NetworkConfigurationStatus"
 	// NetworkConnectionStatusCondition shows the network connection status.
 	NetworkConnectionStatusCondition ConditionType = "NetworkConnectionStatus"
+	NetworkGatewayPresenceCondition  ConditionType = "NetworkGatewayPresence"
 	// NetworkGatewayServerStatusCondition shows the network gateway server status.
 	NetworkGatewayServerStatusCondition ConditionType = "NetworkGatewayServerStatus"
 	// NetworkGatewayClientStatusCondition shows the network gateway client status.
@@ -139,7 +142,7 @@ const (
 // Condition contains details about state of a.
 type Condition struct {
 	// Type of the condition.
-	// +kubebuilder:validation:Enum="APIServerStatus";"NetworkConnectionStatus";"NetworkGatewayServerStatus";"NetworkGatewayClientStatus";"AuthIdentityControlPlaneStatus";"AuthTenantStatus";"OffloadingVirtualNodeStatus";"OffloadingNodeStatus"
+	// +kubebuilder:validation:Enum="APIServerStatus";"NetworkConnectionStatus";"NetworkGatewayServerStatus";"NetworkGatewayClientStatus";"NetworkGatewayPresence";"NetworkConfigurationStatus";"AuthIdentityControlPlaneStatus";"AuthTenantStatus";"OffloadingVirtualNodeStatus";"OffloadingNodeStatus"
 	//
 	//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 	Type ConditionType `json:"type"`
