@@ -75,6 +75,11 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	if resourceSlice.DeletionTimestamp != nil {
+		klog.V(6).Infof("ResourceSlice %q is being deleted", req.NamespacedName)
+		return ctrl.Result{}, nil
+	}
+
 	if resourceSlice.Annotations == nil ||
 		resourceSlice.Annotations[consts.CreateVirtualNodeAnnotation] == "" ||
 		strings.EqualFold(resourceSlice.Annotations[consts.CreateVirtualNodeAnnotation], "false") {
