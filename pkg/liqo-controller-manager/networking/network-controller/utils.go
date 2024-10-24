@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	"github.com/liqotech/liqo/pkg/ipam"
+	ipam "github.com/liqotech/liqo/pkg/ipamold"
 )
 
 // getExternalCIDR returns the remapped external CIDR for the given CIDR.
