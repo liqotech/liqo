@@ -20,8 +20,8 @@ import (
 
 	grpc "google.golang.org/grpc"
 
-	"github.com/liqotech/liqo/pkg/ipam"
-	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
+	ipam "github.com/liqotech/liqo/pkg/ipamold"
+	ipamutils "github.com/liqotech/liqo/pkg/ipamold/utils"
 )
 
 var _ ipam.IpamClient = &IPAMClient{}

@@ -28,7 +28,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/ipam"
+	ipam "github.com/liqotech/liqo/pkg/ipamold"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 

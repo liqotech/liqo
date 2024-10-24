@@ -33,8 +33,8 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	ipamerrors "github.com/liqotech/liqo/pkg/ipam/errors"
-	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
+	ipamerrors "github.com/liqotech/liqo/pkg/ipamold/errors"
+	ipamutils "github.com/liqotech/liqo/pkg/ipamold/utils"
 )
 
 const (
