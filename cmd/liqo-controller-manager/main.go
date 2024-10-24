@@ -48,7 +48,7 @@ import (
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	"github.com/liqotech/liqo/pkg/ipam"
+	ipam "github.com/liqotech/liqo/pkg/ipamold"
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
