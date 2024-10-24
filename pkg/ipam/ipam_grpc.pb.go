@@ -20,367 +20,253 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Ipam_MapEndpointIP_FullMethodName        = "/ipam/MapEndpointIP"
-	Ipam_UnmapEndpointIP_FullMethodName      = "/ipam/UnmapEndpointIP"
-	Ipam_MapNetworkCIDR_FullMethodName       = "/ipam/MapNetworkCIDR"
-	Ipam_UnmapNetworkCIDR_FullMethodName     = "/ipam/UnmapNetworkCIDR"
-	Ipam_GetHomePodIP_FullMethodName         = "/ipam/GetHomePodIP"
-	Ipam_BelongsToPodCIDR_FullMethodName     = "/ipam/BelongsToPodCIDR"
-	Ipam_GetOrSetExternalCIDR_FullMethodName = "/ipam/GetOrSetExternalCIDR"
-	Ipam_SetSubnetsPerCluster_FullMethodName = "/ipam/SetSubnetsPerCluster"
+	IPAM_IPAcquire_FullMethodName          = "/IPAM/IPAcquire"
+	IPAM_IPRelease_FullMethodName          = "/IPAM/IPRelease"
+	IPAM_NetworkAcquire_FullMethodName     = "/IPAM/NetworkAcquire"
+	IPAM_NetworkRelease_FullMethodName     = "/IPAM/NetworkRelease"
+	IPAM_NetworkIsAvailable_FullMethodName = "/IPAM/NetworkIsAvailable"
 )
 
-// IpamClient is the client API for Ipam service.
+// IPAMClient is the client API for IPAM service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type IpamClient interface {
-	MapEndpointIP(ctx context.Context, in *MapRequest, opts ...grpc.CallOption) (*MapResponse, error)
-	UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts ...grpc.CallOption) (*UnmapResponse, error)
-	MapNetworkCIDR(ctx context.Context, in *MapCIDRRequest, opts ...grpc.CallOption) (*MapCIDRResponse, error)
-	UnmapNetworkCIDR(ctx context.Context, in *UnmapCIDRRequest, opts ...grpc.CallOption) (*UnmapCIDRResponse, error)
-	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
-	BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error)
-	GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCIDRRequest, opts ...grpc.CallOption) (*GetOrSetExtCIDRResponse, error)
-	SetSubnetsPerCluster(ctx context.Context, in *SetSubnetsPerClusterRequest, opts ...grpc.CallOption) (*SetSubnetsPerClusterResponse, error)
+type IPAMClient interface {
+	IPAcquire(ctx context.Context, in *IPAcquireRequest, opts ...grpc.CallOption) (*IPAcquireResponse, error)
+	IPRelease(ctx context.Context, in *IPReleaseRequest, opts ...grpc.CallOption) (*IPReleaseResponse, error)
+	NetworkAcquire(ctx context.Context, in *NetworkAcquireRequest, opts ...grpc.CallOption) (*NetworkAcquireResponse, error)
+	NetworkRelease(ctx context.Context, in *NetworkReleaseRequest, opts ...grpc.CallOption) (*NetworkReleaseResponse, error)
+	NetworkIsAvailable(ctx context.Context, in *NetworkAvailableRequest, opts ...grpc.CallOption) (*NetworkAvailableResponse, error)
 }
 
-type ipamClient struct {
+type iPAMClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewIpamClient(cc grpc.ClientConnInterface) IpamClient {
-	return &ipamClient{cc}
+func NewIPAMClient(cc grpc.ClientConnInterface) IPAMClient {
+	return &iPAMClient{cc}
 }
 
-func (c *ipamClient) MapEndpointIP(ctx context.Context, in *MapRequest, opts ...grpc.CallOption) (*MapResponse, error) {
+func (c *iPAMClient) IPAcquire(ctx context.Context, in *IPAcquireRequest, opts ...grpc.CallOption) (*IPAcquireResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MapResponse)
-	err := c.cc.Invoke(ctx, Ipam_MapEndpointIP_FullMethodName, in, out, cOpts...)
+	out := new(IPAcquireResponse)
+	err := c.cc.Invoke(ctx, IPAM_IPAcquire_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ipamClient) UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts ...grpc.CallOption) (*UnmapResponse, error) {
+func (c *iPAMClient) IPRelease(ctx context.Context, in *IPReleaseRequest, opts ...grpc.CallOption) (*IPReleaseResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UnmapResponse)
-	err := c.cc.Invoke(ctx, Ipam_UnmapEndpointIP_FullMethodName, in, out, cOpts...)
+	out := new(IPReleaseResponse)
+	err := c.cc.Invoke(ctx, IPAM_IPRelease_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ipamClient) MapNetworkCIDR(ctx context.Context, in *MapCIDRRequest, opts ...grpc.CallOption) (*MapCIDRResponse, error) {
+func (c *iPAMClient) NetworkAcquire(ctx context.Context, in *NetworkAcquireRequest, opts ...grpc.CallOption) (*NetworkAcquireResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MapCIDRResponse)
-	err := c.cc.Invoke(ctx, Ipam_MapNetworkCIDR_FullMethodName, in, out, cOpts...)
+	out := new(NetworkAcquireResponse)
+	err := c.cc.Invoke(ctx, IPAM_NetworkAcquire_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ipamClient) UnmapNetworkCIDR(ctx context.Context, in *UnmapCIDRRequest, opts ...grpc.CallOption) (*UnmapCIDRResponse, error) {
+func (c *iPAMClient) NetworkRelease(ctx context.Context, in *NetworkReleaseRequest, opts ...grpc.CallOption) (*NetworkReleaseResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UnmapCIDRResponse)
-	err := c.cc.Invoke(ctx, Ipam_UnmapNetworkCIDR_FullMethodName, in, out, cOpts...)
+	out := new(NetworkReleaseResponse)
+	err := c.cc.Invoke(ctx, IPAM_NetworkRelease_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ipamClient) GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error) {
+func (c *iPAMClient) NetworkIsAvailable(ctx context.Context, in *NetworkAvailableRequest, opts ...grpc.CallOption) (*NetworkAvailableResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetHomePodIPResponse)
-	err := c.cc.Invoke(ctx, Ipam_GetHomePodIP_FullMethodName, in, out, cOpts...)
+	out := new(NetworkAvailableResponse)
+	err := c.cc.Invoke(ctx, IPAM_NetworkIsAvailable_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ipamClient) BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BelongsResponse)
-	err := c.cc.Invoke(ctx, Ipam_BelongsToPodCIDR_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *ipamClient) GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCIDRRequest, opts ...grpc.CallOption) (*GetOrSetExtCIDRResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetOrSetExtCIDRResponse)
-	err := c.cc.Invoke(ctx, Ipam_GetOrSetExternalCIDR_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *ipamClient) SetSubnetsPerCluster(ctx context.Context, in *SetSubnetsPerClusterRequest, opts ...grpc.CallOption) (*SetSubnetsPerClusterResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetSubnetsPerClusterResponse)
-	err := c.cc.Invoke(ctx, Ipam_SetSubnetsPerCluster_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// IpamServer is the server API for Ipam service.
-// All implementations must embed UnimplementedIpamServer
+// IPAMServer is the server API for IPAM service.
+// All implementations must embed UnimplementedIPAMServer
 // for forward compatibility.
-type IpamServer interface {
-	MapEndpointIP(context.Context, *MapRequest) (*MapResponse, error)
-	UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error)
-	MapNetworkCIDR(context.Context, *MapCIDRRequest) (*MapCIDRResponse, error)
-	UnmapNetworkCIDR(context.Context, *UnmapCIDRRequest) (*UnmapCIDRResponse, error)
-	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
-	BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error)
-	GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error)
-	SetSubnetsPerCluster(context.Context, *SetSubnetsPerClusterRequest) (*SetSubnetsPerClusterResponse, error)
-	mustEmbedUnimplementedIpamServer()
+type IPAMServer interface {
+	IPAcquire(context.Context, *IPAcquireRequest) (*IPAcquireResponse, error)
+	IPRelease(context.Context, *IPReleaseRequest) (*IPReleaseResponse, error)
+	NetworkAcquire(context.Context, *NetworkAcquireRequest) (*NetworkAcquireResponse, error)
+	NetworkRelease(context.Context, *NetworkReleaseRequest) (*NetworkReleaseResponse, error)
+	NetworkIsAvailable(context.Context, *NetworkAvailableRequest) (*NetworkAvailableResponse, error)
+	mustEmbedUnimplementedIPAMServer()
 }
 
-// UnimplementedIpamServer must be embedded to have
+// UnimplementedIPAMServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedIpamServer struct{}
+type UnimplementedIPAMServer struct{}
 
-func (UnimplementedIpamServer) MapEndpointIP(context.Context, *MapRequest) (*MapResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MapEndpointIP not implemented")
+func (UnimplementedIPAMServer) IPAcquire(context.Context, *IPAcquireRequest) (*IPAcquireResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IPAcquire not implemented")
 }
-func (UnimplementedIpamServer) UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UnmapEndpointIP not implemented")
+func (UnimplementedIPAMServer) IPRelease(context.Context, *IPReleaseRequest) (*IPReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IPRelease not implemented")
 }
-func (UnimplementedIpamServer) MapNetworkCIDR(context.Context, *MapCIDRRequest) (*MapCIDRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MapNetworkCIDR not implemented")
+func (UnimplementedIPAMServer) NetworkAcquire(context.Context, *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NetworkAcquire not implemented")
 }
-func (UnimplementedIpamServer) UnmapNetworkCIDR(context.Context, *UnmapCIDRRequest) (*UnmapCIDRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UnmapNetworkCIDR not implemented")
+func (UnimplementedIPAMServer) NetworkRelease(context.Context, *NetworkReleaseRequest) (*NetworkReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NetworkRelease not implemented")
 }
-func (UnimplementedIpamServer) GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetHomePodIP not implemented")
+func (UnimplementedIPAMServer) NetworkIsAvailable(context.Context, *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NetworkIsAvailable not implemented")
 }
-func (UnimplementedIpamServer) BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BelongsToPodCIDR not implemented")
-}
-func (UnimplementedIpamServer) GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOrSetExternalCIDR not implemented")
-}
-func (UnimplementedIpamServer) SetSubnetsPerCluster(context.Context, *SetSubnetsPerClusterRequest) (*SetSubnetsPerClusterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetSubnetsPerCluster not implemented")
-}
-func (UnimplementedIpamServer) mustEmbedUnimplementedIpamServer() {}
-func (UnimplementedIpamServer) testEmbeddedByValue()              {}
+func (UnimplementedIPAMServer) mustEmbedUnimplementedIPAMServer() {}
+func (UnimplementedIPAMServer) testEmbeddedByValue()              {}
 
-// UnsafeIpamServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to IpamServer will
+// UnsafeIPAMServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to IPAMServer will
 // result in compilation errors.
-type UnsafeIpamServer interface {
-	mustEmbedUnimplementedIpamServer()
+type UnsafeIPAMServer interface {
+	mustEmbedUnimplementedIPAMServer()
 }
 
-func RegisterIpamServer(s grpc.ServiceRegistrar, srv IpamServer) {
-	// If the following call pancis, it indicates UnimplementedIpamServer was
+func RegisterIPAMServer(s grpc.ServiceRegistrar, srv IPAMServer) {
+	// If the following call pancis, it indicates UnimplementedIPAMServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&Ipam_ServiceDesc, srv)
+	s.RegisterService(&IPAM_ServiceDesc, srv)
 }
 
-func _Ipam_MapEndpointIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MapRequest)
+func _IPAM_IPAcquire_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IPAcquireRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).MapEndpointIP(ctx, in)
+		return srv.(IPAMServer).IPAcquire(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Ipam_MapEndpointIP_FullMethodName,
+		FullMethod: IPAM_IPAcquire_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).MapEndpointIP(ctx, req.(*MapRequest))
+		return srv.(IPAMServer).IPAcquire(ctx, req.(*IPAcquireRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_UnmapEndpointIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UnmapRequest)
+func _IPAM_IPRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IPReleaseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).UnmapEndpointIP(ctx, in)
+		return srv.(IPAMServer).IPRelease(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Ipam_UnmapEndpointIP_FullMethodName,
+		FullMethod: IPAM_IPRelease_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).UnmapEndpointIP(ctx, req.(*UnmapRequest))
+		return srv.(IPAMServer).IPRelease(ctx, req.(*IPReleaseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_MapNetworkCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MapCIDRRequest)
+func _IPAM_NetworkAcquire_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NetworkAcquireRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).MapNetworkCIDR(ctx, in)
+		return srv.(IPAMServer).NetworkAcquire(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Ipam_MapNetworkCIDR_FullMethodName,
+		FullMethod: IPAM_NetworkAcquire_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).MapNetworkCIDR(ctx, req.(*MapCIDRRequest))
+		return srv.(IPAMServer).NetworkAcquire(ctx, req.(*NetworkAcquireRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_UnmapNetworkCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UnmapCIDRRequest)
+func _IPAM_NetworkRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NetworkReleaseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).UnmapNetworkCIDR(ctx, in)
+		return srv.(IPAMServer).NetworkRelease(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Ipam_UnmapNetworkCIDR_FullMethodName,
+		FullMethod: IPAM_NetworkRelease_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).UnmapNetworkCIDR(ctx, req.(*UnmapCIDRRequest))
+		return srv.(IPAMServer).NetworkRelease(ctx, req.(*NetworkReleaseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_GetHomePodIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetHomePodIPRequest)
+func _IPAM_NetworkIsAvailable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NetworkAvailableRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).GetHomePodIP(ctx, in)
+		return srv.(IPAMServer).NetworkIsAvailable(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Ipam_GetHomePodIP_FullMethodName,
+		FullMethod: IPAM_NetworkIsAvailable_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).GetHomePodIP(ctx, req.(*GetHomePodIPRequest))
+		return srv.(IPAMServer).NetworkIsAvailable(ctx, req.(*NetworkAvailableRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_BelongsToPodCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BelongsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IpamServer).BelongsToPodCIDR(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Ipam_BelongsToPodCIDR_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).BelongsToPodCIDR(ctx, req.(*BelongsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Ipam_GetOrSetExternalCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetOrSetExtCIDRRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IpamServer).GetOrSetExternalCIDR(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Ipam_GetOrSetExternalCIDR_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).GetOrSetExternalCIDR(ctx, req.(*GetOrSetExtCIDRRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Ipam_SetSubnetsPerCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetSubnetsPerClusterRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IpamServer).SetSubnetsPerCluster(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Ipam_SetSubnetsPerCluster_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).SetSubnetsPerCluster(ctx, req.(*SetSubnetsPerClusterRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// Ipam_ServiceDesc is the grpc.ServiceDesc for Ipam service.
+// IPAM_ServiceDesc is the grpc.ServiceDesc for IPAM service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Ipam_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ipam",
-	HandlerType: (*IpamServer)(nil),
+var IPAM_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "IPAM",
+	HandlerType: (*IPAMServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "MapEndpointIP",
-			Handler:    _Ipam_MapEndpointIP_Handler,
+			MethodName: "IPAcquire",
+			Handler:    _IPAM_IPAcquire_Handler,
 		},
 		{
-			MethodName: "UnmapEndpointIP",
-			Handler:    _Ipam_UnmapEndpointIP_Handler,
+			MethodName: "IPRelease",
+			Handler:    _IPAM_IPRelease_Handler,
 		},
 		{
-			MethodName: "MapNetworkCIDR",
-			Handler:    _Ipam_MapNetworkCIDR_Handler,
+			MethodName: "NetworkAcquire",
+			Handler:    _IPAM_NetworkAcquire_Handler,
 		},
 		{
-			MethodName: "UnmapNetworkCIDR",
-			Handler:    _Ipam_UnmapNetworkCIDR_Handler,
+			MethodName: "NetworkRelease",
+			Handler:    _IPAM_NetworkRelease_Handler,
 		},
 		{
-			MethodName: "GetHomePodIP",
-			Handler:    _Ipam_GetHomePodIP_Handler,
-		},
-		{
-			MethodName: "BelongsToPodCIDR",
-			Handler:    _Ipam_BelongsToPodCIDR_Handler,
-		},
-		{
-			MethodName: "GetOrSetExternalCIDR",
-			Handler:    _Ipam_GetOrSetExternalCIDR_Handler,
-		},
-		{
-			MethodName: "SetSubnetsPerCluster",
-			Handler:    _Ipam_SetSubnetsPerCluster_Handler,
+			MethodName: "NetworkIsAvailable",
+			Handler:    _IPAM_NetworkIsAvailable_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
