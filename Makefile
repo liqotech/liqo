@@ -162,26 +162,18 @@ generate-groups:
 # Generate gRPC files
 grpc: protoc
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/ipam/ipam.proto
-	$(PROTOC) --go_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go_opt=paths=source_relative \
-			  --go-grpc_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go-grpc_opt=paths=source_relative \
-			  -I pkg/liqo-controller-manager/resource-request-controller/resource-monitors \
-			  pkg/liqo-controller-manager/resource-request-controller/resource-monitors/resource-reader.proto 
 
 protoc:
 ifeq (, $(shell which protoc))
 	@{ \
 	PB_REL="https://github.com/protocolbuffers/protobuf/releases" ;\
-	version=3.15.5 ;\
+	version=28.3 ;\
 	arch=x86_64 ;\
 	curl -LO $${PB_REL}/download/v$${version}/protoc-$${version}-linux-$${arch}.zip ;\
 	unzip protoc-$${version}-linux-$${arch}.zip -d $${HOME}/.local ;\
 	rm protoc-$${version}-linux-$${arch}.zip ;\
-	PROTOC_TMP_DIR=$$(mktemp -d) ;\
-	cd $$PROTOC_TMP_DIR ;\
-	go mod init tmp ;\
-	go get google.golang.org/protobuf/cmd/protoc-gen-go ;\
-	go get google.golang.org/grpc/cmd/protoc-gen-go-grpc ;\
-	rm -rf $$PROTOC_TMP_DIR ;\
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest ;\
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest ;\
 	}
 endif
 PROTOC=$(shell which protoc)
