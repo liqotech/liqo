@@ -27,7 +27,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
-	"github.com/liqotech/liqo/pkg/ipam/utils"
+	"github.com/liqotech/liqo/pkg/ipamold/utils"
 )
 
 func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context,
