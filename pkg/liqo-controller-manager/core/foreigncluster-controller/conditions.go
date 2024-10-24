@@ -24,6 +24,9 @@ const (
 	connectionErrorReason  = "ConnectionError"
 	connectionErrorMessage = "The network connection with the foreign cluster is in error"
 
+	connectionMissingReason  = "ConnectionMissing"
+	connectionMissingMessage = "There is no network connection with the foreign cluster"
+
 	gatewaysReadyReason  = "GatewaysReady"
 	gatewaysReadyMessage = "All gateway replicas are ready"
 
@@ -32,6 +35,18 @@ const (
 
 	gatewaysNotReadyReason  = "GatewaysNotReady"
 	gatewaysNotReadyMessage = "All gateway replicas are not ready"
+
+	gatewayMissingReason  = "GatewayMissing"
+	gatewayMissingMessage = "The gateway resource connecting to the foreign cluster is missing"
+
+	gatewayPresentReason  = "GatewayPresence"
+	gatewayPresentMessage = "There is a gateway connecting to the foreign cluster"
+
+	networkConfigurationPresenceReason  = "NetworkConfigurationPresence"
+	networkConfigurationPresenceMessage = "The network configuration of the peer cluster is present"
+
+	networkConfigurationMissingReason  = "NetworkConfigurationMissing"
+	networkConfigurationMissingMessage = "The network configuration for the connection with the foreign cluster is missing"
 
 	tenantReadyReason  = "TenantReady"
 	tenantReadyMessage = "The tenant has been successfully configured"

@@ -35,6 +35,12 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/pod"
 )
 
+type statusException struct {
+	liqov1beta1.ConditionStatusType
+	Reason  string
+	Message string
+}
+
 func (r *ForeignClusterReconciler) clearStatusExceptConditions(foreignCluster *liqov1beta1.ForeignCluster) {
 	foreignCluster.Status = liqov1beta1.ForeignClusterStatus{
 		Role: liqov1beta1.UnknownRole,
@@ -56,13 +62,8 @@ func (r *ForeignClusterReconciler) clearStatusExceptConditions(foreignCluster *l
 	}
 }
 
-func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Context,
-	fc *liqov1beta1.ForeignCluster, moduleEnabled bool) error {
-	if !moduleEnabled {
-		clearModule(&fc.Status.Modules.Networking)
-		return nil
-	}
-
+func (r *ForeignClusterReconciler) handleConnectionStatus(ctx context.Context,
+	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
 	clusterID := fc.Spec.ClusterID
 
 	connection, err := getters.GetConnectionByClusterID(ctx, r.Client, string(clusterID))
@@ -70,6 +71,11 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Connection resource not found for ForeignCluster %q", clusterID)
 		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkConnectionStatusCondition)
+		statusExceptions[liqov1beta1.NetworkConnectionStatusCondition] = statusException{
+			ConditionStatusType: liqov1beta1.ConditionStatusNotReady,
+			Reason:              connectionMissingReason,
+			Message:             connectionMissingMessage,
+		}
 	case err != nil:
 		klog.Errorf("an error occurred while getting the Connection resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
@@ -90,15 +96,38 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 				connectionErrorReason, connectionErrorMessage)
 		}
 	}
+	return nil
+}
 
-	gwServer, err := getters.GetGatewayServerByClusterID(ctx, r.Client, clusterID)
+func (r *ForeignClusterReconciler) handleGatewaysStatus(ctx context.Context,
+	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
+	clusterID := fc.Spec.ClusterID
+
+	gwServer, errServer := getters.GetGatewayServerByClusterID(ctx, r.Client, clusterID)
+	gwClient, errClient := getters.GetGatewayClientByClusterID(ctx, r.Client, clusterID)
+
+	if errors.IsNotFound(errServer) && errors.IsNotFound(errClient) {
+		klog.V(6).Infof("Both GatewayServer and GatewayClient resources not found for ForeignCluster %q", clusterID)
+		statusExceptions[liqov1beta1.NetworkGatewayPresenceCondition] = statusException{
+			ConditionStatusType: liqov1beta1.ConditionStatusNotReady,
+			Reason:              gatewayMissingReason,
+			Message:             gatewayMissingMessage,
+		}
+	} else {
+		statusExceptions[liqov1beta1.NetworkGatewayPresenceCondition] = statusException{
+			ConditionStatusType: liqov1beta1.ConditionStatusReady,
+			Reason:              gatewayPresentReason,
+			Message:             gatewayPresentMessage,
+		}
+	}
+
 	switch {
-	case errors.IsNotFound(err):
+	case errors.IsNotFound(errServer):
 		klog.V(6).Infof("GatewayServer resource not found for ForeignCluster %q", clusterID)
 		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkGatewayServerStatusCondition)
-	case err != nil:
-		klog.Errorf("an error occurred while getting the GatewayServer resource for the ForeignCluster %q: %s", clusterID, err)
-		return err
+	case errServer != nil:
+		klog.Errorf("an error occurred while getting the GatewayServer resource for the ForeignCluster %q: %s", clusterID, errServer)
+		return errServer
 	default:
 		fcutils.EnableModuleNetworking(fc)
 		gwDeployment := &appsv1.Deployment{
@@ -127,14 +156,13 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 		}
 	}
 
-	gwClient, err := getters.GetGatewayClientByClusterID(ctx, r.Client, clusterID)
 	switch {
-	case errors.IsNotFound(err):
+	case errors.IsNotFound(errClient):
 		klog.V(6).Infof("GatewayClient resource not found for ForeignCluster %q", clusterID)
 		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkGatewayClientStatusCondition)
-	case err != nil:
-		klog.Errorf("an error occurred while getting the GatewayClient resource for the ForeignCluster %q: %s", clusterID, err)
-		return err
+	case errClient != nil:
+		klog.Errorf("an error occurred while getting the GatewayClient resource for the ForeignCluster %q: %s", clusterID, errClient)
+		return errClient
 	default:
 		fcutils.EnableModuleNetworking(fc)
 		gwDeployment := &appsv1.Deployment{
@@ -160,6 +188,64 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
 				liqov1beta1.NetworkGatewayClientStatusCondition, liqov1beta1.ConditionStatusReady,
 				gatewaysReadyReason, gatewaysReadyMessage)
+		}
+	}
+
+	return nil
+}
+
+func (r *ForeignClusterReconciler) handleNetworkConfigurationStatus(ctx context.Context,
+	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
+	clusterID := fc.Spec.ClusterID
+	_, err := getters.GetConfigurationByClusterID(ctx, r.Client, clusterID)
+	switch {
+	case errors.IsNotFound(err):
+		klog.V(6).Infof("Configuration resource not found for ForeignCluster %q", clusterID)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkConfigurationStatusCondition)
+		statusExceptions[liqov1beta1.NetworkConfigurationStatusCondition] = statusException{
+			ConditionStatusType: liqov1beta1.ConditionStatusNotReady,
+			Reason:              networkConfigurationMissingReason,
+			Message:             networkConfigurationMissingMessage,
+		}
+	case err != nil:
+		klog.Errorf("an error occurred while getting the Configuration resource for the ForeignCluster %q: %s", clusterID, err)
+		return err
+	default:
+		fcutils.EnableModuleNetworking(fc)
+		fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
+			liqov1beta1.NetworkConfigurationStatusCondition, liqov1beta1.ConditionStatusReady,
+			networkConfigurationPresenceReason, networkConfigurationPresenceMessage)
+	}
+	return nil
+}
+
+func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Context,
+	fc *liqov1beta1.ForeignCluster, moduleEnabled bool) error {
+	if !moduleEnabled {
+		clearModule(&fc.Status.Modules.Networking)
+		return nil
+	}
+
+	statusExceptions := map[liqov1beta1.ConditionType]statusException{}
+
+	if err := r.handleNetworkConfigurationStatus(ctx, fc, statusExceptions); err != nil {
+		return err
+	}
+
+	if err := r.handleGatewaysStatus(ctx, fc, statusExceptions); err != nil {
+		return err
+	}
+
+	if err := r.handleConnectionStatus(ctx, fc, statusExceptions); err != nil {
+		return err
+	}
+
+	// Write the exception in the status if the module is enabled
+	if fc.Status.Modules.Networking.Enabled {
+		for condition, condDescription := range statusExceptions {
+			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
+				condition, condDescription.ConditionStatusType,
+				condDescription.Reason, condDescription.Message)
 		}
 	}
 

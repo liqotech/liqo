@@ -107,6 +107,8 @@ spec:
                       - NetworkConnectionStatus
                       - NetworkGatewayServerStatus
                       - NetworkGatewayClientStatus
+                      - NetworkGatewayPresence
+                      - NetworkConfigurationStatus
                       - AuthIdentityControlPlaneStatus
                       - AuthTenantStatus
                       - OffloadingVirtualNodeStatus
@@ -170,6 +172,8 @@ spec:
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
+                              - NetworkGatewayPresence
+                              - NetworkConfigurationStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
                               - OffloadingVirtualNodeStatus
@@ -231,6 +235,8 @@ spec:
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
+                              - NetworkGatewayPresence
+                              - NetworkConfigurationStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
                               - OffloadingVirtualNodeStatus
@@ -292,6 +298,8 @@ spec:
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
+                              - NetworkGatewayPresence
+                              - NetworkConfigurationStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
                               - OffloadingVirtualNodeStatus
