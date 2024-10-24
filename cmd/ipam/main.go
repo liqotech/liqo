@@ -17,25 +17,25 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqoipam "github.com/liqotech/liqo/pkg/ipam"
+	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -44,8 +44,7 @@ import (
 const leaderElectorName = "liqo-ipam-leader-election"
 
 var (
-	scheme  = runtime.NewScheme()
-	options = liqoipam.NewOptions()
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -59,6 +58,8 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ipamstorages,verbs=get;list;watch;create;update;patch
 
+var options ipam.Options
+
 func main() {
 	var cmd = cobra.Command{
 		Use:  "liqo-ipam",
@@ -68,11 +69,23 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 
-	liqoipam.InitFlags(cmd.Flags(), options)
-	if err := liqoipam.MarkFlagsRequired(&cmd, options); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
+	cmd.Flags().IntVar(&options.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
+	cmd.Flags().BoolVar(&options.EnableLeaderElection, "leader-election", false, "Enable leader election for IPAM. "+
+		"Enabling this will ensure there is only one active IPAM.")
+	cmd.Flags().StringVar(&options.LeaderElectionNamespace, "leader-election-namespace", "liqo",
+		"The namespace in which the leader election lease will be created.")
+	cmd.Flags().StringVar(&options.LeaderElectionName, "leader-election-name", leaderElectorName,
+		"The name of the leader election lease.")
+	cmd.Flags().DurationVar(&options.LeaseDuration, "lease-duration", 15,
+		"The duration that non-leader candidates will wait to force acquire leadership.")
+	cmd.Flags().DurationVar(&options.RenewDeadline, "renew-deadline", 10,
+		"The duration that the acting IPAM will retry refreshing leadership before giving up.")
+	cmd.Flags().DurationVar(&options.RetryPeriod, "retry-period", 2,
+		"The duration the LeaderElector clients should wait between tries of actions.")
+	cmd.Flags().StringVar(&options.PodName, "pod-name", "",
+		"The name of the pod running the IPAM service.")
+
+	utilruntime.Must(cmd.MarkFlagRequired("pod-name"))
 
 	if err := cmd.Execute(); err != nil {
 		klog.Error(err)
@@ -80,11 +93,8 @@ func main() {
 	}
 }
 
-func run(_ *cobra.Command, _ []string) error {
-	var err error
-
-	// The IpamStorage resource will be stored in the same namespace of the IPAM pod.
-	podNamespace := os.Getenv("POD_NAMESPACE")
+func run(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
@@ -92,97 +102,44 @@ func run(_ *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
-	// Get dynamic client.
-	dynClient := dynamic.NewForConfigOrDie(cfg)
-
-	// Setup IPAM.
-	ipam := liqoipam.NewIPAM()
-
-	startIPAMServer := func() {
-		// Initialize and start IPAM server.
-		if err = initializeIPAM(ipam, options, dynClient, podNamespace); err != nil {
-			klog.Errorf("Failed to initialize IPAM: %s", err)
+	if options.EnableLeaderElection {
+		if leader, err := leaderelection.Blocking(ctx, cfg, record.NewBroadcaster(), &leaderelection.Opts{
+			PodInfo: leaderelection.PodInfo{
+				PodName:   options.PodName,
+				Namespace: options.LeaderElectionNamespace,
+			},
+			LeaderElectorName: options.LeaderElectionName,
+			LeaseDuration:     options.LeaseDuration,
+			RenewDeadline:     options.RenewDeadline,
+			RetryPeriod:       options.RetryPeriod,
+		}); err != nil {
+			return err
+		} else if !leader {
+			klog.Error("IPAM is not the leader, exiting")
 			os.Exit(1)
 		}
 	}
 
-	stopIPAMServer := func() {
-		ipam.Terminate()
-	}
+	hs := health.NewServer()
+	options.HealthServer = hs
 
-	ctx := ctrl.SetupSignalHandler()
+	liqoIPAM := ipam.New(&options)
 
-	// If the lease is disabled, start IPAM server without leader election mechanism (i.e., do not support IPAM high-availability).
-	if !options.LeaseEnabled {
-		startIPAMServer()
-		<-ctx.Done()
-		stopIPAMServer()
-		return nil
-	}
-
-	// Else, initialize the leader election mechanism to manage multiple replicas of the IPAM server running in active-passive mode.
-	leaderelectionOpts := &leaderelection.Opts{
-		PodInfo: leaderelection.PodInfo{
-			PodName:        os.Getenv("POD_NAME"),
-			Namespace:      podNamespace,
-			DeploymentName: ptr.To(os.Getenv("DEPLOYMENT_NAME")),
-		},
-		LeaderElectorName: leaderElectorName,
-		LeaseDuration:     options.LeaseDuration,
-		RenewDeadline:     options.LeaseRenewDeadline,
-		RetryPeriod:       options.LeaseRetryPeriod,
-		InitCallback:      startIPAMServer,
-		StopCallback:      stopIPAMServer,
-		LabelLeader:       options.LabelLeader,
-	}
-
-	localClient := kubernetes.NewForConfigOrDie(cfg)
-	eb := record.NewBroadcaster()
-	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
-
-	leaderElector, err := leaderelection.Init(leaderelectionOpts, cfg, eb)
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.Port))
 	if err != nil {
 		return err
 	}
 
-	// Start IPAM using leader election mechanism.
-	leaderelection.Run(ctx, leaderElector)
+	server := grpc.NewServer()
 
-	return nil
-}
+	// Register health service
+	grpc_health_v1.RegisterHealthServer(server, hs)
 
-func initializeIPAM(ipam *liqoipam.IPAM, opts *liqoipam.Options, dynClient dynamic.Interface, namespace string) error {
-	if ipam == nil {
-		return fmt.Errorf("IPAM pointer is nil. Initialize it before calling this function")
-	}
+	// Register IPAM service
+	ipam.RegisterIPAMServer(server, liqoIPAM)
 
-	if err := ipam.Init(liqoipam.Pools, dynClient, namespace); err != nil {
-		return err
-	}
-
-	// Configure PodCIDR
-	if err := ipam.SetPodCIDR(opts.PodCIDR.String()); err != nil {
-		return err
-	}
-
-	// Configure ServiceCIDR
-	if err := ipam.SetServiceCIDR(opts.ServiceCIDR.String()); err != nil {
-		return err
-	}
-
-	// Configure additional network pools.
-	for _, pool := range opts.AdditionalPools.StringList.StringList {
-		if err := ipam.AddNetworkPool(pool); err != nil {
-			return err
-		}
-	}
-
-	// Configure reserved subnets.
-	if err := ipam.SetReservedSubnets(opts.ReservedPools.StringList.StringList); err != nil {
-		return err
-	}
-
-	if err := ipam.Serve(consts.IpamPort); err != nil {
+	if err := server.Serve(lis); err != nil {
+		klog.Errorf("failed to serve: %v", err)
 		return err
 	}
 
