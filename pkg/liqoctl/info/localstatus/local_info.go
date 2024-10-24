@@ -21,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
@@ -63,21 +64,23 @@ func (l *InstallationChecker) Collect(ctx context.Context, options info.Options)
 	if err != nil {
 		l.AddCollectionError(fmt.Errorf("unable to get Liqo version and cluster labels: %w", err))
 	} else {
-		if err := l.collectLiqoVersion(ctrlDeployment); err != nil {
-			l.AddCollectionError(fmt.Errorf("unable to get Liqo version: %w", err))
-		}
+		ctrlContainer, err := l.getCtrlManagerContainer(ctrlDeployment)
+		if err != nil {
+			l.AddCollectionError(fmt.Errorf("unable to get Liqo instance info: %w", err))
+		} else {
+			if err := l.collectLiqoVersion(ctrlDeployment); err != nil {
+				l.AddCollectionError(fmt.Errorf("unable to get Liqo version: %w", err))
+			}
 
-		if err := l.collectClusterLabels(ctrlDeployment); err != nil {
-			l.AddCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
+			if err := l.collectClusterLabels(ctrlContainer); err != nil {
+				l.AddCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
+			}
+
+			if err := l.collectLiqoAPIServerAddr(ctx, options.CRClient, ctrlContainer); err != nil {
+				l.AddCollectionError(fmt.Errorf("unable to get K8s API server: %w", err))
+			}
 		}
 	}
-
-	// Get the URL of the K8s API
-	apiAddr, err := apiserver.GetURL(ctx, options.CRClient, "")
-	if err != nil {
-		l.AddCollectionError(fmt.Errorf("unable to get K8s API server: %w", err))
-	}
-	l.data.APIServerAddr = apiAddr
 }
 
 // Format returns the collected data using a user friendly output.
@@ -86,10 +89,13 @@ func (l *InstallationChecker) Format(options info.Options) string {
 	main.AddEntry("Cluster ID", string(l.data.ClusterID))
 	main.AddEntry("Version", l.data.Version)
 	main.AddEntry("K8s API server", l.data.APIServerAddr)
-	labelsSection := main.AddSection("Cluster labels")
-	for key, val := range l.data.Labels {
-		labelsSection.AddEntry(key, val)
+	if len(l.data.Labels) > 0 {
+		labelsSection := main.AddSection("Cluster labels")
+		for key, val := range l.data.Labels {
+			labelsSection.AddEntry(key, val)
+		}
 	}
+
 	return main.SprintForBox(options.Printer)
 }
 
@@ -108,20 +114,23 @@ func (l *InstallationChecker) GetTitle() string {
 	return "Local installation info"
 }
 
-func (l *InstallationChecker) collectClusterLabels(ctrlDeployment *appsv1.Deployment) error {
-	var ctrlContainer corev1.Container
-
-	// Get the container of the controller manager
-	containers := ctrlDeployment.Spec.Template.Spec.Containers
-	for i := range containers {
-		if containers[i].Name == ctrlManagerContainerName {
-			ctrlContainer = containers[i]
-		}
-	}
-
-	clusterLabelsArg, err := liqoctlutils.ExtractValuesFromArgumentList("--cluster-labels", ctrlContainer.Args)
+func (l *InstallationChecker) collectLiqoAPIServerAddr(ctx context.Context, c client.Client, ctrlContainer *corev1.Container) error {
+	// Get the URL of the K8s API
+	apiServerAddressOverride, _ := liqoctlutils.ExtractValuesFromArgumentList("--api-server-address-override", ctrlContainer.Args)
+	apiAddr, err := apiserver.GetURL(ctx, c, apiServerAddressOverride)
 	if err != nil {
 		return err
+	}
+
+	l.data.APIServerAddr = apiAddr
+	return nil
+}
+
+func (l *InstallationChecker) collectClusterLabels(ctrlContainer *corev1.Container) error {
+	clusterLabelsArg, err := liqoctlutils.ExtractValuesFromArgumentList("--cluster-labels", ctrlContainer.Args)
+	if err != nil {
+		// If the `--cluster-labels` is not found, do not return any error and keep the field empty
+		return nil
 	}
 
 	clusterLabels, err := liqoctlutils.ParseArgsMultipleValues(clusterLabelsArg, ",")
@@ -140,4 +149,16 @@ func (l *InstallationChecker) collectLiqoVersion(ctrlDeployment *appsv1.Deployme
 	}
 	l.data.Version = version
 	return nil
+}
+
+func (l *InstallationChecker) getCtrlManagerContainer(ctrlDeployment *appsv1.Deployment) (*corev1.Container, error) {
+	// Get the container of the controller manager
+	containers := ctrlDeployment.Spec.Template.Spec.Containers
+	for i := range containers {
+		if containers[i].Name == ctrlManagerContainerName {
+			return &containers[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid controller manager deployment: no container with name %q found", ctrlManagerContainerName)
 }
