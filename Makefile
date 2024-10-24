@@ -162,6 +162,7 @@ generate-groups:
 # Generate gRPC files
 grpc: protoc
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/ipam/ipam.proto
+	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/ipamold/ipam.proto
 
 protoc:
 ifeq (, $(shell which protoc))

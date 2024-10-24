@@ -19,7 +19,7 @@ type NetworkType string
 
 const (
 	// IpamPort is the port used by the IPAM gRPC server.
-	IpamPort = 6000
+	IpamPort = 50051
 
 	// NetworkNotRemappedLabelKey is the label key used to mark a Network that does not need CIDR remapping.
 	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
