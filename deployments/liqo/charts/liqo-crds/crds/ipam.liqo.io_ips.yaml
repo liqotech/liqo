@@ -439,6 +439,17 @@ spec:
           status:
             description: IPStatus defines remapped IPs.
             properties:
+              cidr:
+                description: CIDR is the network CIDR where the IP is allocated.
+                format: cidr
+                type: string
+              ip:
+                description: IP is the remapped IP.
+                format: ipv4
+                type: string
+                x-kubernetes-validations:
+                - message: IP field is immutable
+                  rule: self == oldSelf
               ipMappings:
                 additionalProperties:
                   description: IP defines a syntax validated IP.
@@ -447,6 +458,8 @@ spec:
                 description: IPMappings contains the mapping of the local IP for each
                   remote cluster.
                 type: object
+            required:
+            - ip
             type: object
         required:
         - spec

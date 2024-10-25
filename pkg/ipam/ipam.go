@@ -15,20 +15,27 @@
 package ipam
 
 import (
+	"context"
 	"time"
 
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // LiqoIPAM is the struct implementing the IPAM interface.
 type LiqoIPAM struct {
 	UnimplementedIPAMServer
+
+	Options *Options
 }
 
 // Options contains the options to configure the IPAM.
 type Options struct {
-	Port int
+	Port   int
+	Config *rest.Config
+	Client client.Client
 
 	EnableLeaderElection    bool
 	LeaderElectionNamespace string
@@ -42,11 +49,17 @@ type Options struct {
 }
 
 // New creates a new instance of the LiqoIPAM.
-func New(opts *Options) *LiqoIPAM {
+func New(ctx context.Context, opts *Options) (*LiqoIPAM, error) {
 	opts.HealthServer.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
-	// TODO: add here the initialization logic
+	lipam := &LiqoIPAM{
+		Options: opts,
+	}
+
+	if err := lipam.initialize(ctx); err != nil {
+		return nil, err
+	}
 
 	opts.HealthServer.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
-	return &LiqoIPAM{}
+	return lipam, nil
 }
