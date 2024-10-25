@@ -16,7 +16,6 @@ package peer
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,15 +33,18 @@ import (
 
 // Options encapsulates the arguments of the peer command.
 type Options struct {
-	LocalFactory  *factory.Factory
-	RemoteFactory *factory.Factory
-	Timeout       time.Duration
+	LocalFactory   *factory.Factory
+	RemoteFactory  *factory.Factory
+	Timeout        time.Duration
+	SkipValidation bool
 
 	// Networking options
-	NetworkingDisabled bool
-	ServerServiceType  *argsutils.StringEnum
-	ServerPort         int32
-	MTU                int
+	NetworkingDisabled          bool
+	ServerServiceType           *argsutils.StringEnum
+	ServerServicePort           int32
+	ServerServiceNodePort       int32
+	ServerServiceLoadBalancerIP string
+	MTU                         int
 
 	// Authentication options
 	CreateResourceSlice bool
@@ -75,21 +77,21 @@ func (o *Options) RunPeer(ctx context.Context) error {
 	// Ensure networking
 	if !o.NetworkingDisabled {
 		if err := ensureNetworking(ctx, o); err != nil {
-			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure networking: %w", err))
+			o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure networking")
 			return err
 		}
 	}
 
 	// Ensure authentication
 	if err := ensureAuthentication(ctx, o); err != nil {
-		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure authentication: %w", err))
+		o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure authentication")
 		return err
 	}
 
 	// Ensure offloading
 	if o.CreateResourceSlice {
 		if err := ensureOffloading(ctx, o); err != nil {
-			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure offloading: %w", err))
+			o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure offloading")
 			return err
 		}
 	}
@@ -102,16 +104,17 @@ func ensureNetworking(ctx context.Context, o *Options) error {
 		LocalFactory:  o.LocalFactory,
 		RemoteFactory: o.RemoteFactory,
 
-		Timeout: o.Timeout,
-		Wait:    true,
+		Timeout:        o.Timeout,
+		Wait:           true,
+		SkipValidation: o.SkipValidation,
 
-		ServerGatewayType:       nwforge.DefaultGwServerType,
-		ServerTemplateName:      nwforge.DefaultGwServerTemplateName,
-		ServerTemplateNamespace: o.RemoteFactory.LiqoNamespace,
-		ServerServiceType:       o.ServerServiceType,
-		ServerPort:              o.ServerPort,
-		ServerNodePort:          0,
-		ServerLoadBalancerIP:    "",
+		ServerGatewayType:           nwforge.DefaultGwServerType,
+		ServerTemplateName:          nwforge.DefaultGwServerTemplateName,
+		ServerTemplateNamespace:     o.RemoteFactory.LiqoNamespace,
+		ServerServiceType:           o.ServerServiceType,
+		ServerServicePort:           o.ServerServicePort,
+		ServerServiceNodePort:       o.ServerServiceNodePort,
+		ServerServiceLoadBalancerIP: o.ServerServiceLoadBalancerIP,
 
 		ClientGatewayType:       nwforge.DefaultGwClientType,
 		ClientTemplateName:      nwforge.DefaultGwClientTemplateName,

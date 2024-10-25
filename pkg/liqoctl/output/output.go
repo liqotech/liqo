@@ -264,6 +264,11 @@ func NewRemotePrinter(scoped, verbose bool) *Printer {
 	return newPrinter(remoteClusterName, remoteClusterColor, scoped, verbose)
 }
 
+// NewGlobalPrinter returns a new printer referring to the global scope.
+func NewGlobalPrinter(scoped, verbose bool) *Printer {
+	return newPrinter("global", pterm.FgDefault, scoped, verbose)
+}
+
 func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer {
 	generic := &pterm.PrefixPrinter{MessageStyle: pterm.NewStyle(pterm.FgDefault)}
 

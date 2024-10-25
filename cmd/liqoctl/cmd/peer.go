@@ -75,6 +75,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	}
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 10*time.Minute, "Timeout for peering completion")
+	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
@@ -90,11 +91,15 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	// Networking flags
 	cmd.Flags().BoolVar(&options.NetworkingDisabled, "networking-disabled", false, "Disable networking between the two clusters")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server. Default: %s."+
+		fmt.Sprintf("Service type of the Gateway Server service. Default: %s."+
 			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
 			nwforge.DefaultGwServerServiceType))
-	cmd.Flags().Int32Var(&options.ServerPort, "server-port", nwforge.DefaultGwServerPort,
-		fmt.Sprintf("Port of the Gateway Server. Default: %d", nwforge.DefaultGwServerPort))
+	cmd.Flags().Int32Var(&options.ServerServicePort, "server-service-port", nwforge.DefaultGwServerPort,
+		fmt.Sprintf("Port of the Gateway Server service. Default: %d", nwforge.DefaultGwServerPort))
+	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "server-service-nodeport", 0,
+		"Force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort")
+	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
+		"IP of the LoadBalancer for the Gateway Server service")
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,
 		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", nwforge.DefaultMTU))
 

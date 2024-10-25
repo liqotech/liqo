@@ -35,16 +35,17 @@ type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
 
-	Timeout time.Duration
-	Wait    bool
+	Timeout        time.Duration
+	Wait           bool
+	SkipValidation bool
 
-	ServerGatewayType       string
-	ServerTemplateName      string
-	ServerTemplateNamespace string
-	ServerServiceType       *argsutils.StringEnum
-	ServerPort              int32
-	ServerNodePort          int32
-	ServerLoadBalancerIP    string
+	ServerGatewayType           string
+	ServerTemplateName          string
+	ServerTemplateNamespace     string
+	ServerServiceType           *argsutils.StringEnum
+	ServerServicePort           int32
+	ServerServiceNodePort       int32
+	ServerServiceLoadBalancerIP string
 
 	ClientGatewayType       string
 	ClientTemplateName      string
@@ -153,6 +154,14 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
+	if o.ServerTemplateNamespace == "" {
+		o.ServerTemplateNamespace = o.RemoteFactory.LiqoNamespace
+	}
+
+	if o.ClientTemplateNamespace == "" {
+		o.ClientTemplateNamespace = o.LocalFactory.LiqoNamespace
+	}
+
 	// Create and initialize cluster 1.
 	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, true)
 	if err != nil {
@@ -163,6 +172,18 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, true)
 	if err != nil {
 		return err
+	}
+
+	if !o.SkipValidation {
+		// Check if the Templates exists and is valid on cluster 2
+		if err := cluster2.CheckTemplateGwServer(ctx, o); err != nil {
+			return err
+		}
+
+		// Check if the Templates exists and is valid on cluster 1
+		if err := cluster1.CheckTemplateGwClient(ctx, o); err != nil {
+			return err
+		}
 	}
 
 	// Check if the Networking is initialized on cluster 1
@@ -319,10 +340,6 @@ func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID) *forge.GwServerOptions {
-	if o.ServerTemplateNamespace == "" {
-		o.ServerTemplateNamespace = o.RemoteFactory.LiqoNamespace
-	}
-
 	return &forge.GwServerOptions{
 		KubeClient:        kubeClient,
 		RemoteClusterID:   remoteClusterID,
@@ -331,18 +348,14 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 		TemplateNamespace: o.ServerTemplateNamespace,
 		ServiceType:       corev1.ServiceType(o.ServerServiceType.Value),
 		MTU:               o.MTU,
-		Port:              o.ServerPort,
-		NodePort:          ptr.To(o.ServerNodePort),
-		LoadBalancerIP:    ptr.To(o.ServerLoadBalancerIP),
+		Port:              o.ServerServicePort,
+		NodePort:          ptr.To(o.ServerServiceNodePort),
+		LoadBalancerIP:    ptr.To(o.ServerServiceLoadBalancerIP),
 	}
 }
 
 func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID,
 	serverEndpoint *networkingv1beta1.EndpointStatus) *forge.GwClientOptions {
-	if o.ClientTemplateNamespace == "" {
-		o.ClientTemplateNamespace = o.LocalFactory.LiqoNamespace
-	}
-
 	return &forge.GwClientOptions{
 		KubeClient:        kubeClient,
 		RemoteClusterID:   remoteClusterID,

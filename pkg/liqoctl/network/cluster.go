@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,6 +30,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	gwforge "github.com/liqotech/liqo/pkg/gateway/forge"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -37,6 +39,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 // Cluster contains the information about a cluster.
@@ -191,6 +194,130 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1beta
 	}
 
 	s.Success("Network configuration correctly set up")
+	return nil
+}
+
+// CheckTemplateGwClient checks if the GatewayClient template is correctly set up.
+func (c *Cluster) CheckTemplateGwClient(ctx context.Context, opts *Options) error {
+	templateName := opts.ClientTemplateName
+	templateNamespace := opts.ClientTemplateNamespace
+	templateGVR := opts.ClientGatewayType
+
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("Checking gateway client template \"%s/%s\"",
+		templateName, templateNamespace))
+
+	_, err := c.checkTemplate(ctx, templateName, templateNamespace, templateGVR)
+	if err != nil {
+		s.Fail(fmt.Sprintf("An error occurred while checking gateway client template \"%s/%s\": %v",
+			templateName, templateNamespace, output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success(fmt.Sprintf("Gateway client template \"%s/%s\" correctly checked",
+		templateName, templateNamespace))
+	return nil
+}
+
+// CheckTemplateGwServer checks if the GatewayServer template is correctly set up.
+func (c *Cluster) CheckTemplateGwServer(ctx context.Context, opts *Options) error {
+	templateName := opts.ServerTemplateName
+	templateNamespace := opts.ServerTemplateNamespace
+	templateGVR := opts.ServerGatewayType
+
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("Checking gateway server template \"%s/%s\"",
+		templateName, templateNamespace))
+
+	template, err := c.checkTemplate(ctx, templateName, templateNamespace, templateGVR)
+	if err != nil {
+		s.Fail(fmt.Sprintf("An error occurred while checking gateway server template \"%s/%s\": %v",
+			templateName, templateNamespace, output.PrettyErr(err)))
+		return err
+	}
+
+	if err := c.checkTemplateServerService(template, opts); err != nil {
+		s.Fail(fmt.Sprintf("An error occurred while checking gateway server template \"%s/%s\": %v",
+			templateName, templateNamespace, output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success(fmt.Sprintf("Gateway server template \"%s/%s\" correctly checked",
+		templateName, templateNamespace))
+	return nil
+}
+
+func (c *Cluster) checkTemplate(ctx context.Context, templateName, templateNamespace, templateGvr string) (*unstructured.Unstructured, error) {
+	// Server Template Reference
+	gvr, err := enutils.ParseGroupVersionResource(templateGvr)
+	if err != nil {
+		return nil, err
+	}
+
+	template, err := c.local.DynClient.Resource(gvr).Namespace(templateNamespace).Get(ctx, templateName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return template, nil
+}
+
+// checkTemplateServerService checks if the GatewayServer service template is correctly set up.
+func (c *Cluster) checkTemplateServerService(template *unstructured.Unstructured, opts *Options) error {
+	switch corev1.ServiceType(opts.ServerServiceType.Value) {
+	case corev1.ServiceTypeClusterIP:
+		return c.checkTemplateServerServiceClusterIP(template, opts)
+	case corev1.ServiceTypeNodePort:
+		return c.checkTemplateServerServiceNodePort(template, opts)
+	case corev1.ServiceTypeLoadBalancer:
+		return c.checkTemplateServerServiceLoadBalancer(template, opts)
+	case corev1.ServiceTypeExternalName:
+		return fmt.Errorf("externalName service type not supported")
+	}
+	return nil
+}
+
+func (c *Cluster) checkTemplateServerServiceClusterIP(_ *unstructured.Unstructured, _ *Options) error {
+	return nil
+}
+func (c *Cluster) checkTemplateServerServiceNodePort(template *unstructured.Unstructured, opts *Options) error {
+	if opts.ServerServiceNodePort == 0 {
+		return nil
+	}
+
+	path := "spec.template.spec.service.spec.ports"
+	templateServicePorts, err := maps.GetNestedField(template.Object, path)
+	if err != nil {
+		return fmt.Errorf("unable to get %s of the server template", path)
+	}
+
+	templateServicePortsSlice, ok := templateServicePorts.([]interface{})
+	if !ok {
+		return fmt.Errorf("unable to cast %s to []interface{}", path)
+	}
+
+	port, ok := templateServicePortsSlice[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unable to cast %s to map[string]interface{}", path)
+	}
+
+	_, err = maps.GetNestedField(port, "nodePort")
+	if err != nil {
+		return fmt.Errorf("unable to get spec.template.spec.service.spec.ports[0].nodePort int the server template, " +
+			"since you specified the flag \"--server-service-nodeport\" you need to add the \"nodePort\" field in the template")
+	}
+
+	return nil
+}
+func (c *Cluster) checkTemplateServerServiceLoadBalancer(template *unstructured.Unstructured, opts *Options) error {
+	if opts.ServerServiceLoadBalancerIP == "" {
+		return nil
+	}
+
+	path := "spec.template.spec.service.spec.loadBalancerIP"
+	_, err := maps.GetNestedField(template.Object, path)
+	if err != nil {
+		return fmt.Errorf("unable to get %s of the server template, "+
+			"since you specified the flag \"--server-service-loadbalancerip\" you need to add the \"loadBalancerIP\" field in the template", path)
+	}
 	return nil
 }
 
