@@ -63,6 +63,11 @@ type IPSpec struct {
 type IPStatus struct {
 	// IPMappings contains the mapping of the local IP for each remote cluster.
 	IPMappings map[string]networkingv1beta1.IP `json:"ipMappings,omitempty"`
+	// IP is the remapped IP.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
+	IP networkingv1beta1.IP `json:"ip"`
+	// CIDR is the network CIDR where the IP is allocated.
+	CIDR networkingv1beta1.CIDR `json:"cidr,omitempty"`
 }
 
 // +kubebuilder:object:root=true
