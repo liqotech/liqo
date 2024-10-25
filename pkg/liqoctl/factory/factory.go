@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -58,6 +59,8 @@ type Factory struct {
 
 	// Printer is the object used to output messages in the appropriate format.
 	Printer *output.Printer
+	// PrinterGlobal is the object used to output messages in the appropriate format. It is not scoped to local or remote cluster.
+	PrinterGlobal *output.Printer
 	// SkipConfirm determines whether to skip confirmations.
 	SkipConfirm bool
 	// Whether to add a scope to the printer (i.e., local/remote).
@@ -78,6 +81,9 @@ type Factory struct {
 
 	// kubeClient is a Kubernetes clientset for interacting with the base Kubernetes APIs.
 	KubeClient kubernetes.Interface
+
+	// DynCLient
+	DynClient *dynamic.DynamicClient
 
 	helmClient helm.Client
 }
@@ -209,6 +215,8 @@ func (f *Factory) Initialize(opts ...Options) (err error) {
 		f.Printer = output.NewLocalPrinter(o.scoped, verbose)
 	}
 
+	f.PrinterGlobal = output.NewGlobalPrinter(o.scoped, verbose)
+
 	if f.Namespace == "" {
 		f.Namespace, _, err = f.factory.ToRawKubeConfigLoader().Namespace()
 		if err != nil {
@@ -228,6 +236,11 @@ func (f *Factory) Initialize(opts ...Options) (err error) {
 	}
 
 	f.KubeClient, err = f.factory.KubernetesClientSet()
+	if err != nil {
+		return err
+	}
+
+	f.DynClient, err = dynamic.NewForConfig(f.RESTConfig)
 	if err != nil {
 		return err
 	}

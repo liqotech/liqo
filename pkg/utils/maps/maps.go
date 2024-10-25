@@ -197,3 +197,24 @@ func SerializeMap(m map[string]string) string {
 func DeSerializeCache(s string) []string {
 	return strings.Split(s, ",")
 }
+
+// GetNestedField returns the nested field of a map.
+// Example: GetNestedField(map[string]any{"a": map[string]any{"b": "c"}}, "a.b") returns "c".
+func GetNestedField(m map[string]any, path string) (any, error) {
+	fields := strings.Split(path, ".")
+	current := m
+	for i, field := range fields {
+		next, ok := current[field]
+		if !ok {
+			return nil, fmt.Errorf("unable to get %s", strings.Join(fields[:i+1], "."))
+		}
+		if i == len(fields)-1 {
+			return next, nil
+		}
+		current, ok = next.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("unable to get %s", strings.Join(fields[:i+1], "."))
+		}
+	}
+	return current, nil
+}

@@ -65,6 +65,7 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for completion")
 	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", false, "Wait for completion")
+	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
@@ -139,12 +140,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {
-			err := options.RunConnect(ctx)
-			if err != nil {
-				options.LocalFactory.Printer.CheckErr(
-					fmt.Errorf("`network connect` failed (error: %w). Issue `network disconnect` to cleanup the environment", err))
-			}
-			output.ExitOnErr(err)
+			output.ExitOnErr(options.RunConnect(ctx))
 		},
 	}
 
@@ -156,15 +152,15 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", "",
 		"Namespace of the Gateway Server template")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server. Default: %s."+
+		fmt.Sprintf("Service type of the Gateway Server service. Default: %s."+
 			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
 			forge.DefaultGwServerServiceType))
-	cmd.Flags().Int32Var(&options.ServerPort, "server-port", forge.DefaultGwServerPort,
-		fmt.Sprintf("Port of the Gateway Server. Default: %d", forge.DefaultGwServerPort))
-	cmd.Flags().Int32Var(&options.ServerNodePort, "node-port", 0,
-		"Force the NodePort of the Gateway Server. Leave empty to let Kubernetes allocate a random NodePort")
-	cmd.Flags().StringVar(&options.ServerLoadBalancerIP, "load-balancer-ip", "",
-		"Force LoadBalancer IP of the Gateway Server. Leave empty to use the one provided by the LoadBalancer provider")
+	cmd.Flags().Int32Var(&options.ServerServicePort, "server-service-port", forge.DefaultGwServerPort,
+		fmt.Sprintf("Port of the Gateway Server service. Default: %d", forge.DefaultGwServerPort))
+	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "server-service-nodeport", 0,
+		"Force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort")
+	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
+		"Force LoadBalancer IP of the Gateway Server service. Leave empty to use the one provided by the LoadBalancer provider")
 
 	// Client flags
 	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", forge.DefaultGwClientType,
