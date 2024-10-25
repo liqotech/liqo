@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
@@ -101,6 +102,12 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Get the rest config.
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
+	options.Config = cfg
+	cl, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return err
+	}
+	options.Client = cl
 
 	if options.EnableLeaderElection {
 		if leader, err := leaderelection.Blocking(ctx, cfg, record.NewBroadcaster(), &leaderelection.Opts{
@@ -123,7 +130,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	hs := health.NewServer()
 	options.HealthServer = hs
 
-	liqoIPAM := ipam.New(&options)
+	liqoIPAM, err := ipam.New(ctx, &options)
+	if err != nil {
+		return err
+	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.Port))
 	if err != nil {
