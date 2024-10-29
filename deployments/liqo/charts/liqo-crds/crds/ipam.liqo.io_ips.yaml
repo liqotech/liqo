@@ -52,6 +52,12 @@ spec:
           spec:
             description: IPSpec defines a local IP.
             properties:
+              cidr:
+                description: |-
+                  CIDR is the network CIDR where the desired IP should be allocated from.
+                  It is optional, if left empty the IP will be allocated in a default network CIDR (e.g., external CIDR).
+                format: cidr
+                type: string
               ip:
                 description: IP is the local IP.
                 format: ipv4
