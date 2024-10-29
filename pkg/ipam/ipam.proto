@@ -16,8 +16,7 @@ message ResponseResult {
 }
 
 message IPAcquireRequest {
-    string ip = 1;
-    string cidr = 2;
+    string cidr = 1;
 }
 
 message IPAcquireResponse {
