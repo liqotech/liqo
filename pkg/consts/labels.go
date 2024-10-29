@@ -44,4 +44,11 @@ const (
 	// IpamStorageResourceLabelValue is the constant representing
 	// the value of the label assigned to all IpamStorage resources.
 	IpamStorageResourceLabelValue = "true"
+
+	// WebhookResourceLabelKey is the constant representing
+	// the key of the label assigned to all Webhook resources.
+	WebhookResourceLabelKey = "liqo.io/webhook"
+	// WebhookResourceLabelValue is the constant representing
+	// the value of the label assigned to all Webhook resources.
+	WebhookResourceLabelValue = "true"
 )

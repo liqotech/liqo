@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -52,6 +53,7 @@ import (
 	podwh "github.com/liqotech/liqo/pkg/webhooks/pod"
 	resourceslicewh "github.com/liqotech/liqo/pkg/webhooks/resourceslice"
 	routecfgwh "github.com/liqotech/liqo/pkg/webhooks/routeconfiguration"
+	"github.com/liqotech/liqo/pkg/webhooks/secretcontroller"
 	shadowpodswh "github.com/liqotech/liqo/pkg/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/webhooks/virtualnode"
 )
@@ -76,6 +78,7 @@ func main() {
 	metricsAddr := pflag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := pflag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
 	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for the webhook pod")
+	secretName := pflag.String("secret-name", "", "The name of the secret containing the webhook certificates")
 
 	// Global parameters
 	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
@@ -102,6 +105,34 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
+
+	// create a client used for configuration
+	cl, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	// forge secret for the webhook
+	if *secretName != "" {
+		var secret corev1.Secret
+		if err := cl.Get(ctx, client.ObjectKey{Namespace: *liqoNamespace, Name: *secretName}, &secret); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		if err := secretcontroller.HandleSecret(ctx, cl, &secret); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		if err := cl.Update(ctx, &secret); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		klog.Info("webhook secret correctly enforced")
+	}
 
 	// Create the main manager.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
@@ -168,6 +199,14 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
+
+	// Register the secret controller
+	secretReconciler := secretcontroller.NewSecretReconciler(mgr.GetClient(), mgr.GetScheme(),
+		mgr.GetEventRecorderFor("secret-controller"))
+	if err := secretReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to set up the secret controller: %v", err)
+		os.Exit(1)
+	}
 
 	if leaderElection != nil && *leaderElection {
 		leaderelection.LabelerOnElection(ctx, mgr, &leaderelection.PodInfo{

@@ -156,10 +156,6 @@ spec:
               {{- end }}
           {{- end }}
         resources: {{- toYaml .Values.controllerManager.pod.resources | nindent 10 }}
-        volumeMounts:
-          - name: webhook-certs
-            mountPath: /tmp/k8s-webhook-server/serving-certs/
-            readOnly: true
         ports:
         - name: webhook
           containerPort: {{ .Values.webhook.port }}
@@ -174,11 +170,6 @@ spec:
           httpGet:
             path: /readyz
             port: healthz
-      volumes:
-      - name: webhook-certs
-        secret:
-          secretName: {{ include "liqo.prefixedName" $webhookConfig }}-certs
-          defaultMode: 420
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}

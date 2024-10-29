@@ -6,6 +6,7 @@ metadata:
   name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
     {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+    liqo.io/webhook: "true"
 webhooks:
   - name: nsoff.validate.liqo.io
     admissionReviewVersions:
