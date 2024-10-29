@@ -45,4 +45,8 @@ const (
 	UninstallingAnnotationKey = "liqo.io/uninstalling"
 	// UninstallingAnnotationValue is the value of the annotation used to signal liqo is being uninstalled.
 	UninstallingAnnotationValue = "true"
+
+	// WebhookServiceNameAnnotationKey is the constant representing
+	// the key of the annotation containing the Webhook service name.
+	WebhookServiceNameAnnotationKey = "liqo.io/webhook-service-name"
 )

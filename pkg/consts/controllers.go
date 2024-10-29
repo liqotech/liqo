@@ -26,6 +26,7 @@ const (
 	// Core.
 	CtrlForeignCluster      = "foreigncluster"
 	CtrlSecretCRDReplicator = "secret_crdreplicator" //nolint:gosec // not a credential
+	CtrlSecretWebhook       = "secret_webhook"
 
 	// Networking.
 	CtrlConfigurationExternal  = "configuration_external"

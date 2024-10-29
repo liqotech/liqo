@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	adminssionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -103,6 +104,9 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 		return err
 	}
 	if err = addGroup(dClient, storagev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
+		return err
+	}
+	if err = addGroup(dClient, adminssionregistrationv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 

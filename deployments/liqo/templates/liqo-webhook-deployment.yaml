@@ -52,6 +52,7 @@ spec:
           {{- end }}
           - --cluster-id=$(CLUSTER_ID)
           - --liqo-namespace=$(POD_NAMESPACE)
+          - --secret-name={{ include "liqo.prefixedName" $webhookConfig }}-certs
           - --podcidr={{ .Values.ipam.podCIDR }}
           - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
@@ -83,10 +84,6 @@ spec:
           - name: DEPLOYMENT_NAME
             value: {{ include "liqo.prefixedName" $webhookConfig }}
         resources: {{- toYaml .Values.webhook.pod.resources | nindent 10 }}
-        volumeMounts:
-          - name: webhook-certs
-            mountPath: /tmp/k8s-webhook-server/serving-certs/
-            readOnly: true
         ports:
         - name: webhook
           containerPort: {{ .Values.webhook.port }}
@@ -101,11 +98,12 @@ spec:
           httpGet:
             path: /readyz
             port: healthz
+        volumeMounts:
+        - name: webhook-certs
+          mountPath: /tmp/k8s-webhook-server
       volumes:
       - name: webhook-certs
-        secret:
-          secretName: {{ include "liqo.prefixedName" $webhookConfig }}-certs
-          defaultMode: 420
+        emptyDir: {}
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}
