@@ -49,6 +49,10 @@ type IPSpec struct {
 	// IP is the local IP.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
 	IP networkingv1beta1.IP `json:"ip"`
+	// CIDR is the network CIDR where the desired IP should be allocated from.
+	// It is optional, if left empty the IP will be allocated in a default network CIDR (e.g., external CIDR).
+	// +kubebuilder:validation:Optional
+	CIDR *networkingv1beta1.CIDR `json:"cidr,omitempty"`
 	// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
 	// If empty the creation of the service is disabled (default).
 	// +kubebuilder:validation:Optional
