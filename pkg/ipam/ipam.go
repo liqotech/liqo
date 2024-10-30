@@ -16,51 +16,58 @@ package ipam
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // LiqoIPAM is the struct implementing the IPAM interface.
 type LiqoIPAM struct {
 	UnimplementedIPAMServer
+	HealthServer *health.Server
 
-	Options *Options
+	client.Client
+
+	opts          *ServerOptions
+	cacheNetworks map[string]networkInfo
+	cacheIPs      map[string]ipInfo
+	mutex         sync.Mutex
 }
 
-// Options contains the options to configure the IPAM.
-type Options struct {
-	Port   int
-	Config *rest.Config
-	Client client.Client
-
-	EnableLeaderElection    bool
-	LeaderElectionNamespace string
-	LeaderElectionName      string
-	LeaseDuration           time.Duration
-	RenewDeadline           time.Duration
-	RetryPeriod             time.Duration
-	PodName                 string
-
-	HealthServer *health.Server
+// ServerOptions contains the options to configure the IPAM server.
+type ServerOptions struct {
+	Port          int
+	SyncFrequency time.Duration
 }
 
 // New creates a new instance of the LiqoIPAM.
-func New(ctx context.Context, opts *Options) (*LiqoIPAM, error) {
-	opts.HealthServer.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+func New(ctx context.Context, cl client.Client, opts *ServerOptions) (*LiqoIPAM, error) {
+	hs := health.NewServer()
+	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	lipam := &LiqoIPAM{
-		Options: opts,
+		HealthServer: hs,
+
+		Client: cl,
+
+		opts:          opts,
+		cacheNetworks: make(map[string]networkInfo),
+		cacheIPs:      make(map[string]ipInfo),
 	}
 
+	// Initialize the IPAM instance
 	if err := lipam.initialize(ctx); err != nil {
 		return nil, err
 	}
 
-	opts.HealthServer.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	// Launch sync routine
+	go lipam.sync(ctx, opts.SyncFrequency)
+
+	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+
 	return lipam, nil
 }
 
