@@ -23,7 +23,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +45,8 @@ import (
 const leaderElectorName = "liqo-ipam-leaderelection"
 
 var (
-	scheme = runtime.NewScheme()
+	scheme  = runtime.NewScheme()
+	options ipam.Options
 )
 
 func init() {
@@ -59,8 +59,6 @@ func init() {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 
-var options ipam.Options
-
 func main() {
 	var cmd = cobra.Command{
 		Use:  "liqo-ipam",
@@ -70,7 +68,12 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 
-	cmd.Flags().IntVar(&options.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
+	// Server options.
+	cmd.Flags().IntVar(&options.ServerOpts.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
+	cmd.Flags().DurationVar(&options.ServerOpts.SyncFrequency, "interval", consts.SyncFrequency,
+		"The interval at which the IPAM will synchronize the IPAM storage.")
+
+	// Leader election flags.
 	cmd.Flags().BoolVar(&options.EnableLeaderElection, "leader-election", false, "Enable leader election for IPAM. "+
 		"Enabling this will ensure there is only one active IPAM.")
 	cmd.Flags().StringVar(&options.LeaderElectionNamespace, "leader-election-namespace", consts.DefaultLiqoNamespace,
@@ -102,14 +105,14 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Get the rest config.
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
-	options.Config = cfg
+
+	// Get the client.
 	cl, err := client.New(cfg, client.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
 		return err
 	}
-	options.Client = cl
 
 	if options.EnableLeaderElection {
 		if leader, err := leaderelection.Blocking(ctx, cfg, record.NewBroadcaster(), &leaderelection.Opts{
@@ -129,15 +132,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	hs := health.NewServer()
-	options.HealthServer = hs
-
-	liqoIPAM, err := ipam.New(ctx, &options)
+	liqoIPAM, err := ipam.New(ctx, cl, &options.ServerOpts)
 	if err != nil {
 		return err
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.ServerOpts.Port))
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	server := grpc.NewServer()
 
 	// Register health service
-	grpc_health_v1.RegisterHealthServer(server, hs)
+	grpc_health_v1.RegisterHealthServer(server, liqoIPAM.HealthServer)
 
 	// Register IPAM service
 	ipam.RegisterIPAMServer(server, liqoIPAM)
