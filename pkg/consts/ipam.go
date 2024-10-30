@@ -14,12 +14,16 @@
 
 package consts
 
+import "time"
+
 // NetworkType indicates the type of Network.
 type NetworkType string
 
 const (
 	// IpamPort is the port used by the IPAM gRPC server.
-	IpamPort = 50051
+	IpamPort = 6000
+	// SyncFrequency is the frequency at which the IPAM should periodically sync its status.
+	SyncFrequency = 2 * time.Minute
 
 	// NetworkNotRemappedLabelKey is the label key used to mark a Network that does not need CIDR remapping.
 	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
