@@ -180,8 +180,10 @@ func (nc *NetworkChecker) collectGatewayInfo(ctx context.Context, cl client.Clie
 		peerNetwork.Gateway.Port = gwClient.Spec.Endpoint.Port
 	case gwServer != nil:
 		peerNetwork.Gateway.Role = GatewayClientType
-		peerNetwork.Gateway.Address = gwServer.Status.Endpoint.Addresses
-		peerNetwork.Gateway.Port = gwServer.Status.Endpoint.Port
+		if gwServer.Status.Endpoint != nil {
+			peerNetwork.Gateway.Address = gwServer.Status.Endpoint.Addresses
+			peerNetwork.Gateway.Port = gwServer.Status.Endpoint.Port
+		}
 	default:
 		return fmt.Errorf("no gateways found")
 	}
