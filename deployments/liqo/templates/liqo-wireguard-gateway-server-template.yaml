@@ -32,10 +32,12 @@ spec:
           selector:
             {{- include "liqo.labelsTemplate" (merge (dict "isService" true) $templateConfig) | nindent 12 }}
           type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
+          ?loadBalancerIP: "{{"{{ .Spec.Endpoint.LoadBalancerIP }}"}}"
           ports:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
             protocol: UDP
             targetPort: "{{"{{ .Spec.Endpoint.Port }}"}}"
+            ?nodePort: "{{"{{ .Spec.Endpoint.NodePort }}"}}"
           {{- if .Values.networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts }}
           allocateLoadBalancerNodePorts: {{ .Values.networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts }}
           {{- end }}
@@ -81,8 +83,8 @@ spec:
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
-                volumeMounts: 
-                - name: ipc 
+                volumeMounts:
+                - name: ipc
                   mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
@@ -135,7 +137,7 @@ spec:
                   privileged: true
                   {{ end }}
                 volumeMounts:
-                - name: ipc 
+                - name: ipc
                   mountPath: /ipc
                 - name: wireguard-config
                   mountPath: /etc/wireguard/keys
@@ -156,8 +158,8 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
-                volumeMounts: 
-                - name: ipc 
+                volumeMounts:
+                - name: ipc
                   mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
@@ -184,6 +186,6 @@ spec:
               - name: wireguard-config
                 secret:
                   secretName: "{{"{{ .SecretName }}"}}"
-              - name: ipc 
-                emptyDir: {} 
+              - name: ipc
+                emptyDir: {}
 {{- end }}
