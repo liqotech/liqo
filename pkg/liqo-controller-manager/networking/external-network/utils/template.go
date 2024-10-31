@@ -16,10 +16,19 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
+	"strings"
 	"text/template"
 )
+
+var variableRegex = regexp.MustCompile(`{{\s*(.\S+)\s*}}`)
+
+type renderOptions struct {
+	skipIfEmpty bool
+}
 
 // RenderTemplate renders a template.
 func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error) {
@@ -48,12 +57,16 @@ func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error
 	// if the object is a map, render the template for each value
 	if reflect.TypeOf(obj).Kind() == reflect.Map {
 		for k, v := range obj.(map[string]interface{}) {
-			res, err := RenderTemplate(v, data, forceString || isLabelsOrAnnotations(obj))
+			useKey, useValue, options := preProcessOptional(k, v, obj)
+
+			res, err := RenderTemplate(useValue, data, forceString || isLabelsOrAnnotations(obj))
 			if err != nil {
 				return obj, err
 			}
 
-			obj.(map[string]interface{})[k] = res
+			if !(reflect.ValueOf(res).IsZero() && options.skipIfEmpty) {
+				obj.(map[string]interface{})[useKey] = res
+			}
 		}
 
 		return obj, nil
@@ -73,6 +86,10 @@ func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error
 		return obj, nil
 	}
 
+	if forceString {
+		return fmt.Sprintf("%v", obj), nil
+	}
+
 	return obj, nil
 }
 
@@ -86,4 +103,34 @@ func isLabelsOrAnnotations(obj interface{}) bool {
 	}
 
 	return false
+}
+
+// getVariableFromValue given a field value returns the first matched gotmpl variable.
+func getVariableFromValue(value string) (string, bool) {
+	// Look for variables in the value
+	matches := variableRegex.FindStringSubmatch(value)
+
+	// If a variable is found, than get only the first one
+	if len(matches) > 1 {
+		return matches[1], true
+	}
+
+	return "", false
+}
+
+// preProcessOptional preprocesses the template so that a field is rendered only if it has been provided.
+func preProcessOptional(key string, value, obj interface{}) (newKey string, newValue interface{}, options renderOptions) {
+	newKey = key
+	newValue = value
+	if strings.HasPrefix(key, "?") && reflect.TypeOf(key).Kind() == reflect.String {
+		if variable, match := getVariableFromValue(value.(string)); match {
+			newKey = key[1:]
+			newValue = fmt.Sprintf("{{if %s}}%s{{end}}", variable, value)
+			options.skipIfEmpty = true
+			// Delete the field with the condition option
+			delete(obj.(map[string]interface{}), key)
+		}
+	}
+
+	return
 }
