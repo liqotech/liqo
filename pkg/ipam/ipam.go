@@ -63,3 +63,28 @@ func New(ctx context.Context, opts *Options) (*LiqoIPAM, error) {
 	opts.HealthServer.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	return lipam, nil
 }
+
+// IPAcquire acquires a free IP from a given CIDR.
+func (lipam *LiqoIPAM) IPAcquire(_ context.Context, _ *IPAcquireRequest) (*IPAcquireResponse, error) {
+	panic("implement me")
+}
+
+// IPRelease releases an IP from a given CIDR.
+func (lipam *LiqoIPAM) IPRelease(_ context.Context, _ *IPReleaseRequest) (*IPReleaseResponse, error) {
+	panic("implement me")
+}
+
+// NetworkAcquire acquires a network. If it is already reserved, it allocates and reserves a new free one with the same prefix length.
+func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, _ *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
+	panic("implement me")
+}
+
+// NetworkRelease releases a network.
+func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, _ *NetworkReleaseRequest) (*NetworkReleaseResponse, error) {
+	panic("implement me")
+}
+
+// NetworkIsAvailable checks if a network is available.
+func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, _ *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
+	panic("implement me")
+}

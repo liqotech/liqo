@@ -152,7 +152,7 @@ func main() {
 	// OFFLOADING MODULE
 	// Storage Provisioner parameters
 	enableStorage := pflag.Bool("enable-storage", false, "enable the liqo virtual storage class")
-	virtualStorageClassName := pflag.String("virtual-storage-class-name", consts.DefaultLiqoNamespace, "Name of the virtual storage class")
+	virtualStorageClassName := pflag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	realStorageClassName := pflag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
 	storageNamespace := pflag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
 	// Service continuity
@@ -251,12 +251,13 @@ func main() {
 		var ipamClient ipam.IpamClient
 		if *ipamServer != "" {
 			klog.Infof("connecting to the IPAM server %q", *ipamServer)
-			connection, err := grpc.NewClient(*ipamServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.NewClient(*ipamServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
 				os.Exit(1)
 			}
-			ipamClient = ipam.NewIpamClient(connection)
+			defer conn.Close()
+			ipamClient = ipam.NewIpamClient(conn)
 		}
 
 		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
