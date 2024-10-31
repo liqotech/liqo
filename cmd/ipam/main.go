@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -42,7 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
-const leaderElectorName = "liqo-ipam-leader-election"
+const leaderElectorName = "liqo-ipam-leaderelection"
 
 var (
 	scheme = runtime.NewScheme()
@@ -57,7 +58,6 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ipamstorages,verbs=get;list;watch;create;update;patch
 
 var options ipam.Options
 
@@ -73,15 +73,15 @@ func main() {
 	cmd.Flags().IntVar(&options.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
 	cmd.Flags().BoolVar(&options.EnableLeaderElection, "leader-election", false, "Enable leader election for IPAM. "+
 		"Enabling this will ensure there is only one active IPAM.")
-	cmd.Flags().StringVar(&options.LeaderElectionNamespace, "leader-election-namespace", "liqo",
+	cmd.Flags().StringVar(&options.LeaderElectionNamespace, "leader-election-namespace", consts.DefaultLiqoNamespace,
 		"The namespace in which the leader election lease will be created.")
 	cmd.Flags().StringVar(&options.LeaderElectionName, "leader-election-name", leaderElectorName,
 		"The name of the leader election lease.")
-	cmd.Flags().DurationVar(&options.LeaseDuration, "lease-duration", 15,
+	cmd.Flags().DurationVar(&options.LeaseDuration, "lease-duration", 15*time.Second,
 		"The duration that non-leader candidates will wait to force acquire leadership.")
-	cmd.Flags().DurationVar(&options.RenewDeadline, "renew-deadline", 10,
+	cmd.Flags().DurationVar(&options.RenewDeadline, "renew-deadline", 10*time.Second,
 		"The duration that the acting IPAM will retry refreshing leadership before giving up.")
-	cmd.Flags().DurationVar(&options.RetryPeriod, "retry-period", 2,
+	cmd.Flags().DurationVar(&options.RetryPeriod, "retry-period", 5*time.Second,
 		"The duration the LeaderElector clients should wait between tries of actions.")
 	cmd.Flags().StringVar(&options.PodName, "pod-name", "",
 		"The name of the pod running the IPAM service.")
@@ -103,7 +103,9 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	options.Config = cfg
-	cl, err := client.New(cfg, client.Options{})
+	cl, err := client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
 		return err
 	}
