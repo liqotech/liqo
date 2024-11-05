@@ -79,15 +79,15 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 }
 
 // NumPodsInTenantNs returns the number of pods that should be present in a tenant namespace.
-func NumPodsInTenantNs(networkingEnabled bool, role liqov1beta1.RoleType) int {
+func NumPodsInTenantNs(networkingEnabled bool, role liqov1beta1.RoleType, gwReplicas, vkReplicas int) int {
 	count := 0
 	// If the network is enabled, it should have the gateway pod.
 	if networkingEnabled {
-		count += 3
+		count += gwReplicas
 	}
 	// If the cluster is a consumer, it should have the virtual-kubelet pod.
 	if fcutils.IsConsumer(role) {
-		count++
+		count += vkReplicas
 	}
 	return count
 }

@@ -34,6 +34,10 @@ WORKDIR=$(dirname "$FILEPATH")
 # shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 
+# shellcheck disable=SC1091
+# shellcheck source=../cni.sh 
+source "$WORKDIR/../cni.sh"
+
 KIND="${BINDIR}/kind"
 
 CLUSTER_NAME=cluster
@@ -58,6 +62,11 @@ do
 	envsubst < "${TEMPLATE_DIR}/templates/$CLUSTER_TEMPLATE_FILE" > "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml"
 	echo "Creating cluster ${CLUSTER_NAME}${i}..."
 	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" --wait 2m
+
+	# Install CNI if kindnet disabled
+	if [[ ${DISABLE_KINDNET} == "true" ]]; then
+		"install_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+	fi
 
 	# Install metrics-server
 	install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"

@@ -44,7 +44,7 @@ import (
 
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
-	clustersRequired = 2
+	clustersRequired = 3
 	// testName is the name of this E2E test.
 	testName = "NETWORK"
 	// StressMax is the maximum number of stress iterations.
@@ -126,16 +126,29 @@ var _ = Describe("Liqo E2E", func() {
 		When("\"liqoctl test network\" runs", func() {
 			It("should succeed both before and after gateway pods restart", func() {
 				// Run the tests.
-				Eventually(runLiqoctlNetworkTests(defaultArgs), timeout, interval).Should(Succeed())
+				Eventually(func() error {
+					return runLiqoctlNetworkTests(defaultArgs)
+				}, timeout, interval).Should(Succeed())
 
 				// Restart the gateway pods.
 				for i := range testContext.Clusters {
 					RestartPods(testContext.Clusters[i].ControllerClient)
 				}
 
+				// Check if there is only one active gateway pod per remote cluster.
+				for i := range testContext.Clusters {
+					numActiveGateway := testContext.Clusters[i].NumPeeredConsumers + testContext.Clusters[i].NumPeeredProviders
+					Eventually(func() error {
+						return checkUniqueActiveGatewayPod(testContext.Clusters[i].ControllerClient, numActiveGateway)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Run the tests again.
-				Eventually(runLiqoctlNetworkTests(defaultArgs), timeout, interval).Should(Succeed())
+				Eventually(func() error {
+					return runLiqoctlNetworkTests(defaultArgs)
+				}, timeout, interval).Should(Succeed())
 			})
+
 			It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
 				args := defaultArgs
 				args.basic = true
@@ -146,12 +159,22 @@ var _ = Describe("Liqo E2E", func() {
 						RestartPods(testContext.Clusters[j].ControllerClient)
 					}
 
+					// Check if there is only one active gateway pod per remote cluster.
+					for j := range testContext.Clusters {
+						numActiveGateway := testContext.Clusters[j].NumPeeredConsumers + testContext.Clusters[j].NumPeeredProviders
+						Eventually(func() error {
+							return checkUniqueActiveGatewayPod(testContext.Clusters[j].ControllerClient, numActiveGateway)
+						}, timeout, interval).Should(Succeed())
+					}
+
 					if i == stressMax-1 {
 						args.remove = true
 					}
 
 					// Run the tests.
-					Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
+					Eventually(func() error {
+						return runLiqoctlNetworkTests(args)
+					}, timeout, interval).Should(Succeed())
 				}
 			})
 		})
@@ -299,7 +322,6 @@ func RestartPods(cl client.Client) {
 		if err := cl.List(ctx, deploymentList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{
 				gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
-				concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
 			}),
 		}); err != nil {
 			return err
@@ -313,4 +335,26 @@ func RestartPods(cl client.Client) {
 		}
 		return nil
 	}, timeout, interval).Should(Succeed())
+}
+
+// checkUniqueActiveGatewayPod checks if there is only one active gateway pod.
+func checkUniqueActiveGatewayPod(cl client.Client, numActiveGateway int) error {
+	// Sleep few seconds to be sure that the new leader is elected.
+	time.Sleep(2 * time.Second)
+
+	podList := &corev1.PodList{}
+	if err := cl.List(ctx, podList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
+			concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
+		}),
+	}); err != nil {
+		return fmt.Errorf("unable to list active gateway pods: %w", err)
+	}
+
+	if len(podList.Items) != numActiveGateway {
+		return fmt.Errorf("expected %d active gateway pod, got %d", numActiveGateway, len(podList.Items))
+	}
+
+	return nil
 }

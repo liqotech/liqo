@@ -77,11 +77,11 @@ func RemoveActiveGatewayLabel(ctx context.Context, cl client.Client, key client.
 	return nil
 }
 
-// ListAllGatewaysReplicas returns the list of all the gateways replicas of the same deployment.
-func ListAllGatewaysReplicas(ctx context.Context, cl client.Client, namespace, deploymentName string) ([]corev1.Pod, error) {
+// ListAllGatewaysReplicas returns the list of all the gateways replicas of the same gateway.
+func ListAllGatewaysReplicas(ctx context.Context, cl client.Client, namespace, gatewayName string) ([]corev1.Pod, error) {
 	podList := &corev1.PodList{}
 	if err := cl.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels{
-		consts.K8sAppNameKey: deploymentName,
+		consts.K8sAppNameKey: gatewayName,
 	}); err != nil {
 		return nil, err
 	}

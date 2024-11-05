@@ -47,7 +47,7 @@ install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
 
 install_helm "${OS}" "${ARCH}"
 
-KIND_VERSION="v0.23.0"
+KIND_VERSION="v0.24.0"
 
 echo "Downloading Kind ${KIND_VERSION}"
 

@@ -63,7 +63,7 @@ LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
-export HA_REPLICAS=3
+export HA_REPLICAS=2
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
