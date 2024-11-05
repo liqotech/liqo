@@ -55,20 +55,27 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 
 func (lipam *LiqoIPAM) syncNetworks(ctx context.Context, expiredThreshold time.Time) error {
 	// List all networks present in the cluster.
-	nets, err := listNetworksOnCluster(ctx, lipam.Client)
+	clusterNetworks, err := listNetworksOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
 	}
 
-	// Create a set for faster lookup.
-	nwSet := make(map[string]struct{})
-	for _, net := range nets {
-		nwSet[net] = struct{}{}
+	// Create the set of networks present in the cluster (for faster lookup later).
+	setClusterNetworks := make(map[string]struct{})
+
+	// Add networks that are present in the cluster but not in the cache.
+	for _, net := range clusterNetworks {
+		if _, inCache := lipam.cacheNetworks[net]; !inCache {
+			if err := lipam.reserveNetwork(net); err != nil {
+				return err
+			}
+		}
+		setClusterNetworks[net] = struct{}{} // add network to the set
 	}
 
 	// Remove networks that are present in the cache but not in the cluster, and were added before the threshold.
 	for key := range lipam.cacheNetworks {
-		if _, ok := nwSet[key]; !ok && lipam.cacheNetworks[key].creationTimestamp.Before(expiredThreshold) {
+		if _, inCluster := setClusterNetworks[key]; !inCluster && lipam.cacheNetworks[key].creationTimestamp.Before(expiredThreshold) {
 			lipam.freeNetwork(lipam.cacheNetworks[key].cidr)
 		}
 	}
@@ -83,15 +90,22 @@ func (lipam *LiqoIPAM) syncIPs(ctx context.Context, expiredThreshold time.Time) 
 		return err
 	}
 
-	// Create a set for faster lookup.
-	ipSet := make(map[string]struct{})
+	// Create the set of IPs present in the cluster (for faster lookup later).
+	setClusterIPs := make(map[string]struct{})
+
+	// Add IPs that are present in the cluster but not in the cache.
 	for _, ip := range ips {
-		ipSet[ip.String()] = struct{}{}
+		if _, inCache := lipam.cacheIPs[ip.String()]; !inCache {
+			if err := lipam.reserveIP(ip); err != nil {
+				return err
+			}
+		}
+		setClusterIPs[ip.String()] = struct{}{} // add IP to the set
 	}
 
 	// Remove IPs that are present in the cache but not in the cluster, and were added before the threshold.
 	for key := range lipam.cacheIPs {
-		if _, ok := ipSet[key]; !ok && lipam.cacheIPs[key].creationTimestamp.Before(expiredThreshold) {
+		if _, inCluster := setClusterIPs[key]; !inCluster && lipam.cacheIPs[key].creationTimestamp.Before(expiredThreshold) {
 			lipam.freeIP(lipam.cacheIPs[key].ipCidr)
 		}
 	}
