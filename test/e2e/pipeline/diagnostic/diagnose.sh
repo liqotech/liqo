@@ -43,10 +43,10 @@ do
    echo "Available Nodes"
    echo "|------------------------------------------------------------|"
    ${KUBECTL} get no -o wide --show-labels
-   echo "Liqo local status"
+   echo "Liqo local info"
    echo "|------------------------------------------------------------|"
-   ${LIQOCTL} status --verbose
-   echo "Liqo peerings statuses"
+   ${LIQOCTL} info --verbose
+   echo "Liqo peerings info"
    echo "|------------------------------------------------------------|"
-   ${LIQOCTL} status peer --verbose
+   ${LIQOCTL} info peer --verbose
 done;
