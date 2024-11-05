@@ -38,8 +38,8 @@ WORKDIR=$(dirname "$FILEPATH")
 source "$WORKDIR/../../utils.sh"
 
 # shellcheck disable=SC1091
-# shellcheck source=./cni.sh 
-source "$WORKDIR/cni.sh"
+# shellcheck source=../cni.sh 
+source "$WORKDIR/../cni.sh"
 
 export K8S_VERSION=${K8S_VERSION:-"1.29.7"}
 K8S_VERSION=$(echo -n "$K8S_VERSION" | sed 's/v//g') # remove the leading v

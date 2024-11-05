@@ -26,9 +26,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	gwconsts "github.com/liqotech/liqo/pkg/gateway"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -92,8 +95,28 @@ var _ = Describe("Liqo E2E", func() {
 					for _, tenantNs := range tenantNsList.Items {
 						Eventually(func() bool {
 							readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNs.Name)
+							Expect(err).ToNot(HaveOccurred())
 							klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
-							return err == nil && len(notReadyPods) == 0 && len(readyPods) == util.NumPodsInTenantNs(true, cluster.Role)
+							// Get deployment gateway
+							gwDeployments, err := cluster.NativeClient.AppsV1().Deployments(tenantNs.Name).List(ctx, metav1.ListOptions{
+								LabelSelector: fmt.Sprintf("%s=%s", gwconsts.GatewayComponentKey, gwconsts.GatewayComponentGateway),
+							})
+							Expect(err).ToNot(HaveOccurred())
+							Expect(gwDeployments.Items).To(HaveLen(1))
+							gwReplicas := int(ptr.Deref(gwDeployments.Items[0].Spec.Replicas, 1))
+
+							// Get deployment virtual-kubelet if role is consumer
+							vkReplicas := 0
+							if fcutils.IsConsumer(cluster.Role) {
+								vkDeployments, err := cluster.NativeClient.AppsV1().Deployments(tenantNs.Name).List(ctx, metav1.ListOptions{
+									LabelSelector: labels.SelectorFromSet(vkMachinery.KubeletBaseLabels).String(),
+								})
+								Expect(err).ToNot(HaveOccurred())
+								Expect(vkDeployments.Items).To(HaveLen(1))
+								vkReplicas = int(ptr.Deref(vkDeployments.Items[0].Spec.Replicas, 1))
+							}
+							return len(notReadyPods) == 0 &&
+								len(readyPods) == util.NumPodsInTenantNs(true, cluster.Role, gwReplicas, vkReplicas)
 						}, timeout, interval).Should(BeTrue())
 					}
 				},

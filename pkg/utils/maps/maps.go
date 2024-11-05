@@ -17,7 +17,7 @@ package maps
 import (
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,16 +179,14 @@ func UpdateCache(annots, template map[string]string, cacheKey string) map[string
 // SerializeMap convert a map in a string of concatenated keys seprated by commas.
 func SerializeMap(m map[string]string) string {
 	serialized := ""
-	keys := make([]string, len(m))
-	i := 0
+	keys := make([]string, 0, len(m))
 	for k := range m {
-		keys[i] = k
-		i++
+		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
-		serialized += fmt.Sprintf("%s,", m[k])
+		serialized += fmt.Sprintf("%s,", k)
 	}
 	return serialized
 }

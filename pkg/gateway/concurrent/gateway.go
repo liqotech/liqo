@@ -16,6 +16,7 @@ package concurrent
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,16 +32,16 @@ var _ manager.Runnable = &RunnableGateway{}
 type RunnableGateway struct {
 	Client client.Client
 
-	PodName        string
-	DeploymentName string
-	Namespace      string
+	PodName     string
+	GatewayName string
+	Namespace   string
 
 	Socket           net.Listener
 	GuestConnections ipc.GuestConnections
 }
 
 // NewRunnableGateway creates a new Runnable.
-func NewRunnableGateway(cl client.Client, podName, deploymentName, namespace string, containerNames []string) (*RunnableGateway, error) {
+func NewRunnableGateway(cl client.Client, podName, gatewayName, namespace string, containerNames []string) (*RunnableGateway, error) {
 	guestConnections := ipc.NewGuestConnections(containerNames)
 
 	socket, err := ipc.CreateListenSocket(unixSocketPath)
@@ -56,7 +57,7 @@ func NewRunnableGateway(cl client.Client, podName, deploymentName, namespace str
 	return &RunnableGateway{
 		Client:           cl,
 		PodName:          podName,
-		DeploymentName:   deploymentName,
+		GatewayName:      gatewayName,
 		Namespace:        namespace,
 		Socket:           socket,
 		GuestConnections: guestConnections,
@@ -67,7 +68,7 @@ func NewRunnableGateway(cl client.Client, podName, deploymentName, namespace str
 func (rg *RunnableGateway) Start(ctx context.Context) error {
 	defer rg.Close()
 
-	pods, err := ListAllGatewaysReplicas(ctx, rg.Client, rg.Namespace, rg.DeploymentName)
+	pods, err := ListAllGatewaysReplicas(ctx, rg.Client, rg.Namespace, rg.GatewayName)
 	if err != nil {
 		return err
 	}
@@ -82,6 +83,10 @@ func (rg *RunnableGateway) Start(ctx context.Context) error {
 				return err
 			}
 		}
+	}
+
+	if activePod == nil {
+		return fmt.Errorf("active gateway pod not found")
 	}
 
 	if err := AddActiveGatewayLabel(ctx, rg.Client, client.ObjectKeyFromObject(activePod)); err != nil {
