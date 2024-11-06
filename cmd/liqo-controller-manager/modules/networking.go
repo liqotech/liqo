@@ -21,7 +21,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
+	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
@@ -35,8 +35,6 @@ import (
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/node-controller"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/server-controller"
-	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/ip-controller"
-	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
 
@@ -46,7 +44,7 @@ type NetworkingOption struct {
 	Factory   *dynamicutils.RunnableFactory
 
 	LiqoNamespace string
-	IpamClient    ipam.IpamClient
+	IpamClient    ipam.IPAMClient
 
 	GatewayServerResources         []string
 	GatewayClientResources         []string
@@ -61,21 +59,23 @@ type NetworkingOption struct {
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
-func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *NetworkingOption) error {
-	networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
-		klog.Errorf("Unable to start the networkReconciler: %v", err)
-		return err
-	}
+func SetupNetworkingModule(_ context.Context, mgr manager.Manager, opts *NetworkingOption) error {
+	// TODO: refactor network reconciler with the new IPAM client.
+	// networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
+	// if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
+	// 	klog.Errorf("Unable to start the networkReconciler: %v", err)
+	// 	return err
+	// }
 
-	ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	if err := ipReconciler.SetupWithManager(ctx, mgr, opts.IPWorkers); err != nil {
-		klog.Errorf("Unable to start the ipReconciler: %v", err)
-		return err
-	}
+	// TODO: refactor IP reconciler with the new IPAM client.
+	// ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
+	// if err := ipReconciler.SetupWithManager(ctx, mgr, opts.IPWorkers); err != nil {
+	// 	klog.Errorf("Unable to start the ipReconciler: %v", err)
+	// 	return err
+	// }
 
 	cfgReconciler := configuration.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
-		mgr.GetEventRecorderFor("configuration-controller"), opts.IpamClient)
+		mgr.GetEventRecorderFor("configuration-controller"))
 	if err := cfgReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("unable to create controller configurationReconciler: %s", err)
 		return err
