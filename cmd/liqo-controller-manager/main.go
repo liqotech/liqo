@@ -47,7 +47,7 @@ import (
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
+	"github.com/liqotech/liqo/pkg/ipam"
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
@@ -248,7 +248,7 @@ func main() {
 	// NETWORKING MODULE
 	if *networkingEnabled {
 		// Connect to the IPAM server if specified.
-		var ipamClient ipam.IpamClient
+		var ipamClient ipam.IPAMClient
 		if *ipamServer != "" {
 			klog.Infof("connecting to the IPAM server %q", *ipamServer)
 			conn, err := grpc.NewClient(*ipamServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -257,7 +257,7 @@ func main() {
 				os.Exit(1)
 			}
 			defer conn.Close()
-			ipamClient = ipam.NewIpamClient(conn)
+			ipamClient = ipam.NewIPAMClient(conn)
 		}
 
 		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
