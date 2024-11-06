@@ -28,7 +28,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -39,19 +38,17 @@ type ConfigurationReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	localCIDR  *networkingv1beta1.ClusterConfigCIDR
-	ipamClient ipam.IpamClient
+	localCIDR *networkingv1beta1.ClusterConfigCIDR
 }
 
 // NewConfigurationReconciler returns a new ConfigurationReconciler.
-func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder, ipamClient ipam.IpamClient) *ConfigurationReconciler {
+func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) *ConfigurationReconciler {
 	return &ConfigurationReconciler{
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
 
-		localCIDR:  nil,
-		ipamClient: ipamClient,
+		localCIDR: nil,
 	}
 }
 
@@ -73,42 +70,31 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if configuration.Spec.Local == nil {
-		err := r.defaultLocalNetwork(ctx, configuration)
-		if err != nil {
+		if err := r.defaultLocalNetwork(ctx, configuration); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	events.Event(r.EventsRecorder, configuration, "Processing")
+	events.Event(r.EventsRecorder, configuration, "Processing configuration")
 
-	err := r.RemapConfiguration(ctx, configuration, r.EventsRecorder)
-	if err != nil {
+	if err := r.RemapConfiguration(ctx, configuration, r.EventsRecorder); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err = r.UpdateConfigurationStatus(ctx, configuration); err != nil {
+	if err := r.UpdateConfigurationStatus(ctx, configuration); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	if !isConfigurationConfigured(configuration) {
-		events.Event(r.EventsRecorder, configuration, "Waiting for the network to be ready")
+		events.Event(r.EventsRecorder, configuration, "Waiting for all networks to be ready")
 	} else {
-		// Set the subnets for the remote cluster.
-		if configuration.Labels != nil && configuration.Labels[consts.RemoteClusterID] != "" {
-			if _, err := r.ipamClient.SetSubnetsPerCluster(ctx, &ipam.SetSubnetsPerClusterRequest{
-				RemappedPodCIDR:      configuration.Status.Remote.CIDR.Pod.String(),
-				RemappedExternalCIDR: configuration.Status.Remote.CIDR.External.String(),
-				ClusterID:            configuration.Labels[consts.RemoteClusterID],
-			}); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to set subnets per cluster: %w", err)
-			}
-		}
-
 		events.Event(r.EventsRecorder, configuration, "Configuration remapped")
-		err = SetConfigurationConfigured(ctx, r.Client, configuration)
+		if err := SetConfigurationConfigured(ctx, r.Client, configuration); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to set configuration %q as configured: %w", req.NamespacedName, err)
+		}
 	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1beta1.Configuration) error {
