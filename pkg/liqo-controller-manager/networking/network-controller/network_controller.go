@@ -28,7 +28,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
+	"github.com/liqotech/liqo/pkg/ipam"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -41,11 +41,11 @@ type NetworkReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ipamClient ipam.IpamClient
+	ipamClient ipam.IPAMClient
 }
 
 // NewNetworkReconciler returns a new NetworkReconciler.
-func NewNetworkReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamClient) *NetworkReconciler {
+func NewNetworkReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IPAMClient) *NetworkReconciler {
 	return &NetworkReconciler{
 		Client: cl,
 		Scheme: s,
@@ -61,9 +61,8 @@ func NewNetworkReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.I
 
 // Reconcile Network objects.
 func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var nw ipamv1alpha1.Network
-
 	// Fetch the Network instance
+	var nw ipamv1alpha1.Network
 	if err := r.Get(ctx, req.NamespacedName, &nw); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Network %q not found", req.NamespacedName)
@@ -73,19 +72,8 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	switch {
-	case ipamutils.NetworkNotRemapped(&nw):
-		if err := r.handleNetworkNotRemappedStatus(ctx, &nw); err != nil {
-			return ctrl.Result{}, err
-		}
-	case ipamutils.IsExternalCIDR(&nw):
-		if err := r.handleNetworkExternalCIDRStatus(ctx, &nw); err != nil {
-			return ctrl.Result{}, err
-		}
-	default:
-		if err := r.handleNetworkStatus(ctx, &nw); err != nil {
-			return ctrl.Result{}, err
-		}
+	if err := r.handleNetworkStatus(ctx, &nw); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -112,39 +100,6 @@ func (r *NetworkReconciler) updateNetworkStatus(ctx context.Context, nw *ipamv1a
 	return nil
 }
 
-// handleNetworkNotRemapped handles the status of a Network resource that does not need CIDR remapping.
-func (r *NetworkReconciler) handleNetworkNotRemappedStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
-	nw.Status.CIDR = nw.Spec.CIDR // set the status to the desired CIDR.
-	if err := r.updateNetworkStatus(ctx, nw, false); err != nil {
-		return err
-	}
-	return nil
-}
-
-// handleNetworkExternalCIDR handles the status of a Network resource of type ExternalCIDR.
-func (r *NetworkReconciler) handleNetworkExternalCIDRStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
-	if nw.GetDeletionTimestamp().IsZero() {
-		// Update Network status if it is not set yet.
-		// The external CIDR can't change after it is set, so we avoid to call it
-		// multiple times by checking if the status is already set.
-		if nw.Status.CIDR == "" {
-			desiredCIDR := nw.Spec.CIDR
-			remappedCIDR, err := getOrSetExternalCIDR(ctx, r.ipamClient, desiredCIDR)
-			if err != nil {
-				return err
-			}
-
-			// Update status
-			nw.Status.CIDR = remappedCIDR
-			if err := r.updateNetworkStatus(ctx, nw, true); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 // handleNetworkStatus handles the status of a Network resource.
 func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
 	if nw.GetDeletionTimestamp().IsZero() {
@@ -164,11 +119,13 @@ func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1a
 		}
 
 		// Update Network status if it is not set yet
-		// The IPAM MapNetworkCIDR() function is not idempotent, so we avoid to call it
+		// The IPAM NetworkAcquire() function is not idempotent, so we avoid to call it
 		// multiple times by checking if the status is already set.
 		if nw.Status.CIDR == "" {
 			desiredCIDR := nw.Spec.CIDR
-			remappedCIDR, err := getRemappedCIDR(ctx, r.ipamClient, desiredCIDR)
+			// if the Network must not be remapped, we acquire the network specifying to the IPAM that the cidr is immutable.
+			immutable := ipamutils.NetworkNotRemapped(nw)
+			remappedCIDR, err := getRemappedCIDR(ctx, r.ipamClient, desiredCIDR, immutable)
 			if err != nil {
 				return err
 			}
