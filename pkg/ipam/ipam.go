@@ -72,26 +72,75 @@ func New(ctx context.Context, cl client.Client, opts *ServerOptions) (*LiqoIPAM,
 }
 
 // IPAcquire acquires a free IP from a given CIDR.
-func (lipam *LiqoIPAM) IPAcquire(_ context.Context, _ *IPAcquireRequest) (*IPAcquireResponse, error) {
-	panic("implement me")
+func (lipam *LiqoIPAM) IPAcquire(_ context.Context, req *IPAcquireRequest) (*IPAcquireResponse, error) {
+	remappedIP, err := lipam.acquireIP(req.GetCidr())
+	if err != nil {
+		return &IPAcquireResponse{
+			Result: &ResponseResult{
+				Success: false,
+				Error:   err.Error(),
+			},
+		}, err
+	}
+
+	return &IPAcquireResponse{
+		Ip: remappedIP,
+		Result: &ResponseResult{
+			Success: true,
+		},
+	}, nil
 }
 
 // IPRelease releases an IP from a given CIDR.
-func (lipam *LiqoIPAM) IPRelease(_ context.Context, _ *IPReleaseRequest) (*IPReleaseResponse, error) {
-	panic("implement me")
+func (lipam *LiqoIPAM) IPRelease(_ context.Context, req *IPReleaseRequest) (*IPReleaseResponse, error) {
+	lipam.freeIP(ipCidr{ip: req.GetIp(), cidr: req.GetCidr()})
+
+	return &IPReleaseResponse{
+		Result: &ResponseResult{
+			Success: true,
+		},
+	}, nil
 }
 
 // NetworkAcquire acquires a network. If it is already reserved, it allocates and reserves a new free one with the same prefix length.
-func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, _ *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
-	panic("implement me")
+func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
+	remappedCidr, err := lipam.acquireNetwork(req.GetCidr(), req.GetImmutable())
+	if err != nil {
+		return &NetworkAcquireResponse{
+			Result: &ResponseResult{
+				Success: false,
+				Error:   err.Error(),
+			},
+		}, err
+	}
+
+	return &NetworkAcquireResponse{
+		Cidr: remappedCidr,
+		Result: &ResponseResult{
+			Success: true,
+		},
+	}, nil
 }
 
 // NetworkRelease releases a network.
-func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, _ *NetworkReleaseRequest) (*NetworkReleaseResponse, error) {
-	panic("implement me")
+func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, req *NetworkReleaseRequest) (*NetworkReleaseResponse, error) {
+	lipam.freeNetwork(req.GetCidr())
+
+	return &NetworkReleaseResponse{
+		Result: &ResponseResult{
+			Success: true,
+		},
+	}, nil
 }
 
 // NetworkIsAvailable checks if a network is available.
-func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, _ *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
-	panic("implement me")
+func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, req *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
+	available := lipam.isNetworkAvailable(req.GetCidr())
+
+	return &NetworkAvailableResponse{
+		Available: available,
+		Result: &ResponseResult{
+			Success: true,
+		},
+	}, nil
 }
