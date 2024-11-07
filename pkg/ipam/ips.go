@@ -43,17 +43,38 @@ func (lipam *LiqoIPAM) reserveIP(ip ipCidr) error {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
-	ipI := ipInfo{
-		ipCidr:            ip,
-		creationTimestamp: time.Now(),
-	}
 	if lipam.cacheIPs == nil {
 		lipam.cacheIPs = make(map[string]ipInfo)
 	}
-	lipam.cacheIPs[ip.String()] = ipI
+	lipam.cacheIPs[ip.String()] = ipInfo{
+		ipCidr:            ip,
+		creationTimestamp: time.Now(),
+	}
 
 	klog.Infof("Reserved IP %q (network %q)", ip.ip, ip.cidr)
 	return nil
+}
+
+// acquireIP acquires an IP, eventually remapped if conflicts are found.
+func (lipam *LiqoIPAM) acquireIP(cidr string) (string, error) {
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	// TODO: implement real IP acquire logic
+	if lipam.cacheIPs == nil {
+		lipam.cacheIPs = make(map[string]ipInfo)
+	}
+	ip := ipCidr{
+		ip:   "",
+		cidr: cidr,
+	}
+	lipam.cacheIPs[ip.String()] = ipInfo{
+		ipCidr:            ip,
+		creationTimestamp: time.Now(),
+	}
+
+	klog.Infof("Acquired IP %q (network %q)", ip.ip, ip.cidr)
+	return ip.ip, nil
 }
 
 // freeIP frees an IP, removing it from the cache.
