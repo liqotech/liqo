@@ -106,36 +106,54 @@ func GetReservedSubnets(ctx context.Context, cl client.Client) ([]string, error)
 
 // NetworkNotRemapped returns whether the given Network does not need CIDR remapping.
 func NetworkNotRemapped(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	value, ok := nw.Labels[consts.NetworkNotRemappedLabelKey]
 	return ok && !strings.EqualFold(value, "false")
 }
 
 // IsPodCIDR returns whether the given Network is of type PodCIDR.
 func IsPodCIDR(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypePodCIDR)
 }
 
 // IsServiceCIDR returns whether the given Network is of type ServiceCIDR.
 func IsServiceCIDR(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypeServiceCIDR)
 }
 
 // IsExternalCIDR returns whether the given Network is of type ExternalCIDR.
 func IsExternalCIDR(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypeExternalCIDR)
 }
 
 // IsInternalCIDR returns whether the given Network is of type InternalCIDR.
 func IsInternalCIDR(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypeInternalCIDR)
 }
 
 // IsReservedNetwork returns whether the given Network is of type Reserved.
 func IsReservedNetwork(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return false
+	}
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypeReserved)
 }
