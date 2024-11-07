@@ -35,6 +35,7 @@ import (
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/node-controller"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/server-controller"
+	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
 
@@ -59,13 +60,12 @@ type NetworkingOption struct {
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
-func SetupNetworkingModule(_ context.Context, mgr manager.Manager, opts *NetworkingOption) error {
-	// TODO: refactor network reconciler with the new IPAM client.
-	// networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	// if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
-	// 	klog.Errorf("Unable to start the networkReconciler: %v", err)
-	// 	return err
-	// }
+func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *NetworkingOption) error {
+	networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
+	if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
+		klog.Errorf("Unable to start the networkReconciler: %v", err)
+		return err
+	}
 
 	// TODO: refactor IP reconciler with the new IPAM client.
 	// ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)

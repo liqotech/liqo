@@ -20,36 +20,22 @@ import (
 	"k8s.io/klog/v2"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
+	"github.com/liqotech/liqo/pkg/ipam"
 )
 
-// getExternalCIDR returns the remapped external CIDR for the given CIDR.
-func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1beta1.CIDR) (networkingv1beta1.CIDR, error) {
-	switch ipamClient.(type) {
-	case nil:
-		// IPAM is not enabled, use original CIDR from spec
-		return desiredCIDR, nil
-	default:
-		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.GetOrSetExternalCIDR(ctx, &ipam.GetOrSetExtCIDRRequest{DesiredExtCIDR: desiredCIDR.String()})
-		if err != nil {
-			klog.Errorf("IPAM: error while mapping network external CIDR %s: %v", desiredCIDR, err)
-			return "", err
-		}
-		klog.Infof("IPAM: mapped network external CIDR %s to %s", desiredCIDR, response.RemappedExtCIDR)
-		return networkingv1beta1.CIDR(response.RemappedExtCIDR), nil
-	}
-}
-
 // getRemappedCIDR returns the remapped CIDR for the given CIDR.
-func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1beta1.CIDR) (networkingv1beta1.CIDR, error) {
+func getRemappedCIDR(ctx context.Context, ipamClient ipam.IPAMClient,
+	desiredCIDR networkingv1beta1.CIDR, immutable bool) (networkingv1beta1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original CIDR from spec
 		return desiredCIDR, nil
 	default:
 		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.MapNetworkCIDR(ctx, &ipam.MapCIDRRequest{Cidr: desiredCIDR.String()})
+		response, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
+			Cidr:      desiredCIDR.String(),
+			Immutable: immutable,
+		})
 		if err != nil {
 			klog.Errorf("IPAM: error while mapping network CIDR %s: %v", desiredCIDR, err)
 			return "", err
@@ -60,14 +46,17 @@ func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCID
 }
 
 // deleteRemappedCIDR unmaps the given CIDR.
-func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1beta1.CIDR) error {
+func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IPAMClient,
+	remappedCIDR networkingv1beta1.CIDR) error {
 	switch ipamClient.(type) {
 	case nil:
 		// If the IPAM is not enabled we do not need to free the network CIDR.
 		return nil
 	default:
 		// Interact with the IPAM to free the network CIDR.
-		_, err := ipamClient.UnmapNetworkCIDR(ctx, &ipam.UnmapCIDRRequest{Cidr: remappedCIDR.String()})
+		_, err := ipamClient.NetworkRelease(ctx, &ipam.NetworkReleaseRequest{
+			Cidr: remappedCIDR.String(),
+		})
 		if err != nil {
 			klog.Errorf("IPAM: error while unmapping CIDR %s: %v", remappedCIDR, err)
 			return err

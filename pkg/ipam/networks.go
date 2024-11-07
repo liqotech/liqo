@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 )
 
 type networkInfo struct {
@@ -67,13 +66,7 @@ func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]string, err
 	for i := range networks.Items {
 		net := &networks.Items[i]
 
-		var cidr string
-		switch {
-		case net.Labels != nil && net.Labels[consts.NetworkNotRemappedLabelKey] == consts.NetworkNotRemappedLabelValue:
-			cidr = net.Spec.CIDR.String()
-		default:
-			cidr = net.Status.CIDR.String()
-		}
+		cidr := net.Status.CIDR.String()
 		if cidr == "" {
 			klog.Warningf("Network %q has no CIDR", net.Name)
 			continue
