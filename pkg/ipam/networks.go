@@ -34,17 +34,35 @@ func (lipam *LiqoIPAM) reserveNetwork(cidr string) error {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
-	nwI := networkInfo{
-		cidr:              cidr,
-		creationTimestamp: time.Now(),
-	}
 	if lipam.cacheNetworks == nil {
 		lipam.cacheNetworks = make(map[string]networkInfo)
 	}
-	lipam.cacheNetworks[cidr] = nwI
+	lipam.cacheNetworks[cidr] = networkInfo{
+		cidr:              cidr,
+		creationTimestamp: time.Now(),
+	}
 
 	klog.Infof("Reserved network %q", cidr)
 	return nil
+}
+
+// acquireNetwork acquires a network, eventually remapped if conflicts are found.
+func (lipam *LiqoIPAM) acquireNetwork(cidr string, immutable bool) (string, error) {
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	// TODO: implement real network acquire logic
+	_ = immutable
+	if lipam.cacheNetworks == nil {
+		lipam.cacheNetworks = make(map[string]networkInfo)
+	}
+	lipam.cacheNetworks[cidr] = networkInfo{
+		cidr:              cidr,
+		creationTimestamp: time.Now(),
+	}
+
+	klog.Infof("Acquired network %q", cidr)
+	return cidr, nil
 }
 
 // freeNetwork frees a network, removing it from the cache.
@@ -54,6 +72,19 @@ func (lipam *LiqoIPAM) freeNetwork(cidr string) {
 
 	delete(lipam.cacheNetworks, cidr)
 	klog.Infof("Freed network %q", cidr)
+}
+
+// isNetworkAvailable checks if a network is available.
+func (lipam *LiqoIPAM) isNetworkAvailable(cidr string) bool {
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	if lipam.cacheNetworks == nil {
+		return true
+	}
+	_, ok := lipam.cacheNetworks[cidr]
+
+	return ok
 }
 
 func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]string, error) {
