@@ -43,6 +43,7 @@ subtrees:
           - file: advanced/peering/inter-cluster-network.md
           - file: advanced/peering/inter-cluster-authentication.md
           - file: advanced/peering/offloading-in-depth.md
+          - file: advanced/peering/peering-via-cr.md
       - file: advanced/use-only-offloading.md
       - file: advanced/enable-external-networking.md
       - file: advanced/virtualnode-customizations.md
