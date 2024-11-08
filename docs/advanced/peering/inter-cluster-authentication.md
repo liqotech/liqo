@@ -208,9 +208,9 @@ As a result of the command, you should be able to see:
   NAME                TYPE     DATA   AGE
   liqo-signed-nonce   Opaque   2      78s
   ```
-  
+
 ```{admonition} Note
-If you want to use the [in-band](UsagePeeringInBand) approach, use the `spec.proxyURL` field inside the `Tenant` CRD. 
+If you want to use the [in-band](UsagePeeringInBand) approach, use the `spec.proxyURL` field inside the `Tenant` CRD.
 Check the [Kubernetes API Server Proxy](/advanced/k8s-api-server-proxy.md) page
 ```
 
@@ -259,11 +259,11 @@ spec:
 status: {}
 ```
 
-Which can be applied **on the cluster consumer**:
+Which can be applied **on the cluster consumer**, making sure that the resource is created in the tenant namespace (`liqo-tenant-cl-consumer` in this case):
 
 ```{code-block} bash
 :caption: "Cluster consumer"
-kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH
+kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH -n liqo-tenant-cl-consumer
 ```
 
 Once the Identity resource is correctly applied, the clusters are able to negotiate the resources for the [offloading](/advanced/peering/offloading-in-depth).
@@ -292,10 +292,10 @@ All in all, these are the steps to be followed by the administrators of each of 
    liqoctl generate identity --remote-cluster-id $CLUSTER_CONSUMER_ID > identity.yaml
    ```
 
-4. **Cluster consumer** applies `identity.yaml`:
+4. **Cluster consumer** applies `identity.yaml` in the tenant namespace:
 
    ```bash
-   kubectl apply -f identity.yaml
+   kubectl apply -f identity.yaml -n $TENANT_NAMESPACE
    ```
 
 You can check whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).

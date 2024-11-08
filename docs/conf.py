@@ -46,7 +46,7 @@ myst_enable_extensions = [
     "substitution",
 ]
 # Enable slug generation for headings to reference them in markdown links
-myst_heading_anchors = 3
+myst_heading_anchors = 4
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
