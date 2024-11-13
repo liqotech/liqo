@@ -8,7 +8,7 @@ This feature is **internally** used by the [in-band peering](UsagePeeringInBand)
 If you just need to peer two clusters without publicly exposing the Kubernetes API server, you can use the [in-band peering](UsagePeeringInBand).
 ```
 
-The Kubernetes API Server Proxy is an Envoy HTTP server that accepts [HTTP Connect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT) requests and forwards them to the Kubernetes API Server of the local cluster.
+The Kubernetes API Server Proxy is an HTTP server that accepts [HTTP Connect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT) requests and forwards them to the Kubernetes API Server of the local cluster.
 It just proxy the requests to the API server and it has no permission on the local cluster.
 This means that, as usual, all the requesters must authenticate with the Kubernetes API Server to access the resources.
 
