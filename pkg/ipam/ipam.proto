@@ -11,8 +11,6 @@ service IPAM {
 }
 
 message ResponseResult {
-    bool success = 1;
-    string error = 2;
 }
 
 message IPAcquireRequest {
@@ -20,8 +18,8 @@ message IPAcquireRequest {
 }
 
 message IPAcquireResponse {
-    ResponseResult result = 1;
-    string ip = 2;
+    string ip = 1;
+    ResponseResult result = 2;
 }
 
 message IPReleaseRequest {
@@ -39,8 +37,8 @@ message NetworkAcquireRequest {
 }
 
 message NetworkAcquireResponse {
-    ResponseResult result = 1;
-    string cidr = 2;
+    string cidr = 1;
+    ResponseResult result = 2;
 }
 
 message NetworkReleaseRequest {
@@ -56,6 +54,6 @@ message NetworkAvailableRequest {
 }
 
 message NetworkAvailableResponse {
-    ResponseResult result = 1;
-    bool available = 2;
+    bool available = 1;
+    ResponseResult result = 2;
 }
