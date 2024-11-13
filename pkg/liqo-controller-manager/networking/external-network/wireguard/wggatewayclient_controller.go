@@ -208,6 +208,7 @@ func (r *WgGatewayClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&networkingv1beta1.WgGatewayClient{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ServiceAccount{}).
+		Watches(&corev1.Pod{}, handler.EnqueueRequestsFromMapFunc(podEnquerer)).
 		Watches(&rbacv1.ClusterRoleBinding{},
 			handler.EnqueueRequestsFromMapFunc(clusterRoleBindingEnquerer)).
 		Watches(&corev1.Secret{},

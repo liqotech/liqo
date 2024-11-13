@@ -224,6 +224,7 @@ func (r *WgGatewayServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
+		Watches(&corev1.Pod{}, handler.EnqueueRequestsFromMapFunc(podEnquerer)).
 		Watches(&rbacv1.ClusterRoleBinding{},
 			handler.EnqueueRequestsFromMapFunc(clusterRoleBindingEnquerer)).
 		Watches(&corev1.Secret{},

@@ -44,7 +44,7 @@ import (
 
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
-	clustersRequired = 3
+	clustersRequired = 2
 	// testName is the name of this E2E test.
 	testName = "NETWORK"
 	// StressMax is the maximum number of stress iterations.
