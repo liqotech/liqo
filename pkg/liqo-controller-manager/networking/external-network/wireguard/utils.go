@@ -97,6 +97,34 @@ func clusterRoleBindingEnquerer(_ context.Context, obj client.Object) []ctrl.Req
 	}
 }
 
+func podEnquerer(_ context.Context, obj client.Object) []ctrl.Request {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return nil
+	}
+
+	if pod.Labels == nil {
+		return nil
+	}
+	gwName, ok := pod.Labels[consts.GatewayNameLabel]
+	if !ok {
+		return nil
+	}
+	gwNs, ok := pod.Labels[consts.GatewayNamespaceLabel]
+	if !ok {
+		return nil
+	}
+
+	return []ctrl.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Namespace: gwNs,
+				Name:      gwName,
+			},
+		},
+	}
+}
+
 // ensureKeysSecret ensure the presence of the private and public keys for the Wireguard interface and save them inside a Secret resource and Options.
 func ensureKeysSecret(ctx context.Context, cl client.Client, wgObj metav1.Object, mode gateway.Mode) error {
 	var controllerRef metav1.OwnerReference
