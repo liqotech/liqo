@@ -637,7 +637,7 @@ proxy:
     priorityClassName: ""
   image:
     # -- Image repository for the proxy pod.
-    name: "ghcr.io/liqotech/proxy"
+    name: "thegrandpkizzle/envoy:1.26.1"
     # -- Custom version for the proxy image. If not specified, the global tag is used.
     version: ""
   service:

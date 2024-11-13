@@ -28,7 +28,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       containers:
-        - image: {{ .Values.proxy.image.name }}{{ include "liqo.suffix" $proxyConfig }}:{{ include "liqo.version" $proxyConfig }}
+        - image: {{ .Values.proxy.image.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $proxyConfig.name }}
           securityContext:
