@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
@@ -81,8 +80,7 @@ var _ = Describe("Sync routine tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ipamv1alpha1.IPSpec{
-					IP:   networkingv1beta1.IP(ip),
-					CIDR: ptr.To(networkingv1beta1.CIDR(cidr)),
+					IP: networkingv1beta1.IP(ip),
 				},
 				Status: ipamv1alpha1.IPStatus{
 					IP:   networkingv1beta1.IP(ip),

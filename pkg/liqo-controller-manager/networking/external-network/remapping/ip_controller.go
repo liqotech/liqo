@@ -65,7 +65,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	klog.V(4).Infof("Reconciling IP %s", req.String())
 
 	deleting := !ip.DeletionTimestamp.IsZero()
-	containsFinalizer := controllerutil.ContainsFinalizer(ip, ipMappingsControllerFinalizer)
+	containsFinalizer := controllerutil.ContainsFinalizer(ip, ipMappingControllerFinalizer)
 	if !deleting {
 		if !containsFinalizer {
 			if err := r.ensureIPMappingFinalizerPresence(ctx, ip); err != nil {
@@ -86,8 +86,8 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	if len(ip.Status.IPMappings) == 0 {
-		klog.Warningf("IP %s has no IP mappings yet", req.String())
+	if ip.Status.IP == "" {
+		klog.Warningf("IP %q has no IP assigned yet", req.String())
 		return ctrl.Result{}, nil
 	}
 

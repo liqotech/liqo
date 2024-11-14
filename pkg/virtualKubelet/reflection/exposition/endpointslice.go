@@ -267,10 +267,10 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(origina
 	for i := range ips {
 		if ips[i].Spec.IP.String() == original {
 			remappedIP := ipamutils.GetRemappedIP(ips[i])
-			if len(ips[i].Status.IPMappings) > 0 {
-				return remappedIP.String(), nil
+			if remappedIP == "" {
+				return "", fmt.Errorf("resource IP %q (%q) has not been mapped yet", ips[i].Name, ips[i].Spec.IP)
 			}
-			return "", fmt.Errorf("resource IP %s has not been mapped yet", ips[i].Name)
+			return remappedIP.String(), nil
 		}
 	}
 	return original, fmt.Errorf("resource IP %s not found", original)

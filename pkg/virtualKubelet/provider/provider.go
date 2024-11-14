@@ -126,16 +126,11 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 				return "", err
 			}
 
-			if ip.Status.IPMappings == nil {
-				return "", errors.New("no IP mappings found for the API server")
-			}
-
-			v, ok := ip.Status.IPMappings[string(cfg.RemoteCluster)]
-			if !ok {
+			if ip.Status.IP == "" {
 				return "", errors.New("no IP mapping found for the remote cluster API server")
 			}
 
-			return string(v), nil
+			return string(ip.Status.IP), nil
 		},
 		NetConfiguration: cfg.NetConfiguration,
 	}

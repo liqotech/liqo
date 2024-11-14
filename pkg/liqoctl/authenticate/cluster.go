@@ -25,6 +25,7 @@ import (
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -220,17 +221,17 @@ func (c *Cluster) GetAPIServerProxyRemappedIP(ctx context.Context) (string, erro
 	var ip ipamv1alpha1.IP
 	err := c.local.CRClient.Get(ctx, types.NamespacedName{
 		Namespace: c.local.LiqoNamespace,
-		Name:      "api-server-proxy",
+		Name:      consts.IPTypeAPIServerProxy,
 	}, &ip)
 	if err != nil {
 		return "", err
 	}
 
-	for _, ipam := range ip.Status.IPMappings {
-		return ipam.String(), nil
+	if ip.Status.IP == "" {
+		return "", fmt.Errorf("no IP found, make sure the Liqo Networking module is enabled and working")
 	}
 
-	return "", fmt.Errorf("no IP found, make sure the Liqo Networking module is enabled and working")
+	return string(ip.Status.IP), nil
 }
 
 // RemapIPExternalCIDR remaps the given IP address to the external CIDR of the remote cluster.
