@@ -260,7 +260,7 @@ func main() {
 			ipamClient = ipam.NewIPAMClient(conn)
 		}
 
-		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
+		if err := modules.SetupNetworkingModule(mgr, &modules.NetworkingOption{
 			DynClient: dynClient,
 			Factory:   factory,
 

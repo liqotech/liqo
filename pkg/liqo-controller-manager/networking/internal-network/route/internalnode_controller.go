@@ -32,7 +32,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/ipamold/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/ipam"
@@ -117,7 +116,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	unknownSourceIP, err := utils.GetUnknownSourceIP(extCIDR)
+	unknownSourceIP, err := ipam.GetUnknownSourceIP(extCIDR)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

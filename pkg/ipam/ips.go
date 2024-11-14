@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/nftables"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -64,8 +65,12 @@ func (lipam *LiqoIPAM) acquireIP(cidr string) (string, error) {
 	if lipam.cacheIPs == nil {
 		lipam.cacheIPs = make(map[string]ipInfo)
 	}
+	firstIP, _, err := nftables.NetFirstAndLastIP(cidr)
+	if err != nil {
+		return "", err
+	}
 	ip := ipCidr{
-		ip:   "",
+		ip:   firstIP.String(),
 		cidr: cidr,
 	}
 	lipam.cacheIPs[ip.String()] = ipInfo{
