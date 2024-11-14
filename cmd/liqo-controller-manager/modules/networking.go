@@ -15,8 +15,6 @@
 package modules
 
 import (
-	"context"
-
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -35,6 +33,7 @@ import (
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/node-controller"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/server-controller"
+	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/ip-controller"
 	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
@@ -60,19 +59,18 @@ type NetworkingOption struct {
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
-func SetupNetworkingModule(_ context.Context, mgr manager.Manager, opts *NetworkingOption) error {
+func SetupNetworkingModule(mgr manager.Manager, opts *NetworkingOption) error {
 	networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
 	if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
 		klog.Errorf("Unable to start the networkReconciler: %v", err)
 		return err
 	}
 
-	// TODO: refactor IP reconciler with the new IPAM client.
-	// ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	// if err := ipReconciler.SetupWithManager(ctx, mgr, opts.IPWorkers); err != nil {
-	// 	klog.Errorf("Unable to start the ipReconciler: %v", err)
-	// 	return err
-	// }
+	ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
+	if err := ipReconciler.SetupWithManager(mgr, opts.IPWorkers); err != nil {
+		klog.Errorf("Unable to start the ipReconciler: %v", err)
+		return err
+	}
 
 	cfgReconciler := configuration.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("configuration-controller"))

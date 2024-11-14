@@ -49,10 +49,10 @@ type IPSpec struct {
 	// IP is the local IP.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
 	IP networkingv1beta1.IP `json:"ip"`
-	// CIDR is the network CIDR where the desired IP should be allocated from.
+	// NetworkRef is the reference to the Network CR containing the CIDR where the desired IP should be allocated from.
 	// It is optional, if left empty the IP will be allocated in a default network CIDR (e.g., external CIDR).
 	// +kubebuilder:validation:Optional
-	CIDR *networkingv1beta1.CIDR `json:"cidr,omitempty"`
+	NetworkRef *v1.ObjectReference `json:"networkRef,omitempty"`
 	// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
 	// If empty the creation of the service is disabled (default).
 	// +kubebuilder:validation:Optional
@@ -65,12 +65,11 @@ type IPSpec struct {
 
 // IPStatus defines remapped IPs.
 type IPStatus struct {
-	// IPMappings contains the mapping of the local IP for each remote cluster.
-	IPMappings map[string]networkingv1beta1.IP `json:"ipMappings,omitempty"`
 	// IP is the remapped IP.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
-	IP networkingv1beta1.IP `json:"ip"`
+	IP networkingv1beta1.IP `json:"ip,omitempty"`
 	// CIDR is the network CIDR where the IP is allocated.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="CIDR field is immutable"
 	CIDR networkingv1beta1.CIDR `json:"cidr,omitempty"`
 }
 
@@ -78,8 +77,9 @@ type IPStatus struct {
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Local IP",type=string,JSONPath=`.spec.ip`
+// +kubebuilder:printcolumn:name="Remapped IP",type=string,JSONPath=`.status.ip`
+// +kubebuilder:printcolumn:name="Remapped IP CIDR",type=string,JSONPath=`.status.cidr`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-// +kubebuilder:printcolumn:name="Remapped IPs",type=string,JSONPath=`.status.ipMappings`,priority=1
 // +genclient
 
 // IP is the Schema for the IP API.

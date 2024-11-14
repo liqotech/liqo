@@ -19,7 +19,6 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/google/nftables"
 	"go4.org/netipx"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -116,16 +115,4 @@ func SplitNetwork(network string) []string {
 	halves[1] = Next(halves[0])
 
 	return halves
-}
-
-// GetUnknownSourceIP returns the IP address used to map unknown sources.
-func GetUnknownSourceIP(extCIDR string) (string, error) {
-	if extCIDR == "" {
-		return "", fmt.Errorf("ExternalCIDR not set")
-	}
-	firstExtCIDRip, _, err := nftables.NetFirstAndLastIP(extCIDR)
-	if err != nil {
-		return "", fmt.Errorf("cannot get first IP of ExternalCIDR")
-	}
-	return firstExtCIDRip.String(), nil
 }

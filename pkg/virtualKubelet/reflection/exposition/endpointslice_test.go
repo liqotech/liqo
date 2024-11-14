@@ -106,9 +106,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).Create(ctx, ipamIP, metav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			ipamIP.Status = ipamv1alpha1.IPStatus{
-				IPMappings: map[string]networkingv1beta1.IP{
-					RemoteClusterID: networkingv1beta1.IP(remappedIP),
-				},
+				IP: networkingv1beta1.IP(remappedIP),
 			}
 			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).UpdateStatus(ctx, ipamIP, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())

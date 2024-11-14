@@ -15,6 +15,10 @@
 package ipam
 
 import (
+	"fmt"
+
+	"github.com/google/nftables"
+
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -34,8 +38,17 @@ func IsAPIServerProxyIP(ip *ipamv1alpha1.IP) bool {
 
 // GetRemappedIP returns the remapped IP of the given IP resource.
 func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1beta1.IP {
-	for _, ipremapped := range ip.Status.IPMappings {
-		return ipremapped
+	return ip.Status.IP
+}
+
+// GetUnknownSourceIP returns the IP address used to map unknown sources.
+func GetUnknownSourceIP(extCIDR string) (string, error) {
+	if extCIDR == "" {
+		return "", fmt.Errorf("ExternalCIDR not set")
 	}
-	return ""
+	firstExtCIDRip, _, err := nftables.NetFirstAndLastIP(extCIDR)
+	if err != nil {
+		return "", fmt.Errorf("cannot get first IP of ExternalCIDR")
+	}
+	return firstExtCIDRip.String(), nil
 }
