@@ -50,6 +50,11 @@ const (
 	// IPTypeAPIServerProxy is the constant representing an IP of type APIServerProxy.
 	IPTypeAPIServerProxy = "api-server-proxy"
 
+	// NetworkNamespaceLabelKey is the label key used to indicate the namespace of a Network.
+	NetworkNamespaceLabelKey = "ipam.liqo.io/network-namespace"
+	// NetworkNameLabelKey is the label key used to indicate the name of a Network.
+	NetworkNameLabelKey = "ipam.liqo.io/network-name"
+
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"
 )

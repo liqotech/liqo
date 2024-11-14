@@ -59,8 +59,8 @@ apiVersion: ipam.liqo.io/v1alpha1
 kind: IP
 ...
 status:
-  ipMappings:
-    cluster1: <REMAPPED_IP>
+  ip: <REMAPPED_IP>
+  cidr: <CIDR_REMAPPED_IP>
 
 ```
 

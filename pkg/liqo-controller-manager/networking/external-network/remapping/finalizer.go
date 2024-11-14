@@ -23,18 +23,18 @@ import (
 )
 
 const (
-	// ipMappingsControllerFinalizer is the finalizer added to IP resources (related to mapping) to allow the controller to clean up.
-	ipMappingsControllerFinalizer = "ipmapping-nat-controller.liqo.io/finalizer"
+	// ipMappingControllerFinalizer is the finalizer added to IP resources (related to mapping) to allow the controller to clean up.
+	ipMappingControllerFinalizer = "ipmapping-nat-controller.liqo.io/finalizer"
 )
 
 func (r *IPReconciler) ensureIPMappingFinalizerPresence(
 	ctx context.Context, ip *ipamv1alpha1.IP) error {
-	controllerutil.AddFinalizer(ip, ipMappingsControllerFinalizer)
+	controllerutil.AddFinalizer(ip, ipMappingControllerFinalizer)
 	return r.Client.Update(ctx, ip)
 }
 
 func (r *IPReconciler) ensureIPMappingFinalizerAbsence(
 	ctx context.Context, ip *ipamv1alpha1.IP) error {
-	controllerutil.RemoveFinalizer(ip, ipMappingsControllerFinalizer)
+	controllerutil.RemoveFinalizer(ip, ipMappingControllerFinalizer)
 	return r.Client.Update(ctx, ip)
 }

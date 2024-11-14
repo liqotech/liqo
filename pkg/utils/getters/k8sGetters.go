@@ -948,21 +948,21 @@ func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector la
 		return nil, err
 	}
 
-	switch len(networks.Items) {
+	switch len(networks) {
 	case 0:
 		return nil, kerrors.NewNotFound(ipamv1alpha1.NetworkGroupResource, ipamv1alpha1.NetworkResource)
 	case 1:
-		return &networks.Items[0], nil
+		return &networks[0], nil
 	default:
 		return nil, fmt.Errorf("multiple Network resources found for label selector %q", lSelector)
 	}
 }
 
 // GetNetworksByLabel retrieves the Network resources with the given labelSelector.
-func GetNetworksByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.NetworkList, error) {
+func GetNetworksByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) ([]ipamv1alpha1.Network, error) {
 	var networks ipamv1alpha1.NetworkList
 	if err := cl.List(ctx, &networks, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
-	return &networks, nil
+	return networks.Items, nil
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	ipamerrors "github.com/liqotech/liqo/pkg/ipamold/errors"
 	ipamutils "github.com/liqotech/liqo/pkg/ipamold/utils"
+	utils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 // Ipam Interface.
@@ -415,7 +416,7 @@ func (liqoIPAM *IPAM) GetOrSetExternalCIDR(ctx context.Context, getOrSetExtCIDRR
 
 	// Acquire the UnknownSourceIP
 	// It must be the first ip in the externalCIDR
-	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(externalCIDR)
+	unknownSourceIP, err := utils.GetUnknownSourceIP(externalCIDR)
 	if err != nil {
 		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot get the UnknownSourceIP: %w", err)
 	}

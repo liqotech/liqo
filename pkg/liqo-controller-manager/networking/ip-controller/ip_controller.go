@@ -16,14 +16,12 @@ package ipctrl
 
 import (
 	"context"
-	"slices"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,10 +33,8 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	ipam "github.com/liqotech/liqo/pkg/ipamold"
-	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/ipam"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
@@ -50,34 +46,34 @@ type IPReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ipamClient      ipam.IpamClient
-	externalCIDRSet bool
+	ipamClient ipam.IPAMClient
+
+	externalCidrRef v1.ObjectReference
+	externalCidr    networkingv1beta1.CIDR
 }
 
 // NewIPReconciler returns a new IPReconciler.
-func NewIPReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamClient) *IPReconciler {
+func NewIPReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IPAMClient) *IPReconciler {
 	return &IPReconciler{
 		Client: cl,
 		Scheme: s,
 
-		ipamClient:      ipamClient,
-		externalCIDRSet: false,
+		ipamClient: ipamClient,
 	}
 }
 
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/finalizers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile Ip objects.
 func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var ip ipamv1alpha1.IP
-	var desiredIP networkingv1beta1.IP
-
 	// Fetch the IP instance
+	var ip ipamv1alpha1.IP
 	if err := r.Get(ctx, req.NamespacedName, &ip); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof(" %q not found", req.NamespacedName)
@@ -87,204 +83,243 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	if !r.externalCIDRSet {
-		// Retrieve the externalCIDR of the local cluster
-		_, err := ipamutils.GetExternalCIDR(ctx, r.Client)
-		if apierrors.IsNotFound(err) {
-			klog.Errorf("ExternalCIDR is not set yet. Configure it to correctly handle IP mappings")
-			return ctrl.Result{}, err
-		} else if err != nil {
-			klog.Errorf("error while retrieving externalCIDR: %v", err)
-			return ctrl.Result{}, err
-		}
-		// The external CIDR is set, we do not need to check it again in successive reconciliations.
-		r.externalCIDRSet = true
-	}
-
-	desiredIP = ip.Spec.IP
-
-	// Get the clusterIDs of all remote clusters
-	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.Everything())
-	if err != nil {
-		klog.Errorf("error while listing virtual nodes: %v", err)
+	// Get the CIDR of the Network referenced by the IP.
+	// If it is not set, it is defaulted to the external CIDR of the local cluster.
+	networkRef, cidr, err := r.handleNetworkRef(ctx, &ip)
+	if client.IgnoreNotFound(err) != nil {
+		klog.Errorf("error while handling network reference for IP %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
 
-	clusterIDs := getters.RetrieveClusterIDsFromObjectsLabels(slice.ToPointerSlice(configurations.Items))
+	networkExists := !apierrors.IsNotFound(err)
+	deleting := !ip.GetDeletionTimestamp().IsZero()
 
-	if ip.GetDeletionTimestamp().IsZero() {
-		if !controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
-			// Add finalizer to prevent deletion without unmapping the IP.
-			controllerutil.AddFinalizer(&ip, ipamIPFinalizer)
+	// Print a warning if the IP is not being deleted and it is referencing a non-existing network.
+	if !deleting && !networkExists {
+		klog.Warningf("network referenced by IP %q does not exist", req.NamespacedName)
+	}
 
-			// Update the IP object
+	// The resource is being deleted or the referenced network does not exist:
+	// - call the IPAM to release the IP if it set, and empty the status.
+	// - remove eventual finalizers from the resource.
+	if deleting || !networkExists {
+		if err := r.handleIPStatusDeletion(ctx, &ip); err != nil {
+			klog.Errorf("error while handling IP status deletion %q: %v", req.NamespacedName, err)
+			return ctrl.Result{}, err
+		}
+
+		if err := r.ensureAssociatedServiceAbsence(ctx, &ip); err != nil {
+			klog.Errorf("error while ensuring absence of the associated service of IP %q: %v", req.NamespacedName, err)
+			return ctrl.Result{}, err
+		}
+
+		// Remove finalizer from the IP resource if present.
+		if controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
+			controllerutil.RemoveFinalizer(&ip, ipamIPFinalizer)
 			if err := r.Update(ctx, &ip); err != nil {
-				klog.Errorf("error while adding finalizer to IP %q: %v", req.NamespacedName, err)
+				klog.Errorf("error while removing finalizer from IP %q: %v", req.NamespacedName, err)
 				return ctrl.Result{}, err
 			}
-			klog.Infof("finalizer %q correctly added to IP %q", ipamIPFinalizer, req.NamespacedName)
-
-			// We return immediately and wait for the next reconcile to eventually update the status.
-			return ctrl.Result{}, nil
+			klog.Infof("finalizer %q correctly removed from IP %q", ipamIPFinalizer, req.NamespacedName)
 		}
 
-		needUpdate, err := r.forgeIPMappings(ctx, clusterIDs, desiredIP, &ip)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, nil
+	}
 
-		// Update resource status if needed
-		if needUpdate {
-			if err := r.Client.Status().Update(ctx, &ip); err != nil {
-				klog.Errorf("error while updating IP %q status: %v", req.NamespacedName, err)
-				return ctrl.Result{}, err
-			}
-			klog.Infof("updated IP %q status", req.NamespacedName)
-		}
-
-		// Create service and associated endpointslice if the template is defined
-		if err := r.handleAssociatedService(ctx, &ip); err != nil {
-			return ctrl.Result{}, err
-		}
-	} else if controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
-		// the resource is being deleted, but the finalizer is present:
-		// - unmap the remapped IPs
-		// - remove finalizer from the resource.
-		if err := r.handleDelete(ctx, clusterIDs, desiredIP, &ip); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// Update the IP object
+	// Add finalizer to prevent deletion without releasing the IP.
+	if !controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
+		controllerutil.AddFinalizer(&ip, ipamIPFinalizer)
 		if err := r.Update(ctx, &ip); err != nil {
-			klog.Errorf("error while removing finalizer from IP %q: %v", req.NamespacedName, err)
+			klog.Errorf("error while adding finalizer to IP %q: %v", req.NamespacedName, err)
 			return ctrl.Result{}, err
 		}
-		klog.Infof("finalizer %q correctly removed from IP %q", ipamIPFinalizer, req.NamespacedName)
+		klog.Infof("finalizer %q correctly added to IP %q", ipamIPFinalizer, req.NamespacedName)
 
-		// We do not have to delete possible service and endpointslice associated, as already deleted by
-		// the Kubernetes garbage collector (since they are owned by the IP resource).
+		// We return immediately and wait for the next reconcile to eventually update the status.
+		return ctrl.Result{}, nil
+	}
+
+	// Add network reference to the IP in the labels. This is used to trigger the reconciliation
+	// of the IP by watching deletion events of the father Network.
+	if ip.Labels == nil {
+		ip.Labels = make(map[string]string)
+	}
+	ip.Labels[consts.NetworkNamespaceLabelKey] = networkRef.Namespace
+	ip.Labels[consts.NetworkNameLabelKey] = networkRef.Name
+
+	if err := r.Update(ctx, &ip); err != nil {
+		klog.Errorf("error while updating IP %q: %v", req.NamespacedName, err)
+		return ctrl.Result{}, err
+	}
+
+	// Forge the IP status if it is not set yet.
+	if ip.Status.IP == "" {
+		if err := r.forgeIPStatus(ctx, &ip, cidr); err != nil {
+			klog.Errorf("error while forging IP status for IP %q: %v", req.NamespacedName, err)
+			return ctrl.Result{}, err
+		}
+
+		if err := r.Client.Status().Update(ctx, &ip); err != nil {
+			klog.Errorf("error while updating IP %q: %v", req.NamespacedName, err)
+			return ctrl.Result{}, err
+		}
+		klog.Infof("updated IP %q", req.NamespacedName)
+	}
+
+	// Create service and associated endpointslice if the template is defined
+	if err := r.handleAssociatedService(ctx, &ip); err != nil {
+		klog.Errorf("error while handling associated service for IP %q: %v", req.NamespacedName, err)
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager monitors IP resources.
-func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, workers int) error {
-	// List all IP resources and enqueue them.
-	enqueuer := func(_ context.Context, _ client.Object) []reconcile.Request {
-		var ipList ipamv1alpha1.IPList
-		if err := r.List(ctx, &ipList); err != nil {
-			klog.Errorf("error while listing IPs: %v", err)
-			return nil
-		}
-		var requests []reconcile.Request
-		for i := range ipList.Items {
-			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: ipList.Items[i].Namespace, Name: ipList.Items[i].Name}})
-		}
-		return requests
-	}
-
+func (r *IPReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlIP).
 		For(&ipamv1alpha1.IP{}).
 		Owns(&v1.Service{}).
 		Owns(&discoveryv1.EndpointSlice{}).
-		Watches(&networkingv1beta1.Configuration{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
+		Watches(&ipamv1alpha1.Network{}, handler.EnqueueRequestsFromMapFunc(r.ipEnqueuerFromNetwork)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
 
-// forgeIPMappings forge the IP mappings for each remote cluster. Return true if the status must be updated, false otherwise.
-func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string, desiredIP networkingv1beta1.IP, ip *ipamv1alpha1.IP) (bool, error) {
-	// Update IP status for each remote cluster
-	needUpdate := false
+func (r *IPReconciler) ipEnqueuerFromNetwork(ctx context.Context, obj client.Object) []ctrl.Request {
+	var requests []reconcile.Request
 
-	if ip.Status.IPMappings == nil {
-		ip.Status.IPMappings = make(map[string]networkingv1beta1.IP)
+	// Get the IPs associated with the Network.
+	var ipList ipamv1alpha1.IPList
+	if err := r.List(ctx, &ipList, client.MatchingLabels{
+		consts.NetworkNamespaceLabelKey: obj.GetNamespace(),
+		consts.NetworkNameLabelKey:      obj.GetName(),
+	}); err != nil {
+		klog.Errorf("error while listing IPs associated with Network %q: %v", client.ObjectKeyFromObject(obj), err)
+		return nil
 	}
 
-	for i := range clusterIDs {
-		remoteClusterID := &clusterIDs[i]
-		// Update IP status if it is not set yet
-		// The IPAM function that maps IPs is not idempotent, so we avoid to call it
-		// multiple times by checking if the IP for that remote cluster is already set.
-		_, found := ip.Status.IPMappings[*remoteClusterID]
-		if !found {
-			remappedIP, err := getRemappedIP(ctx, r.ipamClient, *remoteClusterID, desiredIP)
-			if err != nil {
-				return false, err
-			}
-			ip.Status.IPMappings[*remoteClusterID] = remappedIP
-			needUpdate = true
-		}
+	// Enqueue reconcile requests for each IP associated with the Network.
+	for i := range ipList.Items {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&ipList.Items[i]),
+		})
 	}
 
-	// Check if the IPMappings has entries associated to clusters that have been deleted (i.e., the virtualNode is missing)
-	for entry := range ip.Status.IPMappings {
-		if !slices.Contains(clusterIDs, entry) {
-			// We ignore eventual errors from the IPAM because the entries in the IpamStorage for that cluster
-			// may have been already removed.
-			_ = deleteRemappedIP(ctx, r.ipamClient, entry, desiredIP)
-			delete(ip.Status.IPMappings, entry)
-			needUpdate = true
-		}
-	}
-
-	return needUpdate, nil
+	return requests
 }
 
-// handleDelete handles the deletion of the IP resource. It call the IPAM to unmap the IPs of each remote cluster.
-func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, desiredIP networkingv1beta1.IP, ip *ipamv1alpha1.IP) error {
-	for i := range clusterIDs {
-		remoteClusterID := &clusterIDs[i]
-		if err := deleteRemappedIP(ctx, r.ipamClient, *remoteClusterID, desiredIP); err != nil {
-			return err
+// handleNetworkRef get the CIDR of the Network referenced by the IP, or default to the
+// external CIDR of the local cluster if the IP has no NetworkRef set.
+func (r *IPReconciler) handleNetworkRef(ctx context.Context, ip *ipamv1alpha1.IP) (*v1.ObjectReference, networkingv1beta1.CIDR, error) {
+	// If the IP has not set a reference to a Network CIDR, we remap it on the external CIDR of the local cluster.
+	if ip.Spec.NetworkRef == nil {
+		if r.externalCidr == "" {
+			network, err := ipamutils.GetExternalCIDRNetwork(ctx, r.Client)
+			if err != nil {
+				return nil, "", err
+			}
+			// The externalCIDR Network has no CIDR set yet, we return an error.
+			if network.Status.CIDR == "" {
+				return nil, "", fmt.Errorf("externalCIDR is not set yet. Configure it to correctly handle IP mapping")
+			}
+
+			r.externalCidrRef = v1.ObjectReference{
+				Namespace: network.Namespace,
+				Name:      network.Name,
+			}
+			r.externalCidr = network.Status.CIDR
 		}
-		delete(ip.Status.IPMappings, *remoteClusterID)
+		return &r.externalCidrRef, r.externalCidr, nil
 	}
 
-	// Remove status and finalizer, and update the object.
-	ip.Status.IPMappings = nil
-	controllerutil.RemoveFinalizer(ip, ipamIPFinalizer)
+	// Retrieve the Network object referenced by the IP.
+	var network ipamv1alpha1.Network
+	if err := r.Get(ctx, client.ObjectKey{Namespace: ip.Spec.NetworkRef.Namespace, Name: ip.Spec.NetworkRef.Name}, &network); err != nil {
+		return nil, "", err
+	}
+	if network.Status.CIDR == "" {
+		return nil, "", fmt.Errorf("network %s/%s has no CIDR set yet", network.Namespace, network.Name)
+	}
+	return ip.Spec.NetworkRef, network.Status.CIDR, nil
+}
+
+// forgeIPStatus forge the IP status.
+func (r *IPReconciler) forgeIPStatus(ctx context.Context, ip *ipamv1alpha1.IP, cidr networkingv1beta1.CIDR) error {
+	// Update IP status if it is not set yet.
+	// The IPAM function that maps IPs is not idempotent, so we avoid to call it
+	// multiple times by checking if the IP is already set.
+	if ip.Status.IP == "" {
+		acquiredIP, err := acquireIP(ctx, r.ipamClient, cidr)
+		if err != nil {
+			return err
+		}
+		ip.Status.IP = acquiredIP
+		ip.Status.CIDR = cidr
+	}
 
 	return nil
 }
 
-// getRemappedIP returns the remapped IP for the given IP and remote clusterID.
-func getRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string,
-	desiredIP networkingv1beta1.IP) (networkingv1beta1.IP, error) {
+// handleIPStatusDeletion handles the deletion of the IP status.
+// It calls the IPAM to release the IP and empties the status.
+func (r *IPReconciler) handleIPStatusDeletion(ctx context.Context, ip *ipamv1alpha1.IP) error {
+	if ip.Status.IP != "" && ip.Status.CIDR != "" {
+		if err := releaseIP(ctx, r.ipamClient, ip.Status.IP, ip.Status.CIDR); err != nil {
+			return err
+		}
+
+		// Remove status and finalizer, and update the object.
+		ip.Status = ipamv1alpha1.IPStatus{}
+
+		// Update the IP status
+		if err := r.Client.Status().Update(ctx, ip); err != nil {
+			return err
+		}
+
+		klog.Infof("IP %q status correctly cleaned", client.ObjectKeyFromObject(ip))
+	}
+
+	return nil
+}
+
+// acquireIP acquire a free IP of a given CIDR from the IPAM.
+func acquireIP(ctx context.Context, ipamClient ipam.IPAMClient, cidr networkingv1beta1.CIDR) (networkingv1beta1.IP, error) {
 	switch ipamClient.(type) {
 	case nil:
-		// IPAM is not enabled, use original IP from spec
-		return desiredIP, nil
+		// IPAM is not enabled, return an error.
+		return "", fmt.Errorf("IPAM is not enabled")
 	default:
 		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.MapEndpointIP(ctx, &ipam.MapRequest{
-			ClusterID: remoteClusterID, Ip: desiredIP.String()})
+		response, err := ipamClient.IPAcquire(ctx, &ipam.IPAcquireRequest{
+			Cidr: string(cidr),
+		})
 		if err != nil {
-			klog.Errorf("IPAM: error while mapping IP %s for remote cluster %q: %v", desiredIP, remoteClusterID, err)
+			klog.Errorf("IPAM: error while acquiring IP from CIDR %q: %v", cidr, err)
 			return "", err
 		}
-		klog.Infof("IPAM: mapped IP %s to %s for remote cluster %q", desiredIP, response.Ip, remoteClusterID)
+		klog.Infof("IPAM: acquired IP %q from CIDR %q", response.Ip, cidr)
 		return networkingv1beta1.IP(response.Ip), nil
 	}
 }
 
-// deleteRemappedIP unmaps the IP for the given remote clusterID.
-func deleteRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string, desiredIP networkingv1beta1.IP) error {
+// releaseIP release a IP of a given CIDR from the IPAM.
+func releaseIP(ctx context.Context, ipamClient ipam.IPAMClient, ip networkingv1beta1.IP, cidr networkingv1beta1.CIDR) error {
 	switch ipamClient.(type) {
 	case nil:
-		// If the IPAM is not enabled we do not need to release the translation.
+		// If the IPAM is not enabled we do not need to release any IP.
 		return nil
 	default:
 		// Interact with the IPAM to release the translation.
-		_, err := ipamClient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{
-			ClusterID: remoteClusterID, Ip: desiredIP.String()})
+		_, err := ipamClient.IPRelease(ctx, &ipam.IPReleaseRequest{
+			Ip:   string(ip),
+			Cidr: string(cidr),
+		})
 		if err != nil {
-			klog.Errorf("IPAM: error while unmapping IP %s for remote cluster %q: %v", desiredIP, remoteClusterID, err)
+			klog.Errorf("IPAM: error while de allocating IP %q from CIDR: %q: %v", ip, cidr, err)
 			return err
 		}
-		klog.Infof("IPAM: unmapped IP %s for remote cluster %q", desiredIP, remoteClusterID)
+		klog.Infof("IPAM: de-allocated IP %q from CIDR %q", ip, cidr)
 		return nil
 	}
 }

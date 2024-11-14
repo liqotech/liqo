@@ -36,6 +36,7 @@ import (
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/node-controller"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/server-controller"
+	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/ip-controller"
 	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
@@ -68,12 +69,11 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		return err
 	}
 
-	// TODO: refactor IP reconciler with the new IPAM client.
-	// ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	// if err := ipReconciler.SetupWithManager(ctx, mgr, opts.IPWorkers); err != nil {
-	// 	klog.Errorf("Unable to start the ipReconciler: %v", err)
-	// 	return err
-	// }
+	ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
+	if err := ipReconciler.SetupWithManager(mgr, opts.IPWorkers); err != nil {
+		klog.Errorf("Unable to start the ipReconciler: %v", err)
+		return err
+	}
 
 	cfgReconciler := configuration.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("configuration-controller"))
