@@ -1,5 +1,13 @@
 # Manual peering
 
+In the [peer two clusters](../usage/peer.md) section of this documentation, we used the `liqoctl peer`, which automatically configure each single module of Liqo to create a peering between two clusters. However, in some cases where:
+
+- you want to configure Liqo peerings via a [declarative approach](./peering/peering-via-cr.md) via CRs.
+- it is required to configure the WireGuard gateway server on the cluster consumer (e.g. the nodes of the cluster provider are [behind a NAT or a physical load balancer](./nat.md))
+- The consumer needs to create multiple requests for resources (ResourceSlice) or you want to customize the way resources are distributed on virtual nodes
+
+you might need to configure each single module separatly, or to interact with a specific module to obtain the desired result.
+
 In this section, you will discover how to interact with each Liqo module without using the automatic peering method.
 
 ## Prerequirements

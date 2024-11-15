@@ -24,11 +24,13 @@ Automatic network configuration
 
 The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
 
-## Manual on cluster couple
+## Setup the inter-cluster network via `liqoctl network` command
 
-When you have access to both clusters, you can configure the network connectivity for all the successive peering creations.
+When you have access to both clusters, you can configure the inter-cluster network connectivity via the `liqoctl network` command.
 
-First, you need to initialize the network:
+Note that when you use the `liqoctl network` command, the argument specifying the remote kubeconfig/context corresponds to the cluster that acts as gateway server for the Wireguard tunnel
+
+The first step to configure networking is initializing the network configuration, allowing the clusters to exchange the network configurations to configure the IP addresses remapping:
 
 ```bash
 liqoctl network init \
@@ -199,15 +201,16 @@ You can configure how to expose the Liqo Gateway Server service by using the fol
 
 Use the `liqoctl network connect --help` command to see all the available options.
 
-## Manual on single cluster
+## Manually setup the inter-cluster network on each cluster separately
 
-When you don't have access to both clusters, or you want to configure it in a declarative way, you can configure it by applying CRDs.
-The process consists of the following steps:
+When you do not have contemporary access to both clusters, or you would like to configure the inter-cluster network in a declarative way, you can configure this component by applying the proper CRDs on each cluster separately.
 
 1. **Cluster client and server**: the clusters that need to connect have to exchange a `Configuration` resource, containing the `CIDR` of each remote cluster.
 2. **Cluster server**: one of the clusters defines a `GatewayServer`, which exposes a service acting as server for the inter-cluster communication.
 3. **Cluster client**: the other cluster defines a `GatewayClient` resource, which will configure a client that will connect to the gateway server exposed on the other cluster.
 4. **Cluster client and server**: the cluster client and server need to exchange the public keys to allow secure communication.
+
+More info about the declarative setup of the network can be found [here](./peering-via-cr.md#declarative-network-configuration).
 
 ### Definition of the network configuration (Configuration CRDs)
 
