@@ -26,9 +26,11 @@ The unpeer process will automatically remove the Liqo Gateway from the tenant na
 
 ## Manual on cluster couple
 
-When you have access to both clusters, you can configure the network connectivity for all the successive peering creations.
+When you have access to both clusters, you can configure the inter-cluster network connectivity via the `liqoctl network` command.
 
-First, you need to initialize the network:
+Note that when you use the `liqoctl network` command, the remote kubeconfig/context provided as argument, is the one of the cluster where we want to configure the server gateway of Wireguard tunnel.
+
+The first step to configure network is initializing the network:
 
 ```bash
 liqoctl network init \
