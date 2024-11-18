@@ -164,7 +164,7 @@ spec:
           containerPort: 8081
           protocol: TCP
         - name: metrics
-          containerPort: 8080
+          containerPort: 8082
           protocol: TCP
         readinessProbe:
           httpGet:

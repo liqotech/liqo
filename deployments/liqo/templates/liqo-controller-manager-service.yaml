@@ -36,6 +36,6 @@ spec:
     {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 4 }}
   ports:
   - name: metrics
-    port: 8080
+    port: 8082
     targetPort: metrics
 {{- end }}

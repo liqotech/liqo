@@ -52,9 +52,9 @@ spec:
                 - --container-name=gateway
                 - --concurrent-containers-names=wireguard,geneve
                 {{- if .Values.metrics.enabled }}
-                - --metrics-address=:8080
+                - --metrics-address=:8082
                 {{- end }}
-                - --health-probe-bind-address=:8081
+                - --health-probe-bind-address=:8083
                 - --ping-enabled=true
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
@@ -68,7 +68,7 @@ spec:
                   mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
-                - containerPort: 8080
+                - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
                 env:
@@ -100,13 +100,13 @@ spec:
                 - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
                 - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
                 {{- if .Values.metrics.enabled }}
-                - --metrics-address=:8082
+                - --metrics-address=:8084
                 {{- end }}
-                - --health-probe-bind-address=:8083
+                - --health-probe-bind-address=:8085
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
                 {{- if .Values.metrics.enabled }}
                 ports:
-                - containerPort: 8082
+                - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
                 securityContext:
@@ -136,15 +136,15 @@ spec:
                 - --container-name=geneve
                 - --geneve-port={{ .Values.networking.genevePort }}
                 {{- if .Values.metrics.enabled }}
-                - --metrics-address=:8084
+                - --metrics-address=:8086
                 {{- end }}
-                - --health-probe-bind-address=:8085
+                - --health-probe-bind-address=:8087
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
-                - containerPort: 8084
+                - containerPort: 8086
                   name: gv-metrics
                 {{- end }} 
                 env:

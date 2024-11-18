@@ -43,4 +43,4 @@ var ClusterRoleBindingLabels = map[string]string{
 }
 
 // MetricsAddress is the default address used to expose metrics.
-const MetricsAddress = ":8080"
+const MetricsAddress = ":8082"

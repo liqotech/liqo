@@ -62,7 +62,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.NodeName, FlagNameNodeName.String(), "", "Name of the node where the pod is scheduled")
 	flagset.StringVar(&opts.PodName, "podname", "", "Name of the pod")
 
-	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8080", "Address for the metrics endpoint")
+	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8082", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
 
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")

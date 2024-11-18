@@ -72,7 +72,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.RemoteRealLoadBalancerClassName, "remote-real-load-balancer-class-name", "",
 		"Name of the real load balancer class to use for the actual load balancer")
 	flags.BoolVar(&o.EnableMetrics, "metrics-enabled", false, "Enable the metrics server")
-	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8080", "The address to listen to for metrics requests")
+	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8082", "The address to listen to for metrics requests")
 	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",
 		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",

@@ -50,7 +50,7 @@ spec:
           resources: {{- toYaml .Values.crdReplicator.pod.resources | nindent 12 }}
           ports:
           - name: metrics
-            containerPort: 8080
+            containerPort: 8082
             protocol: TCP
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
