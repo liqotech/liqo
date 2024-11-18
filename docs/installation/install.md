@@ -303,6 +303,12 @@ By default, the K3s installer stores the kubeconfig to access your cluster in th
 Make sure to properly refer to it when using *liqoctl* (e.g., setting the `KUBECONFIG` variable), and that the current user has permissions to read it.
 ```
 
+```{warning}
+- Due to an issue with K3s certificates, the `kubectl exec' command doesn't work properly when used on a pod scheduled on a virtual node.
+- Due to an issue with the [nftables golang library](https://github.com/google/nftables) and the pod running in *host network* in K3s, the firewall monitoring feature is disabled by default.
+This means that the firewall rules on the node will not be monitored and enforced by Liqo. If these rules are deleted or changed, Liqo won't restore them.
+```
+
 **Installation**
 
 Liqo can be installed on a K3s cluster with the following command:

@@ -40,6 +40,9 @@ const (
 	// FlagNameDisableARP is the flag to enable ARP.
 	FlagNameDisableARP FlagName = "disable-arp"
 
+	// FlagNameEnableNftMonitor is the flag to enable the nftables monitor.
+	FlagNameEnableNftMonitor FlagName = "enable-nft-monitor"
+
 	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
 	// FlagNameMinimumKernelVersion is the minimum kernel version required to run the wireguard interface.
@@ -63,6 +66,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
 
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
+	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")

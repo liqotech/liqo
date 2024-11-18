@@ -201,7 +201,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
 	}
 
-	if err := fwcr.SetupWithManager(cmd.Context(), mgr); err != nil {
+	if err := fwcr.SetupWithManager(cmd.Context(), mgr, true); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
