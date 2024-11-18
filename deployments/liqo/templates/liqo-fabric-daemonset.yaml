@@ -48,6 +48,7 @@ spec:
           {{- if .Values.requirements.kernel.disabled }}
           - --disable-kernel-version-check
           {{- end }}
+          - --enable-nft-monitor={{ .Values.networking.fabric.config.nftablesMonitor }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}

@@ -67,5 +67,13 @@ func (o *Options) Initialize(_ context.Context) error {
 
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
-	return map[string]interface{}{}
+	return map[string]interface{}{
+		"networking": map[string]interface{}{
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"nftablesMonitor": false,
+				},
+			},
+		},
+	}
 }

@@ -137,4 +137,4 @@ When executing the unit tests from the *liqo-test* container, it is possible to 
       --accept-multiclient ./path/to/test/directory
    ```
 
-4. From the host, connect to *localhost:2345* with your remote debugging client of choice (e.g. [GoLand](https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html#step-3-create-the-remote-run-debug-configuration-on-the-client-computer)), and enjoy!
+4. From the host, connect to *localhost:2345* with your remote debugging client of choice, and enjoy!

@@ -130,6 +130,11 @@ networking:
       # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.
       # For example this is required when using the Azure CNI or Kindnet.
       gatewayMasqueradeBypass: false
+      # -- Enable/Disable the nftables monitor for the fabric pod.
+      # It means that the fabric pod will monitor the nftables rules and will restore them in case of changes.
+      # In some cases (like K3S), this monitor can cause a huge amount of CPU usage.
+      # If you are experiencing high CPU usage, you can disable this feature.
+      nftablesMonitor: true
 
 authentication:
   # -- Enable/Disable the authentication module.

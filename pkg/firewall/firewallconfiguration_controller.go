@@ -162,7 +162,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
-func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableNftMonitor bool) error {
 	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.LabelsSets)
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
@@ -170,9 +170,11 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 	}
 
 	src := make(chan event.GenericEvent)
-	go func() {
-		utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
-	}()
+	if enableNftMonitor {
+		go func() {
+			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
+		}()
+	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfiguration).
 		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
