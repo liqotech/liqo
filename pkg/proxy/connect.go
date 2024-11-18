@@ -2,9 +2,11 @@ package proxy
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"net/http"
 	"time"
+
 	"k8s.io/klog/v2"
 )
 
@@ -61,4 +63,10 @@ func (p *Proxy) handleConnect(c net.Conn) {
 
 	go transfer(destConn, c)
 	go transfer(c, destConn)
+}
+
+func transfer(destination io.WriteCloser, source io.ReadCloser) {
+	defer destination.Close()
+	defer source.Close()
+	io.Copy(destination, source)
 }

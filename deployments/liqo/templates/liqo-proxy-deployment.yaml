@@ -36,12 +36,10 @@ spec:
           ports:
           - containerPort: {{ .Values.proxy.config.listeningPort }}
           resources: {{- toYaml .Values.proxy.pod.resources | nindent 12 }}
-          volumeMounts:
-          - mountPath: /etc/envoy/envoy.yaml
-            name: config-volume
-            subPath: config
           {{- if or .Values.common.extraArgs .Values.proxy.pod.extraArgs }}
           args:
+          - --port={{ .Values.proxy.config.listeningPort }}
+          - --allowed-hosts=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster.local
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}
@@ -49,10 +47,6 @@ spec:
           {{- toYaml .Values.proxy.pod.extraArgs | nindent 10 }}
           {{- end }}
           {{- end }}
-      volumes:
-      - name: config-volume
-        configMap:
-          name: {{ include "liqo.prefixedName" $proxyConfig }}
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}

@@ -1,19 +1,23 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
+
+var _ manager.Runnable = &Proxy{}
 
 type Proxy struct {
 	AllowedHosts []string
+	Port         int
 }
 
-func New(allowedHosts string) *Proxy {
+func New(allowedHosts string, port int) *Proxy {
 	ah := strings.Split(allowedHosts, ",")
 	// remove empty strings
 	for i := 0; i < len(ah); i++ {
@@ -25,24 +29,25 @@ func New(allowedHosts string) *Proxy {
 
 	return &Proxy{
 		AllowedHosts: ah,
+		Port:         port,
 	}
 }
 
-func transfer(destination io.WriteCloser, source io.ReadCloser) {
-	defer destination.Close()
-	defer source.Close()
-	io.Copy(destination, source)
-}
-
-func (p *Proxy) SetupProxy(port int) error {
-	klog.Infof("proxy listening on port %d", port)
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+func (p *Proxy) Start(ctx context.Context) error {
+	klog.Infof("proxy listening on port %d", p.Port)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", p.Port))
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		conn, err := listener.Accept()
 		if err != nil {
 			klog.Errorf("error accepting connection: %v", err)
@@ -59,7 +64,6 @@ func (p *Proxy) isAllowed(host string) bool {
 	}
 
 	for _, allowedHost := range p.AllowedHosts {
-		klog.Infof("allowed host: %s", allowedHost)
 		if host == allowedHost {
 			return true
 		}

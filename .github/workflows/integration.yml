@@ -99,9 +99,6 @@ jobs:
         id: set-architectures
         run: |
           ARCHITECTURES=${{ needs.configure.outputs.architectures }}
-          if [ "${{ matrix.component }}" == "proxy" ]; then
-            ARCHITECTURES=$(echo ${ARCHITECTURES} | sed 's/,linux\/arm\/v7//')
-          fi
           echo "ARCHITECTURES=${ARCHITECTURES}" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.2.0
