@@ -49,7 +49,7 @@ spec:
                 - --remote-cluster-id={{ .ClusterID }}
                 - --gateway-uid={{ .GatewayUID }}
                 - --mode=client
-                - --metrics-address=:8080
+                - --metrics-address=:8082
                 - --health-probe-bind-address=:8081
                 - --ping-enabled=true
                 - --ping-loss-threshold=5
