@@ -34,6 +34,7 @@ message IPReleaseResponse {
 message NetworkAcquireRequest {
     string cidr = 1;
     bool immutable = 2; // If true, the network cannot be remapped. It will be allocated if available, or an error will be returned.
+    uint32 preAllocated = 3; // The number of IPs to pre-allocate (reserve) in the CIDR, starting from the first IP of the CIDR. 
 }
 
 message NetworkAcquireResponse {

@@ -65,18 +65,18 @@ func (lipam *LiqoIPAM) syncNetworks(ctx context.Context, expiredThreshold time.T
 
 	// Add networks that are present in the cluster but not in the cache.
 	for _, net := range clusterNetworks {
-		if _, inCache := lipam.cacheNetworks[net]; !inCache {
+		if _, inCache := lipam.cacheNetworks[net.String()]; !inCache {
 			if err := lipam.reserveNetwork(net); err != nil {
 				return err
 			}
 		}
-		setClusterNetworks[net] = struct{}{} // add network to the set
+		setClusterNetworks[net.String()] = struct{}{} // add network to the set
 	}
 
 	// Remove networks that are present in the cache but not in the cluster, and were added before the threshold.
 	for key := range lipam.cacheNetworks {
 		if _, inCluster := setClusterNetworks[key]; !inCluster && lipam.cacheNetworks[key].creationTimestamp.Before(expiredThreshold) {
-			lipam.freeNetwork(lipam.cacheNetworks[key].cidr)
+			lipam.freeNetwork(lipam.cacheNetworks[key].network)
 		}
 	}
 
