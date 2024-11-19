@@ -31,6 +31,7 @@ metadata:
     ipam.liqo.io/network-type: external-cidr
 spec:
   cidr: {{ .Values.ipam.externalCIDR }}
+  preAllocated: 1 # the first IP of the external CIDR is reserved for the unknown source traffic
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
