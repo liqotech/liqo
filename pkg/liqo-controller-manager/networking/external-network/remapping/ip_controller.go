@@ -66,14 +66,8 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	deleting := !ip.DeletionTimestamp.IsZero()
 	containsFinalizer := controllerutil.ContainsFinalizer(ip, ipMappingControllerFinalizer)
-	if !deleting {
-		if !containsFinalizer {
-			if err := r.ensureIPMappingFinalizerPresence(ctx, ip); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-		}
-	} else {
+
+	if deleting {
 		if containsFinalizer {
 			if err := DeleteNatMappingIP(ctx, r.Client, ip); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to delete the NAT mapping for the IP %q: %w", req.NamespacedName, err)
@@ -88,6 +82,13 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	if ip.Status.IP == "" {
 		klog.Warningf("IP %q has no IP assigned yet", req.String())
+		return ctrl.Result{}, nil
+	}
+
+	if !containsFinalizer {
+		if err := r.ensureIPMappingFinalizerPresence(ctx, ip); err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 

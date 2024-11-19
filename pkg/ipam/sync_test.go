@@ -16,7 +16,7 @@ package ipam
 
 import (
 	"context"
-	"time"
+	"net/netip"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,39 +26,20 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	ipamcore "github.com/liqotech/liqo/pkg/ipam/core"
 )
 
 var _ = Describe("Sync routine tests", func() {
 	const (
-		syncFrequency = 3 * time.Second
+		syncFrequency = 0
 		testNamespace = "test"
 	)
 
 	var (
 		ctx               context.Context
 		fakeClientBuilder *fake.ClientBuilder
-		now               time.Time
-		newEntryThreshold time.Time
-		notNewTimestamp   time.Time
 
 		fakeIpamServer *LiqoIPAM
-
-		addNetowrkToCache = func(ipamServer *LiqoIPAM, cidr string, creationTimestamp time.Time) {
-			ipamServer.cacheNetworks[cidr] = networkInfo{
-				network: network{
-					cidr: cidr,
-				},
-				creationTimestamp: creationTimestamp,
-			}
-		}
-
-		addIPToCache = func(ipamServer *LiqoIPAM, ip, cidr string, creationTimestamp time.Time) {
-			ipC := ipCidr{ip: ip, cidr: cidr}
-			ipamServer.cacheIPs[ipC.String()] = ipInfo{
-				ipCidr:            ipC,
-				creationTimestamp: creationTimestamp,
-			}
-		}
 
 		newNetwork = func(name, cidr string) *ipamv1alpha1.Network {
 			return &ipamv1alpha1.Network{
@@ -90,14 +71,26 @@ var _ = Describe("Sync routine tests", func() {
 				},
 			}
 		}
+
+		addNetwork = func(server *LiqoIPAM, cidr string) {
+			prefix, err := netip.ParsePrefix(cidr)
+			Expect(err).ShouldNot(HaveOccurred())
+			_, err = server.networkAcquireSpecific(prefix)
+			Expect(err).ShouldNot(HaveOccurred())
+		}
+
+		addIP = func(server *LiqoIPAM, ip, cidr string) {
+			addr, err := netip.ParseAddr(ip)
+			Expect(err).ShouldNot(HaveOccurred())
+			prefix, err := netip.ParsePrefix(cidr)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(server.ipAcquireWithAddr(addr, prefix)).Should(Succeed())
+		}
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
 		fakeClientBuilder = fake.NewClientBuilder().WithScheme(scheme.Scheme)
-		now = time.Now()
-		newEntryThreshold = now.Add(-syncFrequency)
-		notNewTimestamp = newEntryThreshold.Add(-time.Minute)
 	})
 
 	Describe("Testing the sync routine", func() {
@@ -110,27 +103,34 @@ var _ = Describe("Sync routine tests", func() {
 					newNetwork("net3", "10.2.0.0/16"),
 				).Build()
 
+				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
+				Expect(err).To(BeNil())
+
 				// Populate the cache
 				fakeIpamServer = &LiqoIPAM{
-					Client:        client,
-					cacheNetworks: make(map[string]networkInfo),
+					Client:   client,
+					IpamCore: ipamCore,
+					opts: &ServerOptions{
+						SyncFrequency:   syncFrequency,
+						GraphvizEnabled: false,
+					},
 				}
-				addNetowrkToCache(fakeIpamServer, "10.0.0.0/16", now)
-				addNetowrkToCache(fakeIpamServer, "10.1.0.0/16", notNewTimestamp)
-				addNetowrkToCache(fakeIpamServer, "10.3.0.0/16", notNewTimestamp)
-				addNetowrkToCache(fakeIpamServer, "10.4.0.0/16", now)
+				addNetwork(fakeIpamServer, "10.0.0.0/16")
+				addNetwork(fakeIpamServer, "10.1.0.0/16")
+				addNetwork(fakeIpamServer, "10.3.0.0/16")
+				addNetwork(fakeIpamServer, "10.4.0.0/16")
 			})
 
 			It("should remove networks from cache if they are not present in the cluster", func() {
 				// Run sync
-				Expect(fakeIpamServer.syncNetworks(ctx, newEntryThreshold)).To(Succeed())
+				Expect(fakeIpamServer.syncNetworks(ctx)).To(Succeed())
 
 				// Check the cache
-				Expect(fakeIpamServer.cacheNetworks).To(HaveKey("10.0.0.0/16"))    // network in cluster and cache
-				Expect(fakeIpamServer.cacheNetworks).To(HaveKey("10.1.0.0/16"))    // network in cluster and cache before new entry threshold
-				Expect(fakeIpamServer.cacheNetworks).To(HaveKey("10.2.0.0/16"))    // network in cluster but not in cache
-				Expect(fakeIpamServer.cacheNetworks).NotTo(HaveKey("10.3.0.0/16")) // network not in cluster but in cache before new entry threshold
-				Expect(fakeIpamServer.cacheNetworks).To(HaveKey("10.4.0.0/16"))    // network not in cluster but in cache after new entry threshold
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.0.0.0/16"))).To(Equal(false))
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.1.0.0/16"))).To(Equal(false))
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.2.0.0/16"))).To(Equal(false))
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.3.0.0/16"))).To(Equal(true))
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.4.0.0/16"))).To(Equal(true))
 			})
 		})
 
@@ -138,37 +138,44 @@ var _ = Describe("Sync routine tests", func() {
 			BeforeEach(func() {
 				// Add in-cluster IPs
 				client := fakeClientBuilder.WithObjects(
+					newNetwork("net1", "10.0.0.0/24"),
+
 					newIP("ip1", "10.0.0.0", "10.0.0.0/24"),
 					newIP("ip2", "10.0.0.1", "10.0.0.0/24"),
 					newIP("ip3", "10.0.0.2", "10.0.0.0/24"),
 				).Build()
 
+				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
+				Expect(err).To(BeNil())
+
 				// Populate the cache
 				fakeIpamServer = &LiqoIPAM{
 					Client:   client,
-					cacheIPs: make(map[string]ipInfo),
+					IpamCore: ipamCore,
+					opts: &ServerOptions{
+						SyncFrequency:   syncFrequency,
+						GraphvizEnabled: false,
+					},
 				}
-				addIPToCache(fakeIpamServer, "10.0.0.0", "10.0.0.0/24", now)
-				addIPToCache(fakeIpamServer, "10.0.0.1", "10.0.0.0/24", notNewTimestamp)
-				addIPToCache(fakeIpamServer, "10.0.0.3", "10.0.0.0/24", notNewTimestamp)
-				addIPToCache(fakeIpamServer, "10.0.0.4", "10.0.0.0/24", now)
+
+				addNetwork(fakeIpamServer, "10.0.0.0/24")
+
+				addIP(fakeIpamServer, "10.0.0.0", "10.0.0.0/24")
+				addIP(fakeIpamServer, "10.0.0.1", "10.0.0.0/24")
+				addIP(fakeIpamServer, "10.0.0.3", "10.0.0.0/24")
+				addIP(fakeIpamServer, "10.0.0.4", "10.0.0.0/24")
 			})
 
 			It("should remove IPs from cache if they are not present in the cluster", func() {
 				// Run sync
-				Expect(fakeIpamServer.syncIPs(ctx, newEntryThreshold)).To(Succeed())
+				Expect(fakeIpamServer.syncIPs(ctx)).To(Succeed())
 
 				// Check the cache
-				Expect(fakeIpamServer.cacheIPs).To(HaveKey(
-					ipCidr{ip: "10.0.0.0", cidr: "10.0.0.0/24"}.String())) // IP in cluster and cache
-				Expect(fakeIpamServer.cacheIPs).To(HaveKey(
-					ipCidr{ip: "10.0.0.1", cidr: "10.0.0.0/24"}.String())) // IP in cluster and cache before new entry threshold
-				Expect(fakeIpamServer.cacheIPs).To(HaveKey(
-					ipCidr{ip: "10.0.0.2", cidr: "10.0.0.0/24"}.String())) // IP in cluster but not in cache
-				Expect(fakeIpamServer.cacheIPs).NotTo(HaveKey(
-					ipCidr{ip: "10.0.0.3", cidr: "10.0.0.0/24"}.String())) // IP not in cluster but in cache before new entry threshold
-				Expect(fakeIpamServer.cacheIPs).To(HaveKey(
-					ipCidr{ip: "10.0.0.4", cidr: "10.0.0.0/24"}.String())) // IP not in cluster but in cache after new entry threshold
+				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
 			})
 		})
 	})

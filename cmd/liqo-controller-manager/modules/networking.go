@@ -264,7 +264,7 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 				Cidr: nw.Spec.CIDR.String(),
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("IPAM: %w", err)
 			}
 
 			if res.Available {
@@ -275,7 +275,7 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 					PreAllocated: nw.Spec.PreAllocated,
 				})
 				if err != nil {
-					return err
+					return fmt.Errorf("IPAM: %w", err)
 				}
 			}
 
@@ -286,6 +286,7 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 		if err := cl.Status().Update(ctx, nw); err != nil {
 			return fmt.Errorf("unable to update the reserved network %s: %w", nw.Name, err)
 		}
+		klog.Infof("Updated reserved Network %q status (spec: %s | status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
 	}
 
 	klog.Info("Reserved networks initialized")

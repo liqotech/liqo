@@ -16,83 +16,76 @@ package ipam
 
 import (
 	"context"
-	"time"
+	"fmt"
+	"net/netip"
 
-	"github.com/google/nftables"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 )
 
-type ipInfo struct {
-	ipCidr
-	creationTimestamp time.Time
-}
-
-type ipCidr struct {
-	ip   string
-	cidr string
-}
-
-func (i ipCidr) String() string {
-	return i.ip + "-" + i.cidr
-}
-
-// reserveIP reserves an IP, saving it in the cache.
-func (lipam *LiqoIPAM) reserveIP(ip ipCidr) error {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	if lipam.cacheIPs == nil {
-		lipam.cacheIPs = make(map[string]ipInfo)
+// ipAcquire acquires an IP, eventually remapped if conflicts are found.
+func (lipam *LiqoIPAM) ipAcquire(prefix netip.Prefix) (*netip.Addr, error) {
+	result, err := lipam.IpamCore.IPAcquire(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("error reserving IP in network %q: %w", prefix.String(), err)
 	}
-	lipam.cacheIPs[ip.String()] = ipInfo{
-		ipCidr:            ip,
-		creationTimestamp: time.Now(),
+	if result == nil {
+		return nil, fmt.Errorf("failed to reserve IP in network %q", prefix.String())
 	}
 
-	klog.Infof("Reserved IP %q (network %q)", ip.ip, ip.cidr)
+	klog.Infof("Acquired IP %q (network %q)", result.String(), prefix.String())
+
+	if lipam.opts.GraphvizEnabled {
+		return result, lipam.IpamCore.ToGraphviz()
+	}
+	return result, nil
+}
+
+// acquireIpWithAddress acquires an IP with a specific address.
+func (lipam *LiqoIPAM) ipAcquireWithAddr(addr netip.Addr, prefix netip.Prefix) error {
+	result, err := lipam.IpamCore.IPAcquireWithAddr(prefix, addr)
+	if err != nil {
+		return fmt.Errorf("error reserving IP %q in network %q: %w", addr.String(), prefix.String(), err)
+	}
+	if result == nil {
+		return fmt.Errorf("failed to reserve IP %q in network %q", addr.String(), prefix.Addr())
+	}
+
+	klog.Infof("Acquired specific IP %q (%q)", result.String(), prefix.String())
+	if lipam.opts.GraphvizEnabled {
+		return lipam.IpamCore.ToGraphviz()
+	}
 	return nil
 }
 
-// acquireIP acquires an IP, eventually remapped if conflicts are found.
-func (lipam *LiqoIPAM) acquireIP(cidr string) (string, error) {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	// TODO: implement real IP acquire logic
-	if lipam.cacheIPs == nil {
-		lipam.cacheIPs = make(map[string]ipInfo)
-	}
-	firstIP, _, err := nftables.NetFirstAndLastIP(cidr)
+// ipRelease frees an IP, removing it from the cache.
+func (lipam *LiqoIPAM) ipRelease(addr netip.Addr, prefix netip.Prefix) error {
+	result, err := lipam.IpamCore.IPRelease(prefix, addr)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("error freeing IP %q (network %q): %w", addr.String(), prefix.String(), err)
 	}
-	ip := ipCidr{
-		ip:   firstIP.String(),
-		cidr: cidr,
+	if result == nil {
+		klog.Infof("IP %q (network %q) already freed", addr.String(), prefix.String())
+		return nil
 	}
-	lipam.cacheIPs[ip.String()] = ipInfo{
-		ipCidr:            ip,
-		creationTimestamp: time.Now(),
-	}
+	klog.Infof("Freed IP %q (network %q)", addr.String(), prefix.String())
 
-	klog.Infof("Acquired IP %q (network %q)", ip.ip, ip.cidr)
-	return ip.ip, nil
+	if lipam.opts.GraphvizEnabled {
+		return lipam.IpamCore.ToGraphviz()
+	}
+	return nil
 }
 
-// freeIP frees an IP, removing it from the cache.
-func (lipam *LiqoIPAM) freeIP(ip ipCidr) {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	delete(lipam.cacheIPs, ip.String())
-	klog.Infof("Freed IP %q (network %q)", ip.ip, ip.cidr)
+// isIPAvailable checks if an IP is available.
+func (lipam *LiqoIPAM) isIPAvailable(addr netip.Addr, prefix netip.Prefix) (bool, error) {
+	allocated, err := lipam.IpamCore.IsAllocatedIP(prefix, addr)
+	return !allocated, err
 }
 
-func listIPsOnCluster(ctx context.Context, cl client.Client) ([]ipCidr, error) {
-	var ips []ipCidr
+func (lipam *LiqoIPAM) listIPsOnCluster(ctx context.Context, cl client.Client) (map[netip.Addr]netip.Prefix, error) {
+	result := make(map[netip.Addr]netip.Prefix)
 	var ipList ipamv1alpha1.IPList
 	if err := cl.List(ctx, &ipList); err != nil {
 		return nil, err
@@ -100,6 +93,11 @@ func listIPsOnCluster(ctx context.Context, cl client.Client) ([]ipCidr, error) {
 
 	for i := range ipList.Items {
 		ip := &ipList.Items[i]
+
+		deleting := !ip.GetDeletionTimestamp().IsZero()
+		if deleting {
+			continue
+		}
 
 		address := ip.Status.IP.String()
 		if address == "" {
@@ -113,8 +111,18 @@ func listIPsOnCluster(ctx context.Context, cl client.Client) ([]ipCidr, error) {
 			continue
 		}
 
-		ips = append(ips, ipCidr{ip: address, cidr: cidr})
+		addr, err := netip.ParseAddr(address)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse IP %q: %w", address, err)
+		}
+
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse CIDR %q: %w", cidr, err)
+		}
+
+		result[addr] = prefix
 	}
 
-	return ips, nil
+	return result, nil
 }
