@@ -60,6 +60,14 @@ spec:
                 x-kubernetes-validations:
                 - message: CIDR field is immutable
                   rule: self == oldSelf
+              preAllocated:
+                description: PreAllocated is the number of IPs to pre-allocate (reserve)
+                  in the CIDR, starting from the first IP.
+                minimum: 0
+                type: integer
+                x-kubernetes-validations:
+                - message: Reserved field is immutable
+                  rule: self == oldSelf
             required:
             - cidr
             type: object

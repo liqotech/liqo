@@ -25,29 +25,39 @@ import (
 )
 
 type networkInfo struct {
-	cidr              string
+	network
 	creationTimestamp time.Time
 }
 
+type network struct {
+	cidr         string
+	preAllocated uint
+}
+
+func (n network) String() string {
+	return n.cidr
+}
+
 // reserveNetwork reserves a network, saving it in the cache.
-func (lipam *LiqoIPAM) reserveNetwork(cidr string) error {
+func (lipam *LiqoIPAM) reserveNetwork(nw network) error {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
+	// TODO: implement real network reserve logic
 	if lipam.cacheNetworks == nil {
 		lipam.cacheNetworks = make(map[string]networkInfo)
 	}
-	lipam.cacheNetworks[cidr] = networkInfo{
-		cidr:              cidr,
+	lipam.cacheNetworks[nw.String()] = networkInfo{
+		network:           nw,
 		creationTimestamp: time.Now(),
 	}
 
-	klog.Infof("Reserved network %q", cidr)
+	klog.Infof("Reserved network %q", nw)
 	return nil
 }
 
 // acquireNetwork acquires a network, eventually remapped if conflicts are found.
-func (lipam *LiqoIPAM) acquireNetwork(cidr string, immutable bool) (string, error) {
+func (lipam *LiqoIPAM) acquireNetwork(cidr string, preAllocated uint, immutable bool) (string, error) {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
@@ -56,39 +66,45 @@ func (lipam *LiqoIPAM) acquireNetwork(cidr string, immutable bool) (string, erro
 	if lipam.cacheNetworks == nil {
 		lipam.cacheNetworks = make(map[string]networkInfo)
 	}
-	lipam.cacheNetworks[cidr] = networkInfo{
-		cidr:              cidr,
+	nw := network{
+		cidr:         cidr,
+		preAllocated: preAllocated,
+	}
+	lipam.cacheNetworks[nw.String()] = networkInfo{
+		network:           nw,
 		creationTimestamp: time.Now(),
 	}
 
-	klog.Infof("Acquired network %q", cidr)
-	return cidr, nil
+	klog.Infof("Acquired network %q", nw.cidr)
+	return nw.cidr, nil
 }
 
 // freeNetwork frees a network, removing it from the cache.
-func (lipam *LiqoIPAM) freeNetwork(cidr string) {
+func (lipam *LiqoIPAM) freeNetwork(nw network) {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
-	delete(lipam.cacheNetworks, cidr)
-	klog.Infof("Freed network %q", cidr)
+	// TODO: implement real network free logic
+	delete(lipam.cacheNetworks, nw.String())
+	klog.Infof("Freed network %q", nw.cidr)
 }
 
 // isNetworkAvailable checks if a network is available.
-func (lipam *LiqoIPAM) isNetworkAvailable(cidr string) bool {
+func (lipam *LiqoIPAM) isNetworkAvailable(nw network) bool {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
+	// TODO: implement real network availability check logic
 	if lipam.cacheNetworks == nil {
 		return true
 	}
-	_, ok := lipam.cacheNetworks[cidr]
+	_, ok := lipam.cacheNetworks[nw.String()]
 
 	return ok
 }
 
-func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]string, error) {
-	var nets []string
+func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]network, error) {
+	var nets []network
 	var networks ipamv1alpha1.NetworkList
 	if err := cl.List(ctx, &networks); err != nil {
 		return nil, err
@@ -103,7 +119,10 @@ func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]string, err
 			continue
 		}
 
-		nets = append(nets, cidr)
+		nets = append(nets, network{
+			cidr:         cidr,
+			preAllocated: net.Spec.PreAllocated,
+		})
 	}
 
 	return nets, nil
