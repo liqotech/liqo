@@ -40,6 +40,11 @@ type NetworkSpec struct {
 	// CIDR is the desired CIDR for the remote cluster.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="CIDR field is immutable"
 	CIDR networkingv1beta1.CIDR `json:"cidr"`
+	// PreAllocated is the number of IPs to pre-allocate (reserve) in the CIDR, starting from the first IP.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Reserved field is immutable"
+	PreAllocated uint `json:"preAllocated"`
 }
 
 // NetworkStatus defines the observed state of Network.

@@ -45,7 +45,9 @@ var _ = Describe("Sync routine tests", func() {
 
 		addNetowrkToCache = func(ipamServer *LiqoIPAM, cidr string, creationTimestamp time.Time) {
 			ipamServer.cacheNetworks[cidr] = networkInfo{
-				cidr:              cidr,
+				network: network{
+					cidr: cidr,
+				},
 				creationTimestamp: creationTimestamp,
 			}
 		}
