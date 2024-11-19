@@ -216,3 +216,12 @@ func GetNestedField(m map[string]any, path string) (any, error) {
 	}
 	return current, nil
 }
+
+// SliceToMap takes a slice of a generic type and returns a map where the keys are the array elements.
+func SliceToMap[T comparable](slice []T) map[T]any {
+	result := make(map[T]any)
+	for _, elem := range slice {
+		result[elem] = nil
+	}
+	return result
+}

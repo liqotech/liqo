@@ -48,5 +48,5 @@ docs/_build
 
 # development files
 /tmp
-
+/graphviz
 /k3s-ansible

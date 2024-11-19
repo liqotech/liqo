@@ -190,6 +190,9 @@ func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
 		Spec: ipamv1alpha1.NetworkSpec{
 			CIDR: networkingv1beta1.CIDR(PodCIDR),
 		},
+		Status: ipamv1alpha1.NetworkStatus{
+			CIDR: networkingv1beta1.CIDR(PodCIDR),
+		},
 	}
 }
 
@@ -205,6 +208,9 @@ func FakeNetworkServiceCIDR() *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: networkingv1beta1.CIDR(ServiceCIDR),
+		},
+		Status: ipamv1alpha1.NetworkStatus{
 			CIDR: networkingv1beta1.CIDR(ServiceCIDR),
 		},
 	}
