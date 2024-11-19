@@ -51,6 +51,7 @@ spec:
           args:
             - --pod-name=$(POD_NAME)
             - --port=6000
+            - --sync-interval={{ .Values.ipam.internal.syncInterval }}
             {{- if $ha }}
             - --leader-election
             - --leader-election-namespace=$(POD_NAMESPACE)
@@ -61,6 +62,7 @@ spec:
             {{- if .Values.ipam.internal.pod.extraArgs }}
             {{- toYaml .Values.ipam.internal.pod.extraArgs | nindent 12 }}
             {{- end }}
+            - --enable-graphviz={{ .Values.ipam.internal.graphviz }}
           env:
           - name: POD_NAME
             valueFrom:
@@ -71,6 +73,11 @@ spec:
              fieldRef:
                fieldPath: metadata.namespace
           resources: {{- toYaml .Values.ipam.internal.pod.resources | nindent 12 }}
+          {{- if .Values.ipam.internal.graphviz }}
+          volumeMounts:
+            - mountPath: /graphviz
+              name: graphviz
+          {{- end }}
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}
@@ -86,5 +93,9 @@ spec:
       {{- if .Values.ipam.internal.pod.priorityClassName }}
       priorityClassName: {{ .Values.ipam.internal.pod.priorityClassName }}
       {{- end }}
-
+      {{- if .Values.ipam.internal.graphviz }}
+      volumes:
+        - name: graphviz
+          emptyDir: {}
+      {{- end }}
 {{- end }}

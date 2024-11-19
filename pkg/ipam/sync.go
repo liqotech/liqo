@@ -16,31 +16,40 @@ package ipam
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/netip"
 	"os"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	klog "k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch
 
 func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
+	if syncFrequency == 0 {
+		klog.Info("IPAM cache sync routine disabled")
+		return
+	}
+
 	err := wait.PollUntilContextCancel(ctx, syncFrequency, false,
 		func(ctx context.Context) (done bool, err error) {
+			lipam.mutex.Lock()
+			defer lipam.mutex.Unlock()
 			klog.Info("Started IPAM cache sync routine")
-			now := time.Now()
-			// networks created before this threshold will be removed from the cache if they are not present in the cluster.
-			expiredThreshold := now.Add(-syncFrequency)
 
 			// Sync networks.
-			if err := lipam.syncNetworks(ctx, expiredThreshold); err != nil {
+			if err := lipam.syncNetworks(ctx); err != nil {
 				return false, err
 			}
 
 			// Sync IPs.
-			if err := lipam.syncIPs(ctx, expiredThreshold); err != nil {
+			if err := lipam.syncIPs(ctx); err != nil {
 				return false, err
 			}
 
@@ -53,61 +62,126 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 	}
 }
 
-func (lipam *LiqoIPAM) syncNetworks(ctx context.Context, expiredThreshold time.Time) error {
+func syncNetworkAcquire(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefixDetails, cachedNetworks map[netip.Prefix]any) error {
+	// Add networks that are present in the cluster but not in the cache.
+	for clusterNetwork, clusterNetworkDetails := range clusterNetworks {
+		if _, ok := cachedNetworks[clusterNetwork]; !ok {
+			if _, err := lipam.networkAcquireSpecific(clusterNetwork); err != nil {
+				return fmt.Errorf("failed to acquire network %q: %w", clusterNetwork, err)
+			}
+			for i := 0; i < int(clusterNetworkDetails.preallocated); i++ {
+				if _, err := lipam.ipAcquire(clusterNetwork); err != nil {
+					return errors.Join(err, lipam.networkRelease(clusterNetwork))
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func isNetworkInCluster(clusterNetworks map[netip.Prefix]prefixDetails, cachedNetwork netip.Prefix) bool {
+	_, ok := clusterNetworks[cachedNetwork]
+	return ok
+}
+
+func syncNetworkFree(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefixDetails, cachedNetworks map[netip.Prefix]any) error {
+	// Remove networks that are present in the cache but not in the cluster, and were added before the threshold.
+	for cachedNetwork := range cachedNetworks {
+		if !isNetworkInCluster(clusterNetworks, cachedNetwork) {
+			if err := lipam.networkRelease(cachedNetwork); err != nil {
+				return fmt.Errorf("failed to free network %q: %w", cachedNetwork.String(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (lipam *LiqoIPAM) syncNetworks(ctx context.Context) error {
 	// List all networks present in the cluster.
-	clusterNetworks, err := listNetworksOnCluster(ctx, lipam.Client)
+	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
 	}
 
-	// Create the set of networks present in the cluster (for faster lookup later).
-	setClusterNetworks := make(map[string]struct{})
+	cachedNetworksMap := maps.SliceToMap(lipam.IpamCore.ListNetworks())
 
-	// Add networks that are present in the cluster but not in the cache.
-	for _, net := range clusterNetworks {
-		if _, inCache := lipam.cacheNetworks[net.String()]; !inCache {
-			if err := lipam.reserveNetwork(net); err != nil {
-				return err
-			}
-		}
-		setClusterNetworks[net.String()] = struct{}{} // add network to the set
+	if err := syncNetworkAcquire(lipam, clusterNetworksMap, cachedNetworksMap); err != nil {
+		return fmt.Errorf("failed to acquire network: %w", err)
 	}
 
-	// Remove networks that are present in the cache but not in the cluster, and were added before the threshold.
-	for key := range lipam.cacheNetworks {
-		if _, inCluster := setClusterNetworks[key]; !inCluster && lipam.cacheNetworks[key].creationTimestamp.Before(expiredThreshold) {
-			lipam.freeNetwork(lipam.cacheNetworks[key].network)
-		}
+	if err := syncNetworkFree(lipam, clusterNetworksMap, cachedNetworksMap); err != nil {
+		return fmt.Errorf("failed to free network: %w", err)
 	}
 
 	return nil
 }
 
-func (lipam *LiqoIPAM) syncIPs(ctx context.Context, expiredThreshold time.Time) error {
+func syncIPsAcquire(lipam *LiqoIPAM, clusterIPs, cachedIPs map[netip.Addr]netip.Prefix) error {
+	for clusterIP, clusterNetwork := range clusterIPs {
+		if _, ok := cachedIPs[clusterIP]; !ok {
+			if err := lipam.ipAcquireWithAddr(clusterIP, clusterNetwork); err != nil {
+				return fmt.Errorf("failed to acquire IP %q in network %q: %w", clusterIP.String(), clusterNetwork.String(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func iscachedIPPreallocated(cachedIP netip.Addr, cachedNetwork netip.Prefix, clusterNetworks map[netip.Prefix]prefixDetails) bool {
+	details, ok := clusterNetworks[cachedNetwork]
+	if !ok {
+		return false
+	}
+	preallocatedIP := cachedNetwork.Addr()
+	for i := 0; i < int(details.preallocated); i++ {
+		if cachedIP.Compare(preallocatedIP) == 0 {
+			return true
+		}
+		preallocatedIP = preallocatedIP.Next()
+	}
+	return false
+}
+
+func syncIPsFree(lipam *LiqoIPAM, clusterIPs, cachedIPs map[netip.Addr]netip.Prefix, clusterNetworks map[netip.Prefix]prefixDetails) error {
+	for cachedIP, cachedNetwork := range cachedIPs {
+		if _, ok := clusterIPs[cachedIP]; !ok && !iscachedIPPreallocated(cachedIP, cachedNetwork, clusterNetworks) {
+			if err := lipam.ipRelease(cachedIP, cachedNetwork); err != nil {
+				return fmt.Errorf("failed to free IP %q: %w", cachedIP.String(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (lipam *LiqoIPAM) syncIPs(ctx context.Context) error {
 	// List all IPs present in the cluster.
-	ips, err := listIPsOnCluster(ctx, lipam.Client)
+	clusterIPsMap, err := lipam.listIPsOnCluster(ctx, lipam.Client)
+	if err != nil {
+		return err
+	}
+	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
 	}
 
-	// Create the set of IPs present in the cluster (for faster lookup later).
-	setClusterIPs := make(map[string]struct{})
-
-	// Add IPs that are present in the cluster but not in the cache.
-	for _, ip := range ips {
-		if _, inCache := lipam.cacheIPs[ip.String()]; !inCache {
-			if err := lipam.reserveIP(ip); err != nil {
-				return err
-			}
+	cachedIPsMap := make(map[netip.Addr]netip.Prefix)
+	cachedNetworksList := lipam.IpamCore.ListNetworks()
+	for i := range cachedNetworksList {
+		cachedIPs, err := lipam.IpamCore.ListIPs(cachedNetworksList[i])
+		if err != nil {
+			return fmt.Errorf("failed to list IPs in network %q: %w", cachedNetworksList[i].String(), err)
 		}
-		setClusterIPs[ip.String()] = struct{}{} // add IP to the set
+		for j := range cachedIPs {
+			cachedIPsMap[cachedIPs[j]] = cachedNetworksList[i]
+		}
 	}
 
-	// Remove IPs that are present in the cache but not in the cluster, and were added before the threshold.
-	for key := range lipam.cacheIPs {
-		if _, inCluster := setClusterIPs[key]; !inCluster && lipam.cacheIPs[key].creationTimestamp.Before(expiredThreshold) {
-			lipam.freeIP(lipam.cacheIPs[key].ipCidr)
-		}
+	if err := syncIPsAcquire(lipam, clusterIPsMap, cachedIPsMap); err != nil {
+		return fmt.Errorf("failed to acquire IP: %w", err)
+	}
+
+	if err := syncIPsFree(lipam, clusterIPsMap, cachedIPsMap, clusterNetworksMap); err != nil {
+		return fmt.Errorf("failed to free IP: %w", err)
 	}
 
 	return nil
