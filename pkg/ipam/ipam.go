@@ -16,46 +16,56 @@ package ipam
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ipamcore "github.com/liqotech/liqo/pkg/ipam/core"
 )
 
 // LiqoIPAM is the struct implementing the IPAM interface.
 type LiqoIPAM struct {
 	UnimplementedIPAMServer
+
+	IpamCore *ipamcore.Ipam
+	mutex    sync.Mutex
+
 	HealthServer *health.Server
-
 	client.Client
-
-	opts          *ServerOptions
-	cacheNetworks map[string]networkInfo
-	cacheIPs      map[string]ipInfo
-	mutex         sync.Mutex
+	opts *ServerOptions
 }
 
 // ServerOptions contains the options to configure the IPAM server.
 type ServerOptions struct {
-	Port          int
-	SyncFrequency time.Duration
+	Pools           []string
+	Port            int
+	SyncFrequency   time.Duration
+	GraphvizEnabled bool
 }
 
 // New creates a new instance of the LiqoIPAM.
-func New(ctx context.Context, cl client.Client, opts *ServerOptions) (*LiqoIPAM, error) {
+func New(ctx context.Context, cl client.Client, roots []string, opts *ServerOptions) (*LiqoIPAM, error) {
 	hs := health.NewServer()
 	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
+	ipam, err := ipamcore.NewIpam(roots)
+	if err != nil {
+		return nil, err
+	}
+
 	lipam := &LiqoIPAM{
+		IpamCore: ipam,
+
 		HealthServer: hs,
-
-		Client: cl,
-
-		opts:          opts,
-		cacheNetworks: make(map[string]networkInfo),
-		cacheIPs:      make(map[string]ipInfo),
+		Client:       cl,
+		opts:         opts,
 	}
 
 	// Initialize the IPAM instance
@@ -73,41 +83,119 @@ func New(ctx context.Context, cl client.Client, opts *ServerOptions) (*LiqoIPAM,
 
 // IPAcquire acquires a free IP from a given CIDR.
 func (lipam *LiqoIPAM) IPAcquire(_ context.Context, req *IPAcquireRequest) (*IPAcquireResponse, error) {
-	remappedIP, err := lipam.acquireIP(req.GetCidr())
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	prefix, err := netip.ParsePrefix(req.GetCidr())
+	if err != nil {
+		return &IPAcquireResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
+	}
+
+	if !lipam.isInPool(prefix) {
+		return nil, fmt.Errorf("prefix %q is not in the pool %q", req.GetCidr(), strings.Join(lipam.opts.Pools, ","))
+	}
+
+	remappedIP, err := lipam.ipAcquire(prefix)
 	if err != nil {
 		return &IPAcquireResponse{}, err
 	}
 
-	return &IPAcquireResponse{Ip: remappedIP}, nil
+	return &IPAcquireResponse{Ip: remappedIP.String()}, nil
 }
 
 // IPRelease releases an IP from a given CIDR.
 func (lipam *LiqoIPAM) IPRelease(_ context.Context, req *IPReleaseRequest) (*IPReleaseResponse, error) {
-	lipam.freeIP(ipCidr{ip: req.GetIp(), cidr: req.GetCidr()})
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	addr, err := netip.ParseAddr(req.GetIp())
+	if err != nil {
+		return &IPReleaseResponse{}, fmt.Errorf("failed to parse address %q: %w", req.GetIp(), err)
+	}
+
+	prefix, err := netip.ParsePrefix(req.GetCidr())
+	if err != nil {
+		return &IPReleaseResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
+	}
+
+	if err := lipam.ipRelease(addr, prefix); err != nil {
+		return &IPReleaseResponse{}, err
+	}
 
 	return &IPReleaseResponse{}, nil
 }
 
 // NetworkAcquire acquires a network. If it is already reserved, it allocates and reserves a new free one with the same prefix length.
 func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
-	remappedCidr, err := lipam.acquireNetwork(req.GetCidr(), req.GetPreAllocated(), req.GetImmutable())
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	var remappedCidr *netip.Prefix
+	var err error
+
+	prefix, err := netip.ParsePrefix(req.GetCidr())
 	if err != nil {
-		return &NetworkAcquireResponse{}, err
+		return &NetworkAcquireResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
 	}
 
-	return &NetworkAcquireResponse{Cidr: remappedCidr}, nil
+	if !lipam.isInPool(prefix) {
+		return &NetworkAcquireResponse{}, fmt.Errorf("prefix %q is not in the pool %q", req.GetCidr(), strings.Join(lipam.opts.Pools, ","))
+	}
+
+	if req.GetImmutable() {
+		remappedCidr, err = lipam.networkAcquireSpecific(prefix)
+		if err != nil {
+			return &NetworkAcquireResponse{}, err
+		}
+	} else {
+		remappedCidr, err = lipam.networkAcquire(prefix)
+		if err != nil {
+			return &NetworkAcquireResponse{}, err
+		}
+	}
+
+	for i := 0; i < int(req.GetPreAllocated()); i++ {
+		_, err := lipam.ipAcquire(*remappedCidr)
+		if err != nil {
+			return &NetworkAcquireResponse{}, errors.Join(err, lipam.networkRelease(*remappedCidr))
+		}
+	}
+
+	return &NetworkAcquireResponse{Cidr: remappedCidr.String()}, nil
 }
 
 // NetworkRelease releases a network.
 func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, req *NetworkReleaseRequest) (*NetworkReleaseResponse, error) {
-	lipam.freeNetwork(network{cidr: req.GetCidr()})
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	prefix, err := netip.ParsePrefix(req.GetCidr())
+	if err != nil {
+		return &NetworkReleaseResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
+	}
+
+	if err := lipam.networkRelease(prefix); err != nil {
+		return &NetworkReleaseResponse{}, err
+	}
 
 	return &NetworkReleaseResponse{}, nil
 }
 
 // NetworkIsAvailable checks if a network is available.
 func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, req *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
-	available := lipam.isNetworkAvailable(network{cidr: req.GetCidr()})
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+
+	prefix, err := netip.ParsePrefix(req.GetCidr())
+	if err != nil {
+		return &NetworkAvailableResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
+	}
+
+	if !lipam.isInPool(prefix) {
+		return &NetworkAvailableResponse{}, fmt.Errorf("prefix %q is not in the pool %q", req.GetCidr(), strings.Join(lipam.opts.Pools, ","))
+	}
+
+	available := lipam.networkIsAvailable(prefix)
 
 	return &NetworkAvailableResponse{Available: available}, nil
 }

@@ -16,6 +16,7 @@ package ipam
 
 import (
 	"context"
+	"errors"
 
 	klog "k8s.io/klog/v2"
 )
@@ -24,6 +25,10 @@ import (
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch
 
 func (lipam *LiqoIPAM) initialize(ctx context.Context) error {
+	lipam.mutex.Lock()
+	defer lipam.mutex.Unlock()
+	klog.Info("Initializing IPAM")
+
 	if err := lipam.initializeNetworks(ctx); err != nil {
 		return err
 	}
@@ -38,16 +43,20 @@ func (lipam *LiqoIPAM) initialize(ctx context.Context) error {
 
 func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 	// List all networks present in the cluster.
-	nets, err := listNetworksOnCluster(ctx, lipam.Client)
+	nets, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
 	}
 
 	// Initialize the networks.
-	for _, net := range nets {
-		if err := lipam.reserveNetwork(net); err != nil {
-			klog.Errorf("Failed to reserve network %q: %v", net, err)
+	for net, netdetails := range nets {
+		if _, err := lipam.networkAcquireSpecific(net); err != nil {
 			return err
+		}
+		for i := 0; i < int(netdetails.preallocated); i++ {
+			if _, err := lipam.ipAcquire(net); err != nil {
+				return errors.Join(err, lipam.networkRelease(net))
+			}
 		}
 	}
 
@@ -56,15 +65,15 @@ func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 
 func (lipam *LiqoIPAM) initializeIPs(ctx context.Context) error {
 	// List all IPs present in the cluster.
-	ips, err := listIPsOnCluster(ctx, lipam.Client)
+	ips, err := lipam.listIPsOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
 	}
 
 	// Initialize the IPs.
-	for _, ip := range ips {
-		if err := lipam.reserveIP(ip); err != nil {
-			klog.Errorf("Failed to reserve IP %q (network %q): %v", ip.ip, ip.cidr, err)
+	for ip, net := range ips {
+		if err := lipam.ipAcquireWithAddr(ip, net); err != nil {
+			klog.Errorf("Failed to reserve IP %q (network %q): %v", ip.String(), net.String(), err)
 			return err
 		}
 	}

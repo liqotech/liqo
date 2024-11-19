@@ -440,6 +440,14 @@ ipam:
         requests: {}
       # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod.
       priorityClassName: ""
+    # -- Enable/Disable the generation of graphviz files inside the ipam.
+    # This feature is useful to visualize the status of the ipam.
+    # The graphviz files are stored in the /graphviz directory of the ipam pod (a file for each network pool).
+    # You can access them using "kubectl cp".
+    graphviz: false
+    # -- Set the interval at which the IPAM pod will synchronize it's in-memory status with the local cluster.
+    # If you want to disable the synchronization, set the interval to 0.
+    syncInterval: 2m
   # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
   podCIDR: ""
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).

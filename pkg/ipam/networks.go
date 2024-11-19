@@ -16,7 +16,8 @@ package ipam
 
 import (
 	"context"
-	"time"
+	"fmt"
+	"net/netip"
 
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,87 +25,66 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 )
 
-type networkInfo struct {
-	network
-	creationTimestamp time.Time
-}
-
-type network struct {
-	cidr         string
-	preAllocated uint32
-}
-
-func (n network) String() string {
-	return n.cidr
-}
-
-// reserveNetwork reserves a network, saving it in the cache.
-func (lipam *LiqoIPAM) reserveNetwork(nw network) error {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	// TODO: implement real network reserve logic
-	if lipam.cacheNetworks == nil {
-		lipam.cacheNetworks = make(map[string]networkInfo)
-	}
-	lipam.cacheNetworks[nw.String()] = networkInfo{
-		network:           nw,
-		creationTimestamp: time.Now(),
+// networkAcquire acquires a network, eventually remapped if conflicts are found.
+func (lipam *LiqoIPAM) networkAcquire(prefix netip.Prefix) (*netip.Prefix, error) {
+	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix)
+	if result == nil {
+		result = lipam.IpamCore.NetworkAcquire(prefix.Bits())
+		if result == nil {
+			return nil, fmt.Errorf("failed to reserve network %q", prefix.String())
+		}
 	}
 
-	klog.Infof("Reserved network %q", nw)
+	klog.Infof("Acquired network %q -> %q", prefix.String(), result.String())
+
+	if lipam.opts.GraphvizEnabled {
+		return result, lipam.IpamCore.ToGraphviz()
+	}
+	return result, nil
+}
+
+// networkAcquireSpecific acquires a network with a specific prefix.
+// If the network is already allocated, it returns an error.
+func (lipam *LiqoIPAM) networkAcquireSpecific(prefix netip.Prefix) (*netip.Prefix, error) {
+	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix)
+	if result == nil {
+		return nil, fmt.Errorf("failed to reserve specific network %q", prefix.String())
+	}
+
+	klog.Infof("Acquired specific network %q -> %q", prefix.String(), result.String())
+
+	if lipam.opts.GraphvizEnabled {
+		return result, lipam.IpamCore.ToGraphviz()
+	}
+	return result, nil
+}
+
+// networkRelease frees a network, removing it from the cache.
+func (lipam *LiqoIPAM) networkRelease(prefix netip.Prefix) error {
+	result := lipam.IpamCore.NetworkRelease(prefix)
+	if result == nil {
+		klog.Infof("Network %q already freed", prefix.String())
+		return nil
+	}
+	klog.Infof("Freed network %q", prefix.String())
+
+	if lipam.opts.GraphvizEnabled {
+		return lipam.IpamCore.ToGraphviz()
+	}
 	return nil
 }
 
-// acquireNetwork acquires a network, eventually remapped if conflicts are found.
-func (lipam *LiqoIPAM) acquireNetwork(cidr string, preAllocated uint32, immutable bool) (string, error) {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	// TODO: implement real network acquire logic
-	_ = immutable
-	if lipam.cacheNetworks == nil {
-		lipam.cacheNetworks = make(map[string]networkInfo)
-	}
-	nw := network{
-		cidr:         cidr,
-		preAllocated: preAllocated,
-	}
-	lipam.cacheNetworks[nw.String()] = networkInfo{
-		network:           nw,
-		creationTimestamp: time.Now(),
-	}
-
-	klog.Infof("Acquired network %q", nw.cidr)
-	return nw.cidr, nil
+// networkIsAvailable checks if a network is available.
+func (lipam *LiqoIPAM) networkIsAvailable(prefix netip.Prefix) bool {
+	return lipam.IpamCore.NetworkIsAvailable(prefix)
 }
 
-// freeNetwork frees a network, removing it from the cache.
-func (lipam *LiqoIPAM) freeNetwork(nw network) {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	// TODO: implement real network free logic
-	delete(lipam.cacheNetworks, nw.String())
-	klog.Infof("Freed network %q", nw.cidr)
+type prefixDetails struct {
+	preallocated uint32
 }
 
-// isNetworkAvailable checks if a network is available.
-func (lipam *LiqoIPAM) isNetworkAvailable(nw network) bool {
-	lipam.mutex.Lock()
-	defer lipam.mutex.Unlock()
-
-	// TODO: implement real network availability check logic
-	if lipam.cacheNetworks == nil {
-		return true
-	}
-	_, exists := lipam.cacheNetworks[nw.String()]
-
-	return !exists
-}
-
-func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]network, error) {
-	var nets []network
+func (lipam *LiqoIPAM) listNetworksOnCluster(ctx context.Context, cl client.Client) (map[netip.Prefix]prefixDetails, error) {
+	result := make(map[netip.Prefix]prefixDetails)
 	var networks ipamv1alpha1.NetworkList
 	if err := cl.List(ctx, &networks); err != nil {
 		return nil, err
@@ -113,17 +93,28 @@ func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]network, er
 	for i := range networks.Items {
 		net := &networks.Items[i]
 
-		cidr := net.Status.CIDR.String()
-		if cidr == "" {
-			klog.Warningf("Network %q has no CIDR", net.Name)
+		deleting := !net.GetDeletionTimestamp().IsZero()
+		if deleting {
 			continue
 		}
 
-		nets = append(nets, network{
-			cidr:         cidr,
-			preAllocated: net.Spec.PreAllocated,
-		})
+		cidr := net.Status.CIDR.String()
+		if cidr == "" {
+			continue
+		}
+
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse CIDR %q: %w", cidr, err)
+		}
+
+		result[prefix] = prefixDetails{preallocated: net.Spec.PreAllocated}
 	}
 
-	return nets, nil
+	return result, nil
+}
+
+// isInPool checks if a prefix is contained in the prefixes pool used by the ipam as roots.
+func (lipam *LiqoIPAM) isInPool(prefix netip.Prefix) bool {
+	return lipam.IpamCore.IsPrefixInRoots(prefix)
 }
