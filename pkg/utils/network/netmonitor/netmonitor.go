@@ -131,22 +131,22 @@ func InterfacesMonitoring(ctx context.Context, eventChannel chan event.GenericEv
 	for {
 		select {
 		case updateLink := <-chLink:
-			klog.Info("Link update received")
+			klog.V(4).Info("Link update received")
 			if options.Link != nil {
 				handleLinkUpdate(&updateLink, options.Link, interfaces, eventChannel)
 			}
 		case updateAddr := <-chAddr:
-			klog.Info("Addr update received")
+			klog.V(4).Info("Addr update received")
 			if options.Addr != nil {
 				handleAddrUpdate(&updateAddr, options.Addr, eventChannel)
 			}
 		case updateRoute := <-chRoute:
-			klog.Info("Route update received")
+			klog.V(4).Info("Route update received")
 			if options.Route != nil {
 				handleRouteUpdate(&updateRoute, options.Route, eventChannel)
 			}
 		case updateNft := <-chNft:
-			klog.Info("Nft update received")
+			klog.V(4).Info("Nft update received")
 			if updateNft != nil && options.Nftables != nil {
 				handleNftUpdate(updateNft, options.Nftables, eventChannel)
 			}
