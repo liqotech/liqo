@@ -38,7 +38,6 @@ spec:
           resources: {{- toYaml .Values.proxy.pod.resources | nindent 12 }}
           args:
           - --port={{ .Values.proxy.config.listeningPort }}
-          - --allowed-hosts=kubernetes:443,kubernetes.default:443,kubernetes.default.svc:443,kubernetes.default.svc.cluster.local:443
           {{- if or .Values.common.extraArgs .Values.proxy.pod.extraArgs }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
