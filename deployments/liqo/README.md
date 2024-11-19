@@ -53,6 +53,7 @@
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
 | ipam.externalCIDR | string | `"10.70.0.0/16"` | The subnet used for the external CIDR. |
+| ipam.internal.graphviz | bool | `false` | Enable/Disable the generation of graphviz files inside the ipam. This feature is useful to visualize the status of the ipam. The graphviz files are stored in the /graphviz directory of the ipam pod (a file for each network pool). You can access them using "kubectl cp". |
 | ipam.internal.image.name | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
 | ipam.internal.image.version | string | `""` | Custom version for the IPAM image. If not specified, the global tag is used. |
 | ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
@@ -61,6 +62,7 @@
 | ipam.internal.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod. |
 | ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the IPAM pod. |
 | ipam.internal.replicas | int | `1` | The number of IPAM instances to run, which can be increased for active/passive high availability. |
+| ipam.internal.syncInterval | string | `"2m"` | Set the interval at which the IPAM pod will synchronize it's in-memory status with the local cluster. If you want to disable the synchronization, set the interval to 0. |
 | ipam.internalCIDR | string | `"10.80.0.0/16"` | The subnet used for the internal CIDR. These IPs are assigned to the Liqo internal-network interfaces. |
 | ipam.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |
 | ipam.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |

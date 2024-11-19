@@ -70,8 +70,12 @@ func main() {
 
 	// Server options.
 	cmd.Flags().IntVar(&options.ServerOpts.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
-	cmd.Flags().DurationVar(&options.ServerOpts.SyncFrequency, "interval", consts.SyncFrequency,
+	cmd.Flags().DurationVar(&options.ServerOpts.SyncFrequency, "sync-interval", consts.SyncInterval,
 		"The interval at which the IPAM will synchronize the IPAM storage.")
+	cmd.Flags().BoolVar(&options.ServerOpts.GraphvizEnabled, "enable-graphviz", false, "Enable the graphviz output for the IPAM.")
+	cmd.Flags().StringSliceVar(&options.ServerOpts.Pools, "pools",
+		[]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}, "The pools used by the IPAM.",
+	)
 
 	// Leader election flags.
 	cmd.Flags().BoolVar(&options.EnableLeaderElection, "leader-election", false, "Enable leader election for IPAM. "+
@@ -132,7 +136,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	liqoIPAM, err := ipam.New(ctx, cl, &options.ServerOpts)
+	liqoIPAM, err := ipam.New(ctx, cl, options.ServerOpts.Pools, &options.ServerOpts)
 	if err != nil {
 		return err
 	}
