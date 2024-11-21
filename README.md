@@ -83,7 +83,7 @@ To get involved with the Liqo community, join the [Slack workspace](https://liqo
 
 |:bell: Community Meeting|
 |------------------|
-|Liqo holds weekly community meetings on Monday, 5.30pm UTC (6.30pm CET, 9.30am PST). To join the community meeting, follow this [link](https://polito-it.zoom.us/j/81559017793?pwd=R0NXZUJwZXVrQUwxbWtWQ3psbEVidz09). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29). You can see and add the Liqo Calendar following this [link](https://calendar.google.com/calendar/embed?src=32odk41tfu77tedc48a0fcm0v4%40group.calendar.google.com&ctz=Europe%2FRome).|
+|Liqo holds community meetings to discuss directions and options with the community. Please refer to the Liqo Slack workspace to see the date/time of the next meeting.|
 
 ## License
 
