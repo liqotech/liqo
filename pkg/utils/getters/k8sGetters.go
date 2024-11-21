@@ -44,24 +44,6 @@ import (
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
-// GetIPAMStorageByLabel it returns a IPAMStorage instance that matches the given label selector.
-func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.IpamStorage, error) {
-	list := new(ipamv1alpha1.IpamStorageList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
-		return nil, err
-	}
-
-	switch len(list.Items) {
-	case 0:
-		return nil, kerrors.NewNotFound(ipamv1alpha1.IpamStorageGroupResource, ipamv1alpha1.IpamStorageResource)
-	case 1:
-		return &list.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple resources of type %s found for label selector %s",
-			ipamv1alpha1.IpamStorageGroupVersionResource, lSelector.String())
-	}
-}
-
 // GetNamespaceMapByLabel returns the NamespaceMapping with the given labels.
 func GetNamespaceMapByLabel(ctx context.Context, cl client.Client,
 	ns string, lSelector labels.Selector) (*offloadingv1beta1.NamespaceMap, error) {
