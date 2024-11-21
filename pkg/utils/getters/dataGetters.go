@@ -23,10 +23,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
@@ -144,29 +142,6 @@ func retrievePortFromService(svc *corev1.Service, portName string, portType core
 
 	return "", fmt.Errorf("port {%s} not found in service {%s/%s} of type {%s}",
 		portName, svc.Namespace, svc.Name, svc.Spec.Type)
-}
-
-// RetrieveNetworkConfiguration returns the podCIDR, serviceCIDR, reservedSubnets and the externalCIDR
-// as saved in the ipamstorages.ipam.liqo.io custom resource instance.
-func RetrieveNetworkConfiguration(ipamS *ipamv1alpha1.IpamStorage) (*NetworkConfig, error) {
-	if ipamS.Spec.PodCIDR == "" {
-		return nil, fmt.Errorf("unable to get network configuration: podCIDR is not set in resource %q", klog.KObj(ipamS))
-	}
-
-	if ipamS.Spec.ServiceCIDR == "" {
-		return nil, fmt.Errorf("unable to get network configuration: serviceCIDR is not set in resource %q", klog.KObj(ipamS))
-	}
-
-	if ipamS.Spec.ExternalCIDR == "" {
-		return nil, fmt.Errorf("unable to get network configuration: externalCIDR is not set %q", klog.KObj(ipamS))
-	}
-
-	return &NetworkConfig{
-		PodCIDR:         ipamS.Spec.PodCIDR,
-		ServiceCIDR:     ipamS.Spec.ServiceCIDR,
-		ExternalCIDR:    ipamS.Spec.ExternalCIDR,
-		ReservedSubnets: ipamS.Spec.ReservedSubnets,
-	}, nil
 }
 
 // RetrieveClusterIDsFromVirtualNodes returns the remote cluster IDs in a list of VirtualNodes avoiding duplicates.

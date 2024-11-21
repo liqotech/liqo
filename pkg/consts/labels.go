@@ -47,13 +47,6 @@ const (
 	// NetworkingComponentKey is the label assigned to the Liqo components related to networking.
 	NetworkingComponentKey = "networking.liqo.io/component"
 
-	// IpamStorageResourceLabelKey is the constant representing
-	// the key of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelKey = "ipam.liqo.io/ipamstorage"
-	// IpamStorageResourceLabelValue is the constant representing
-	// the value of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelValue = "true"
-
 	// WebhookResourceLabelKey is the constant representing
 	// the key of the label assigned to all Webhook resources.
 	WebhookResourceLabelKey = "liqo.io/webhook"
