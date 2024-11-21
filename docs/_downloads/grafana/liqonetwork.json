@@ -214,7 +214,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "The sum of all peers throughput.",
+      "description": "The sum of the cross-cluster traffic from all peers.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -305,7 +305,7 @@
           "useBackend": false
         }
       ],
-      "title": "Received cross-cluster throughput",
+      "title": "Aggregated cross-cluster traffic (RX)",
       "type": "timeseries"
     },
     {
@@ -313,7 +313,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "The sum of all peers throughput.",
+      "description": "The sum of the cross-cluster traffic from all peers.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -402,7 +402,7 @@
           "useBackend": false
         }
       ],
-      "title": "Transmitted cross-cluster throughput ",
+      "title": "Aggregated cross-cluster traffic (TX)",
       "type": "timeseries"
     },
     {
@@ -580,7 +580,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "The peer throughput.",
+      "description": "The traffic exchanged with the selected peer.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -684,7 +684,7 @@
           "useBackend": false
         }
       ],
-      "title": "Cross-cluster throughput",
+      "title": "Cross-cluster traffic",
       "type": "timeseries"
     },
     {
