@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -190,74 +189,6 @@ var _ = Describe("DataGetters", func() {
 			It("should fail", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(string(clusterID)).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
-			})
-		})
-
-	})
-
-	Describe("retrieval of network configuration from ipamstorage", func() {
-		var (
-			ipamStorage  *ipamv1alpha1.IpamStorage
-			resNets      = []string{"10.1.0.0/16", "192.168.0.0/16"}
-			podCIDR      = "10.200.0.0/16"
-			serviceCIDR  = "10.150.2.0/24"
-			externalCIDR = "10.201.0.0/16"
-			netConfig    *getters.NetworkConfig
-			err          error
-		)
-
-		checkOnError := func() {
-			Expect(netConfig).To(BeNil())
-			Expect(err).To(HaveOccurred())
-		}
-
-		BeforeEach(func() {
-			ipamStorage = &ipamv1alpha1.IpamStorage{
-				Spec: ipamv1alpha1.IpamSpec{
-					ReservedSubnets: resNets,
-					ExternalCIDR:    externalCIDR,
-					PodCIDR:         podCIDR,
-					ServiceCIDR:     serviceCIDR,
-				},
-			}
-		})
-
-		JustBeforeEach(func() {
-			netConfig, err = getters.RetrieveNetworkConfiguration(ipamStorage)
-		})
-
-		Context("when podCIDR has not been set", func() {
-			BeforeEach(func() {
-				ipamStorage.Spec.PodCIDR = ""
-			})
-
-			It("should return error", checkOnError)
-		})
-
-		Context("when externalCIDR has not been set", func() {
-			BeforeEach(func() {
-				ipamStorage.Spec.ExternalCIDR = ""
-			})
-
-			It("should return error", checkOnError)
-		})
-
-		Context("when serviceCIDR has not been set", func() {
-			BeforeEach(func() {
-				ipamStorage.Spec.ServiceCIDR = ""
-			})
-
-			It("should return error", checkOnError)
-		})
-
-		Context("when all fields has been set", func() {
-			It("should return configuration and nil", func() {
-				Expect(err).NotTo(HaveOccurred())
-				Expect(netConfig).NotTo(BeNil())
-				Expect(netConfig.ServiceCIDR).To(Equal(serviceCIDR))
-				Expect(netConfig.ExternalCIDR).To(Equal(externalCIDR))
-				Expect(netConfig.PodCIDR).To(Equal(podCIDR))
-				Expect(netConfig.ReservedSubnets).To(Equal(resNets))
 			})
 		})
 

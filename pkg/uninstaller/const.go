@@ -93,10 +93,5 @@ var (
 			labelSelector: metav1.LabelSelector{},
 			phase:         PhaseCleanup,
 		},
-		{
-			gvr:           ipamv1alpha1.IpamStorageGroupVersionResource,
-			labelSelector: metav1.LabelSelector{},
-			phase:         PhaseCleanup,
-		},
 	}
 )
