@@ -17,6 +17,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +31,18 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
+)
+
+// UninstallErrorType is the type of uninstall error.
+type UninstallErrorType string
+
+const (
+	// GenericUninstallError is an error related to resources that needs to be removed.
+	GenericUninstallError = "generic"
+	// PendingActivePeerings is an error related peerings still active.
+	PendingActivePeerings = "pendingActivePeerings"
+	// PendingOffloadedNamespaces is an error related to namespaces still offloaded.
+	PendingOffloadedNamespaces = "pendingOffloadedNamespaces"
 )
 
 type errorMap struct {
@@ -50,16 +63,32 @@ func newErrorMap() errorMap {
 	}
 }
 
+// UninstallError is an error type returned when there are errors during the uninstall process.
+type UninstallError struct {
+	errorTypes []UninstallErrorType
+	message    string
+}
+
+// GetErrorTypes returns the type of uninstall error.
+func (ue UninstallError) GetErrorTypes() []UninstallErrorType {
+	return ue.errorTypes
+}
+
+// Error returns the error message.
+func (ue UninstallError) Error() string {
+	return ue.message
+}
+
 func (em *errorMap) getError() error {
 	str := ""
-	hasErr := false
+	errorTypes := map[UninstallErrorType]bool{}
 
 	if len(em.networking) > 0 {
 		str += "\ndisable networking for clusters:\n"
 		for _, fc := range em.networking {
 			str += fmt.Sprintf("- %s\n", fc)
 		}
-		hasErr = true
+		errorTypes[PendingActivePeerings] = true
 	}
 
 	if len(em.authentication) > 0 {
@@ -67,7 +96,7 @@ func (em *errorMap) getError() error {
 		for i := range em.authentication {
 			str += fmt.Sprintf("- %s\n", em.authentication[i])
 		}
-		hasErr = true
+		errorTypes[PendingActivePeerings] = true
 	}
 
 	if len(em.offloading) > 0 {
@@ -75,7 +104,7 @@ func (em *errorMap) getError() error {
 		for _, fc := range em.offloading {
 			str += fmt.Sprintf("- %s\n", fc)
 		}
-		hasErr = true
+		errorTypes[PendingActivePeerings] = true
 	}
 
 	if len(em.namespaces) > 0 {
@@ -83,7 +112,7 @@ func (em *errorMap) getError() error {
 		for i := range em.namespaces {
 			str += fmt.Sprintf("- %s\n", em.namespaces[i])
 		}
-		hasErr = true
+		errorTypes[PendingOffloadedNamespaces] = true
 	}
 
 	if len(em.generic) > 0 {
@@ -91,12 +120,17 @@ func (em *errorMap) getError() error {
 		for i := range em.generic {
 			str += fmt.Sprintf("- %s\n", em.generic[i])
 		}
-		hasErr = true
+		errorTypes[GenericUninstallError] = true
 	}
 
-	if hasErr {
-		return fmt.Errorf("you should:\n%s", str)
+	if len(errorTypes) > 0 {
+		msg := fmt.Sprintf("you should:\n%s", str)
+		return UninstallError{
+			errorTypes: slices.Collect(maps.Keys(errorTypes)),
+			message:    msg,
+		}
 	}
+
 	return nil
 }
 

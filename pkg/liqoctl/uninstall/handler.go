@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -67,6 +68,25 @@ func (o *Options) Run(ctx context.Context) error {
 	s := o.Printer.StartSpinner("Running pre-uninstall checks")
 	if err := utils.PreUninstall(ctx, o.CRClient); err != nil {
 		s.Fail("Pre-uninstall checks failed: ", output.PrettyErr(err))
+		var uninstallErr utils.UninstallError
+		if errors.As(err, &uninstallErr) {
+			errorTypes := uninstallErr.GetErrorTypes()
+			if slices.Contains(errorTypes, utils.PendingActivePeerings) {
+				o.Printer.Error.Printfln(
+					"You must remove all the active peerings with other clusters before uninstalling Liqo.\n" +
+						"You can disable the active peerings via the 'liqoctl unpeer' command.\n" +
+						"Check 'liqoctl unpeer --help' for further information.",
+				)
+			}
+
+			if slices.Contains(errorTypes, utils.PendingOffloadedNamespaces) {
+				o.Printer.Error.Printfln(
+					"You must remove all the offloaded namespaces before uninstalling Liqo.\n" +
+						"You can disable the namespace offloading 'liqoctl unoffload' command.\n" +
+						"Check 'liqoctl unoffload --help' for further information.\n",
+				)
+			}
+		}
 		return err
 	}
 	s.Success("Pre-uninstall checks passed")
