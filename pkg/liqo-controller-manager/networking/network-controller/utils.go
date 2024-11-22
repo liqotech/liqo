@@ -25,7 +25,7 @@ import (
 
 // getRemappedCIDR returns the remapped CIDR for the given CIDR.
 func getRemappedCIDR(ctx context.Context, ipamClient ipam.IPAMClient,
-	desiredCIDR networkingv1beta1.CIDR, immutable bool) (networkingv1beta1.CIDR, error) {
+	desiredCIDR networkingv1beta1.CIDR, immutable bool, preallocated uint32) (networkingv1beta1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original CIDR from spec
@@ -33,8 +33,9 @@ func getRemappedCIDR(ctx context.Context, ipamClient ipam.IPAMClient,
 	default:
 		// interact with the IPAM to retrieve the correct mapping.
 		response, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
-			Cidr:      desiredCIDR.String(),
-			Immutable: immutable,
+			Cidr:         desiredCIDR.String(),
+			Immutable:    immutable,
+			PreAllocated: preallocated,
 		})
 		if err != nil {
 			klog.Errorf("IPAM: error while mapping network CIDR %s: %v", desiredCIDR, err)

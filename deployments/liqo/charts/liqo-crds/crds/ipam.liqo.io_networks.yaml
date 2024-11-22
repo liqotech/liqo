@@ -63,10 +63,11 @@ spec:
               preAllocated:
                 description: PreAllocated is the number of IPs to pre-allocate (reserve)
                   in the CIDR, starting from the first IP.
+                format: int32
                 minimum: 0
                 type: integer
                 x-kubernetes-validations:
-                - message: Reserved field is immutable
+                - message: PreAllocated field is immutable
                   rule: self == oldSelf
             required:
             - cidr
