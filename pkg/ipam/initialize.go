@@ -29,6 +29,8 @@ func (lipam *LiqoIPAM) initialize(ctx context.Context) error {
 	defer lipam.mutex.Unlock()
 	klog.Info("Initializing IPAM")
 
+	klog.Infof("IPAM pools: %v", lipam.opts.Pools)
+
 	if err := lipam.initializeNetworks(ctx); err != nil {
 		return err
 	}
