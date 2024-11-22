@@ -56,6 +56,10 @@ spec:
             - --leader-election
             - --leader-election-namespace=$(POD_NAMESPACE)
             {{- end }}
+            {{- if .Values.ipam.pools }}
+            {{- $d := dict "commandName" "--pools" "list" .Values.ipam.pools }}
+            {{- include "liqo.concatenateList" $d | nindent 12 }}
+            {{- end }}
             {{- if .Values.common.extraArgs }}
             {{- toYaml .Values.common.extraArgs | nindent 12 }}
             {{- end }}
