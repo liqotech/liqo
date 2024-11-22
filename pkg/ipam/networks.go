@@ -31,7 +31,7 @@ type networkInfo struct {
 
 type network struct {
 	cidr         string
-	preAllocated uint
+	preAllocated uint32
 }
 
 func (n network) String() string {
@@ -57,7 +57,7 @@ func (lipam *LiqoIPAM) reserveNetwork(nw network) error {
 }
 
 // acquireNetwork acquires a network, eventually remapped if conflicts are found.
-func (lipam *LiqoIPAM) acquireNetwork(cidr string, preAllocated uint, immutable bool) (string, error) {
+func (lipam *LiqoIPAM) acquireNetwork(cidr string, preAllocated uint32, immutable bool) (string, error) {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
 
@@ -98,9 +98,9 @@ func (lipam *LiqoIPAM) isNetworkAvailable(nw network) bool {
 	if lipam.cacheNetworks == nil {
 		return true
 	}
-	_, ok := lipam.cacheNetworks[nw.String()]
+	_, exists := lipam.cacheNetworks[nw.String()]
 
-	return ok
+	return !exists
 }
 
 func listNetworksOnCluster(ctx context.Context, cl client.Client) ([]network, error) {

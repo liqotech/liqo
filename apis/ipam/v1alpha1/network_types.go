@@ -43,8 +43,8 @@ type NetworkSpec struct {
 	// PreAllocated is the number of IPs to pre-allocate (reserve) in the CIDR, starting from the first IP.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Reserved field is immutable"
-	PreAllocated uint `json:"preAllocated"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="PreAllocated field is immutable"
+	PreAllocated uint32 `json:"preAllocated"`
 }
 
 // NetworkStatus defines the observed state of Network.
