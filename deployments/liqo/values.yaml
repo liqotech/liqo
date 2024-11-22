@@ -457,10 +457,10 @@ ipam:
   # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then
   # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
   reservedSubnets: []
-  # -- Set of additional network pools to perform the automatic address mapping in Liqo.
+  # -- Set of network pools to perform the automatic address mapping in Liqo.
   # Network pools are used to map a cluster network into another one in order to prevent conflicts.
-  # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
-  additionalPools: []
+  # If left empty, it is defaulted to the private addresses ranges: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
+  pools: []
 
 crdReplicator:
   pod:
