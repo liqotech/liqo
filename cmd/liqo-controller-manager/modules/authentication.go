@@ -61,6 +61,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	}
 
 	if err := enforceAuthenticationKeys(ctx, uncachedClient, opts.LiqoNamespace); err != nil {
+		klog.Errorf("Unable to enforce authentication keys: %v", err)
 		return err
 	}
 
@@ -135,7 +136,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 
 func enforceAuthenticationKeys(ctx context.Context, cl client.Client, liqoNamespace string) error {
 	if err := authentication.InitClusterKeys(ctx, cl, liqoNamespace); err != nil {
-		klog.Errorf("Unable to initialize cluster authentication keys: %v", err)
+		return err
 	}
 
 	klog.Info("Enforced cluster authentication keys")

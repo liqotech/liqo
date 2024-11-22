@@ -90,7 +90,7 @@ func (lipam *LiqoIPAM) IPRelease(_ context.Context, req *IPReleaseRequest) (*IPR
 
 // NetworkAcquire acquires a network. If it is already reserved, it allocates and reserves a new free one with the same prefix length.
 func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequest) (*NetworkAcquireResponse, error) {
-	remappedCidr, err := lipam.acquireNetwork(req.GetCidr(), uint(req.GetPreAllocated()), req.GetImmutable())
+	remappedCidr, err := lipam.acquireNetwork(req.GetCidr(), req.GetPreAllocated(), req.GetImmutable())
 	if err != nil {
 		return &NetworkAcquireResponse{}, err
 	}

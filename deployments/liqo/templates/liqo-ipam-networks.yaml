@@ -54,4 +54,5 @@ metadata:
     ipam.liqo.io/network-not-remapped: "true"
 spec:
   cidr: {{ $value }}
+---
 {{- end }}
