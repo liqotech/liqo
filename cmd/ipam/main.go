@@ -74,7 +74,8 @@ func main() {
 		"The interval at which the IPAM will synchronize the IPAM storage.")
 	cmd.Flags().BoolVar(&options.ServerOpts.GraphvizEnabled, "enable-graphviz", false, "Enable the graphviz output for the IPAM.")
 	cmd.Flags().StringSliceVar(&options.ServerOpts.Pools, "pools",
-		[]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}, "The pools used by the IPAM.",
+		[]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"},
+		"The pools used by the IPAM to acquire Networks and IPs from. Default: private addesses range.",
 	)
 
 	// Leader election flags.
