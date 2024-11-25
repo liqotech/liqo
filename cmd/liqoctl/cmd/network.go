@@ -165,6 +165,14 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	// Client flags
 	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", forge.DefaultGwClientType,
 		"Type of Gateway Client. Leave empty to use default Liqo implementation of WireGuard")
+	cmd.Flags().StringVar(&options.ClientConnectAddress, "client-address", "",
+		"Define the address used by the gateway client to connect to the gateway server."+
+			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
+			"not directly reachable (e.g. the server is behind a NAT)")
+	cmd.Flags().Int32Var(&options.ClientConnectPort, "client-port", 0,
+		"Define the port used by the gateway client to connect to the gateway server."+
+			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
+			"not directly reachable (e.g. the server is behind a NAT)")
 	cmd.Flags().StringVar(&options.ClientTemplateName, "client-template-name", forge.DefaultGwClientTemplateName,
 		"Name of the Gateway Client template")
 	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", "",

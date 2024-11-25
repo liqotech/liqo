@@ -50,6 +50,12 @@ type Options struct {
 	ClientGatewayType       string
 	ClientTemplateName      string
 	ClientTemplateNamespace string
+	// ClientConnectAddress is the address used by the client to connect to the gateway server. When this value is specified
+	// liqoctl ignores the values of server and port written in the GatewayServer status.
+	ClientConnectAddress string
+	// ClientConnectPort is the port used by the client to connect to the gateway server. When this value is specified
+	// liqoctl ignores the values of server and port written in the GatewayServer status.
+	ClientConnectPort int32
 
 	MTU                int
 	DisableSharingKeys bool
@@ -227,8 +233,20 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create gateway client on cluster 1
+
+	// By default address and port used by the GatewayClient are the ones written in the endpoint field of the status of the GatewayServer,
+	// unless address or port are manually overwritten
+	endpoint := gwServer.Status.Endpoint
+	if o.ClientConnectAddress != "" {
+		endpoint.Addresses = []string{o.ClientConnectAddress}
+	}
+
+	if o.ClientConnectPort != 0 {
+		endpoint.Port = o.ClientConnectPort
+	}
+
 	gwClient, err := cluster1.EnsureGatewayClient(ctx,
-		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.localClusterID, gwServer.Status.Endpoint))
+		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.localClusterID, endpoint))
 	if err != nil {
 		return err
 	}
