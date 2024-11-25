@@ -38,12 +38,12 @@ provider), but not vice versa. Bidirectional peerings can be achieved through
 their combination. The same cluster can play the role of provider and consumer
 in multiple peerings.
 
-This commands enables a peering towards a remote provider cluster, performing 
+This commands enables a peering towards a remote provider cluster, performing
 the following operations:
 - [optional] ensure networking between the two clusters
 - ensure authentication between the two clusters (Identity in consumer cluster,
   Tenant in provider cluster)
-- [optional] create ResourceSlice in consumer cluster and wait for it to be 
+- [optional] create ResourceSlice in consumer cluster and wait for it to be
   accepted by the provider cluster
 - [optional] create VirtualNode in consumer cluster
 
@@ -100,6 +100,14 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		"Force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort")
 	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
 		"IP of the LoadBalancer for the Gateway Server service")
+	cmd.Flags().StringVar(&options.ClientConnectAddress, "client-address", "",
+		"Define the address used by the gateway client to connect to the gateway server."+
+			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
+			"not directly reachable (e.g. the server is behind a NAT)")
+	cmd.Flags().Int32Var(&options.ClientConnectPort, "client-port", 0,
+		"Define the port used by the gateway client to connect to the gateway server."+
+			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
+			"not directly reachable (e.g. the server is behind a NAT)")
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,
 		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", nwforge.DefaultMTU))
 

@@ -44,6 +44,8 @@ type Options struct {
 	ServerServicePort           int32
 	ServerServiceNodePort       int32
 	ServerServiceLoadBalancerIP string
+	ClientConnectAddress        string
+	ClientConnectPort           int32
 	MTU                         int
 
 	// Authentication options
@@ -119,6 +121,8 @@ func ensureNetworking(ctx context.Context, o *Options) error {
 		ClientGatewayType:       nwforge.DefaultGwClientType,
 		ClientTemplateName:      nwforge.DefaultGwClientTemplateName,
 		ClientTemplateNamespace: o.LocalFactory.LiqoNamespace,
+		ClientConnectAddress:    o.ClientConnectAddress,
+		ClientConnectPort:       o.ClientConnectPort,
 
 		MTU:                o.MTU,
 		DisableSharingKeys: false,
