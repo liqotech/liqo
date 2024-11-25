@@ -18,18 +18,18 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // PodType -> defines the type of a pod (local/remote).
@@ -107,8 +107,8 @@ func NumTenantNamespaces(numPeeredConsumers, numPeeredProviders int, role liqov1
 // ResourceRequirements returns the default resource requirements for a pod during tests.
 func ResourceRequirements() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{Limits: corev1.ResourceList{
-		corev1.ResourceCPU:    *resource.NewScaledQuantity(250, resource.Milli),
-		corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
+		corev1.ResourceCPU:    *k8sresource.NewScaledQuantity(250, k8sresource.Milli),
+		corev1.ResourceMemory: *k8sresource.NewScaledQuantity(100, k8sresource.Mega),
 	}}
 }
 
@@ -158,7 +158,7 @@ func EnforcePod(ctx context.Context, cl client.Client, namespace, name string, o
 		},
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, pod, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, pod, func() error {
 		pod.Spec = corev1.PodSpec{
 			Containers: []corev1.Container{
 				{

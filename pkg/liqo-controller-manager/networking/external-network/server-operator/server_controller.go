@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // ServerReconciler manage GatewayServer lifecycle.
@@ -208,6 +209,8 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 			objChildMetadata["labels"] = labels
 		}
 
+		resource.AddGlobalLabels(objChild)
+
 		var objectTemplateMetadataAnnotations interface{}
 		if objectTemplateMetadataAnnotations, ok = objectTemplateMetadata["annotations"]; ok {
 			annotations, err := enutils.RenderTemplate(objectTemplateMetadataAnnotations, td, true)
@@ -216,6 +219,8 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 			}
 			objChildMetadata["annotations"] = annotations
 		}
+
+		resource.AddGlobalAnnotations(objChild)
 
 		objChild.SetOwnerReferences([]metav1.OwnerReference{
 			{

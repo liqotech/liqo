@@ -69,6 +69,12 @@ type Factory struct {
 	// Namespace is the namespace that the user has requested with the "--namespace" / "-n" flag.
 	Namespace string
 
+	// GlobalLabels is a map of labels that will be added to all resources created by liqoctl
+	GlobalLabels map[string]string
+
+	// GlobalAnnotations is a map of annotations that will be added to all resources created by liqoctl
+	GlobalAnnotations map[string]string
+
 	// LiqoNamespace is the namespace (where Liqo is installed) that the user has requested with the "--liqo-namespace" / "-l" flag,
 	// if registered.
 	LiqoNamespace string

@@ -28,6 +28,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/id"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func geneveTunnelName(internalFabric *networkingv1beta1.InternalFabric, internalNode *networkingv1beta1.InternalNode) string {
@@ -101,7 +102,7 @@ func ensureGeneveTunnels(ctx context.Context, cl client.Client, s *runtime.Schem
 			},
 		}
 
-		if _, err := controllerutil.CreateOrUpdate(ctx, cl, tunnel, func() error {
+		if _, err := resource.CreateOrUpdate(ctx, cl, tunnel, func() error {
 			if err := mutateGeneveTunnel(ctx, cl, tunnel, internalFabric, node); err != nil {
 				klog.Errorf("Unable to mutate GeneveTunnel %q: %s", client.ObjectKeyFromObject(tunnel).String(), err)
 				return err

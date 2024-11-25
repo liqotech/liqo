@@ -20,7 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // EventOption is a function that modifies a Event.
@@ -39,7 +40,7 @@ func EnforceEvent(ctx context.Context, cl client.Client, namespace, name string,
 		InvolvedObject: *involvedObject,
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, ev, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, ev, func() error {
 		for _, opt := range options {
 			opt(ev)
 		}

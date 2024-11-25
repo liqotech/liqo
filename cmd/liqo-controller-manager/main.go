@@ -62,6 +62,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -88,6 +89,8 @@ func main() {
 	var defaultNodeResources argsutils.ResourceMap
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
+	var globalLabels argsutils.StringMap
+	var globalAnnotations argsutils.StringMap
 	var apiServerAddressOverride string
 	var caOverride string
 	var trustedCA bool
@@ -149,6 +152,10 @@ func main() {
 	pflag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
 	pflag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
 	pflag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
+	pflag.Var(&globalLabels, "global-labels",
+		"The set of labels that will be added to all resources created by Liqo controllers")
+	pflag.Var(&globalAnnotations, "global-annotations",
+		"The set of annotations that will be added to all resources created by Liqo controllers")
 
 	// OFFLOADING MODULE
 	// Storage Provisioner parameters
@@ -197,6 +204,10 @@ func main() {
 	factory := &dynamicutils.RunnableFactory{
 		DynamicSharedInformerFactory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, corev1.NamespaceAll, nil),
 	}
+
+	// Initialize global labels from flag
+	resource.SetGlobalLabels(globalLabels.StringMap)
+	resource.SetGlobalAnnotations(globalAnnotations.StringMap)
 
 	// Create the main manager.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{

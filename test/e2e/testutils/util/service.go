@@ -21,7 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // ServiceOption is a function that modifies a Service.
@@ -36,7 +37,7 @@ func EnforceService(ctx context.Context, cl client.Client, namespace, name strin
 		},
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, svc, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, svc, func() error {
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
 				Name:       "http",

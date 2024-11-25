@@ -43,6 +43,7 @@ import (
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // WgGatewayServerReconciler manage WgGatewayServer lifecycle.
@@ -240,7 +241,7 @@ func (r *WgGatewayServerReconciler) ensureDeployment(ctx context.Context, wgServ
 		Namespace: depNsName.Namespace,
 	}}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &dep, func() error {
+	op, err := resource.CreateOrUpdate(ctx, r.Client, &dep, func() error {
 		return r.mutateFnWgServerDeployment(&dep, wgServer)
 	})
 	if err != nil {
@@ -259,7 +260,7 @@ func (r *WgGatewayServerReconciler) ensureService(ctx context.Context, wgServer 
 		Namespace: svcNsName.Namespace,
 	}}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &svc, func() error {
+	op, err := resource.CreateOrUpdate(ctx, r.Client, &svc, func() error {
 		return r.mutateFnWgServerService(&svc, wgServer)
 	})
 	if err != nil {

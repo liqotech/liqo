@@ -75,7 +75,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	klog.V(4).Infof("Reconciling configuration %s", req.String())
 
-	return ctrl.Result{}, enforeRouteConfigurationPresence(ctx, r.Client, r.Scheme, conf)
+	return ctrl.Result{}, enforceRouteConfigurationPresence(ctx, r.Client, r.Scheme, conf)
 }
 
 // SetupWithManager register the ConfigurationReconciler to the manager.

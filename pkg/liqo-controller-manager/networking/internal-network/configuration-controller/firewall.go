@@ -28,6 +28,7 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context,
@@ -38,7 +39,7 @@ func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Contex
 			Namespace: cfg.GetNamespace(),
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, firewall, forgeMutateFirewallConfiguration(firewall, cfg, r.Scheme, opts))
+	_, err := resource.CreateOrUpdate(ctx, r.Client, firewall, forgeMutateFirewallConfiguration(firewall, cfg, r.Scheme, opts))
 	if err != nil {
 		return err
 	}

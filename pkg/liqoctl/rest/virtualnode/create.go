@@ -22,11 +22,10 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -38,6 +37,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const liqoctlCreateVirtualNodeLongHelp = `Create a VirtualNode.
@@ -164,7 +164,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating virtual node")
 
 	virtualNode := forge.VirtualNode(opts.Name, tenantNamespace)
-	if _, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
 		return forge.MutateVirtualNode(ctx, opts.CRClient,
 			virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck)
 	}); err != nil {
@@ -211,15 +211,15 @@ func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 }
 
 func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectReference) (*forge.VirtualNodeOptions, error) {
-	cpuQnt, err := resource.ParseQuantity(o.cpu)
+	cpuQnt, err := k8sresource.ParseQuantity(o.cpu)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cpu quantity: %w", err)
 	}
-	memoryQnt, err := resource.ParseQuantity(o.memory)
+	memoryQnt, err := k8sresource.ParseQuantity(o.memory)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse memory quantity: %w", err)
 	}
-	podsQnt, err := resource.ParseQuantity(o.pods)
+	podsQnt, err := k8sresource.ParseQuantity(o.pods)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse pod quantity: %w", err)
 	}

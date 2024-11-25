@@ -13,6 +13,8 @@
 | authentication.enabled | bool | `true` | Enable/Disable the authentication module. |
 | common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
 | common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
+| common.globalAnnotations | object | `{}` | Global annotations to be added to all resources created by Liqo controllers |
+| common.globalLabels | object | `{"liqo.io/managed":"true"}` | Global labels to be added to all resources created by Liqo controllers |
 | common.nodeSelector | object | `{}` | NodeSelector for all liqo pods, excluding virtual kubelet. |
 | common.tolerations | list | `[]` | Tolerations for all liqo pods, excluding virtual kubelet. |
 | controllerManager.config.defaultLimitsEnforcement | string | `"None"` | It enforces offerer-side that offloaded pods do not exceed offered limits. This feature is suggested to be enabled when consumer-side enforcement is not sufficient. It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set). Possible values are: None, Soft, Hard. None: no enforcement is applied. Soft: request <= limit. Hard: request == limit. |

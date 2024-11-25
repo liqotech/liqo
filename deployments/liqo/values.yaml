@@ -301,6 +301,11 @@ common:
   affinity: {}
   # -- Extra arguments for all liqo pods, excluding virtual kubelet.
   extraArgs: []
+  # -- Global labels to be added to all resources created by Liqo controllers
+  globalLabels:
+    liqo.io/managed: "true"
+  # -- Global annotations to be added to all resources created by Liqo controllers
+  globalAnnotations: {}
 
 controllerManager:
   # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.

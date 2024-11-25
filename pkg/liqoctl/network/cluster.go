@@ -40,6 +40,7 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/maps"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // Cluster contains the information about a cluster.
@@ -176,7 +177,7 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1beta
 	s := c.local.Printer.StartSpinner("Setting up network configuration")
 	conf.Namespace = c.local.Namespace
 	confCopy := conf.DeepCopy()
-	_, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, conf, func() error {
+	_, err := resource.CreateOrUpdate(ctx, c.local.CRClient, conf, func() error {
 		if conf.Labels == nil {
 			conf.Labels = make(map[string]string)
 		}
@@ -411,7 +412,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, opts *forge.GwServerO
 		}
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwServer, func() error {
+	_, err = resource.CreateOrUpdate(ctx, c.local.CRClient, gwServer, func() error {
 		return forge.MutateGatewayServer(gwServer, opts)
 	})
 	if err != nil {
@@ -441,7 +442,7 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, opts *forge.GwClientO
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway client: %v", output.PrettyErr(err)))
 		return nil, err
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwClient, func() error {
+	_, err = resource.CreateOrUpdate(ctx, c.local.CRClient, gwClient, func() error {
 		return forge.MutateGatewayClient(gwClient, opts)
 	})
 	if err != nil {
@@ -473,7 +474,7 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 		s.Fail(fmt.Sprintf("An error occurred while forging public key: %v", output.PrettyErr(err)))
 		return err
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, pubKey, func() error {
+	_, err = resource.CreateOrUpdate(ctx, c.local.CRClient, pubKey, func() error {
 		if err := forge.MutatePublicKey(pubKey, remoteClusterID, key); err != nil {
 			return err
 		}

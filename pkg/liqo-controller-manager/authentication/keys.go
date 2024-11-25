@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // GenerateEd25519Keys returns a new pair of private and public keys in PEM format.
@@ -89,7 +90,9 @@ func InitClusterKeys(ctx context.Context, cl client.Client, liqoNamespace string
 				consts.PublicKeyField:  public,
 			},
 		}
-		if err := cl.Create(ctx, &secret); err != nil {
+		if _, err := resource.CreateOrUpdate(ctx, cl, &secret, func() error {
+			return nil
+		}); err != nil {
 			return fmt.Errorf("error while creating secret %s/%s: %w", liqoNamespace, consts.AuthKeysSecretName, err)
 		}
 		klog.Infof("Created Secret (%s/%s) containing cluster authentication keys", liqoNamespace, consts.AuthKeysSecretName)

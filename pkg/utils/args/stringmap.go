@@ -20,7 +20,9 @@ import (
 )
 
 // StringMap implements the flag.Value interface and allows to parse stringified maps
-// in the form: "key1=val1,key2=val2".
+// in the form: "key1=val1,key2=val2". Values can contain additional '=' characters,
+// for example: "argocd.argoproj.io/sync-options=Prune=false". In this case, only the
+// first '=' is used as the key-value separator.
 type StringMap struct {
 	StringMap map[string]string
 }
@@ -41,6 +43,9 @@ func (sm StringMap) String() string {
 }
 
 // Set parses the provided string into the map[string]string map.
+// The input string is expected to be in the format "key1=val1,key2=val2,...".
+// Multiple '=' characters in the value part are preserved, only the first '='
+// is used as the key-value separator.
 func (sm *StringMap) Set(str string) error {
 	if sm.StringMap == nil {
 		sm.StringMap = map[string]string{}
@@ -48,14 +53,20 @@ func (sm *StringMap) Set(str string) error {
 	if str == "" {
 		return nil
 	}
+	// Split the input string into chunks using comma as separator
 	chunks := strings.Split(str, ",")
 	for i := range chunks {
 		chunk := chunks[i]
-		strs := strings.Split(chunk, "=")
-		if len(strs) != 2 {
-			return fmt.Errorf("invalid value %v", chunk)
+		// Find the position of the first '=' character which separates key from value
+		idx := strings.Index(chunk, "=")
+		if idx == -1 {
+			return fmt.Errorf("invalid value %v: missing '=' separator", chunk)
 		}
-		sm.StringMap[strs[0]] = strs[1]
+		// Extract key and value using the position of the first '='
+		// Any subsequent '=' characters will be part of the value
+		key := chunk[:idx]
+		value := chunk[idx+1:]
+		sm.StringMap[key] = value
 	}
 	return nil
 }

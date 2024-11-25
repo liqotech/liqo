@@ -28,6 +28,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/fabric"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1beta1.InternalFabric) error {
@@ -41,7 +42,7 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 			Namespace: internalFabric.Namespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
+	_, err := resource.CreateOrUpdate(ctx, r.Client, route, func() error {
 		// Forge metadata
 		if route.Labels == nil {
 			route.Labels = make(labels.Set)

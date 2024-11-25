@@ -22,13 +22,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // EnforceAPIServerIPRemapping creates or updates the IP resource for the API server IP remapping.
@@ -47,7 +47,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 			Namespace: liqoNamespace,
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, ip, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, ip, func() error {
 		if ip.Labels == nil {
 			ip.Labels = map[string]string{}
 		}
@@ -93,7 +93,7 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 			Namespace: liqoNamespace,
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, ip, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, ip, func() error {
 		if ip.Labels == nil {
 			ip.Labels = map[string]string{}
 		}

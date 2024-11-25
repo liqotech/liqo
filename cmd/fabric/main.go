@@ -42,15 +42,19 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
-	options = fabric.NewOptions()
-	scheme  = runtime.NewScheme()
+	options           = fabric.NewOptions()
+	scheme            = runtime.NewScheme()
+	globalLabels      argsutils.StringMap
+	globalAnnotations argsutils.StringMap
 )
 
 func init() {
@@ -67,6 +71,10 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 	fabric.InitFlags(cmd.Flags(), options)
+
+	// Register the flags for setting global labels and annotations
+	cmd.Flags().Var(&globalLabels, "global-labels", "Global labels to be added to all created resources (key=value)")
+	cmd.Flags().Var(&globalAnnotations, "global-annotations", "Global annotations to be added to all created resources (key=value)")
 
 	if err := fabric.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
@@ -91,6 +99,10 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
+
+	// Initialize global labels from flag
+	resource.SetGlobalLabels(globalLabels.StringMap)
+	resource.SetGlobalAnnotations(globalAnnotations.StringMap)
 
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()

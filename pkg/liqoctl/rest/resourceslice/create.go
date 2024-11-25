@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -36,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const liqoctlCreateResourceSliceLongHelp = `Create a ResourceSlice.
@@ -109,7 +109,7 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	}
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
-	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
+	_, err = resource.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
 		return forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
 			Class: authv1beta1.ResourceSliceClass(o.Class),
 			Resources: map[corev1.ResourceName]string{

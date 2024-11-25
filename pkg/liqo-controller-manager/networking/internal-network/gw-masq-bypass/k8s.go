@@ -30,6 +30,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // generateGatewayMasqueradeBypassFirewallConfigurationName generates the name of the firewall configuration for the given node.
@@ -56,7 +57,7 @@ func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *r
 		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
+	op, err := resource.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
 
 	return op, err
 }
@@ -76,7 +77,7 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 		return fmt.Errorf("unable to get firewall configuration %s: %w", fwcfg.GetName(), err)
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, &fwcfg, forgeFirewallPodDeleteFunction(pod, &fwcfg)); err != nil {
+	if _, err := resource.CreateOrUpdate(ctx, cl, &fwcfg, forgeFirewallPodDeleteFunction(pod, &fwcfg)); err != nil {
 		return fmt.Errorf("unable to update firewall configuration %s: %w", fwcfg.GetName(), err)
 	}
 

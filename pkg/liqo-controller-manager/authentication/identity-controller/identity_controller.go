@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // NewIdentityReconciler returns a new IdentityReconciler.
@@ -111,7 +112,7 @@ func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identit
 
 	// Create or update the secret containing the kubeconfig.
 	kubeconfigSecret := forge.KubeconfigSecret(identity)
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, kubeconfigSecret, func() error {
+	op, err := resource.CreateOrUpdate(ctx, r.Client, kubeconfigSecret, func() error {
 		if err := forge.MutateKubeconfigSecret(kubeconfigSecret, identity, privateKey, namespace); err != nil {
 			return err
 		}

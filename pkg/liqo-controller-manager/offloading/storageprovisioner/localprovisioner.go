@@ -26,6 +26,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func (p *liqoLocalStorageProvisioner) provisionLocalPVC(ctx context.Context,
@@ -39,7 +40,7 @@ func (p *liqoLocalStorageProvisioner) provisionLocalPVC(ctx context.Context,
 		},
 	}
 
-	if operation, err := controllerutil.CreateOrUpdate(ctx, p.client, &realPvc, func() error {
+	if operation, err := resource.CreateOrUpdate(ctx, p.client, &realPvc, func() error {
 		return p.mutateLocalRealPVC(virtualPvc, &realPvc, options.SelectedNode)
 	}); err != nil {
 		return nil, controller.ProvisioningInBackground, err

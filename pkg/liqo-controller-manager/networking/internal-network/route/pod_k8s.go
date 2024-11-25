@@ -29,6 +29,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // generatePodRouteConfigurationName generates the name of the route configuration for the given node.
@@ -55,7 +56,7 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 		ObjectMeta: metav1.ObjectMeta{Name: generatePodRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
+	op, err := resource.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
 
 	return op, err
 }
@@ -73,7 +74,7 @@ func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options
 		return err
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, &routecfg, forgeRoutePodDeleteFunction(pod, &routecfg)); err != nil {
+	if _, err := resource.CreateOrUpdate(ctx, cl, &routecfg, forgeRoutePodDeleteFunction(pod, &routecfg)); err != nil {
 		return err
 	}
 
@@ -179,11 +180,11 @@ func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1beta1.InternalNode
 	})
 }
 
-func addNodeToRoute(internlnode *networkingv1beta1.InternalNode, rule *networkingv1beta1.Rule) {
+func addNodeToRoute(internalnode *networkingv1beta1.InternalNode, rule *networkingv1beta1.Rule) {
 	rule.Routes = []networkingv1beta1.Route{
 		{
-			Dst:   ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internlnode.Spec.Interface.Node.IP))),
-			Dev:   &internlnode.Spec.Interface.Gateway.Name,
+			Dst:   ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalnode.Spec.Interface.Node.IP))),
+			Dev:   &internalnode.Spec.Interface.Gateway.Name,
 			Scope: ptr.To(networkingv1beta1.LinkScope),
 		},
 	}

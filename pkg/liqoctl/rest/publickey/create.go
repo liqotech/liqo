@@ -22,7 +22,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
@@ -30,6 +29,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const liqoctlCreatePublicKeyLongHelp = `Create a PublicKey.
@@ -95,7 +95,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating publickey")
 
-	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, pubKey, func() error {
+	_, err = resource.CreateOrUpdate(ctx, opts.CRClient, pubKey, func() error {
 		return forge.MutatePublicKey(pubKey, o.RemoteClusterID.GetClusterID(), o.PublicKey)
 	})
 	if err != nil {

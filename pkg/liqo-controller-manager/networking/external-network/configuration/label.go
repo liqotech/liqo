@@ -19,11 +19,11 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/labels"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // LabelCIDRType is the label used to target a ipamv1alpha1.Network resource that manages a PodCIDR or an ExternalCIDR.
@@ -75,7 +75,7 @@ const (
 
 // SetConfigurationConfigured sets the Configured label of the given configuration to true.
 func SetConfigurationConfigured(ctx context.Context, cl client.Client, cfg *networkingv1beta1.Configuration) error {
-	_, err := ctrl.CreateOrUpdate(ctx, cl, cfg, func() error {
+	_, err := resource.CreateOrUpdate(ctx, cl, cfg, func() error {
 		if cfg.Labels == nil {
 			cfg.Labels = map[string]string{}
 		}

@@ -34,12 +34,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const (
@@ -445,7 +445,7 @@ func (identityProvider *iamIdentityProvider) storeRemoteCertificate(ctx context.
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, identityProvider.cl, secret, func() error {
+	_, err := resource.CreateOrUpdate(ctx, identityProvider.cl, secret, func() error {
 		if secret.Labels == nil {
 			secret.Labels = map[string]string{}
 		}

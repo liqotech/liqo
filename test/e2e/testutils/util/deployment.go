@@ -24,9 +24,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 var (
@@ -104,7 +104,7 @@ func EnforceDeployment(ctx context.Context, cl client.Client, namespace, name st
 		},
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, deploy, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, deploy, func() error {
 		deploy.Spec.Replicas = ptr.To(int32(1))
 		deploy.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{"app": name},
