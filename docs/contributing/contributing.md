@@ -8,16 +8,42 @@ This page lists a set of contributing guidelines, including suggestions about th
 
 The Liqo repository structure follows the [Standard Go Project Layout](https://github.com/golang-standards/project-layout).
 
+## Commits convention
+
+The project adopts the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification to classify commits, according to the nature of the change.
+In summary, commit messages should follow the following structure:
+
+```text
+<type>[optional scope]: <description>`  
+
+[optional body]
+
+[optional footer(s)]
+```
+
+where `<type>` is one of:
+
+* `feat`: 🚀 New Features
+* `fix`: 🐛 Bug Fixes
+* `refactor`: 🧹 Code Refactoring
+* `docs`: 📝 Documentation
+* `style`: 💄Code Style
+* `perf`: 🐎 Performance Improvement
+* `test`: ✅ Tests
+* `chore`: 🚚 Dependencies Management
+* `build`: 📦 Builds Management
+* `ci`: 👷 CI/CD
+* `revert`: ⏪ Reverts Previous Changes
+
+## PRs convention
+
+PRs are automatically assigned the label according to the `<type>` specified in the commit message(s) (see [commits convention section](#commits-convention)).
+The PR's name can contain an optional scope as prefix (e.g., `[<scope>]: ...`) indicating which component(s) is being involved in the PR.
+
 ## Release notes generation
 
 Liqo leverages the automatic release notes generation capabilities featured by GitHub.
-Specifically, PRs characterized by the following labels get included in the respective category:
-
-* *kind/breaking*: 💥 Breaking Change
-* *kind/feature*: 🚀 New Features
-* *kind/bug*: 🐛 Bug Fixes
-* *kind/cleanup*: 🧹 Code Refactoring
-* *kind/docs*: 📝 Documentation
+Specifically, PRs characterized by the labels described in the [PRs convention section](#prs-convention) get included in the respective category.
 
 ## Local development
 
