@@ -101,11 +101,11 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
 		"IP of the LoadBalancer for the Gateway Server service")
 	cmd.Flags().StringVar(&options.ClientConnectAddress, "client-address", "",
-		"Define the address used by the gateway client to connect to the gateway server."+
+		"Define the address used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
 	cmd.Flags().Int32Var(&options.ClientConnectPort, "client-port", 0,
-		"Define the port used by the gateway client to connect to the gateway server."+
+		"Define the port used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,
