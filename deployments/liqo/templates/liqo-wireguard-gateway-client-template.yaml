@@ -51,6 +51,14 @@ spec:
                 - --mode=client
                 - --container-name=gateway
                 - --concurrent-containers-names=wireguard,geneve
+                {{- if .Values.common.globalAnnotations }}
+                {{- $d := dict "commandName" "--global-annotations" "dictionary" .Values.common.globalAnnotations -}}
+                {{- include "liqo.concatenateMap" $d | nindent 16 }}
+                {{- end }}
+                {{- if .Values.common.globalLabels }}
+                {{- $d := dict "commandName" "--global-labels" "dictionary" .Values.common.globalLabels -}}
+                {{- include "liqo.concatenateMap" $d | nindent 16 }}
+                {{- end }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8082
                 {{- end }}

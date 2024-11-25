@@ -27,6 +27,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // ForgeNetworkMetadata creates the metadata of a ipamv1alpha1.Network resource.
@@ -92,7 +93,7 @@ func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.S
 		return nil, err
 	}
 
-	if _, err := ctrlutil.CreateOrUpdate(ctx, cl, network, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, network, func() error {
 		return ForgeNetwork(network, cfg, cidrType, scheme)
 	}); err != nil {
 		return nil, err

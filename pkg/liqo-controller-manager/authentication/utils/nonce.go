@@ -20,19 +20,19 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // EnsureNonceSecret ensures that a nonce secret exists in the tenant namespace.
 func EnsureNonceSecret(ctx context.Context, cl client.Client,
 	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) error {
 	nonce := forge.Nonce(tenantNamespace)
-	_, err := controllerutil.CreateOrUpdate(ctx, cl, nonce, func() error {
+	_, err := resource.CreateOrUpdate(ctx, cl, nonce, func() error {
 		return forge.MutateNonce(nonce, remoteClusterID)
 	})
 	if err != nil {
@@ -55,6 +55,10 @@ func EnsureSignedNonceSecret(ctx context.Context, cl client.Client,
 			return fmt.Errorf("nonce not provided and no nonce secret found")
 		}
 		secret := forge.SignedNonce(remoteClusterID, tenantNamespace, *nonce)
+
+		resource.AddGlobalLabels(secret)
+		resource.AddGlobalAnnotations(secret)
+
 		if err := cl.Create(ctx, secret); err != nil {
 			return fmt.Errorf("unable to create nonce secret: %w", err)
 		}

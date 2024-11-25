@@ -42,6 +42,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -142,6 +143,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	case errors.IsNotFound(err):
 		// Create the endpointslice
 		utilruntime.Must(ctrl.SetControllerReference(&shadowEps, &newEps, r.Scheme))
+
+		resource.AddGlobalLabels(&newEps)
+		resource.AddGlobalAnnotations(&newEps)
 
 		if err := r.Create(ctx, &newEps, client.FieldOwner(ctrlFieldManager)); err != nil {
 			klog.Errorf("unable to create endpointslice for shadowendpointslice %q: %v", klog.KObj(&shadowEps), err)

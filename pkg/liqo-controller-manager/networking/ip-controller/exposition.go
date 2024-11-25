@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // handleAssociatedService creates, updates or deletes the service associated to the IP.
@@ -99,7 +100,7 @@ func (r *IPReconciler) handleAssociatedService(ctx context.Context, ip *ipamv1al
 // enforceResource ensures that the given resource exists.
 // It either creates or update the resource.
 func enforceResource(ctx context.Context, r client.Client, obj client.Object, mutateFn controllerutil.MutateFn, resourceKind string) error {
-	op, err := controllerutil.CreateOrUpdate(ctx, r, obj, mutateFn)
+	op, err := resource.CreateOrUpdate(ctx, r, obj, mutateFn)
 	if err != nil {
 		klog.Errorf("error while creating/updating %s %q (operation: %s): %v", resourceKind, obj.GetName(), op, err)
 		return err

@@ -31,7 +31,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -39,6 +38,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	certificateSigningRequest "github.com/liqotech/liqo/pkg/utils/csr"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // random package initialization.
@@ -205,7 +205,7 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(ctx 
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, identityProvider.cl, secret, func() error {
+	_, err := resource.CreateOrUpdate(ctx, identityProvider.cl, secret, func() error {
 		if secret.Labels == nil {
 			secret.Labels = map[string]string{}
 		}

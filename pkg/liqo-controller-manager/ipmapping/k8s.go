@@ -27,6 +27,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // CreateOrUpdateIP creates or updates an IP resource for the given pod.
@@ -37,7 +38,7 @@ func CreateOrUpdateIP(ctx context.Context, cl client.Client, scheme *runtime.Sch
 			Namespace: pod.Namespace,
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, scheme)); err != nil {
+	if _, err := resource.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, scheme)); err != nil {
 		return fmt.Errorf("unable to create or update IP %q: %w", ip.Name, err)
 	}
 	return nil

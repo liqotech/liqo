@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // NewIdentityCreatorReconciler returns a new IdentityCreatorReconciler.
@@ -107,7 +108,7 @@ func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// Create or update the Identity resource.
 	identity := forge.Identity(forge.ResourceSliceIdentityName(&resourceSlice), resourceSlice.Namespace)
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, identity, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, r.Client, identity, func() error {
 		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterID, authv1beta1.ResourceSliceIdentityType,
 			resourceSlice.Status.AuthParams, nil)
 		if identity.Labels == nil {

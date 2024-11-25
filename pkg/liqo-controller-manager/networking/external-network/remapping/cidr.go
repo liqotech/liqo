@@ -29,6 +29,7 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // CIDRType is the type of the CIDR.
@@ -60,7 +61,7 @@ func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client, opts *O
 
 	klog.Infof("Creating firewall configuration %q for %q", fwcfg.Name, cidrtype)
 
-	if _, err := controllerutil.CreateOrUpdate(
+	if _, err := resource.CreateOrUpdate(
 		ctx, cl, fwcfg,
 		mutateCIDRFirewallConfiguration(fwcfg, cfg, opts, scheme, cidrtype),
 	); err != nil {

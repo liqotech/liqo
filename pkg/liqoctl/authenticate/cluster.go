@@ -20,7 +20,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -33,6 +32,7 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // Cluster contains the information about a cluster.
@@ -166,7 +166,7 @@ func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyU
 // EnsureTenant apply the tenant resource on the provider cluster and wait for the status to be updated.
 func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	s := c.local.Printer.StartSpinner("Applying tenant on provider cluster")
-	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, tenant, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, c.local.CRClient, tenant, func() error {
 		return nil
 	}); err != nil {
 		s.Fail(fmt.Sprintf("Unable to apply tenant on provider cluster: %v", output.PrettyErr(err)))
@@ -199,7 +199,7 @@ func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace st
 // EnsureIdentity apply the identity resource on the consumer cluster and wait for the status to be updated.
 func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1beta1.Identity) error {
 	s := c.local.Printer.StartSpinner("Applying identity on consumer cluster")
-	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, identity, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, c.local.CRClient, identity, func() error {
 		return nil
 	}); err != nil {
 		s.Fail(fmt.Sprintf("Unable to apply identity on consumer cluster: %v", output.PrettyErr(err)))

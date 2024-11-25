@@ -49,6 +49,14 @@ spec:
           - --disable-kernel-version-check
           {{- end }}
           - --enable-nft-monitor={{ .Values.networking.fabric.config.nftablesMonitor }}
+          {{- if .Values.common.globalAnnotations }}
+          {{- $d := dict "commandName" "--global-annotations" "dictionary" .Values.common.globalAnnotations -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.common.globalLabels }}
+          {{- $d := dict "commandName" "--global-labels" "dictionary" .Values.common.globalLabels -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}

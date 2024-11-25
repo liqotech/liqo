@@ -56,6 +56,14 @@ spec:
           - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
           {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- if .Values.common.globalAnnotations }}
+          {{- $d := dict "commandName" "--global-annotations" "dictionary" .Values.common.globalAnnotations -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.common.globalLabels }}
+          {{- $d := dict "commandName" "--global-labels" "dictionary" .Values.common.globalLabels -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
           {{- if .Values.authentication.awsConfig.accessKeyId }}
           - --aws-access-key-id=$(ACCESS_KEY_ID)
           {{- end }}

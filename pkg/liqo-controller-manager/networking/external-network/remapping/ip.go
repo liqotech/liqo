@@ -23,13 +23,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func generateNatMappingIPGwName(ip *ipamv1alpha1.IP) string {
@@ -48,10 +48,7 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 			Namespace: ip.Namespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(
-		ctx, cl, fwcfg,
-		mutateFirewallConfiguration(fwcfg, ip),
-	)
+	_, err := resource.CreateOrUpdate(ctx, cl, fwcfg, mutateFirewallConfiguration(fwcfg, ip))
 
 	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
 		fwcfgMasq := &networkingv1beta1.FirewallConfiguration{
@@ -60,10 +57,7 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 				Namespace: ip.Namespace,
 			},
 		}
-		_, err = controllerutil.CreateOrUpdate(
-			ctx, cl, fwcfgMasq,
-			mutateFirewallConfigurationMasquerade(fwcfgMasq, ip),
-		)
+		_, err = resource.CreateOrUpdate(ctx, cl, fwcfgMasq, mutateFirewallConfigurationMasquerade(fwcfgMasq, ip))
 	}
 
 	return err

@@ -23,13 +23,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/printers"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // Options encapsulates the arguments of the offload namespace command.
@@ -84,7 +84,7 @@ func (o *Options) Run(ctx context.Context) error {
 		Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace}}
 
 	var oldStrategy offloadingv1beta1.PodOffloadingStrategyType
-	_, err := controllerutil.CreateOrUpdate(ctx, o.CRClient, nsoff, func() error {
+	_, err := resource.CreateOrUpdate(ctx, o.CRClient, nsoff, func() error {
 		oldStrategy = nsoff.Spec.PodOffloadingStrategy
 		nsoff.Spec.PodOffloadingStrategy = o.PodOffloadingStrategy
 		nsoff.Spec.NamespaceMappingStrategy = o.NamespaceMappingStrategy

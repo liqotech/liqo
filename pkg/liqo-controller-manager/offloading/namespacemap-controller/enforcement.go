@@ -28,12 +28,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // createNamespace creates a new namespace associated with a NamespaceMap. It returns whether a possible error
@@ -83,7 +83,7 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 	// The rolebinding is named after the tenant namespace name, since that is guaranteed to be unique.
 	// This will simplify the support for remote namespaces associated with multiple origins.
 	binding := rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Namespace: name, Name: nm.GetNamespace()}}
-	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, &binding, func() error {
+	result, err := resource.CreateOrUpdate(ctx, r.Client, &binding, func() error {
 		binding.Annotations = labels.Merge(binding.GetAnnotations(), map[string]string{
 			consts.RemoteNamespaceManagedByAnnotationKey: nmID,
 		})

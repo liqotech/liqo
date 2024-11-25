@@ -27,6 +27,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
@@ -102,6 +103,9 @@ func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster l
 		}
 	}
 
+	resource.AddGlobalLabels(rb)
+	resource.AddGlobalAnnotations(rb)
+
 	rb, err := nm.client.RbacV1().RoleBindings(namespace.Name).Create(ctx, rb, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return nm.client.RbacV1().RoleBindings(namespace.Name).Get(ctx, name, metav1.GetOptions{})
@@ -169,6 +173,9 @@ func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context
 			return nil, err
 		}
 	}
+
+	resource.AddGlobalLabels(crb)
+	resource.AddGlobalAnnotations(crb)
 
 	crb, err := nm.client.RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {

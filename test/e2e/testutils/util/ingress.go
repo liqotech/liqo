@@ -20,7 +20,8 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // IngressOption is a function that modifies a Ingress.
@@ -35,7 +36,7 @@ func EnforceIngress(ctx context.Context, cl client.Client, namespace, name strin
 		},
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, ing, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, ing, func() error {
 		ing.Spec.DefaultBackend = &netv1.IngressBackend{
 			Service: &netv1.IngressServiceBackend{
 				Name: "default-backend",

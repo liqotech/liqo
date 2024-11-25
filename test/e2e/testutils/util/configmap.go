@@ -20,7 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // ConfigMapOption is a function that modifies a ConfigMap.
@@ -38,7 +39,7 @@ func EnforceConfigMap(ctx context.Context, cl client.Client, namespace, name str
 		},
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, cm, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, cm, func() error {
 		if cm.Data == nil {
 			cm.Data = make(map[string]string)
 		}

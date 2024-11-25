@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/printers"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
@@ -33,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const liqoctlCreateGatewayServerLongHelp = `Create a Gateway Server.
@@ -111,7 +111,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating gatewayserver")
 
-	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, gwServer, func() error {
+	_, err = resource.CreateOrUpdate(ctx, opts.CRClient, gwServer, func() error {
 		return forge.MutateGatewayServer(gwServer, o.getForgeOptions())
 	})
 	if err != nil {

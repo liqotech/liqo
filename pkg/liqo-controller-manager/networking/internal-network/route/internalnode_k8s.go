@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 const (
@@ -52,7 +53,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 		ObjectMeta: metav1.ObjectMeta{Name: configurationNameSvc, Namespace: opts.Namespace},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg,
+	if _, err := resource.CreateOrUpdate(ctx, cl, fwcfg,
 		forgeFirewallConfigurationMutateFunction(internalnode, fwcfg, mark, nodePortSrcIP)); err != nil {
 		return fmt.Errorf("an error occurred while creating or updating the firewall configuration: %w", err)
 	}
@@ -61,7 +62,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 		ObjectMeta: metav1.ObjectMeta{Name: generateInternalNodeSvcRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg,
+	if _, err := resource.CreateOrUpdate(ctx, cl, routecfg,
 		forgeRouteConfigurationMutateFunction(internalnode, routecfg, scheme, mark, nodePortSrcIP)); err != nil {
 		return fmt.Errorf("an error occurred while creating or updating the route configuration: %w", err)
 	}
@@ -75,7 +76,7 @@ func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 		ObjectMeta: metav1.ObjectMeta{Name: configurationNameSvc, Namespace: opts.Namespace},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg,
+	if _, err := resource.CreateOrUpdate(ctx, cl, fwcfg,
 		cleanFirewallConfigurationMutateFunction(internalnode, fwcfg)); err != nil {
 		return fmt.Errorf("an error occurred while cleaning the firewall configuration: %w", err)
 	}
@@ -269,7 +270,7 @@ func enforceRouteConfigurationExtCIDR(ctx context.Context, cl client.Client,
 		ObjectMeta: metav1.ObjectMeta{Name: generateInternalNodeExtCIDRRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg,
+	if _, err := resource.CreateOrUpdate(ctx, cl, routecfg,
 		forgeRouteConfigurationExtCIDRMutateFunction(internalnode, routecfg, configurations, ips, scheme)); err != nil {
 		return fmt.Errorf("an error occurred while creating or updating the route configuration: %w", err)
 	}

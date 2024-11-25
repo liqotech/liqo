@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // ClientReconciler manage GatewayClient lifecycle.
@@ -93,6 +94,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	return ctrl.Result{}, nil
 }
 
+// ensureInternalFabric ensures the InternalFabric is correctly configured.
 func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1beta1.GatewayClient,
 	configuration *networkingv1beta1.Configuration, remoteClusterID liqov1beta1.ClusterID, ipam *fabricipam.IPAM) error {
 	if configuration.Status.Remote == nil {
@@ -108,7 +110,7 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 			Namespace: gwClient.Namespace,
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, internalFabric, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, r.Client, internalFabric, func() error {
 		var err error
 		if internalFabric.Labels == nil {
 			internalFabric.Labels = make(map[string]string)

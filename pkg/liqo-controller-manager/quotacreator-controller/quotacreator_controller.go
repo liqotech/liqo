@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // QuotaCreatorReconciler manage Quota lifecycle.
@@ -90,7 +91,7 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Namespace: resourceSlice.Namespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, &quota, func() error {
+	_, err := resource.CreateOrUpdate(ctx, r.Client, &quota, func() error {
 		quota.Spec.User = userName
 		quota.Spec.LimitsEnforcement = r.DefaultLimitsEnforcement
 		quota.Spec.Resources = resourceSlice.Status.Resources.DeepCopy()

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
@@ -72,7 +73,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	// create the base resources
 	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace, name)
 	var op controllerutil.OperationResult
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
+	op, err = resource.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
 		return nil
 	})
 	if err != nil {
@@ -82,7 +83,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		remoteClusterID, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
 	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, name, remoteClusterID)
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
+	op, err = resource.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
 		return nil
 	})
 	if err != nil {
@@ -99,7 +100,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 			Namespace: virtualNode.Spec.Template.GetNamespace(),
 		},
 	}
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
+	op, err = resource.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
 		vkDeployment.Annotations = labels.Merge(vkDeployment.Annotations, virtualNode.Spec.Template.ObjectMeta.GetAnnotations())
 		vkDeployment.Labels = labels.Merge(vkDeployment.Labels, virtualNode.Spec.Template.ObjectMeta.GetLabels())
 

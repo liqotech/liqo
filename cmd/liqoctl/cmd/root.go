@@ -43,6 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 var liqoctl string
@@ -120,6 +121,10 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	// Add the flags regarding Kubernetes access options.
 	f.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	cmd.PersistentFlags().BoolVar(&f.SkipConfirm, "skip-confirm", false, "Skip the confirmation prompt (suggested for automation)")
+	cmd.PersistentFlags().StringToStringVar(&f.GlobalLabels, "global-labels", nil,
+		"Global labels to be added to all created resources (key=value)")
+	cmd.PersistentFlags().StringToStringVar(&f.GlobalAnnotations, "global-annotations", nil,
+		"Global annotations to be added to all created resources (key=value)")
 
 	cmd.AddCommand(newInstallCommand(ctx, f))
 	cmd.AddCommand(newUninstallCommand(ctx, f))
@@ -160,6 +165,8 @@ func WithTemplate(str string) string {
 func singleClusterPersistentPreRun(_ *cobra.Command, f *factory.Factory, opts ...factory.Options) {
 	// Populate the factory fields based on the configured parameters.
 	f.Printer.CheckErr(f.Initialize(opts...))
+	resource.SetGlobalLabels(f.GlobalLabels)
+	resource.SetGlobalAnnotations(f.GlobalAnnotations)
 }
 
 // twoClustersPersistentPreRun initializes both the local and the remote factory.

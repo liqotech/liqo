@@ -34,6 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // cluster-role
@@ -111,7 +112,7 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 			},
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, ip, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, r.Client, ip, func() error {
 		ip.Spec = ipamv1alpha1.IPSpec{
 			IP: networkingv1beta1.IP(remoteUnknownSourceIP),
 		}

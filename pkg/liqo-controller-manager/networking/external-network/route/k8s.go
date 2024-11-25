@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // GenerateRouteConfigurationName generates the name of the RouteConfiguration object.
@@ -51,7 +52,7 @@ func GetRemoteClusterID(cfg *networkingv1beta1.Configuration) (liqov1beta1.Clust
 }
 
 // enforceRouteConfigurationPresence creates or updates a RouteConfiguration object.
-func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
+func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
 	cfg *networkingv1beta1.Configuration) error {
 	remoteClusterID, err := GetRemoteClusterID(cfg)
 	if err != nil {
@@ -84,7 +85,7 @@ func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, sch
 		return err
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, cl, routecfg,
+	_, err = resource.CreateOrUpdate(ctx, cl, routecfg,
 		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP, internalNodes))
 	return err
 }

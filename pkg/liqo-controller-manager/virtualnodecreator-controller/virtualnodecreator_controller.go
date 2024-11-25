@@ -26,7 +26,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -37,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // VirtualNodeCreatorReconciler create virtualnodes from resourceslice resources.
@@ -119,7 +119,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// CreateOrUpdate the VirtualNode.
 	virtualNode := forge.VirtualNode(resourceSlice.Name, resourceSlice.Namespace)
-	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, virtualNode, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, r.Client, virtualNode, func() error {
 		// Forge the VirtualNodeOptions from the ResourceSlice.
 		vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name,
 			virtualNode.Spec.VkOptionsTemplateRef)
@@ -132,7 +132,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 			virtualNode.Labels = map[string]string{}
 		}
 		virtualNode.Labels[consts.ResourceSliceNameLabelKey] = resourceSlice.Name
-		return controllerutil.SetControllerReference(&resourceSlice, virtualNode, r.Scheme)
+		return ctrl.SetControllerReference(&resourceSlice, virtualNode, r.Scheme)
 	}); err != nil {
 		klog.Errorf("Unable to create or update the VirtualNode for resourceslice %q: %s", req.NamespacedName, err)
 		return ctrl.Result{}, err

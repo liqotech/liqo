@@ -26,7 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.PersistentVolumeClaim) error {
@@ -36,7 +37,7 @@ func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.
 			Namespace: liqoStorageNamespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, o.CRClient, &svc, func() error {
+	_, err := resource.CreateOrUpdate(ctx, o.CRClient, &svc, func() error {
 		svc.Spec = corev1.ServiceSpec{
 			Selector: map[string]string{
 				"app": resticRegistry,
@@ -61,7 +62,7 @@ func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.
 			Namespace: liqoStorageNamespace,
 		},
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, o.CRClient, &statefulSet, func() error {
+	_, err = resource.CreateOrUpdate(ctx, o.CRClient, &statefulSet, func() error {
 		statefulSet.Spec = appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{

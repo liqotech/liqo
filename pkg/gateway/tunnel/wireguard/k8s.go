@@ -24,12 +24,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // CheckKeysSecret checks if the keys secret exists and if it contains the private and public keys.
@@ -62,7 +62,7 @@ func CreateKeysSecret(ctx context.Context, cl client.Client, opts *gateway.Optio
 		},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, secret, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, secret, func() error {
 		secret.SetLabels(map[string]string{
 			string(consts.RemoteClusterID):      opts.RemoteClusterID,
 			string(consts.GatewayResourceLabel): string(consts.GatewayResourceLabelValue),
@@ -93,7 +93,7 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 
 	klog.Infof("Creating connection %q", conn.Name)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, cl, conn, func() error {
+	_, err := resource.CreateOrUpdate(ctx, cl, conn, func() error {
 		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, conn, scheme); err != nil {
 			return err
 		}

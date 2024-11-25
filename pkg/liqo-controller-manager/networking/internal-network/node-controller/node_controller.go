@@ -34,6 +34,7 @@ import (
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // NodeReconciler creates and manages InternalNodes.
@@ -91,7 +92,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 			Name: node.Name,
 		},
 	}
-	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
+	if _, err = resource.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
 		if internalNode.Spec.Interface.Gateway.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalNode); err != nil {
 			return err
 		}

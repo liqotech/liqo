@@ -28,6 +28,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // DeleteClusterRoleBinding deletes the cluster role bindings owned by the given object.
@@ -69,7 +70,7 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 			Namespace: namespace,
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, sa, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, sa, func() error {
 		return controllerutil.SetControllerReference(owner, sa, s)
 	}); err != nil {
 		klog.Errorf("error while creating service account %q: %v", saName, err)
@@ -82,7 +83,7 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 			Name: fmt.Sprintf("%s-%s-%s", clusterRoleName, namespace, name),
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, crb, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, crb, func() error {
 		if crb.Labels == nil {
 			crb.Labels = make(map[string]string)
 		}

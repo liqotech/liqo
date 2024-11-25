@@ -22,12 +22,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // GetPodCIDR retrieves the podCIDR of the local cluster.
@@ -151,7 +151,7 @@ func CreateNetwork(ctx context.Context, cl client.Client, name, namespace, cidr 
 		},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, network, func() error {
+	if _, err := resource.CreateOrUpdate(ctx, cl, network, func() error {
 		if network.Labels == nil {
 			network.Labels = map[string]string{}
 		}

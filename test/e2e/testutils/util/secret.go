@@ -20,7 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // SecretOption is a function that modifies a Secret.
@@ -39,7 +40,7 @@ func EnforceSecret(ctx context.Context, cl client.Client, namespace, name string
 		Type: corev1.SecretTypeOpaque,
 	}
 
-	return Second(controllerutil.CreateOrUpdate(ctx, cl, sec, func() error {
+	return Second(resource.CreateOrUpdate(ctx, cl, sec, func() error {
 		if sec.Data == nil {
 			sec.Data = make(map[string][]byte)
 		}

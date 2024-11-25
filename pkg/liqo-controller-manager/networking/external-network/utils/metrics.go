@@ -31,6 +31,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // EnsureMetrics ensures that the metrics service and service monitor are created or deleted.
@@ -119,7 +120,7 @@ func createMetricsService(ctx context.Context,
 			Namespace: owner.GetNamespace(),
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, cl, &svc, func() error {
+	_, err := resource.CreateOrUpdate(ctx, cl, &svc, func() error {
 		// Forge metadata
 		mapsutil.SmartMergeLabels(&svc, metrics.Service.Metadata.GetLabels())
 		mapsutil.SmartMergeAnnotations(&svc, metrics.Service.Metadata.GetAnnotations())
@@ -142,7 +143,7 @@ func createMetricsServiceMonitor(ctx context.Context,
 			Namespace: owner.GetNamespace(),
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, cl, &svcMonitor, func() error {
+	_, err := resource.CreateOrUpdate(ctx, cl, &svcMonitor, func() error {
 		// Forge metadata
 		mapsutil.SmartMergeLabels(&svcMonitor, metrics.ServiceMonitor.Metadata.GetLabels())
 		mapsutil.SmartMergeAnnotations(&svcMonitor, metrics.ServiceMonitor.Metadata.GetAnnotations())
