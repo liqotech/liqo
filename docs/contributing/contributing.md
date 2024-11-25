@@ -14,10 +14,17 @@ Liqo leverages the automatic release notes generation capabilities featured by G
 Specifically, PRs characterized by the following labels get included in the respective category:
 
 * *kind/breaking*: 💥 Breaking Change
-* *kind/feature*: 🚀 New Features
-* *kind/bug*: 🐛 Bug Fixes
-* *kind/cleanup*: 🧹 Code Refactoring
+* *kind/feat*: 🚀 New Features
+* *kind/fix*: 🐛 Bug Fixes
+* *kind/refactor*: 🧹 Code Refactoring
 * *kind/docs*: 📝 Documentation
+* *kind/style: 💄Code Style
+* *kind/perf: 🐎 Performance Improvement
+* *kind/test: ✅ Tests
+* *kind/chore: 🚚 Dependencies Management
+* *kind/build: 📦 Builds Management
+* *kind/ci: 👷 CI/CD
+* *kind/revert: ⏪ Reverts Previous Changes
 
 ## Local development
 
