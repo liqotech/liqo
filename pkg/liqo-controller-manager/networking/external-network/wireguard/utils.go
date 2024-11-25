@@ -17,7 +17,6 @@ package wireguard
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
@@ -222,29 +221,4 @@ func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Obje
 	default:
 		return nil, fmt.Errorf("found multiple secrets associated to WireGuard gateway %q", wgObjNsName)
 	}
-}
-
-func checkServiceOverrides(service *corev1.Service, addresses *[]string, port *int32) error {
-	if service == nil {
-		return nil
-	}
-
-	if addresses == nil || port == nil {
-		return fmt.Errorf("addresses and port must be non-nil")
-	}
-
-	if service.Annotations != nil {
-		if v, ok := service.Annotations[consts.OverrideAddressAnnotation]; ok {
-			*addresses = []string{v}
-		}
-		if v, ok := service.Annotations[consts.OverridePortAnnotation]; ok {
-			p, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				klog.Errorf("unable to parse port %q from service %s/%s annotation: %v", v, service.Namespace, service.Name, err)
-				return err
-			}
-			*port = int32(p)
-		}
-	}
-	return nil
 }

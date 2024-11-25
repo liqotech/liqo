@@ -19,11 +19,6 @@ package consts
 // Any change to those annotations on the helm chart has also to be reflected here.
 
 const (
-	// OverrideAddressAnnotation is the annotation used to override the address of a service.
-	OverrideAddressAnnotation = "liqo.io/override-address"
-	// OverridePortAnnotation is the annotation used to override the port of a service.
-	OverridePortAnnotation = "liqo.io/override-port"
-
 	// APIServerSupportAnnotation is the annotation used to enable the API server support for a pod.
 	APIServerSupportAnnotation = "liqo.io/api-server-support"
 	// APIServerSupportAnnotationValueRemote is the value of the annotation used to enable the API server support for a pod.

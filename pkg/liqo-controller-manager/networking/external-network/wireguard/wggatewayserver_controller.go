@@ -362,10 +362,6 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusClusterIP(service *corev1
 	protocol := &service.Spec.Ports[0].Protocol
 	addresses := service.Spec.ClusterIPs
 
-	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
-		return nil, err
-	}
-
 	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
 		Port:      port,
@@ -414,10 +410,6 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		}
 	}
 
-	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
-		return nil, nil, err
-	}
-
 	internalAddress := pod.Status.PodIP
 	if internalAddress == "" {
 		err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
@@ -453,10 +445,6 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 		if ip := service.Status.LoadBalancer.Ingress[i].IP; ip != "" {
 			addresses = append(addresses, ip)
 		}
-	}
-
-	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
-		return nil, err
 	}
 
 	return &networkingv1beta1.EndpointStatus{

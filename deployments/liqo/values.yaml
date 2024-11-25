@@ -71,13 +71,7 @@ networking:
         # -- Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
         allocateLoadBalancerNodePorts: ""
         # -- Annotations for the server service.
-        annotations:  
-          # -- Override the default address where your network gateway service is available.
-          # You should configure it if the network gateway is behind a reverse proxy or NAT.
-          # liqo.io/override-address: "10.43.12.182"
-          # -- Overrides the port where your network gateway service is available.
-          # You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port.
-          # liqo.io/override-port: "51840"
+        annotations: {}
     container:
       gateway:
         image:
@@ -122,8 +116,8 @@ networking:
       # -- Enabe/Disable the full masquerade mode for the fabric pod.
       # It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP.
       # Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic.
-      # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster, 
-      # making impossible for a pod that receives the traffic to know the original source IP. 
+      # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,
+      # making impossible for a pod that receives the traffic to know the original source IP.
       fullMasquerade: false
       # -- Enable/Disable the masquerade bypass for the gateway pods.
       # It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled.
@@ -181,12 +175,12 @@ offloading:
     # -- The amount of ephemeral storage to reserve for a virtual node targeting this cluster.
     ephemeral-storage: "20Gi"
   # -- Enable/Disable the creation of a k8s node for each VirtualNode.
-  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode 
+  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode
   # by setting the "createNode" field in the resource Spec.
   createNode: true
   # -- Enable/Disable the check of the liqo networking for virtual nodes.
   # If check is disabled, the network status will not be added to node conditions.
-  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode 
+  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode
   # by setting the "disableNetworkCheck" field in the resource Spec.
   disableNetworkCheck: false
   runtimeClass:
@@ -506,7 +500,7 @@ discovery:
 
 metricAgent:
   # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics
-  # (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting 
+  # (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting
   # the resulting values as a property of the virtual kubelet running on the remote cluster.
   enable: true
   config:
@@ -622,10 +616,10 @@ uninstaller:
 
 proxy:
   # -- Enable/Disable the proxy pod.
-  # This pod is mandatory to allow in-band peering 
+  # This pod is mandatory to allow in-band peering
   # and to connect to the consumer k8s api server from a remotly offloaded pod.
   enabled: true
-  # -- Set the number of replicas for the proxy deployments 
+  # -- Set the number of replicas for the proxy deployments
   replicas: 1
   pod:
     # -- Annotations for the proxy pod.

@@ -64,7 +64,7 @@
 | ipam.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
-| metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
+| metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.image.name | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
 | metricAgent.image.version | string | `""` | Custom version for the metricAgent image. If not specified, the global tag is used. |
 | metricAgent.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the metricAgent pod. |
@@ -79,7 +79,7 @@
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |
-| networking.fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
+| networking.fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster, making impossible for a pod that receives the traffic to know the original source IP. |
 | networking.fabric.config.gatewayMasqueradeBypass | bool | `false` | Enable/Disable the masquerade bypass for the gateway pods. It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled. This is useful in scenarios where CNIs masquerade the traffic from pod to nodes. For example this is required when using the Azure CNI or Kindnet. |
 | networking.fabric.config.nftablesMonitor | bool | `true` | Enable/Disable the nftables monitor for the fabric pod. It means that the fabric pod will monitor the nftables rules and will restore them in case of changes. In some cases (like K3S), this monitor can cause a huge amount of CPU usage. If you are experiencing high CPU usage, you can disable this feature. |
 | networking.fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
@@ -90,7 +90,7 @@
 | networking.fabric.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod. |
 | networking.fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
 | networking.fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
-| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":null}},"wireguard":{"implementation":"kernel"}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
+| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":{}}},"wireguard":{"implementation":"kernel"}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
 | networking.gatewayTemplates.container.gateway.image.name | string | `"ghcr.io/liqotech/gateway"` | Image repository for the gateway container. |
 | networking.gatewayTemplates.container.gateway.image.version | string | `""` | Custom version for the gateway image. If not specified, the global tag is used. |
 | networking.gatewayTemplates.container.geneve.image.name | string | `"ghcr.io/liqotech/gateway/geneve"` | Image repository for the geneve container. |
@@ -102,20 +102,20 @@
 | networking.gatewayTemplates.ping.lossThreshold | int | `5` | Set the number of consecutive pings that must fail to consider the connection as lost |
 | networking.gatewayTemplates.ping.updateStatusInterval | string | `"10s"` | Set the interval at which the connection resource status is updated |
 | networking.gatewayTemplates.replicas | int | `1` | Set the number of replicas for the gateway deployments |
-| networking.gatewayTemplates.server | object | `{"service":{"allocateLoadBalancerNodePorts":"","annotations":null}}` | Set the options to configure the gateway server |
-| networking.gatewayTemplates.server.service | object | `{"allocateLoadBalancerNodePorts":"","annotations":null}` | Set the options to configure the server service |
+| networking.gatewayTemplates.server | object | `{"service":{"allocateLoadBalancerNodePorts":"","annotations":{}}}` | Set the options to configure the gateway server |
+| networking.gatewayTemplates.server.service | object | `{"allocateLoadBalancerNodePorts":"","annotations":{}}` | Set the options to configure the server service |
 | networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts | string | `""` | Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
-| networking.gatewayTemplates.server.service.annotations | string | `nil` | Annotations for the server service. |
+| networking.gatewayTemplates.server.service.annotations | object | `{}` | Annotations for the server service. |
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
 | networking.genevePort | int | `6091` | The port used by the geneve tunnels. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
-| offloading.createNode | bool | `true` | Enable/Disable the creation of a k8s node for each VirtualNode. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode  by setting the "createNode" field in the resource Spec. |
+| offloading.createNode | bool | `true` | Enable/Disable the creation of a k8s node for each VirtualNode. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode by setting the "createNode" field in the resource Spec. |
 | offloading.defaultNodeResources.cpu | string | `"4"` | The amount of CPU to reserve for a virtual node targeting this cluster. |
 | offloading.defaultNodeResources.ephemeral-storage | string | `"20Gi"` | The amount of ephemeral storage to reserve for a virtual node targeting this cluster. |
 | offloading.defaultNodeResources.memory | string | `"8Gi"` | The amount of memory to reserve for a virtual node targeting this cluster. |
 | offloading.defaultNodeResources.pods | string | `"110"` | The amount of pods that can be scheduled on a virtual node targeting this cluster. |
-| offloading.disableNetworkCheck | bool | `false` | Enable/Disable the check of the liqo networking for virtual nodes. If check is disabled, the network status will not be added to node conditions. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode  by setting the "disableNetworkCheck" field in the resource Spec. |
+| offloading.disableNetworkCheck | bool | `false` | Enable/Disable the check of the liqo networking for virtual nodes. If check is disabled, the network status will not be added to node conditions. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode by setting the "disableNetworkCheck" field in the resource Spec. |
 | offloading.enabled | bool | `true` | Enable/Disable the offloading module |
 | offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
 | offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
@@ -147,7 +147,7 @@
 | openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
-| proxy.enabled | bool | `true` | Enable/Disable the proxy pod. This pod is mandatory to allow in-band peering  and to connect to the consumer k8s api server from a remotly offloaded pod. |
+| proxy.enabled | bool | `true` | Enable/Disable the proxy pod. This pod is mandatory to allow in-band peering and to connect to the consumer k8s api server from a remotly offloaded pod. |
 | proxy.image.name | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
 | proxy.image.version | string | `""` | Custom version for the proxy image. If not specified, the global tag is used. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
@@ -155,7 +155,7 @@
 | proxy.pod.labels | object | `{}` | Labels for the proxy pod. |
 | proxy.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the proxy pod. |
 | proxy.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
-| proxy.replicas | int | `1` | Set the number of replicas for the proxy deployments  |
+| proxy.replicas | int | `1` | Set the number of replicas for the proxy deployments |
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
