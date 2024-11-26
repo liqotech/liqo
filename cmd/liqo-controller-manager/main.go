@@ -58,6 +58,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -267,7 +268,15 @@ func main() {
 				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
 				os.Exit(1)
 			}
+
+			if err := grpcutils.WaitForConnectionReady(ctx, conn, 10*time.Second); err != nil {
+				klog.Errorf("failed to establish a connection to the IPAM server %q", *ipamServer)
+				os.Exit(1)
+			}
+			klog.Infof("connected to the IPAM server (status: %s)", conn.GetState())
+
 			defer conn.Close()
+
 			ipamClient = ipam.NewIPAMClient(conn)
 		}
 
