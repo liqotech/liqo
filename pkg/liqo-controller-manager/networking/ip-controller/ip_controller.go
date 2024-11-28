@@ -34,6 +34,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
+	"github.com/liqotech/liqo/pkg/utils"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -127,7 +128,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	}
 
 	// Add finalizer to prevent deletion without releasing the IP.
-	if !controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
+	if !controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) && !utils.IsPreinstalledResource(&ip) {
 		controllerutil.AddFinalizer(&ip, ipamIPFinalizer)
 		if err := r.Update(ctx, &ip); err != nil {
 			klog.Errorf("error while adding finalizer to IP %q: %v", req.NamespacedName, err)
