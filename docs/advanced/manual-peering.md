@@ -11,7 +11,7 @@ Whenever you need a different configuration, like, for example:
 
 - you want to configure Liqo peerings via a [declarative approach](./peering/peering-via-cr.md) via CRs.
 - the networking module is not required, either because the inter-cluster networking is not needed or because networking is provided by a third party
-- it is required to configure the WireGuard gateway server on the cluster consumer (e.g. the nodes of the cluster provider are [behind a NAT](./nat.md))
+- it is required to configure the WireGuard gateway server on the cluster consumer (e.g. the nodes of the cluster provider are [behind a NAT or a physical load balancer](./nat.md))
 - The consumer needs to create multiple requests for resources (ResourceSlice) or you want to customize the way resources are distributed on virtual nodes
 
 then, you will need to set up the peering with the cluster, by configuring each single module separatly.

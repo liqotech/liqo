@@ -30,7 +30,7 @@ When you have access to both clusters, you can configure the inter-cluster netwo
 
 Note that when you use the `liqoctl network` command, the remote kubeconfig/context provided as argument, is the one of the cluster where we want to configure the server gateway of Wireguard tunnel.
 
-The first step to configure network is initializing the network:
+The first step to configure networking, is initializing the network configuration:
 
 ```bash
 liqoctl network init \
