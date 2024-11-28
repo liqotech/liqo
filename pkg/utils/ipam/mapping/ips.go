@@ -51,8 +51,12 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 		if ip.Labels == nil {
 			ip.Labels = map[string]string{}
 		}
-
 		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServer
+
+		if ip.Annotations == nil {
+			ip.Annotations = map[string]string{}
+		}
+		ip.Annotations[consts.PreinstalledAnnotKey] = consts.PreinstalledAnnotValue
 
 		ip.Spec.IP = networkingv1beta1.IP(k8sSvc.Spec.ClusterIP)
 
@@ -97,8 +101,12 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 		if ip.Labels == nil {
 			ip.Labels = map[string]string{}
 		}
-
 		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServerProxy
+
+		if ip.Annotations == nil {
+			ip.Annotations = map[string]string{}
+		}
+		ip.Annotations[consts.PreinstalledAnnotKey] = consts.PreinstalledAnnotValue
 
 		ip.Spec.IP = networkingv1beta1.IP(proxySvc.Spec.ClusterIP)
 
