@@ -8,6 +8,8 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: pod-cidr
     ipam.liqo.io/network-not-remapped: "true"
+  annotations:
+    liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.podCIDR }}
 ---
@@ -19,6 +21,8 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: service-cidr
     ipam.liqo.io/network-not-remapped: "true"
+  annotations:
+    liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.serviceCIDR }}
 ---
@@ -29,6 +33,8 @@ metadata:
   labels:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: external-cidr
+  annotations:
+    liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.externalCIDR }}
   preAllocated: 1 # the first IP of the external CIDR is reserved for the unknown source traffic
@@ -40,6 +46,8 @@ metadata:
   labels:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: internal-cidr
+  annotations:
+    liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.internalCIDR }}
 ---
@@ -52,6 +60,8 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: reserved
     ipam.liqo.io/network-not-remapped: "true"
+  annotations:
+    liqo.io/preinstalled: "true"
 spec:
   cidr: {{ $value }}
 ---

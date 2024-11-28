@@ -46,6 +46,11 @@ const (
 	// UninstallingAnnotationValue is the value of the annotation used to signal liqo is being uninstalled.
 	UninstallingAnnotationValue = "true"
 
+	// PreinstalledAnnotKey is the annotation key used to mark a resource created at install-time by Liqo.
+	PreinstalledAnnotKey = "liqo.io/preinstalled"
+	// PreinstalledAnnotValue is the annotation value used to mark a resource created at install-time by Liqo.
+	PreinstalledAnnotValue = "true"
+
 	// WebhookServiceNameAnnotationKey is the constant representing
 	// the key of the annotation containing the Webhook service name.
 	WebhookServiceNameAnnotationKey = "liqo.io/webhook-service-name"

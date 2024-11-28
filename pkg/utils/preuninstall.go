@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -168,6 +170,11 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 			continue
 		}
 
+		// These IPs were installed at install-time and should not be removed unless liqo is uninstalled.
+		if IsPreinstalledResource(&ips.Items[i]) {
+			continue
+		}
+
 		if len(ips.Items[i].GetFinalizers()) > 0 {
 			errMap.networking = addResourceToErrMap(&ips.Items[i], &errMap, errMap.networking, &foreignClusterList)
 		}
@@ -179,8 +186,8 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 		return err
 	}
 	for i := range networks.Items {
-		// These networks will be handled by the uninstaller job
-		if ipamutils.IsExternalCIDR(&networks.Items[i]) || ipamutils.IsInternalCIDR(&networks.Items[i]) {
+		// These networks were installed at install-time and should not be removed unless liqo is uninstalled.
+		if IsPreinstalledResource(&networks.Items[i]) {
 			continue
 		}
 		if len(networks.Items[i].GetFinalizers()) > 0 {
@@ -189,6 +196,15 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 	}
 
 	return errMap.getError()
+}
+
+// IsPreinstalledResource returns whether the given resource was created at install-time by Liqo.
+func IsPreinstalledResource(obj metav1.Object) bool {
+	if obj.GetAnnotations() == nil {
+		return false
+	}
+	value, ok := obj.GetAnnotations()[consts.PreinstalledAnnotKey]
+	return ok && !strings.EqualFold(value, "false")
 }
 
 func addResourceToErrMap(obj client.Object, errMap *errorMap, errList []string, foreignClusters *liqov1beta1.ForeignClusterList) []string {
