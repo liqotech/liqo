@@ -60,6 +60,12 @@ func Blocking(ctx context.Context, rc *rest.Config, eb record.EventBroadcaster, 
 				lock.Lock()
 				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is the leader")
+				if opts.LabelLeader && opts.Client != nil {
+					if err := handleLeaderLabelWithClient(ctx, opts.Client, &opts.PodInfo); err != nil {
+						klog.Errorf("Failed to label leader pod: %v", err)
+						os.Exit(1)
+					}
+				}
 				close(elected)
 			},
 			OnStoppedLeading: func() {
