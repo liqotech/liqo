@@ -41,7 +41,7 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 		func(ctx context.Context) (done bool, err error) {
 			lipam.mutex.Lock()
 			defer lipam.mutex.Unlock()
-			klog.V(3).Info("Started IPAM cache sync routine")
+			klog.V(3).Infof("Started IPAM cache sync routine (grace period: %s)", lipam.opts.SyncGracePeriod)
 
 			// Sync networks.
 			if err := lipam.syncNetworks(ctx); err != nil {
@@ -71,7 +71,7 @@ func syncNetworkAcquire(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefix
 			}
 			for i := 0; i < int(clusterNetworkDetails.preallocated); i++ {
 				if _, err := lipam.ipAcquire(clusterNetwork); err != nil {
-					return errors.Join(err, lipam.networkRelease(clusterNetwork))
+					return errors.Join(err, lipam.networkRelease(clusterNetwork, 0))
 				}
 			}
 		}
@@ -88,7 +88,7 @@ func syncNetworkFree(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefixDet
 	// Remove networks that are present in the cache but not in the cluster, and were added before the threshold.
 	for cachedNetwork := range cachedNetworks {
 		if !isNetworkInCluster(clusterNetworks, cachedNetwork) {
-			if err := lipam.networkRelease(cachedNetwork); err != nil {
+			if err := lipam.networkRelease(cachedNetwork, lipam.opts.SyncGracePeriod); err != nil {
 				return fmt.Errorf("failed to free network %q: %w", cachedNetwork.String(), err)
 			}
 		}
@@ -145,7 +145,7 @@ func iscachedIPPreallocated(cachedIP netip.Addr, cachedNetwork netip.Prefix, clu
 func syncIPsFree(lipam *LiqoIPAM, clusterIPs, cachedIPs map[netip.Addr]netip.Prefix, clusterNetworks map[netip.Prefix]prefixDetails) error {
 	for cachedIP, cachedNetwork := range cachedIPs {
 		if _, ok := clusterIPs[cachedIP]; !ok && !iscachedIPPreallocated(cachedIP, cachedNetwork, clusterNetworks) {
-			if err := lipam.ipRelease(cachedIP, cachedNetwork); err != nil {
+			if err := lipam.ipRelease(cachedIP, cachedNetwork, lipam.opts.SyncGracePeriod); err != nil {
 				return fmt.Errorf("failed to free IP %q: %w", cachedIP.String(), err)
 			}
 		}
@@ -159,6 +159,7 @@ func (lipam *LiqoIPAM) syncIPs(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
 	if err != nil {
 		return err
