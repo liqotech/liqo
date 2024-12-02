@@ -24,7 +24,8 @@ const (
 	IpamPort = 6000
 	// SyncInterval is the frequency at which the IPAM should periodically sync its status.
 	SyncInterval = 2 * time.Minute
-
+	// SyncGracePeriod is the time the IPAM sync routine should wait before performing a deletion.
+	SyncGracePeriod = 30 * time.Second
 	// NetworkNotRemappedLabelKey is the label key used to mark a Network that does not need CIDR remapping.
 	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
 	// NetworkNotRemappedLabelValue is the label value used to mark a Network that does not need CIDR remapping.

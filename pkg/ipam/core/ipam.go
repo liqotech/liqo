@@ -17,7 +17,7 @@ package ipamcore
 import (
 	"fmt"
 	"net/netip"
-	"slices"
+	"time"
 )
 
 // Ipam represents the IPAM core structure.
@@ -74,10 +74,10 @@ func (ipam *Ipam) NetworkAcquireWithPrefix(prefix netip.Prefix) *netip.Prefix {
 
 // NetworkRelease frees the network with the given prefix.
 // It returns the freed network or nil if the network is not found.
-func (ipam *Ipam) NetworkRelease(prefix netip.Prefix) *netip.Prefix {
+func (ipam *Ipam) NetworkRelease(prefix netip.Prefix, gracePeriod time.Duration) *netip.Prefix {
 	for i := range ipam.roots {
 		if isPrefixChildOf(ipam.roots[i].prefix, prefix) {
-			if result := networkRelease(prefix, &ipam.roots[i]); result != nil {
+			if result := networkRelease(prefix, &ipam.roots[i], gracePeriod); result != nil {
 				return result
 			}
 		}
@@ -137,13 +137,13 @@ func (ipam *Ipam) IPAcquireWithAddr(prefix netip.Prefix, addr netip.Addr) (*neti
 
 // IPRelease frees the IP address from the given prefix.
 // It returns the freed IP address or nil if the IP address is not found.
-func (ipam *Ipam) IPRelease(prefix netip.Prefix, addr netip.Addr) (*netip.Addr, error) {
+func (ipam *Ipam) IPRelease(prefix netip.Prefix, addr netip.Addr, gracePeriod time.Duration) (*netip.Addr, error) {
 	node, err := ipam.search(prefix)
 	if err != nil {
 		return nil, err
 	}
 	if node != nil {
-		return node.ipRelease(addr), nil
+		return node.ipRelease(addr, gracePeriod), nil
 	}
 	return nil, nil
 }
@@ -155,14 +155,18 @@ func (ipam *Ipam) ListIPs(prefix netip.Prefix) ([]netip.Addr, error) {
 		return nil, err
 	}
 	if node != nil {
-		return slices.Clone(node.ips), nil
+		addrs := make([]netip.Addr, len(node.ips))
+		for i := range node.ips {
+			addrs[i] = node.ips[i].addr
+		}
+		return addrs, nil
 	}
 	return nil, nil
 }
 
-// IsAllocatedIP checks if the IP address is allocated from the given prefix.
+// IPIsAllocated checks if the IP address is allocated from the given prefix.
 // It returns true if the IP address is allocated, false otherwise.
-func (ipam *Ipam) IsAllocatedIP(prefix netip.Prefix, addr netip.Addr) (bool, error) {
+func (ipam *Ipam) IPIsAllocated(prefix netip.Prefix, addr netip.Addr) (bool, error) {
 	node, err := ipam.search(prefix)
 	if err != nil {
 		return false, err
@@ -212,6 +216,40 @@ func checkRoots(roots []netip.Prefix) error {
 	for i := range roots {
 		if err := checkHostBitsZero(roots[i]); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// NetworkSetLastUpdateTimestamp sets the last update time of the network with the given prefix.
+// This function is for testing purposes only.
+func (ipam *Ipam) NetworkSetLastUpdateTimestamp(prefix netip.Prefix, lastUpdateTimestamp time.Time) error {
+	node, err := ipam.search(prefix)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("prefix %s not found", prefix)
+	}
+	node.lastUpdateTimestamp = lastUpdateTimestamp
+	return nil
+}
+
+// IPSetCreationTimestamp sets the creation timestamp of the IP address with the given address.
+// This function is for testing purposes only.
+func (ipam *Ipam) IPSetCreationTimestamp(addr netip.Addr, prefix netip.Prefix, creationTimestamp time.Time) error {
+	node, err := ipam.search(prefix)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("prefix %s not found", prefix)
+	}
+
+	for i := range node.ips {
+		if node.ips[i].addr.Compare(addr) == 0 {
+			node.ips[i].creationTimestamp = creationTimestamp
+			return nil
 		}
 	}
 	return nil

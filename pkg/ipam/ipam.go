@@ -46,7 +46,8 @@ type LiqoIPAM struct {
 type ServerOptions struct {
 	Pools           []string
 	Port            int
-	SyncFrequency   time.Duration
+	SyncInterval    time.Duration
+	SyncGracePeriod time.Duration
 	GraphvizEnabled bool
 }
 
@@ -74,7 +75,7 @@ func New(ctx context.Context, cl client.Client, roots []string, opts *ServerOpti
 	}
 
 	// Launch sync routine
-	go lipam.sync(ctx, opts.SyncFrequency)
+	go lipam.sync(ctx, opts.SyncInterval)
 
 	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 
@@ -118,7 +119,7 @@ func (lipam *LiqoIPAM) IPRelease(_ context.Context, req *IPReleaseRequest) (*IPR
 		return &IPReleaseResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
 	}
 
-	if err := lipam.ipRelease(addr, prefix); err != nil {
+	if err := lipam.ipRelease(addr, prefix, 0); err != nil {
 		return &IPReleaseResponse{}, err
 	}
 
@@ -157,7 +158,7 @@ func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequ
 	for i := 0; i < int(req.GetPreAllocated()); i++ {
 		_, err := lipam.ipAcquire(*remappedCidr)
 		if err != nil {
-			return &NetworkAcquireResponse{}, errors.Join(err, lipam.networkRelease(*remappedCidr))
+			return &NetworkAcquireResponse{}, errors.Join(err, lipam.networkRelease(*remappedCidr, 0))
 		}
 	}
 
@@ -174,7 +175,7 @@ func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, req *NetworkReleaseRequ
 		return &NetworkReleaseResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
 	}
 
-	if err := lipam.networkRelease(prefix); err != nil {
+	if err := lipam.networkRelease(prefix, 0); err != nil {
 		return &NetworkReleaseResponse{}, err
 	}
 
