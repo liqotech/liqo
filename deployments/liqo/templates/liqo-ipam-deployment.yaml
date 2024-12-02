@@ -55,6 +55,7 @@ spec:
             {{- if $ha }}
             - --leader-election
             - --leader-election-namespace=$(POD_NAMESPACE)
+            - --deployment-name={{ include "liqo.prefixedName" $ipamConfig }}
             {{- end }}
             {{- if .Values.ipam.pools }}
             {{- $d := dict "commandName" "--pools" "list" .Values.ipam.pools }}

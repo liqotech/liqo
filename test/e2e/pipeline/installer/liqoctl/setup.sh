@@ -111,6 +111,7 @@ do
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
     COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.gatewayTemplates.replicas=$HA_REPLICAS" )
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "ipam.internal.replicas=$HA_REPLICAS" )
   else
     LIQO_PROVIDER="${INFRA}"
   fi

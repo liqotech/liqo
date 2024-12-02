@@ -27,6 +27,7 @@ type Options struct {
 	RenewDeadline           time.Duration
 	RetryPeriod             time.Duration
 	PodName                 string
+	DeploymentName          string
 
 	ServerOpts ServerOptions
 }
