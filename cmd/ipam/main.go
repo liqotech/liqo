@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -51,6 +52,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 }
 
@@ -93,6 +95,7 @@ func main() {
 		"The duration the LeaderElector clients should wait between tries of actions.")
 	cmd.Flags().StringVar(&options.PodName, "pod-name", "",
 		"The name of the pod running the IPAM service.")
+	cmd.Flags().StringVar(&options.DeploymentName, "deployment-name", "", "The name of the deployment running the IPAM service.")
 
 	utilruntime.Must(cmd.MarkFlagRequired("pod-name"))
 
@@ -122,13 +125,16 @@ func run(cmd *cobra.Command, _ []string) error {
 	if options.EnableLeaderElection {
 		if leader, err := leaderelection.Blocking(ctx, cfg, record.NewBroadcaster(), &leaderelection.Opts{
 			PodInfo: leaderelection.PodInfo{
-				PodName:   options.PodName,
-				Namespace: options.LeaderElectionNamespace,
+				PodName:        options.PodName,
+				Namespace:      options.LeaderElectionNamespace,
+				DeploymentName: &options.DeploymentName,
 			},
+			Client:            cl,
 			LeaderElectorName: options.LeaderElectionName,
 			LeaseDuration:     options.LeaseDuration,
 			RenewDeadline:     options.RenewDeadline,
 			RetryPeriod:       options.RetryPeriod,
+			LabelLeader:       true,
 		}); err != nil {
 			return err
 		} else if !leader {

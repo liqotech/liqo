@@ -60,6 +60,7 @@ type PodInfo struct {
 // Opts contains the options to configure the leader election mechanism.
 type Opts struct {
 	PodInfo
+	Client            client.Client
 	LeaderElectorName string
 	LeaseDuration     time.Duration
 	RenewDeadline     time.Duration
