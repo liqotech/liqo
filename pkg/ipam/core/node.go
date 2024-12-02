@@ -21,16 +21,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// nodeIP represents an IP address acquired by a node.
+type nodeIP struct {
+	addr              netip.Addr
+	creationTimestamp time.Time
+}
 
 // node represents a node in the binary tree.
 type node struct {
+	lastUpdateTimestamp time.Time
+
 	prefix   netip.Prefix
 	acquired bool
 	left     *node
 	right    *node
 
-	ips    []netip.Addr
+	ips    []nodeIP
 	lastip netip.Addr
 }
 
@@ -39,10 +48,12 @@ type nodeDirection string
 const (
 	leftDirection  nodeDirection = "left"
 	rightDirection nodeDirection = "right"
+
+	graphvizFolder = "./graphviz"
 )
 
 func newNode(prefix netip.Prefix) node {
-	return node{prefix: prefix}
+	return node{prefix: prefix, lastUpdateTimestamp: time.Now()}
 }
 
 func allocateNetwork(size int, node *node) *netip.Prefix {
@@ -52,6 +63,7 @@ func allocateNetwork(size int, node *node) *netip.Prefix {
 	if node.prefix.Bits() == size {
 		if !node.isSplitted() {
 			node.acquired = true
+			node.lastUpdateTimestamp = time.Now()
 			return &node.prefix
 		}
 		return nil
@@ -76,6 +88,7 @@ func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
 		if !node.acquired && node.left == nil && node.right == nil {
 			node.acquired = true
+			node.lastUpdateTimestamp = time.Now()
 			return &node.prefix
 		}
 		return nil
@@ -95,29 +108,31 @@ func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
 	return nil
 }
 
-func networkRelease(prefix netip.Prefix, node *node) *netip.Prefix {
+func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) *netip.Prefix {
 	var result *netip.Prefix
 
 	if node == nil {
 		return nil
 	}
 
-	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
+	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() &&
+		node.lastUpdateTimestamp.Add(gracePeriod).Before(time.Now()) {
 		if node.acquired {
 			node.acquired = false
+			node.lastUpdateTimestamp = time.Now()
 			return &node.prefix
 		}
 		return nil
 	}
 
 	if node.left != nil && node.left.prefix.Overlaps(prefix) {
-		result = networkRelease(prefix, node.left)
+		result = networkRelease(prefix, node.left, gracePeriod)
 	}
 	if node.right != nil && node.right.prefix.Overlaps(prefix) {
-		result = networkRelease(prefix, node.right)
+		result = networkRelease(prefix, node.right, gracePeriod)
 	}
 
-	node.merge()
+	node.merge(gracePeriod)
 	return result
 }
 
@@ -170,7 +185,7 @@ func listNetworks(node *node) []netip.Prefix {
 
 func (n *node) isAllocatedIP(ip netip.Addr) bool {
 	for i := range n.ips {
-		if n.ips[i].Compare(ip) == 0 {
+		if n.ips[i].addr.Compare(ip) == 0 {
 			return true
 		}
 	}
@@ -202,8 +217,9 @@ func (n *node) ipAcquire() *netip.Addr {
 			addr = n.prefix.Addr()
 		}
 		if !n.isAllocatedIP(addr) {
-			n.ips = append(n.ips, addr)
+			n.ips = append(n.ips, nodeIP{addr: addr, creationTimestamp: time.Now()})
 			n.lastip = addr
+			n.lastUpdateTimestamp = time.Now()
 			return &addr
 		}
 		addr = addr.Next()
@@ -221,25 +237,30 @@ func (n *node) allocateIPWithAddr(addr netip.Addr) *netip.Addr {
 	}
 
 	for i := range n.ips {
-		if n.ips[i].Compare(addr) == 0 {
+		if n.ips[i].addr.Compare(addr) == 0 {
 			return nil
 		}
 	}
 
-	n.ips = append(n.ips, addr)
+	n.ips = append(n.ips, nodeIP{addr: addr, creationTimestamp: time.Now()})
+	n.lastUpdateTimestamp = time.Now()
 
-	return &n.ips[len(n.ips)-1]
+	return &n.ips[len(n.ips)-1].addr
 }
 
-func (n *node) ipRelease(ip netip.Addr) *netip.Addr {
+func (n *node) ipRelease(ip netip.Addr, gracePeriod time.Duration) *netip.Addr {
 	if !n.acquired {
 		return nil
 	}
 
-	for i, addr := range n.ips {
-		if addr.Compare(ip) == 0 {
+	for i, nodeIP := range n.ips {
+		if !nodeIP.creationTimestamp.Add(gracePeriod).Before(time.Now()) {
+			continue
+		}
+		if nodeIP.addr.Compare(ip) == 0 {
 			n.ips = append(n.ips[:i], n.ips[i+1:]...)
-			return &addr
+			n.lastUpdateTimestamp = time.Now()
+			return &nodeIP.addr
 		}
 	}
 	return nil
@@ -273,21 +294,33 @@ func (n *node) split() {
 	n.insert(rightDirection, right)
 }
 
-func (n *node) merge() {
-	if n.left.isLeaf() && n.right.isLeaf() && !n.left.acquired && !n.right.acquired {
-		n.left = nil
-		n.right = nil
+func (n *node) merge(gracePeriod time.Duration) {
+	if n.left == nil || n.right == nil {
+		return
 	}
+	if !n.left.lastUpdateTimestamp.Add(gracePeriod).Before(time.Now()) || !n.right.lastUpdateTimestamp.Add(gracePeriod).Before(time.Now()) {
+		return // grace period not expired
+	}
+	if !n.left.isLeaf() || !n.right.isLeaf() {
+		return
+	}
+	if n.left.acquired || n.right.acquired {
+		return
+	}
+
+	n.left = nil
+	n.right = nil
+	n.lastUpdateTimestamp = time.Now()
 }
 
 func (n *node) insert(nd nodeDirection, prefix netip.Prefix) {
-	newNode := &node{prefix: prefix}
+	newNode := newNode(prefix)
 	switch nd {
 	case leftDirection:
-		n.left = newNode
+		n.left = &newNode
 		return
 	case rightDirection:
-		n.right = newNode
+		n.right = &newNode
 		return
 	default:
 		return
@@ -335,13 +368,13 @@ func (n *node) toGraphviz() error {
 	n.toGraphvizRecursive(&sb)
 	sb.WriteString("}\n")
 
-	if _, err := os.Stat("./graphviz"); os.IsNotExist(err) {
-		if err := os.Mkdir("./graphviz", 0o700); err != nil {
+	if _, err := os.Stat(graphvizFolder + ""); os.IsNotExist(err) {
+		if err := os.Mkdir(graphvizFolder+"", 0o700); err != nil {
 			return err
 		}
 	}
 
-	filePath := filepath.Clean("./graphviz/" + strings.NewReplacer("/", "_", ".", "_").Replace(n.prefix.String()) + ".dot")
+	filePath := filepath.Clean(graphvizFolder + "/" + strings.NewReplacer("/", "_", ".", "_").Replace(n.prefix.String()) + ".dot")
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -360,7 +393,7 @@ func (n *node) toGraphvizRecursive(sb *strings.Builder) {
 	if len(n.ips) > 0 {
 		ipsString := []string{}
 		for i := range n.ips {
-			ipsString = append(ipsString, n.ips[i].String())
+			ipsString = append(ipsString, n.ips[i].addr.String())
 		}
 		label += "\\n" + strings.Join(ipsString, "\\n")
 	}

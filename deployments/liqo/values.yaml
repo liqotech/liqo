@@ -448,6 +448,8 @@ ipam:
     # -- Set the interval at which the IPAM pod will synchronize it's in-memory status with the local cluster.
     # If you want to disable the synchronization, set the interval to 0.
     syncInterval: 2m
+    ## -- Set the grace period the sync routine will wait before deleting an ip or a network.
+    syncGracePeriod: 30s
   # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
   podCIDR: ""
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).

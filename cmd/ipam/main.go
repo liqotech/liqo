@@ -72,8 +72,10 @@ func main() {
 
 	// Server options.
 	cmd.Flags().IntVar(&options.ServerOpts.Port, "port", consts.IpamPort, "The port on which to listen for incoming gRPC requests.")
-	cmd.Flags().DurationVar(&options.ServerOpts.SyncFrequency, "sync-interval", consts.SyncInterval,
+	cmd.Flags().DurationVar(&options.ServerOpts.SyncInterval, "sync-interval", consts.SyncInterval,
 		"The interval at which the IPAM will synchronize the IPAM storage.")
+	cmd.Flags().DurationVar(&options.ServerOpts.SyncGracePeriod, "sync-graceperiod", consts.SyncGracePeriod,
+		"The grace period the sync routine wait before releasing an ip or a network.")
 	cmd.Flags().BoolVar(&options.ServerOpts.GraphvizEnabled, "enable-graphviz", false, "Enable the graphviz output for the IPAM.")
 	cmd.Flags().StringSliceVar(&options.ServerOpts.Pools, "pools",
 		[]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"},
