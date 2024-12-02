@@ -52,6 +52,7 @@ spec:
             - --pod-name=$(POD_NAME)
             - --port=6000
             - --sync-interval={{ .Values.ipam.internal.syncInterval }}
+            - --sync-graceperiod={{ .Values.ipam.internal.syncGracePeriod }}
             {{- if $ha }}
             - --leader-election
             - --leader-election-namespace=$(POD_NAMESPACE)

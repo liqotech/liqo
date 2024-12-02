@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,13 +62,13 @@ func (lipam *LiqoIPAM) ipAcquireWithAddr(addr netip.Addr, prefix netip.Prefix) e
 }
 
 // ipRelease frees an IP, removing it from the cache.
-func (lipam *LiqoIPAM) ipRelease(addr netip.Addr, prefix netip.Prefix) error {
-	result, err := lipam.IpamCore.IPRelease(prefix, addr)
+func (lipam *LiqoIPAM) ipRelease(addr netip.Addr, prefix netip.Prefix, gracePeriod time.Duration) error {
+	result, err := lipam.IpamCore.IPRelease(prefix, addr, gracePeriod)
 	if err != nil {
 		return fmt.Errorf("error freeing IP %q (network %q): %w", addr.String(), prefix.String(), err)
 	}
 	if result == nil {
-		klog.Infof("IP %q (network %q) already freed", addr.String(), prefix.String())
+		klog.Infof("IP %q (network %q) already freed or grace period not over", addr.String(), prefix.String())
 		return nil
 	}
 	klog.Infof("Freed IP %q (network %q)", addr.String(), prefix.String())
@@ -80,7 +81,7 @@ func (lipam *LiqoIPAM) ipRelease(addr netip.Addr, prefix netip.Prefix) error {
 
 // isIPAvailable checks if an IP is available.
 func (lipam *LiqoIPAM) isIPAvailable(addr netip.Addr, prefix netip.Prefix) (bool, error) {
-	allocated, err := lipam.IpamCore.IsAllocatedIP(prefix, addr)
+	allocated, err := lipam.IpamCore.IPIsAllocated(prefix, addr)
 	return !allocated, err
 }
 

@@ -61,6 +61,7 @@
 | ipam.internal.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod. |
 | ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the IPAM pod. |
 | ipam.internal.replicas | int | `1` | The number of IPAM instances to run, which can be increased for active/passive high availability. |
+| ipam.internal.syncGracePeriod | string | `"30s"` |  |
 | ipam.internal.syncInterval | string | `"2m"` | Set the interval at which the IPAM pod will synchronize it's in-memory status with the local cluster. If you want to disable the synchronization, set the interval to 0. |
 | ipam.internalCIDR | string | `"10.80.0.0/16"` | The subnet used for the internal CIDR. These IPs are assigned to the Liqo internal-network interfaces. |
 | ipam.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |
