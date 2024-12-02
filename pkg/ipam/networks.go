@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,10 +61,10 @@ func (lipam *LiqoIPAM) networkAcquireSpecific(prefix netip.Prefix) (*netip.Prefi
 }
 
 // networkRelease frees a network, removing it from the cache.
-func (lipam *LiqoIPAM) networkRelease(prefix netip.Prefix) error {
-	result := lipam.IpamCore.NetworkRelease(prefix)
+func (lipam *LiqoIPAM) networkRelease(prefix netip.Prefix, gracePeriod time.Duration) error {
+	result := lipam.IpamCore.NetworkRelease(prefix, gracePeriod)
 	if result == nil {
-		klog.Infof("Network %q already freed", prefix.String())
+		klog.Infof("Network %q already freed or grace period not over", prefix.String())
 		return nil
 	}
 	klog.Infof("Freed network %q", prefix.String())

@@ -176,97 +176,77 @@ func FakeForgingOpts() *forge.ForgingOpts {
 	}
 }
 
-// FakeNetworkPodCIDR returns a fake Network of type PodCIDR.
-func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
+// FakeNetwork returns a fake Network.
+func FakeNetwork(name, cidr string, labels map[string]string) *ipamv1alpha1.Network {
 	return &ipamv1alpha1.Network{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod-cidr",
+			Name:      name,
 			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypePodCIDR),
-				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
-			},
+			Labels:    labels,
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1beta1.CIDR(PodCIDR),
+			CIDR: networkingv1beta1.CIDR(cidr),
 		},
 		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1beta1.CIDR(PodCIDR),
+			CIDR: networkingv1beta1.CIDR(cidr),
 		},
 	}
+}
+
+// FakeNetworkPodCIDR returns a fake Network of type PodCIDR.
+func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
+	return FakeNetwork("pod-cidr", PodCIDR, map[string]string{
+		liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
+		liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypePodCIDR),
+	})
 }
 
 // FakeNetworkServiceCIDR returns a fake Network of type ServiceCIDR.
 func FakeNetworkServiceCIDR() *ipamv1alpha1.Network {
-	return &ipamv1alpha1.Network{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "service-cidr",
-			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeServiceCIDR),
-				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
-			},
-		},
-		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1beta1.CIDR(ServiceCIDR),
-		},
-		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1beta1.CIDR(ServiceCIDR),
-		},
-	}
+	return FakeNetwork("service-cidr", ServiceCIDR, map[string]string{
+		liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
+		liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeServiceCIDR),
+	})
 }
 
 // FakeNetworkExternalCIDR returns a fake Network of type ExternalCIDR.
 func FakeNetworkExternalCIDR() *ipamv1alpha1.Network {
-	return &ipamv1alpha1.Network{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "external-cidr",
-			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeExternalCIDR),
-			},
-		},
-		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1beta1.CIDR(ExternalCIDR),
-		},
-		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1beta1.CIDR(ExternalCIDR),
-		},
-	}
+	return FakeNetwork("external-cidr", ExternalCIDR, map[string]string{
+		liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeExternalCIDR),
+	})
 }
 
 // FakeNetworkInternalCIDR returns a fake Network of type InternalCIDR.
 func FakeNetworkInternalCIDR() *ipamv1alpha1.Network {
-	return &ipamv1alpha1.Network{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "internal-cidr",
-			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeInternalCIDR),
-			},
-		},
-		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1beta1.CIDR(InternalCIDR),
-		},
-		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1beta1.CIDR(InternalCIDR),
-		},
-	}
+	return FakeNetwork("internal-cidr", InternalCIDR, map[string]string{
+		liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeInternalCIDR),
+	})
 }
 
 // FakeNetworkReservedSubnet returns a fake Network of type Reserved Subnet.
 func FakeNetworkReservedSubnet(i int) *ipamv1alpha1.Network {
-	return &ipamv1alpha1.Network{
+	return FakeNetwork(ReservedSubnets[i], ReservedSubnets[i], map[string]string{
+		liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeReserved),
+		liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
+	})
+}
+
+// FakeIP returns a fake IP.
+func FakeIP(name, ip, cidr string, labels map[string]string, networkRef *corev1.ObjectReference, masquerade bool) *ipamv1alpha1.IP {
+	return &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ReservedSubnets[i],
+			Name:      name,
 			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeReserved),
-				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
-			},
+			Labels:    labels,
 		},
-		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1beta1.CIDR(ReservedSubnets[i]),
+		Spec: ipamv1alpha1.IPSpec{
+			IP:         networkingv1beta1.IP(ip),
+			NetworkRef: networkRef,
+			Masquerade: &masquerade,
+		},
+		Status: ipamv1alpha1.IPStatus{
+			IP:   networkingv1beta1.IP(ip),
+			CIDR: networkingv1beta1.CIDR(cidr),
 		},
 	}
 }
