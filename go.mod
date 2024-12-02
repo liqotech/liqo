@@ -1,6 +1,6 @@
 module github.com/liqotech/liqo
 
-go 1.23.1
+go 1.23.3
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
@@ -56,7 +56,7 @@ require (
 	k8s.io/metrics v0.31.2
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/aws-iam-authenticator v0.6.27
-	sigs.k8s.io/controller-runtime v0.19.0
+	sigs.k8s.io/controller-runtime v0.19.2
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
 	sigs.k8s.io/yaml v1.4.0
 )
