@@ -66,10 +66,10 @@ var _ = Describe("Sync routine tests", func() {
 			BeforeEach(func() {
 				// Add in-cluster networks
 				client := fakeClientBuilder.WithObjects(
-					testutil.FakeNetwork("net1", "10.0.0.0/16", map[string]string{}),
-					testutil.FakeNetwork("net2", "10.1.0.0/16", map[string]string{}),
-					testutil.FakeNetwork("net3", "10.2.0.0/16", map[string]string{}),
-					testutil.FakeNetwork("net4", "10.4.0.0/16", map[string]string{}),
+					testutil.FakeNetwork("net1", testNamespace, "10.0.0.0/16", nil),
+					testutil.FakeNetwork("net2", testNamespace, "10.1.0.0/16", nil),
+					testutil.FakeNetwork("net3", testNamespace, "10.2.0.0/16", nil),
+					testutil.FakeNetwork("net4", testNamespace, "10.4.0.0/16", nil),
 				).Build()
 
 				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
@@ -149,11 +149,11 @@ var _ = Describe("Sync routine tests", func() {
 			BeforeEach(func() {
 				// Add in-cluster IPs
 				client := fakeClientBuilder.WithObjects(
-					testutil.FakeNetwork("net1", "10.0.0.0/24", map[string]string{}),
+					testutil.FakeNetwork("net1", testNamespace, "10.0.0.0/24", nil),
 
-					testutil.FakeIP("ip1", "10.0.0.0", "10.0.0.0/24", nil, nil, false),
-					testutil.FakeIP("ip2", "10.0.0.1", "10.0.0.0/24", nil, nil, false),
-					testutil.FakeIP("ip3", "10.0.0.2", "10.0.0.0/24", nil, nil, false),
+					testutil.FakeIP("ip1", testNamespace, "10.0.0.0", "10.0.0.0/24", nil, nil, false),
+					testutil.FakeIP("ip2", testNamespace, "10.0.0.1", "10.0.0.0/24", nil, nil, false),
+					testutil.FakeIP("ip3", testNamespace, "10.0.0.2", "10.0.0.0/24", nil, nil, false),
 				).Build()
 
 				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
