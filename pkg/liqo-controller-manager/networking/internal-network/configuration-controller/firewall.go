@@ -27,7 +27,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
-	"github.com/liqotech/liqo/pkg/ipam/utils"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -94,7 +94,7 @@ func forgeFirewallChain() *firewallapi.Chain {
 }
 
 func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
-	unknownSourceIP, err := utils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
+	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
