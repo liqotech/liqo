@@ -10,16 +10,37 @@ changelog:
       - kind/breaking
     - title: ":rocket: New Features"
       labels:
-      - kind/feature
+      - kind/feat
     - title: ":bug: Bug Fixes"
       labels:
-      - kind/bug
+      - kind/fix
     - title: ":broom: Code Refactoring"
       labels:
-      - kind/cleanup
+      - kind/refactor
     - title: ":memo: Documentation"
       labels:
       - kind/docs
+    - title: ":lipstick: Code Style"
+      labels:
+      - kind/style
+    - title: ":racehorse: Performance Improvement"
+      labels:
+      - kind/perf
+    - title: ":white_check_mark: Tests"
+      labels:
+      - kind/test
+    - title: ":truck: Dependencies Management"
+      labels:
+      - kind/chore
+    - title: ":package: Builds Management"
+      labels:
+      - kind/build
+    - title: ":construction_worker: CI/CD"
+      labels:
+      - kind/ci
+    - title: ":rewind: Reverts Previous Changes"
+      labels:
+      - kind/revert
     - title: Other Changes
       labels:
       - "*"

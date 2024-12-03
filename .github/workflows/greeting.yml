@@ -30,7 +30,15 @@ jobs:
 
             Make sure this PR appears in the **${{ github.event.repository.name }} changelog**, adding one of the following **labels**:
             * `kind/breaking`:      :boom: Breaking Change
-            * `kind/feature`:       :rocket: New Feature
-            * `kind/bug`:           :bug: Bug Fix
-            * `kind/cleanup`:       :broom: Code Refactoring
+            * `kind/feat`:          :rocket: New Feature
+            * `kind/fix`:           :bug: Bug Fix
+            * `kind/refactor`:      :broom: Code Refactoring
             * `kind/docs`:          :memo: Documentation
+            * `kind/style`:         :lipstick: Code Style
+            * `kind/perf`:          :racehorse: Performance Improvement
+            * `kind/test`:          :white_check_mark: Tests
+            * `kind/chore`:         :truck: Dependencies Management
+            * `kind/build`:         :package: Builds Management
+            * `kind/ci`:            :construction_worker: CI/CD
+            * `kind/revert`:        :rewind: Reverts Previous Changes
+
