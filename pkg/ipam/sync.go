@@ -41,7 +41,7 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 		func(ctx context.Context) (done bool, err error) {
 			lipam.mutex.Lock()
 			defer lipam.mutex.Unlock()
-			klog.Info("Started IPAM cache sync routine")
+			klog.V(3).Info("Started IPAM cache sync routine")
 
 			// Sync networks.
 			if err := lipam.syncNetworks(ctx); err != nil {
@@ -53,7 +53,7 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 				return false, err
 			}
 
-			klog.Info("Completed IPAM cache sync routine")
+			klog.V(3).Info("Completed IPAM cache sync routine")
 			return false, nil
 		})
 	if err != nil {
