@@ -121,6 +121,33 @@ func networkRelease(prefix netip.Prefix, node *node) *netip.Prefix {
 	return result
 }
 
+func networkIsAvailable(prefix netip.Prefix, node *node) bool {
+	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
+		if node.left != nil && node.left.left.isSplitted() {
+			return false
+		}
+		if node.right != nil && node.right.isSplitted() {
+			return false
+		}
+
+		// If node children are not splitted and node is not acquired, then network is available
+		return !node.acquired
+	}
+
+	if node.left == nil && node.right == nil {
+		return true
+	}
+
+	if node.left != nil && node.left.prefix.Overlaps(prefix) && !node.left.acquired {
+		return networkIsAvailable(prefix, node.left)
+	}
+	if node.right != nil && node.right.prefix.Overlaps(prefix) && !node.right.acquired {
+		return networkIsAvailable(prefix, node.right)
+	}
+
+	return false
+}
+
 func listNetworks(node *node) []netip.Prefix {
 	if node == nil {
 		return nil
@@ -308,13 +335,13 @@ func (n *node) toGraphviz() error {
 	n.toGraphvizRecursive(&sb)
 	sb.WriteString("}\n")
 
-	if _, err := os.Stat("/graphviz"); os.IsNotExist(err) {
-		if err := os.Mkdir("/graphviz", 0o700); err != nil {
+	if _, err := os.Stat("./graphviz"); os.IsNotExist(err) {
+		if err := os.Mkdir("./graphviz", 0o700); err != nil {
 			return err
 		}
 	}
 
-	filePath := filepath.Clean("/graphviz/" + strings.NewReplacer("/", "_", ".", "_").Replace(n.prefix.String()) + ".dot")
+	filePath := filepath.Clean("./graphviz/" + strings.NewReplacer("/", "_", ".", "_").Replace(n.prefix.String()) + ".dot")
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
