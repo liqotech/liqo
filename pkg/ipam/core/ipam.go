@@ -63,8 +63,10 @@ func (ipam *Ipam) NetworkAcquire(size int) *netip.Prefix {
 // It returns the allocated network or nil if the network is not available.
 func (ipam *Ipam) NetworkAcquireWithPrefix(prefix netip.Prefix) *netip.Prefix {
 	for i := range ipam.roots {
-		if result := allocateNetworkWithPrefix(prefix, &ipam.roots[i]); result != nil {
-			return result
+		if isPrefixChildOf(ipam.roots[i].prefix, prefix) {
+			if result := allocateNetworkWithPrefix(prefix, &ipam.roots[i]); result != nil {
+				return result
+			}
 		}
 	}
 	return nil
@@ -95,17 +97,12 @@ func (ipam *Ipam) ListNetworks() []netip.Prefix {
 // NetworkIsAvailable checks if the network with the given prefix is allocated.
 // It returns false if the network is allocated or there is no suitable pool, true otherwise.
 func (ipam *Ipam) NetworkIsAvailable(prefix netip.Prefix) bool {
-	node, err := ipam.search(prefix)
-	if err != nil {
-		return false
+	for i := range ipam.roots {
+		if isPrefixChildOf(ipam.roots[i].prefix, prefix) {
+			return networkIsAvailable(prefix, &ipam.roots[i])
+		}
 	}
-	if node == nil {
-		return true
-	}
-	if node.left != nil || node.right != nil {
-		return false
-	}
-	return !node.acquired
+	return false
 }
 
 // IPAcquire allocates an IP address from the given prefix.
