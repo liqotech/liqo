@@ -102,6 +102,9 @@ func (ipam *Ipam) NetworkIsAvailable(prefix netip.Prefix) bool {
 	if node == nil {
 		return true
 	}
+	if node.left != nil || node.right != nil {
+		return false
+	}
 	return !node.acquired
 }
 
