@@ -58,6 +58,13 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
+	// To ease the experience for most users, we disable the namespace and remote-namespace flags
+	// so that resources are created according to the default Liqo logic.
+	// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
+	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
+	o.LocalFactory.Namespace = ""
+	o.RemoteFactory.Namespace = ""
+
 	// Get consumer clusterID
 	o.consumerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.LocalFactory.CRClient, o.LocalFactory.LiqoNamespace)
 	if err != nil {
