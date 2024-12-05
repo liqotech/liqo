@@ -7,7 +7,7 @@ metadata:
   labels:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: PostDelete
     {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
