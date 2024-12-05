@@ -76,6 +76,13 @@ func (o *Options) RunPeer(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
+	// To ease the experience for most users, we disable the namespace and remote-namespace flags
+	// so that resources are created according to the default Liqo logic.
+	// Advanced users can use the individual commands (e.g., liqoctl init, liqoctl connect, etc..) to
+	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
+	o.LocalFactory.Namespace = ""
+	o.RemoteFactory.Namespace = ""
+
 	// Ensure networking
 	if !o.NetworkingDisabled {
 		if err := ensureNetworking(ctx, o); err != nil {
