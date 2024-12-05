@@ -38,6 +38,12 @@ const (
 	// APIServerProxyAppName label value that denotes the name of the liqo-api-server-proxy deployment.
 	APIServerProxyAppName = "proxy"
 
+	// OffloadingComponentKey is the label assigned to the Liqo components related to offloading.
+	OffloadingComponentKey = "offloading.liqo.io/component"
+
+	// NetworkingComponentKey is the label assigned to the Liqo components related to networking.
+	NetworkingComponentKey = "networking.liqo.io/component"
+
 	// IpamStorageResourceLabelKey is the constant representing
 	// the key of the label assigned to all IpamStorage resources.
 	IpamStorageResourceLabelKey = "ipam.liqo.io/ipamstorage"
