@@ -30,11 +30,7 @@ const CRBPrefix = "liqo-node-"
 
 // KubeletBaseLabels are the static labels that are set on every VirtualKubelet.
 var KubeletBaseLabels = map[string]string{
-	consts.K8sAppNameKey:      "virtual-kubelet",
-	consts.K8sAppInstanceKey:  "virtual-kubelet",
-	consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
-	consts.K8sAppComponentKey: "virtual-kubelet",
-	consts.K8sAppPartOfKey:    "liqo",
+	consts.OffloadingComponentKey: consts.VirtualKubeletComponentValue,
 }
 
 // ClusterRoleBindingLabels are the static labels that are set on every ClusterRoleBinding managed by Liqo.

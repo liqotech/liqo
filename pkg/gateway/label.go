@@ -15,6 +15,7 @@
 package gateway
 
 import (
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/route"
@@ -22,7 +23,7 @@ import (
 
 const (
 	// GatewayComponentKey is the key used to label the gateway pod.
-	GatewayComponentKey = "networking.liqo.io/component"
+	GatewayComponentKey = consts.NetworkingComponentKey
 
 	// GatewayComponentGateway is the key used to label the gateway pod.
 	GatewayComponentGateway = "gateway"
