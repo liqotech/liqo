@@ -12,7 +12,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/$COMPONENT
 
 
-FROM alpine:3.20.3
+FROM alpine:3.21.0
 
 RUN apk update && \
     apk add --no-cache ca-certificates && \
