@@ -49,6 +49,9 @@ type Cluster struct {
 	remote *factory.Factory
 	waiter *wait.Waiter
 
+	localNetworkNamespace  string
+	remoteNetworkNamespace string
+
 	localNamespaceManager  tenantnamespace.Manager
 	remoteNamespaceManager tenantnamespace.Manager
 
@@ -113,7 +116,10 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 		}
 	}
 
-	if c.local.Namespace == "" || c.local.Namespace == corev1.NamespaceDefault {
+	switch c.local.Namespace {
+	case "", corev1.NamespaceDefault:
+		// If the local namespace is not set or it is the default one, create or retrieve the tenant namespace and
+		// set it as the local network namespace.
 		var localTenantNs *corev1.Namespace
 
 		if createTenantNs {
@@ -130,13 +136,16 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 			}
 		}
 
-		// Set the local namespace to the tenant namespace.
-		c.local.Namespace = localTenantNs.Name
+		c.localNetworkNamespace = localTenantNs.Name
+	default:
+		c.localNetworkNamespace = c.local.Namespace
 	}
 
-	if c.remote.Namespace == "" || c.remote.Namespace == corev1.NamespaceDefault {
+	switch c.remote.Namespace {
+	case "", corev1.NamespaceDefault:
+		// If the remote namespace is not set or it is the default one, create or retrieve the tenant namespace and
+		// set it as the remote network namespace.
 		var remoteTenantNs *corev1.Namespace
-
 		if createTenantNs {
 			remoteTenantNs, err = c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID)
 			if err != nil {
@@ -151,7 +160,9 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 			}
 		}
 
-		c.remote.Namespace = remoteTenantNs.Name
+		c.remoteNetworkNamespace = remoteTenantNs.Name
+	default:
+		c.remoteNetworkNamespace = c.remote.Namespace
 	}
 
 	return nil
@@ -161,7 +172,7 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 	// Get network configuration.
 	s := c.local.Printer.StartSpinner("Retrieving network configuration")
-	conf, err := forge.ConfigurationForRemoteCluster(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
+	conf, err := forge.ConfigurationForRemoteCluster(ctx, c.local.CRClient, c.localNetworkNamespace, c.local.LiqoNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
@@ -175,7 +186,7 @@ func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 // SetupConfiguration sets up the network configuration.
 func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1beta1.Configuration) error {
 	s := c.local.Printer.StartSpinner("Setting up network configuration")
-	conf.Namespace = c.local.Namespace
+	conf.Namespace = c.localNetworkNamespace
 	confCopy := conf.DeepCopy()
 	_, err := resource.CreateOrUpdate(ctx, c.local.CRClient, conf, func() error {
 		if conf.Labels == nil {
@@ -387,7 +398,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, opts *forge.GwServerO
 	}
 
 	// Forge GatewayServer.
-	gwServer, err = forge.GatewayServer(c.local.Namespace, name, opts)
+	gwServer, err = forge.GatewayServer(c.localNetworkNamespace, name, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway server: %v", output.PrettyErr(err)))
 		return nil, err
@@ -437,7 +448,7 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, opts *forge.GwClientO
 		name = &gwClient.Name // if the GatewayClient already exists, keep its name
 	}
 
-	gwClient, err = forge.GatewayClient(c.local.Namespace, name, opts)
+	gwClient, err = forge.GatewayClient(c.localNetworkNamespace, name, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway client: %v", output.PrettyErr(err)))
 		return nil, err
@@ -469,7 +480,7 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 		name = &pk.Name // if the PublicKey already exists, keep its name
 	}
 
-	pubKey, err := forge.PublicKey(c.local.Namespace, name, remoteClusterID, key)
+	pubKey, err := forge.PublicKey(c.localNetworkNamespace, name, remoteClusterID, key)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging public key: %v", output.PrettyErr(err)))
 		return err
