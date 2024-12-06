@@ -7,7 +7,6 @@ metadata:
   labels:
     {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
-    argocd.argoproj.io/hook: PostDelete
     {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 spec:
   template:
