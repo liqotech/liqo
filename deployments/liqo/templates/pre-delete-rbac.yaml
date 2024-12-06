@@ -17,6 +17,7 @@ metadata:
   labels:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
+    argocd.argoproj.io/hook: PostDelete
   {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 subjects:
   - kind: ServiceAccount
@@ -34,6 +35,7 @@ metadata:
   labels:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
+    argocd.argoproj.io/hook: PostDelete
   {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $predelete))) }}
 ---
@@ -44,5 +46,6 @@ metadata:
   labels:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
+    argocd.argoproj.io/hook: PostDelete
   {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 {{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $predelete))) }}
