@@ -29,7 +29,7 @@ Ensure you selected the correct target cluster before issuing *liqoctl* commands
 ## Requirements
 
 The peering command requires the user to provide the kubeconfig of **both** *consumer* and *provider* clusters, as it will apply resources on both clusters.
-To perform a peering without having access to both clusters, you need to manually apply on your cluster the resources and exchange with the remote cluster all the resources needed over out-of-band mediums (refer to the individual guides describing the procedure for each module).
+To perform a peering without having access to both clusters, you need to manually apply on your cluster the resources and exchange with the remote cluster all the resources needed over out-of-band mediums (refer to the [individual guides](../advanced/manual-peering.md) describing the procedure for each module).
 
 ## Performed steps
 
