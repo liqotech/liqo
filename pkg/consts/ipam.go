@@ -14,13 +14,18 @@
 
 package consts
 
+import "time"
+
 // NetworkType indicates the type of Network.
 type NetworkType string
 
 const (
 	// IpamPort is the port used by the IPAM gRPC server.
 	IpamPort = 6000
-
+	// SyncInterval is the frequency at which the IPAM should periodically sync its status.
+	SyncInterval = 2 * time.Minute
+	// SyncGracePeriod is the time the IPAM sync routine should wait before performing a deletion.
+	SyncGracePeriod = 30 * time.Second
 	// NetworkNotRemappedLabelKey is the label key used to mark a Network that does not need CIDR remapping.
 	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
 	// NetworkNotRemappedLabelValue is the label value used to mark a Network that does not need CIDR remapping.
@@ -45,6 +50,11 @@ const (
 	IPTypeAPIServer = "api-server"
 	// IPTypeAPIServerProxy is the constant representing an IP of type APIServerProxy.
 	IPTypeAPIServerProxy = "api-server-proxy"
+
+	// NetworkNamespaceLabelKey is the label key used to indicate the namespace of a Network.
+	NetworkNamespaceLabelKey = "ipam.liqo.io/network-namespace"
+	// NetworkNameLabelKey is the label key used to indicate the name of a Network.
+	NetworkNameLabelKey = "ipam.liqo.io/network-name"
 
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"

@@ -97,10 +97,31 @@ func (r *IPReconciler) handleAssociatedService(ctx context.Context, ip *ipamv1al
 	return nil
 }
 
+// ensureAssociatedServiceAbsence ensures that the service associated to the IP (and its endpointslices) does not exist.
+func (r *IPReconciler) ensureAssociatedServiceAbsence(ctx context.Context, ip *ipamv1alpha1.IP) error {
+	svc := v1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name:      ip.Name,
+		Namespace: ip.Namespace,
+	}}
+	if err := ensureResourceAbsence(ctx, r.Client, &svc, "service"); err != nil {
+		return err
+	}
+
+	eps := discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{
+		Name:      ip.Name,
+		Namespace: ip.Namespace,
+	}}
+	if err := ensureResourceAbsence(ctx, r.Client, &eps, "endpointslice"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // enforceResource ensures that the given resource exists.
 // It either creates or update the resource.
-func enforceResource(ctx context.Context, r client.Client, obj client.Object, mutateFn controllerutil.MutateFn, resourceKind string) error {
-	op, err := resource.CreateOrUpdate(ctx, r, obj, mutateFn)
+func enforceResource(ctx context.Context, cl client.Client, obj client.Object, mutateFn controllerutil.MutateFn, resourceKind string) error {
+	op, err := resource.CreateOrUpdate(ctx, cl, obj, mutateFn)
 	if err != nil {
 		klog.Errorf("error while creating/updating %s %q (operation: %s): %v", resourceKind, obj.GetName(), op, err)
 		return err
@@ -111,8 +132,8 @@ func enforceResource(ctx context.Context, r client.Client, obj client.Object, mu
 
 // ensureResourceAbsence ensures that the given resource does not exist.
 // If the resource does not exist, it does nothing.
-func ensureResourceAbsence(ctx context.Context, r client.Client, obj client.Object, resourceKind string) error {
-	err := r.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+func ensureResourceAbsence(ctx context.Context, cl client.Client, obj client.Object, resourceKind string) error {
+	err := cl.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
 	switch {
 	case err != nil && !apierrors.IsNotFound(err):
 		klog.Errorf("error while getting %s %q: %v", resourceKind, obj.GetName(), err)
@@ -121,7 +142,7 @@ func ensureResourceAbsence(ctx context.Context, r client.Client, obj client.Obje
 		// The resource does not exist, do nothing.
 		klog.V(6).Infof("%s %q does not exist. Nothing to do", resourceKind, obj.GetName())
 	default:
-		if err := r.Delete(ctx, obj); err != nil {
+		if err := client.IgnoreNotFound(cl.Delete(ctx, obj)); err != nil {
 			klog.Errorf("error while deleting %s %q: %v", resourceKind, obj.GetName(), err)
 			return err
 		}

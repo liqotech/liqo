@@ -16,11 +16,14 @@ package modules
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
@@ -38,6 +41,7 @@ import (
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/ip-controller"
 	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 // NetworkingOption defines the options to setup the Networking module.
@@ -46,7 +50,7 @@ type NetworkingOption struct {
 	Factory   *dynamicutils.RunnableFactory
 
 	LiqoNamespace string
-	IpamClient    ipam.IpamClient
+	IpamClient    ipam.IPAMClient
 
 	GatewayServerResources         []string
 	GatewayClientResources         []string
@@ -61,7 +65,13 @@ type NetworkingOption struct {
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
-func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *NetworkingOption) error {
+func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedClient client.Client, opts *NetworkingOption) error {
+	// Initialize reserved networks
+	if err := initializeReservedNetworks(ctx, uncachedClient, opts.IpamClient); err != nil {
+		klog.Errorf("Unable to initialize reserved networks: %v", err)
+		return err
+	}
+
 	networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
 	if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
 		klog.Errorf("Unable to start the networkReconciler: %v", err)
@@ -69,13 +79,13 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 	}
 
 	ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
-	if err := ipReconciler.SetupWithManager(ctx, mgr, opts.IPWorkers); err != nil {
+	if err := ipReconciler.SetupWithManager(mgr, opts.IPWorkers); err != nil {
 		klog.Errorf("Unable to start the ipReconciler: %v", err)
 		return err
 	}
 
 	cfgReconciler := configuration.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
-		mgr.GetEventRecorderFor("configuration-controller"), opts.IpamClient)
+		mgr.GetEventRecorderFor("configuration-controller"))
 	if err := cfgReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("unable to create controller configurationReconciler: %s", err)
 		return err
@@ -209,5 +219,76 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		}
 	}
 
+	return nil
+}
+
+func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClient ipam.IPAMClient) error {
+	var networksToReserve []ipamv1alpha1.Network
+
+	// PodCIDR is a special case of reserved network
+	podCidr, err := ipamutils.GetPodCIDRNetwork(ctx, cl)
+	if err != nil {
+		return err
+	}
+	networksToReserve = append(networksToReserve, *podCidr)
+
+	// ServiceCIDR is a special case of reserved network
+	serviceCidr, err := ipamutils.GetServiceCIDRNetwork(ctx, cl)
+	if err != nil {
+		return err
+	}
+	networksToReserve = append(networksToReserve, *serviceCidr)
+
+	// Get the reserved networks
+	reservedNetworks, err := ipamutils.GetReservedSubnetNetworks(ctx, cl)
+	if err != nil {
+		return err
+	}
+	networksToReserve = append(networksToReserve, reservedNetworks...)
+
+	// Reserve the networks and fill their status CIDR.
+	for i := range networksToReserve {
+		nw := &networksToReserve[i]
+
+		// If the status CIDR is already set, we do not need to reserve the network
+		// as it will be reserved when the ipam server is initialized.
+		if nw.Status.CIDR != "" {
+			continue
+		}
+
+		if ipamClient == nil {
+			nw.Status.CIDR = nw.Spec.CIDR
+		} else {
+			// First check if the network is already reserved
+			res, err := ipamClient.NetworkIsAvailable(ctx, &ipam.NetworkAvailableRequest{
+				Cidr: nw.Spec.CIDR.String(),
+			})
+			if err != nil {
+				return fmt.Errorf("IPAM: %w", err)
+			}
+
+			if res.Available {
+				// Network is not reserved, reserve it
+				_, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
+					Cidr:         nw.Spec.CIDR.String(),
+					Immutable:    true,
+					PreAllocated: nw.Spec.PreAllocated,
+				})
+				if err != nil {
+					return fmt.Errorf("IPAM: %w", err)
+				}
+			}
+
+			// Since reserved network must not be remapped (immutable), we can set the status CIDR to the spec CIDR
+			nw.Status.CIDR = nw.Spec.CIDR
+		}
+
+		if err := cl.Status().Update(ctx, nw); err != nil {
+			return fmt.Errorf("unable to update the reserved network %s: %w", nw.Name, err)
+		}
+		klog.Infof("Updated reserved Network %q status (spec: %s | status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
+	}
+
+	klog.Info("Reserved networks initialized")
 	return nil
 }

@@ -41,11 +41,9 @@ rules:
 - apiGroups:
   - ipam.liqo.io
   resources:
-  - ipamstorages
+  - ips
+  - networks
   verbs:
-  - create
   - get
   - list
-  - patch
-  - update
   - watch

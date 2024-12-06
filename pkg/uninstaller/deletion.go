@@ -83,20 +83,3 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 
 	return nil
 }
-
-// DeleteIpamStorage deletes the IpamStorage installed.
-func DeleteIpamStorage(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(ipamv1alpha1.IpamStorageGroupVersionResource)
-	unstructured, err := r1.List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, item := range unstructured.Items {
-		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}

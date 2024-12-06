@@ -70,7 +70,7 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) paths="./cmd/telemetry" rbac:roleName=liqo-telemetry output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-telemetry-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-telemetry-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="{./pkg/gateway/...,./cmd/gateway/...,./pkg/firewall/...,./pkg/route/...}" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-gateway-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="{./cmd/fabric/...,./pkg/firewall/...,./pkg/route/...,./pkg/fabric/...}" rbac:roleName=liqo-fabric output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-fabric-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-fabric-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./cmd/ipam/" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-ipam-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="{./cmd/ipam/...,./pkg/ipam/...}" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-ipam-ClusterRole.yaml
 
 # Install gci if not available
 gci:
@@ -162,26 +162,18 @@ generate-groups:
 # Generate gRPC files
 grpc: protoc
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/ipam/ipam.proto
-	$(PROTOC) --go_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go_opt=paths=source_relative \
-			  --go-grpc_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go-grpc_opt=paths=source_relative \
-			  -I pkg/liqo-controller-manager/resource-request-controller/resource-monitors \
-			  pkg/liqo-controller-manager/resource-request-controller/resource-monitors/resource-reader.proto 
 
 protoc:
 ifeq (, $(shell which protoc))
 	@{ \
 	PB_REL="https://github.com/protocolbuffers/protobuf/releases" ;\
-	version=3.15.5 ;\
+	version=28.3 ;\
 	arch=x86_64 ;\
 	curl -LO $${PB_REL}/download/v$${version}/protoc-$${version}-linux-$${arch}.zip ;\
 	unzip protoc-$${version}-linux-$${arch}.zip -d $${HOME}/.local ;\
 	rm protoc-$${version}-linux-$${arch}.zip ;\
-	PROTOC_TMP_DIR=$$(mktemp -d) ;\
-	cd $$PROTOC_TMP_DIR ;\
-	go mod init tmp ;\
-	go get google.golang.org/protobuf/cmd/protoc-gen-go ;\
-	go get google.golang.org/grpc/cmd/protoc-gen-go-grpc ;\
-	rm -rf $$PROTOC_TMP_DIR ;\
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest ;\
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest ;\
 	}
 endif
 PROTOC=$(shell which protoc)

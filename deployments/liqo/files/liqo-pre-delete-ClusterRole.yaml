@@ -50,7 +50,6 @@ rules:
 - apiGroups:
   - ipam.liqo.io
   resources:
-  - ipamstorages
   - ips
   - networks
   verbs:

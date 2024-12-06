@@ -61,7 +61,6 @@ func init() {
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;
-// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ipamstorages,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;list;watch;patch;update;delete;
 
@@ -131,11 +130,6 @@ func main() {
 
 	if err := uninstaller.DeleteNetworks(ctx, dynClient); err != nil {
 		klog.Errorf("Unable to delete Network CIDRs: %s", err)
-		os.Exit(1)
-	}
-
-	if err := uninstaller.DeleteIpamStorage(ctx, dynClient); err != nil {
-		klog.Errorf("Unable to delete IpamStorage: %s", err)
 		os.Exit(1)
 	}
 

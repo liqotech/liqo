@@ -16,27 +16,18 @@ package ipam
 
 import (
 	"time"
-
-	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
-// Options contains the options for the IPAM.
+// Options contains the options for the ipam pod.
 type Options struct {
-	PodCIDR     args.CIDR
-	ServiceCIDR args.CIDR
+	EnableLeaderElection    bool
+	LeaderElectionNamespace string
+	LeaderElectionName      string
+	LeaseDuration           time.Duration
+	RenewDeadline           time.Duration
+	RetryPeriod             time.Duration
+	PodName                 string
+	DeploymentName          string
 
-	AdditionalPools args.CIDRList
-	ReservedPools   args.CIDRList
-
-	LeaseEnabled       bool
-	LeaseDuration      time.Duration
-	LeaseRenewDeadline time.Duration
-	LeaseRetryPeriod   time.Duration
-
-	LabelLeader bool
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions() *Options {
-	return &Options{}
+	ServerOpts ServerOptions
 }
