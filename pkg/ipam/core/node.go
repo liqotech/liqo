@@ -144,7 +144,6 @@ func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 			return false
 		}
 
-		fmt.Println("AAAAAAAAAAAAAAAAAAAA")
 		// If node children are not splitted and node is not acquired, then network is available
 		return !node.acquired
 	}
