@@ -3,12 +3,17 @@
 ## Introduction
 
 Liqoctl is the CLI tool to streamline the **installation** and **management** of Liqo.
+
 Specifically, it abstracts the creation and modification of Liqo-defined custom resources, allowing to:
 
-* **Install/uninstall** Liqo, wrapping the corresponding Helm commands and automatically retrieving the appropriate parameters based on the target cluster configuration.
+* **Install/uninstall** Liqo, wrapping the corresponding **Helm** commands and automatically retrieving the appropriate parameters based on the target cluster configuration.
 * Establish and revoke **peering** relationships towards remote clusters.
 * Enable and configure **workload offloading** on a per-namespace basis.
 * Retrieve the **status** of Liqo, as well as of given peering relationships and offloading setups.
+
+Liqoctl interacts with the **Kubernetes API server**. This means that you do not need to install it on the cluster nodes, but only on the machine from which you want to manage Liqo (like you do with `kubectl` or `helm`).
+
+![Peering architecture](/_static/images/installation/liqoctl/liqoctl.drawio.svg)
 
 ```{warning}
 Make sure to always **use the *liqoctl* version matching that of Liqo** installed (or to be installed) in your cluster(s).
