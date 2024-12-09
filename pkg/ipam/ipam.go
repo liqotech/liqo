@@ -56,7 +56,16 @@ func New(ctx context.Context, cl client.Client, roots []string, opts *ServerOpti
 	hs := health.NewServer()
 	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
-	ipam, err := ipamcore.NewIpam(roots)
+	prefixRoots := make([]netip.Prefix, len(roots))
+	for i, r := range roots {
+		p, err := netip.ParsePrefix(r)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse pool with prefix %q: %w", r, err)
+		}
+		prefixRoots[i] = p
+	}
+
+	ipam, err := ipamcore.NewIpam(prefixRoots)
 	if err != nil {
 		return nil, err
 	}

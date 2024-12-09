@@ -82,7 +82,7 @@ func allocateNetwork(size int, node *node) *netip.Prefix {
 }
 
 func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
-	if node.acquired || !node.prefix.Overlaps(prefix) {
+	if node.acquired || !isPrefixChildOf(node.prefix, prefix) {
 		return nil
 	}
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
@@ -105,15 +105,12 @@ func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
 		return allocateNetworkWithPrefix(prefix, node.right)
 	}
 
+	// This should never happen
 	return nil
 }
 
 func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) *netip.Prefix {
 	var result *netip.Prefix
-
-	if node == nil {
-		return nil
-	}
 
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() &&
 		node.lastUpdateTimestamp.Add(gracePeriod).Before(time.Now()) {
@@ -124,11 +121,10 @@ func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) 
 		}
 		return nil
 	}
-
-	if node.left != nil && node.left.prefix.Overlaps(prefix) {
+	if node.left != nil && isPrefixChildOf(node.left.prefix, prefix) {
 		result = networkRelease(prefix, node.left, gracePeriod)
 	}
-	if node.right != nil && node.right.prefix.Overlaps(prefix) {
+	if node.right != nil && isPrefixChildOf(node.right.prefix, prefix) {
 		result = networkRelease(prefix, node.right, gracePeriod)
 	}
 
@@ -138,10 +134,10 @@ func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) 
 
 func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
-		if node.left != nil && node.left.left.isSplitted() {
+		if node.left != nil && (node.left.isSplitted() || node.left.acquired) {
 			return false
 		}
-		if node.right != nil && node.right.isSplitted() {
+		if node.right != nil && (node.right.isSplitted() || node.right.acquired) {
 			return false
 		}
 
@@ -150,13 +146,13 @@ func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 	}
 
 	if node.left == nil && node.right == nil {
-		return true
+		return !node.acquired
 	}
 
-	if node.left != nil && node.left.prefix.Overlaps(prefix) && !node.left.acquired {
+	if node.left != nil && isPrefixChildOf(node.left.prefix, prefix) && !node.left.acquired {
 		return networkIsAvailable(prefix, node.left)
 	}
-	if node.right != nil && node.right.prefix.Overlaps(prefix) && !node.right.acquired {
+	if node.right != nil && isPrefixChildOf(node.right.prefix, prefix) && !node.right.acquired {
 		return networkIsAvailable(prefix, node.right)
 	}
 
@@ -164,10 +160,6 @@ func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 }
 
 func listNetworks(node *node) []netip.Prefix {
-	if node == nil {
-		return nil
-	}
-
 	if node.acquired {
 		return []netip.Prefix{node.prefix}
 	}
@@ -267,18 +259,14 @@ func (n *node) ipRelease(ip netip.Addr, gracePeriod time.Duration) *netip.Addr {
 }
 
 func search(prefix netip.Prefix, node *node) *node {
-	if node == nil {
-		return nil
-	}
-
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
 		return node
 	}
 
-	if node.left != nil && node.left.prefix.Overlaps(prefix) {
+	if node.left != nil && isPrefixChildOf(node.left.prefix, prefix) {
 		return search(prefix, node.left)
 	}
-	if node.right != nil && node.right.prefix.Overlaps(prefix) {
+	if node.right != nil && isPrefixChildOf(node.right.prefix, prefix) {
 		return search(prefix, node.right)
 	}
 
@@ -322,8 +310,6 @@ func (n *node) insert(nd nodeDirection, prefix netip.Prefix) {
 	case rightDirection:
 		n.right = &newNode
 		return
-	default:
-		return
 	}
 }
 
@@ -357,9 +343,8 @@ func (n *node) next(direction nodeDirection) *node {
 		return n.left
 	case rightDirection:
 		return n.right
-	default:
-		return nil
 	}
+	return nil
 }
 
 func (n *node) toGraphviz() error {
@@ -386,9 +371,6 @@ func (n *node) toGraphviz() error {
 }
 
 func (n *node) toGraphvizRecursive(sb *strings.Builder) {
-	if n == nil {
-		return
-	}
 	label := n.prefix.String()
 	if len(n.ips) > 0 {
 		ipsString := []string{}

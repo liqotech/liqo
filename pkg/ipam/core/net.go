@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 // convertByteSliceToString converts a slice of bytes to a comma-separated string.
@@ -30,12 +32,11 @@ func convertByteSliceToString(byteSlice []byte) string {
 }
 
 // setBit sets the bit at the given position to 1.
-func setBit(b, position byte) byte {
-	if position > 7 {
-		fmt.Println("Bit position out of range")
-		return b
+func setBit(b byte, position int) (byte, error) {
+	if position > 7 || position < 0 {
+		return b, fmt.Errorf("bit position out of range")
 	}
-	return b | (1 << (7 - position))
+	return b | (1 << (7 - position)), nil
 }
 
 func checkHostBitsZero(prefix netip.Prefix) error {
@@ -50,15 +51,11 @@ func checkHostBitsZero(prefix netip.Prefix) error {
 // the new position to 0 or 1 to retrieve the two subnets.
 func splitNetworkPrefix(prefix netip.Prefix) (left, right netip.Prefix) {
 	// We neer to check that the host bits are zero.
-	if err := checkHostBitsZero(prefix); err != nil {
-		panic("Host bits must be zero")
-	}
+	runtime.Must(checkHostBitsZero(prefix))
 
 	// We need to convert the prefix to a byte slice to manipulate it.
 	bin, err := prefix.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
+	runtime.Must(err)
 
 	// We need to get the mask length to know where to split the prefix.
 	maskLen := bin[len(bin)-1]
@@ -75,7 +72,8 @@ func splitNetworkPrefix(prefix netip.Prefix) (left, right netip.Prefix) {
 	bitIndex := maskLen % 8
 
 	// We set the bit at the mask length position to 1.
-	bin[byteIndex] = setBit(bin[byteIndex], bitIndex)
+	bin[byteIndex], err = setBit(bin[byteIndex], int(bitIndex))
+	runtime.Must(err)
 
 	// We forge and return the second splitted prefix.
 	right = netip.MustParsePrefix(
