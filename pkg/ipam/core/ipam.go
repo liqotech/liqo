@@ -247,5 +247,5 @@ func (ipam *Ipam) IPSetCreationTimestamp(addr netip.Addr, prefix netip.Prefix, c
 			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("IP address %s not found", addr)
 }

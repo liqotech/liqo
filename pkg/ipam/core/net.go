@@ -30,7 +30,7 @@ func convertByteSliceToString(byteSlice []byte) string {
 }
 
 // setBit sets the bit at the given position to 1.
-func setBit(b, position byte) byte {
+func setBit(b byte, position int) byte {
 	if position > 7 {
 		fmt.Println("Bit position out of range")
 		return b
@@ -75,7 +75,7 @@ func splitNetworkPrefix(prefix netip.Prefix) (left, right netip.Prefix) {
 	bitIndex := maskLen % 8
 
 	// We set the bit at the mask length position to 1.
-	bin[byteIndex] = setBit(bin[byteIndex], bitIndex)
+	bin[byteIndex] = setBit(bin[byteIndex], int(bitIndex))
 
 	// We forge and return the second splitted prefix.
 	right = netip.MustParsePrefix(

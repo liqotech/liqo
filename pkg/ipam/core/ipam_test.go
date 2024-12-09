@@ -42,6 +42,12 @@ var _ = Describe("Ipam", func() {
 		prefixOutOfPools = netip.MustParsePrefix("11.0.0.0/8")
 	)
 
+	BeforeEach(func() {
+		var err error
+		ipam, err = NewIpam(validPools)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	Context("Ipam Creation", func() {
 		When("Using valid pools", func() {
 			It("should create an Ipam object", func() {
@@ -85,6 +91,71 @@ var _ = Describe("Ipam", func() {
 				for _, childPrefix := range childPrefixes {
 					Expect(isPrefixChildOf(parentPrefix, childPrefix)).To(BeFalse())
 				}
+			})
+		})
+		When("forcing a network last update timestamp", func() {
+			var (
+				acquiredPrefix *netip.Prefix
+			)
+			BeforeEach(func() {
+				acquiredPrefix = ipam.NetworkAcquire(32)
+				Expect(acquiredPrefix).NotTo(BeNil())
+				Expect(ipam.NetworkIsAvailable(*acquiredPrefix)).To(BeFalse())
+			})
+			It("should succeed", func() {
+				newTime := time.Now().Add(time.Hour)
+				Expect(ipam.NetworkSetLastUpdateTimestamp(*acquiredPrefix, newTime)).Should(Succeed())
+				node := search(*acquiredPrefix, &ipam.roots[0])
+				Expect(node).NotTo(BeNil())
+				Expect(node.lastUpdateTimestamp).To(Equal(newTime))
+			})
+			It("should not succeed", func() {
+				Expect(ipam.NetworkSetLastUpdateTimestamp(prefixOutOfPools, time.Now())).ShouldNot(Succeed())
+
+				Expect(ipam.NetworkRelease(*acquiredPrefix, 0).String()).To(Equal(acquiredPrefix.String()))
+				Expect(ipam.NetworkIsAvailable(*acquiredPrefix)).To(BeTrue())
+
+				Expect(ipam.NetworkSetLastUpdateTimestamp(*acquiredPrefix, time.Now())).ShouldNot(Succeed())
+			})
+		})
+		When("forcing an IP creation timestamp", func() {
+			var (
+				acquiredPrefix *netip.Prefix
+				acquiredIP     *netip.Addr
+			)
+			BeforeEach(func() {
+				acquiredPrefix = ipam.NetworkAcquire(32)
+				Expect(acquiredPrefix).NotTo(BeNil())
+				Expect(ipam.NetworkIsAvailable(*acquiredPrefix)).To(BeFalse())
+
+				acquiredIP, err = ipam.IPAcquire(*acquiredPrefix)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(acquiredIP).NotTo(BeNil())
+				Expect(ipam.IPIsAllocated(*acquiredPrefix, *acquiredIP)).To(BeTrue())
+			})
+			It("should succeed", func() {
+				newTime := time.Now().Add(time.Hour)
+				Expect(ipam.IPSetCreationTimestamp(*acquiredIP, *acquiredPrefix, newTime)).Should(Succeed())
+				node := search(*acquiredPrefix, &ipam.roots[0])
+				Expect(node).NotTo(BeNil())
+				Expect(node.ips).Should(HaveLen(1))
+				Expect(node.ips[0].creationTimestamp).To(Equal(newTime))
+			})
+
+			It("should not succeed", func() {
+				Expect(ipam.IPSetCreationTimestamp(*acquiredIP, prefixOutOfPools, time.Now())).ShouldNot(Succeed())
+
+				releasedIP, err := ipam.IPRelease(*acquiredPrefix, *acquiredIP, 0)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(releasedIP).NotTo(BeNil())
+				Expect(ipam.IPIsAllocated(*acquiredPrefix, *acquiredIP)).To(BeFalse())
+
+				Expect(ipam.IPSetCreationTimestamp(*acquiredIP, *acquiredPrefix, time.Now())).ShouldNot(Succeed())
+
+				Expect(ipam.NetworkRelease(*acquiredPrefix, 0).String()).To(Equal(acquiredPrefix.String()))
+				Expect(ipam.NetworkIsAvailable(*acquiredPrefix)).To(BeTrue())
+
+				Expect(ipam.IPSetCreationTimestamp(*acquiredIP, *acquiredPrefix, time.Now())).ShouldNot(Succeed())
 			})
 		})
 	})
