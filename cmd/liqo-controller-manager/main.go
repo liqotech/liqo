@@ -274,7 +274,7 @@ func main() {
 			ipamClient = ipam.NewIpamClient(connection)
 		}
 
-		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
+		opts := &modules.NetworkingOption{
 			DynClient: dynClient,
 			Factory:   factory,
 
@@ -291,7 +291,9 @@ func main() {
 			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
 
 			GenevePort: *genevePort,
-		}); err != nil {
+		}
+
+		if err := modules.SetupNetworkingModule(ctx, mgr, uncachedClient, opts); err != nil {
 			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}
 	}

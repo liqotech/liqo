@@ -164,10 +164,13 @@ func (r *InternalNodeReconciler) genericEnqueuerfunc(ctx context.Context, _ clie
 		klog.Error(err)
 		return nil
 	}
+
 	var requests []reconcile.Request
 	for i := range internalNodes.Items {
+		iNode := &internalNodes.Items[i]
+
 		requests = append(requests, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(&internalNodes.Items[i]),
+			NamespacedName: client.ObjectKeyFromObject(iNode),
 		})
 	}
 	return requests
