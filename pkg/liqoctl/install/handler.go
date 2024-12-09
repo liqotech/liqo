@@ -392,7 +392,7 @@ func (o *Options) preProviderValues() map[string]interface{} {
 		},
 
 		"telemetry": map[string]interface{}{
-			"enable": !o.DisableTelemetry,
+			"enabled": !o.DisableTelemetry,
 		},
 	}
 }
