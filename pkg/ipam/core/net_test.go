@@ -36,7 +36,9 @@ var _ = Describe("Ipam low level utilities ", func() {
 
 				var b byte = 0b00000000
 				for i := range bytes {
-					Expect(setBit(b, i)).To(Equal(bytes[i]))
+					r, err := setBit(b, i)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(r).To(Equal(bytes[i]))
 				}
 			})
 
@@ -53,8 +55,30 @@ var _ = Describe("Ipam low level utilities ", func() {
 				}
 
 				for i := range bytes {
-					Expect(setBit(bytes[i], i)).To(Equal(byte(0b11111111)))
+					r, err := setBit(bytes[i], i)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(r).To(Equal(byte(0b11111111)))
 				}
+			})
+
+			It("should keep the byte unmodified", func() {
+				b := byte(0b00000000)
+
+				r, err := setBit(b, 8)
+				Expect(r).To(Equal(b))
+				Expect(err).To(HaveOccurred())
+
+				r, err = setBit(b, 9)
+				Expect(r).To(Equal(b))
+				Expect(err).To(HaveOccurred())
+
+				r, err = setBit(b, -1)
+				Expect(r).To(Equal(b))
+				Expect(err).To(HaveOccurred())
+
+				r, err = setBit(b, -2)
+				Expect(r).To(Equal(b))
+				Expect(err).To(HaveOccurred())
 			})
 		})
 	})

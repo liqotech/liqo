@@ -48,7 +48,7 @@ var _ = Describe("Ipam", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Context("Ipam Creation", func() {
+	Context("Ipam creation", func() {
 		When("Using valid pools", func() {
 			It("should create an Ipam object", func() {
 				ipam, err = NewIpam(validPools)
@@ -64,7 +64,7 @@ var _ = Describe("Ipam", func() {
 		})
 	})
 
-	Context("Ipam Utilities", func() {
+	Context("Ipam utilities", func() {
 		When("checking if a prefix is child of another one", func() {
 			It("should return true", func() {
 				parentPrefix := netip.MustParsePrefix("10.0.0.0/16")
@@ -236,6 +236,18 @@ var _ = Describe("Ipam", func() {
 					Expect(ipam.NetworkRelease(network, time.Second*5)).To(BeNil())
 				}
 			})
+
+			It("should not succeed (with subnet allocated)", func() {
+				subnetwork := netip.MustParsePrefix("10.0.0.0/30")
+				Expect(ipam.NetworkIsAvailable(subnetwork)).To(BeTrue())
+				Expect(ipam.NetworkAcquireWithPrefix(subnetwork)).NotTo(BeNil())
+				Expect(ipam.NetworkIsAvailable(subnetwork)).To(BeFalse())
+
+				network := netip.MustParsePrefix("10.0.0.0/24")
+				Expect(ipam.NetworkIsAvailable(network)).To(BeFalse())
+				Expect(ipam.NetworkRelease(network, 0)).To(BeNil())
+				Expect(ipam.NetworkIsAvailable(network)).To(BeFalse())
+			})
 		})
 
 		When("acquiring networks with prefix", func() {
@@ -369,6 +381,11 @@ var _ = Describe("Ipam", func() {
 					for i := 0; i < 3; i++ {
 						network := ipam.NetworkAcquire(size)
 						Expect(network).ShouldNot(BeNil())
+						for j := 0; j < 3; j++ {
+							addr, err := ipam.IPAcquire(*network)
+							Expect(err).NotTo(HaveOccurred())
+							Expect(addr).NotTo(BeNil())
+						}
 					}
 				}
 			})
