@@ -72,7 +72,7 @@ var _ = Describe("Sync routine tests", func() {
 					testutil.FakeNetwork("net4", testNamespace, "10.4.0.0/16", nil),
 				).Build()
 
-				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
+				ipamCore, err := ipamcore.NewIpam([]netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")})
 				Expect(err).To(BeNil())
 
 				// Populate the cache
@@ -156,7 +156,7 @@ var _ = Describe("Sync routine tests", func() {
 					testutil.FakeIP("ip3", testNamespace, "10.0.0.2", "10.0.0.0/24", nil, nil, false),
 				).Build()
 
-				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8"})
+				ipamCore, err := ipamcore.NewIpam([]netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")})
 				Expect(err).To(BeNil())
 
 				// Populate the cache
