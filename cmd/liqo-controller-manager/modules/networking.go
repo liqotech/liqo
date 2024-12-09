@@ -19,6 +19,7 @@ import (
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/pkg/ipam"
@@ -61,7 +62,7 @@ type NetworkingOption struct {
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
-func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *NetworkingOption) error {
+func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedClient client.Client, opts *NetworkingOption) error {
 	networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), opts.IpamClient)
 	if err := networkReconciler.SetupWithManager(mgr, opts.NetworkWorkers); err != nil {
 		klog.Errorf("Unable to start the networkReconciler: %v", err)
@@ -153,6 +154,12 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		})
 	if err := configurationReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the configurationReconciler: %v", err)
+		return err
+	}
+
+	// Before starting the Node reconciler, make sure that there are no "orphan" InternalNode resources.
+	if err := nodecontroller.SyncInternalNodes(ctx, uncachedClient); err != nil {
+		klog.Errorf("Unable to perform InternalNode synchronization: %v", err)
 		return err
 	}
 

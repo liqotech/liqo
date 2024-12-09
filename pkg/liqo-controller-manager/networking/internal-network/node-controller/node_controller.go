@@ -22,11 +22,11 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -63,13 +63,24 @@ func NewNodeReconciler(cl client.Client, s *runtime.Scheme, liqoNamespace string
 // Reconcile manage Node lifecycle.
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	node := &corev1.Node{}
-	if err = r.Get(ctx, req.NamespacedName, node); err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.Infof("Node %q not found", req.Name)
-			return ctrl.Result{}, nil
-		}
+	internalNode := &networkingv1beta1.InternalNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: req.Name,
+		},
+	}
+
+	if err = r.Get(ctx, req.NamespacedName, node); client.IgnoreNotFound(err) != nil {
 		klog.Errorf("Unable to get the Node %q: %s", req.Name, err)
 		return ctrl.Result{}, err
+	} else if apierrors.IsNotFound(err) || !node.DeletionTimestamp.IsZero() {
+		// If node has been deleted we need to remove the InternalNode resource
+		klog.Infof("Deleting InternalNode %v as there is no corresponding Node resource", req.Name)
+
+		if err := r.Client.Delete(ctx, internalNode); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to delete InternalNode %v: %w", req.Name, err)
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	cmDep, err := getters.GetControllerManagerDeployment(ctx, r.Client, r.liqoNamespace)
@@ -87,11 +98,6 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
 	}
 
-	internalNode := &networkingv1beta1.InternalNode{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: node.Name,
-		},
-	}
 	if _, err = resource.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
 		if internalNode.Spec.Interface.Gateway.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalNode); err != nil {
 			return err
@@ -103,7 +109,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		}
 		internalNode.Spec.Interface.Node.IP = networkingv1beta1.IP(ip.String())
 
-		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
+		return nil
 	}); err != nil {
 		klog.Errorf("Unable to create or update InternalNode %q: %s", internalNode.Name, err)
 		return ctrl.Result{}, err
@@ -121,8 +127,39 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNode).
 		Owns(&networkingv1beta1.InternalNode{}).
+		// We need to reconcile only physical Nodes as we need to apply the networking rules for each of them.
 		For(&corev1.Node{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
+}
+
+// SyncInternalNodes makes sure that at controller startup there are no "orphans" InternalNode, so without corresponding Node.
+func SyncInternalNodes(ctx context.Context, c client.Client) error {
+	// Check whether there is the corresponding Node for the given InternalNode
+	var internalNodeList networkingv1beta1.InternalNodeList
+	if err := c.List(ctx, &internalNodeList, &client.ListOptions{}); err != nil {
+		return fmt.Errorf("unable to list InternalNode resources: %w", err)
+	}
+
+	for i := range internalNodeList.Items {
+		internalNode := &internalNodeList.Items[i]
+		var ownerNode corev1.Node
+
+		internalNodeName := internalNode.GetName()
+		err := c.Get(ctx, types.NamespacedName{Name: internalNodeName}, &ownerNode)
+		switch {
+		case apierrors.IsNotFound(err):
+			// Delete the internal node as there is no corresponding node
+			klog.Infof("Deleting InternalNode %v as there is no corresponding Node resource", internalNodeName)
+			if err := c.Delete(ctx, internalNode); err != nil {
+				return fmt.Errorf("unable to delete InternalNode %v: %w", internalNodeName, err)
+			}
+		case err != nil:
+			return fmt.Errorf("unable to get corresponding Node for InternalNode %v: %w", internalNodeName, err)
+		}
+	}
+
+	return nil
 }
