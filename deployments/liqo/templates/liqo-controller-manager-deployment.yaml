@@ -99,9 +99,9 @@ spec:
           - --ipam-server={{ include "liqo.prefixedName" $ipamConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
           {{- end }}
-          - --enable-storage={{ .Values.storage.enable }}
+          - --enable-storage={{ .Values.storage.enabled }}
           - --webhook-port={{ .Values.webhook.port }}
-          {{- if .Values.storage.enable }}
+          {{- if .Values.storage.enabled }}
           - --virtual-storage-class-name={{ .Values.storage.virtualStorageClassName }}
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}

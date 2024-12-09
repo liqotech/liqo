@@ -66,7 +66,7 @@
 | ipam.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
-| metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting the resulting values as a property of the virtual kubelet running on the remote cluster. |
+| metricAgent.enabled | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.image.name | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
 | metricAgent.image.version | string | `""` | Custom version for the metricAgent image. If not specified, the global tag is used. |
 | metricAgent.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the metricAgent pod. |
@@ -138,15 +138,15 @@
 | offloading.reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs","loadbalancer.openstack.org/load-balancer-id"]` | List of annotations that must not be reflected on remote clusters. |
 | offloading.reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
 | offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
-| offloading.runtimeClass.enable | bool | `false` |  |
+| offloading.runtimeClass.enabled | bool | `false` |  |
 | offloading.runtimeClass.handler | string | `"liqo"` | Handler for the runtime class. |
 | offloading.runtimeClass.labels | object | `{}` | Labels for the runtime class. |
 | offloading.runtimeClass.name | string | `"liqo"` | Name of the runtime class to use for offloading. |
-| offloading.runtimeClass.nodeSelector | object | `{"enable":true,"labels":{"liqo.io/type":"virtual-node"}}` | Node selector for the runtime class. |
+| offloading.runtimeClass.nodeSelector | object | `{"enabled":true,"labels":{"liqo.io/type":"virtual-node"}}` | Node selector for the runtime class. |
 | offloading.runtimeClass.nodeSelector.labels | object | `{"liqo.io/type":"virtual-node"}` | Labels for the node selector. |
-| offloading.runtimeClass.tolerations | object | `{"enable":true,"tolerations":[{"effect":"NoExecute","key":"virtual-node.liqo.io/not-allowed","operator":"Exists"}]}` | Tolerations for the runtime class. |
+| offloading.runtimeClass.tolerations | object | `{"enabled":true,"tolerations":[{"effect":"NoExecute","key":"virtual-node.liqo.io/not-allowed","operator":"Exists"}]}` | Tolerations for the runtime class. |
 | offloading.runtimeClass.tolerations.tolerations | list | `[{"effect":"NoExecute","key":"virtual-node.liqo.io/not-allowed","operator":"Exists"}]` | Tolerations for the tolerations. |
-| openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
+| openshiftConfig.enabled | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
 | proxy.enabled | bool | `true` | Enable/Disable the proxy pod. This pod is mandatory to allow in-band peering and to connect to the consumer k8s api server from a remotly offloaded pod. |
@@ -161,14 +161,14 @@
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
-| requirements.kernel.disabled | bool | `false` | Enable/Disable the kernel requirements check. |
-| storage.enable | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
+| requirements.kernel.enabled | bool | `true` | Enable/Disable the kernel requirements check. |
+| storage.enabled | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | Name of the real storage class to use in the local cluster. |
 | storage.storageNamespace | string | `"liqo-storage"` | Namespace where liqo will deploy specific PVCs. Internal parameter, do not change. |
 | storage.virtualStorageClassName | string | `"liqo"` | Name to assign to the liqo virtual storage class. |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization. |
-| telemetry.enable | bool | `true` | Enable/Disable the telemetry collector. |
+| telemetry.enabled | bool | `true` | Enable/Disable the telemetry collector. |
 | telemetry.image.name | string | `"ghcr.io/liqotech/telemetry"` | Image repository for the telemetry pod. |
 | telemetry.image.version | string | `""` | Custom version for the telemetry image. If not specified, the global tag is used. |
 | telemetry.pod.annotations | object | `{}` | Annotations for the telemetry pod. |

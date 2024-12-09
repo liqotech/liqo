@@ -10,11 +10,6 @@ nameOverride: ""
 # -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
 fullnameOverride: ""
 
-requirements:
-  kernel:
-    # -- Enable/Disable the kernel requirements check.
-    disabled: false
-
 metrics:
   # -- Enable/Disable the metrics server in every liqo component.
   enabled: false
@@ -184,7 +179,7 @@ offloading:
   # by setting the "disableNetworkCheck" field in the resource Spec.
   disableNetworkCheck: false
   runtimeClass:
-    enable: false
+    enabled: false
     # -- Name of the runtime class to use for offloading.
     name: liqo
     # -- Annotations for the runtime class.
@@ -195,13 +190,13 @@ offloading:
     handler: liqo
     # -- Node selector for the runtime class.
     nodeSelector:
-      enable: true
+      enabled: true
       # -- Labels for the node selector.
       labels:
         liqo.io/type: virtual-node
     # -- Tolerations for the runtime class.
     tolerations:
-      enable: true
+      enabled: true
       # -- Tolerations for the tolerations.
       tolerations:
       - key: virtual-node.liqo.io/not-allowed
@@ -281,7 +276,7 @@ storage:
   # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to
   # offload your persistent volumes, while other clusters will be able to schedule their
   # persistent workloads on the current cluster.
-  enable: true
+  enabled: true
   # -- Name to assign to the liqo virtual storage class.
   virtualStorageClassName: liqo
   # -- Name of the real storage class to use in the local cluster.
@@ -507,7 +502,7 @@ metricAgent:
   # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics
   # (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting
   # the resulting values as a property of the virtual kubelet running on the remote cluster.
-  enable: true
+  enabled: true
   config:
     # -- Set the timeout for the metrics server.
     timeout:
@@ -540,7 +535,7 @@ metricAgent:
 
 telemetry:
   # -- Enable/Disable the telemetry collector.
-  enable: true
+  enabled: true
   pod:
     # -- Annotations for the telemetry pod.
     annotations: {}
@@ -651,11 +646,16 @@ proxy:
     # -- Port used by the proxy pod.
     listeningPort: 8118
 
+requirements:
+  kernel:
+    # -- Enable/Disable the kernel requirements check.
+    enabled: true
+
 # OpenShift-specific configurations.
 openshiftConfig:
   # -- Enable/Disable the OpenShift support, enabling Openshift-specific resources,
   # and setting the pod security contexts in a way that is compatible with Openshift.
-  enable: false
+  enabled: false
   # -- Security context configurations granted to the virtual kubelet in the local cluster.
   # The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments.
   # Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when

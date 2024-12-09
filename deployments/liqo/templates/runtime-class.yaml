@@ -1,6 +1,6 @@
 {{- $runtimeConfig := (merge (dict "name" "runtimeclass" "module" "runtimeclass") .) -}}
 
-{{- if .Values.offloading.runtimeClass.enable }}
+{{- if .Values.offloading.runtimeClass.enabled }}
 
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -17,11 +17,11 @@ metadata:
   name: {{ .Values.offloading.runtimeClass.name }}
 handler: {{ .Values.offloading.runtimeClass.handler }}
 scheduling:
-  {{- if .Values.offloading.runtimeClass.nodeSelector.enable }}
+  {{- if .Values.offloading.runtimeClass.nodeSelector.enabled }}
   nodeSelector:
     {{- toYaml .Values.offloading.runtimeClass.nodeSelector.labels | nindent 4 }}
   {{- end }}
-  {{- if .Values.offloading.runtimeClass.tolerations.enable }}
+  {{- if .Values.offloading.runtimeClass.tolerations.enabled }}
   tolerations:
     {{- toYaml .Values.offloading.runtimeClass.tolerations.tolerations | nindent 4 }}
   {{- end }}

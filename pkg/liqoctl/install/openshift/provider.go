@@ -71,7 +71,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"openshiftConfig": map[string]interface{}{
-			"enable": true,
+			"enabled": true,
 		},
 	}
 }

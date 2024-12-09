@@ -1,4 +1,4 @@
-{{- if .Values.storage.enable -}}
+{{- if .Values.storage.enabled -}}
 
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
