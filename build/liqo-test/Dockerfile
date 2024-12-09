@@ -22,5 +22,6 @@ ENTRYPOINT [ "go", "test" ]
 
 # Remove the -count=1 flag to enable caching of successful tests
 # Remove the -failfast flag to run all tests even if some fail
+# Remove the -shuffle flag to run tests in the order they are defined
 # Add the -v flag to increase verbosity
-CMD [ "./cmd/...", "./pkg/...", "./apis/...", "./internal/...", "-count=1", "-failfast" ]
+CMD [ "./cmd/...", "./pkg/...", "./apis/...", "./internal/...", "-count=1", "-failfast", "-shuffle=on" ]
