@@ -64,7 +64,11 @@ var _ = Describe("Initialize routine tests", func() {
 					testutil.FakeNetwork("net6", testNamespace, "172.16.1.0/24", nil),
 				).Build()
 
-				ipamCore, err := ipamcore.NewIpam([]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.1.0/24"})
+				ipamCore, err := ipamcore.NewIpam([]netip.Prefix{
+					netip.MustParsePrefix("10.0.0.0/8"),
+					netip.MustParsePrefix("192.168.0.0/16"),
+					netip.MustParsePrefix("172.16.1.0/24"),
+				})
 				Expect(err).To(BeNil())
 
 				// Init ipam server

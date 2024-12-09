@@ -26,19 +26,14 @@ type Ipam struct {
 }
 
 // NewIpam creates a new IPAM instance.
-func NewIpam(pools []string) (*Ipam, error) {
-	ipamRootsPrefixes := make([]netip.Prefix, len(pools))
-	for i, root := range pools {
-		ipamRootsPrefixes[i] = netip.MustParsePrefix(root)
-	}
-
-	if err := checkRoots(ipamRootsPrefixes); err != nil {
+func NewIpam(pools []netip.Prefix) (*Ipam, error) {
+	if err := checkRoots(pools); err != nil {
 		return nil, err
 	}
 
 	ipamRoots := make([]node, len(pools))
-	for i := range ipamRootsPrefixes {
-		ipamRoots[i] = newNode(ipamRootsPrefixes[i])
+	for i := range pools {
+		ipamRoots[i] = newNode(pools[i])
 	}
 
 	ipam := &Ipam{
@@ -252,5 +247,5 @@ func (ipam *Ipam) IPSetCreationTimestamp(addr netip.Addr, prefix netip.Prefix, c
 			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("IP address %s not found", addr)
 }
