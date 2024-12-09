@@ -26,7 +26,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -103,7 +102,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		}
 		internalNode.Spec.Interface.Node.IP = networkingv1beta1.IP(ip.String())
 
-		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
+		return nil
 	}); err != nil {
 		klog.Errorf("Unable to create or update InternalNode %q: %s", internalNode.Name, err)
 		return ctrl.Result{}, err
@@ -123,6 +122,7 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNode).
 		Owns(&networkingv1beta1.InternalNode{}).
+		// We need to reconcile only physical Nodes as we need to apply the networking rules for each of them.
 		For(&corev1.Node{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
 }
