@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -106,6 +108,21 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
+	// Check whether there is the corresponding Node for the given InternalNode
+	var ownerNode corev1.Node
+	err = r.Client.Get(ctx, types.NamespacedName{Name: req.Name}, &ownerNode)
+	switch {
+	case apierrors.IsNotFound(err):
+		// Delete the internal node as there is no corresponding node
+		klog.Infof("Deleting InternalNode %v as there is no corresponding Node resource", req.NamespacedName)
+		if err := r.Client.Delete(ctx, internalnode); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to delete InternalNode %v: %w", req.NamespacedName, err)
+		}
+		return ctrl.Result{}, nil
+	case err != nil:
+		return ctrl.Result{}, fmt.Errorf("unable to get corresponding Node for InternalNode %v: %w", req.NamespacedName, err)
+	}
+
 	if !containsFinalizer {
 		if err = r.enforceInternalNodeFinalizerPresence(ctx, internalnode); err != nil {
 			return ctrl.Result{}, err
@@ -155,20 +172,29 @@ func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&networkingv1beta1.InternalNode{}).
 		Watches(&networkingv1beta1.Configuration{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Watches(&ipamv1alpha1.IP{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
+		Watches(&corev1.Node{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Complete(r)
 }
 
-func (r *InternalNodeReconciler) genericEnqueuerfunc(ctx context.Context, _ client.Object) []reconcile.Request {
+func (r *InternalNodeReconciler) genericEnqueuerfunc(ctx context.Context, obj client.Object) []reconcile.Request {
 	internalNodes, err := getters.ListInternalNodesByLabels(ctx, r.Client, labels.Everything())
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
+
+	_, isNode := obj.(*corev1.Node)
+
 	var requests []reconcile.Request
 	for i := range internalNodes.Items {
-		requests = append(requests, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(&internalNodes.Items[i]),
-		})
+		iNode := &internalNodes.Items[i]
+
+		// When the object that triggered the watch is a Node, enqueue the event only for the InternalNode related to that Node.
+		if isNode && iNode.Name == obj.GetName() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(iNode),
+			})
+		}
 	}
 	return requests
 }
