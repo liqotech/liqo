@@ -1,6 +1,6 @@
 {{- $telemetryConfig := (merge (dict "name" "telemetry" "module" "telemetry") .) -}}
 
-{{- if .Values.telemetry.enable }}
+{{- if .Values.telemetry.enabled }}
 
 apiVersion: v1
 kind: ServiceAccount

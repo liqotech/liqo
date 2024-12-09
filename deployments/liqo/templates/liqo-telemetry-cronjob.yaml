@@ -1,6 +1,6 @@
 {{- $telemetryCronConfig := (merge (dict "name" "telemetry" "module" "telemetry" "version" .Values.telemetry.image.version) .) -}}
 
-{{- if .Values.telemetry.enable }}
+{{- if .Values.telemetry.enabled }}
 
 apiVersion: batch/v1
 kind: CronJob

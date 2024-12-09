@@ -1,7 +1,7 @@
 ---
 {{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "containerName" "metric-agent") .) -}}
 
-{{- if .Values.metricAgent.enable }}
+{{- if .Values.metricAgent.enabled }}
 
 apiVersion: v1
 kind: ServiceAccount
