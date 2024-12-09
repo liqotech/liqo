@@ -1,0 +1,2913 @@
+[
+  {
+    "SuitePath": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core",
+    "SuiteDescription": "Core Suite",
+    "SuiteLabels": [],
+    "SuiteSucceeded": true,
+    "SuiteHasProgrammaticFocus": false,
+    "SpecialSuiteFailureReasons": null,
+    "PreRunStats": {
+      "TotalSpecs": 29,
+      "SpecsThatWillRun": 29
+    },
+    "StartTime": "2024-12-09T10:56:33.602074353+01:00",
+    "EndTime": "2024-12-09T10:56:33.698805127+01:00",
+    "RunTime": 96730774,
+    "SuiteConfig": {
+      "RandomSeed": 1733738192,
+      "RandomizeAllSpecs": false,
+      "FocusStrings": [
+        "Ipam"
+      ],
+      "SkipStrings": null,
+      "FocusFiles": null,
+      "SkipFiles": null,
+      "LabelFilter": "",
+      "FailOnPending": false,
+      "FailOnEmpty": false,
+      "FailFast": false,
+      "FlakeAttempts": 0,
+      "MustPassRepeatedly": 0,
+      "DryRun": false,
+      "PollProgressAfter": 0,
+      "PollProgressInterval": 0,
+      "Timeout": 3599296519846,
+      "EmitSpecProgress": false,
+      "OutputInterceptorMode": "",
+      "SourceRoots": null,
+      "GracePeriod": 30000000000,
+      "ParallelProcess": 1,
+      "ParallelTotal": 1,
+      "ParallelHost": ""
+    },
+    "SpecReports": [
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam Creation",
+          "when Using valid pools"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 45
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 46
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 47
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should create an Ipam object",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.60221297+01:00",
+        "EndTime": "2024-12-09T10:56:33.60229053+01:00",
+        "RunTime": 77560,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 47
+            },
+            "TimelineLocation": {
+              "Order": 1,
+              "Time": "2024-12-09T10:56:33.602216197+01:00"
+            },
+            "Message": "should create an Ipam object",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 47
+            },
+            "TimelineLocation": {
+              "Order": 3,
+              "Time": "2024-12-09T10:56:33.602287925+01:00"
+            },
+            "Message": "should create an Ipam object",
+            "Duration": 71738,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam Creation",
+          "when Using invalid pools"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 45
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 53
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 54
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should return an error",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602308795+01:00",
+        "EndTime": "2024-12-09T10:56:33.602338292+01:00",
+        "RunTime": 29487,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 54
+            },
+            "TimelineLocation": {
+              "Order": 4,
+              "Time": "2024-12-09T10:56:33.602309857+01:00"
+            },
+            "Message": "should return an error",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 54
+            },
+            "TimelineLocation": {
+              "Order": 6,
+              "Time": "2024-12-09T10:56:33.60233709+01:00"
+            },
+            "Message": "should return an error",
+            "Duration": 27233,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam Utilities",
+          "when checking if a prefix is child of another one"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 61
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 62
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 63
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should return true",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602353371+01:00",
+        "EndTime": "2024-12-09T10:56:33.602366416+01:00",
+        "RunTime": 13045,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 63
+            },
+            "TimelineLocation": {
+              "Order": 7,
+              "Time": "2024-12-09T10:56:33.602354393+01:00"
+            },
+            "Message": "should return true",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 63
+            },
+            "TimelineLocation": {
+              "Order": 9,
+              "Time": "2024-12-09T10:56:33.602365364+01:00"
+            },
+            "Message": "should return true",
+            "Duration": 10971,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam Utilities",
+          "when checking if a prefix is child of another one"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 61
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 62
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 76
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should return false",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602381645+01:00",
+        "EndTime": "2024-12-09T10:56:33.602397235+01:00",
+        "RunTime": 15600,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 76
+            },
+            "TimelineLocation": {
+              "Order": 10,
+              "Time": "2024-12-09T10:56:33.602382427+01:00"
+            },
+            "Message": "should return false",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 76
+            },
+            "TimelineLocation": {
+              "Order": 12,
+              "Time": "2024-12-09T10:56:33.602396264+01:00"
+            },
+            "Message": "should return false",
+            "Duration": 13847,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when creating an Ipam object"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 99
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 100
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602409138+01:00",
+        "EndTime": "2024-12-09T10:56:33.602426682+01:00",
+        "RunTime": 17544,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 13,
+              "Time": "2024-12-09T10:56:33.602410561+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 15,
+              "Time": "2024-12-09T10:56:33.602418146+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 7595,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 100
+            },
+            "TimelineLocation": {
+              "Order": 16,
+              "Time": "2024-12-09T10:56:33.602418727+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 100
+            },
+            "TimelineLocation": {
+              "Order": 18,
+              "Time": "2024-12-09T10:56:33.60242565+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 6923,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when listing networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 105
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 106
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602445208+01:00",
+        "EndTime": "2024-12-09T10:56:33.602577673+01:00",
+        "RunTime": 132455,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 19,
+              "Time": "2024-12-09T10:56:33.60244633+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 21,
+              "Time": "2024-12-09T10:56:33.602471328+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 25008,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 106
+            },
+            "TimelineLocation": {
+              "Order": 22,
+              "Time": "2024-12-09T10:56:33.602473202+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 106
+            },
+            "TimelineLocation": {
+              "Order": 24,
+              "Time": "2024-12-09T10:56:33.602575609+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 102407,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 125
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 126
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602598052+01:00",
+        "EndTime": "2024-12-09T10:56:33.602684789+01:00",
+        "RunTime": 86738,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 25,
+              "Time": "2024-12-09T10:56:33.602599876+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 27,
+              "Time": "2024-12-09T10:56:33.602610597+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 10721,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 126
+            },
+            "TimelineLocation": {
+              "Order": 28,
+              "Time": "2024-12-09T10:56:33.602611358+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 126
+            },
+            "TimelineLocation": {
+              "Order": 30,
+              "Time": "2024-12-09T10:56:33.602683527+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 72159,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 125
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 131
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602699518+01:00",
+        "EndTime": "2024-12-09T10:56:33.602739224+01:00",
+        "RunTime": 39696,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 31,
+              "Time": "2024-12-09T10:56:33.602704107+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 33,
+              "Time": "2024-12-09T10:56:33.602719045+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 14929,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 131
+            },
+            "TimelineLocation": {
+              "Order": 34,
+              "Time": "2024-12-09T10:56:33.602719747+01:00"
+            },
+            "Message": "should not succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 131
+            },
+            "TimelineLocation": {
+              "Order": 36,
+              "Time": "2024-12-09T10:56:33.602738022+01:00"
+            },
+            "Message": "should not succeed",
+            "Duration": 18285,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when releasing networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 137
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 138
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602751829+01:00",
+        "EndTime": "2024-12-09T10:56:33.602795884+01:00",
+        "RunTime": 44055,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 37,
+              "Time": "2024-12-09T10:56:33.602753001+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 39,
+              "Time": "2024-12-09T10:56:33.602759824+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 6823,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 138
+            },
+            "TimelineLocation": {
+              "Order": 40,
+              "Time": "2024-12-09T10:56:33.602760365+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 138
+            },
+            "TimelineLocation": {
+              "Order": 42,
+              "Time": "2024-12-09T10:56:33.602794791+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 34416,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when releasing networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 137
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 145
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed (with grace period)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.60281478+01:00",
+        "EndTime": "2024-12-09T10:56:33.60285635+01:00",
+        "RunTime": 41560,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 43,
+              "Time": "2024-12-09T10:56:33.602816042+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 45,
+              "Time": "2024-12-09T10:56:33.602822625+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 6583,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 145
+            },
+            "TimelineLocation": {
+              "Order": 46,
+              "Time": "2024-12-09T10:56:33.602823216+01:00"
+            },
+            "Message": "should succeed (with grace period)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 145
+            },
+            "TimelineLocation": {
+              "Order": 48,
+              "Time": "2024-12-09T10:56:33.602855258+01:00"
+            },
+            "Message": "should succeed (with grace period)",
+            "Duration": 32042,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when releasing networks"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 137
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 153
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.602868854+01:00",
+        "EndTime": "2024-12-09T10:56:33.602893872+01:00",
+        "RunTime": 25018,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 49,
+              "Time": "2024-12-09T10:56:33.602869886+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 51,
+              "Time": "2024-12-09T10:56:33.602881709+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 11823,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 153
+            },
+            "TimelineLocation": {
+              "Order": 52,
+              "Time": "2024-12-09T10:56:33.60288238+01:00"
+            },
+            "Message": "should not succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 153
+            },
+            "TimelineLocation": {
+              "Order": 54,
+              "Time": "2024-12-09T10:56:33.602892991+01:00"
+            },
+            "Message": "should not succeed",
+            "Duration": 10611,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring networks with prefix"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 170
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 171
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.60290846+01:00",
+        "EndTime": "2024-12-09T10:56:33.60325609+01:00",
+        "RunTime": 347630,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 55,
+              "Time": "2024-12-09T10:56:33.603006169+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 57,
+              "Time": "2024-12-09T10:56:33.603026839+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 20179,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 171
+            },
+            "TimelineLocation": {
+              "Order": 58,
+              "Time": "2024-12-09T10:56:33.60302771+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 171
+            },
+            "TimelineLocation": {
+              "Order": 60,
+              "Time": "2024-12-09T10:56:33.603254477+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 226757,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring networks with prefix"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 170
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 213
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.603275237+01:00",
+        "EndTime": "2024-12-09T10:56:33.603310896+01:00",
+        "RunTime": 35649,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 61,
+              "Time": "2024-12-09T10:56:33.60327662+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 63,
+              "Time": "2024-12-09T10:56:33.603294665+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 18045,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 213
+            },
+            "TimelineLocation": {
+              "Order": 64,
+              "Time": "2024-12-09T10:56:33.603295436+01:00"
+            },
+            "Message": "should not succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 213
+            },
+            "TimelineLocation": {
+              "Order": 66,
+              "Time": "2024-12-09T10:56:33.603309814+01:00"
+            },
+            "Message": "should not succeed",
+            "Duration": 14388,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring a network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 229
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 239
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "parent networks should not be available",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.603323721+01:00",
+        "EndTime": "2024-12-09T10:56:33.603387353+01:00",
+        "RunTime": 63632,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 67,
+              "Time": "2024-12-09T10:56:33.603327348+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 69,
+              "Time": "2024-12-09T10:56:33.603335062+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 7714,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 230
+            },
+            "TimelineLocation": {
+              "Order": 70,
+              "Time": "2024-12-09T10:56:33.603335663+01:00"
+            },
+            "Message": "when acquiring a network",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 230
+            },
+            "TimelineLocation": {
+              "Order": 72,
+              "Time": "2024-12-09T10:56:33.603363787+01:00"
+            },
+            "Message": "when acquiring a network",
+            "Duration": 28114,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 239
+            },
+            "TimelineLocation": {
+              "Order": 73,
+              "Time": "2024-12-09T10:56:33.603364248+01:00"
+            },
+            "Message": "parent networks should not be available",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 239
+            },
+            "TimelineLocation": {
+              "Order": 75,
+              "Time": "2024-12-09T10:56:33.603386221+01:00"
+            },
+            "Message": "parent networks should not be available",
+            "Duration": 21973,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when acquiring a network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 229
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 266
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "child networks should not be available",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.603400098+01:00",
+        "EndTime": "2024-12-09T10:56:33.603474872+01:00",
+        "RunTime": 74784,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 76,
+              "Time": "2024-12-09T10:56:33.603403324+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 78,
+              "Time": "2024-12-09T10:56:33.603409897+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 6583,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 230
+            },
+            "TimelineLocation": {
+              "Order": 79,
+              "Time": "2024-12-09T10:56:33.603410528+01:00"
+            },
+            "Message": "when acquiring a network",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 230
+            },
+            "TimelineLocation": {
+              "Order": 81,
+              "Time": "2024-12-09T10:56:33.603450134+01:00"
+            },
+            "Message": "when acquiring a network",
+            "Duration": 39606,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 266
+            },
+            "TimelineLocation": {
+              "Order": 82,
+              "Time": "2024-12-09T10:56:33.603450705+01:00"
+            },
+            "Message": "child networks should not be available",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 266
+            },
+            "TimelineLocation": {
+              "Order": 84,
+              "Time": "2024-12-09T10:56:33.603468049+01:00"
+            },
+            "Message": "child networks should not be available",
+            "Duration": 17344,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam networks",
+          "when generating graphviz"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 92
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 294
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 304
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "it should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.603485643+01:00",
+        "EndTime": "2024-12-09T10:56:33.604016224+01:00",
+        "RunTime": 530572,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 85,
+              "Time": "2024-12-09T10:56:33.60349981+01:00"
+            },
+            "Message": "Ipam networks",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 93
+            },
+            "TimelineLocation": {
+              "Order": 87,
+              "Time": "2024-12-09T10:56:33.603506863+01:00"
+            },
+            "Message": "Ipam networks",
+            "Duration": 7053,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 295
+            },
+            "TimelineLocation": {
+              "Order": 88,
+              "Time": "2024-12-09T10:56:33.603507475+01:00"
+            },
+            "Message": "when generating graphviz",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 295
+            },
+            "TimelineLocation": {
+              "Order": 90,
+              "Time": "2024-12-09T10:56:33.603602207+01:00"
+            },
+            "Message": "when generating graphviz",
+            "Duration": 94732,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 304
+            },
+            "TimelineLocation": {
+              "Order": 91,
+              "Time": "2024-12-09T10:56:33.603605373+01:00"
+            },
+            "Message": "it should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 304
+            },
+            "TimelineLocation": {
+              "Order": 93,
+              "Time": "2024-12-09T10:56:33.603895422+01:00"
+            },
+            "Message": "it should succeed",
+            "Duration": 290059,
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 307
+            },
+            "TimelineLocation": {
+              "Order": 94,
+              "Time": "2024-12-09T10:56:33.603898407+01:00"
+            },
+            "Message": "when generating graphviz",
+            "NodeType": "AfterEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 307
+            },
+            "TimelineLocation": {
+              "Order": 96,
+              "Time": "2024-12-09T10:56:33.60401403+01:00"
+            },
+            "Message": "when generating graphviz",
+            "Duration": 115612,
+            "NodeType": "AfterEach"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from not existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 331
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 332
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed (out of pools)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.604034109+01:00",
+        "EndTime": "2024-12-09T10:56:33.604096098+01:00",
+        "RunTime": 61989,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 97,
+              "Time": "2024-12-09T10:56:33.604035983+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 99,
+              "Time": "2024-12-09T10:56:33.604075639+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 39656,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 332
+            },
+            "TimelineLocation": {
+              "Order": 100,
+              "Time": "2024-12-09T10:56:33.60407628+01:00"
+            },
+            "Message": "should not succeed (out of pools)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 332
+            },
+            "TimelineLocation": {
+              "Order": 102,
+              "Time": "2024-12-09T10:56:33.604094926+01:00"
+            },
+            "Message": "should not succeed (out of pools)",
+            "Duration": 18656,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from not existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 331
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 337
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed (prefix not acquired)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.604114844+01:00",
+        "EndTime": "2024-12-09T10:56:33.604172676+01:00",
+        "RunTime": 57841,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 103,
+              "Time": "2024-12-09T10:56:33.604115937+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 105,
+              "Time": "2024-12-09T10:56:33.604161635+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 45698,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 337
+            },
+            "TimelineLocation": {
+              "Order": 106,
+              "Time": "2024-12-09T10:56:33.604162296+01:00"
+            },
+            "Message": "should not succeed (prefix not acquired)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 337
+            },
+            "TimelineLocation": {
+              "Order": 108,
+              "Time": "2024-12-09T10:56:33.604171784+01:00"
+            },
+            "Message": "should not succeed (prefix not acquired)",
+            "Duration": 9498,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 343
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 344
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.604186052+01:00",
+        "EndTime": "2024-12-09T10:56:33.604238553+01:00",
+        "RunTime": 52491,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 109,
+              "Time": "2024-12-09T10:56:33.604186963+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 111,
+              "Time": "2024-12-09T10:56:33.604223073+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 36120,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 344
+            },
+            "TimelineLocation": {
+              "Order": 112,
+              "Time": "2024-12-09T10:56:33.604226981+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 344
+            },
+            "TimelineLocation": {
+              "Order": 114,
+              "Time": "2024-12-09T10:56:33.604237541+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 10560,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 343
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 351
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed, with specific IP",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.604250035+01:00",
+        "EndTime": "2024-12-09T10:56:33.604312365+01:00",
+        "RunTime": 62320,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 115,
+              "Time": "2024-12-09T10:56:33.604250947+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 117,
+              "Time": "2024-12-09T10:56:33.604297977+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 47040,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 351
+            },
+            "TimelineLocation": {
+              "Order": 118,
+              "Time": "2024-12-09T10:56:33.604298609+01:00"
+            },
+            "Message": "should succeed, with specific IP",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 351
+            },
+            "TimelineLocation": {
+              "Order": 120,
+              "Time": "2024-12-09T10:56:33.604311373+01:00"
+            },
+            "Message": "should succeed, with specific IP",
+            "Duration": 12754,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 343
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 359
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not overflow available IPs)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.604320881+01:00",
+        "EndTime": "2024-12-09T10:56:33.64707338+01:00",
+        "RunTime": 42752488,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 121,
+              "Time": "2024-12-09T10:56:33.604321823+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 123,
+              "Time": "2024-12-09T10:56:33.604353053+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 31241,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 359
+            },
+            "TimelineLocation": {
+              "Order": 124,
+              "Time": "2024-12-09T10:56:33.604353595+01:00"
+            },
+            "Message": "should not overflow available IPs)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 359
+            },
+            "TimelineLocation": {
+              "Order": 126,
+              "Time": "2024-12-09T10:56:33.647066958+01:00"
+            },
+            "Message": "should not overflow available IPs)",
+            "Duration": 42713814,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 343
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 373
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not overflow available IPs, with specific IPs)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.647116192+01:00",
+        "EndTime": "2024-12-09T10:56:33.688418226+01:00",
+        "RunTime": 41302033,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 127,
+              "Time": "2024-12-09T10:56:33.647119158+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 129,
+              "Time": "2024-12-09T10:56:33.647191578+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 72420,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 373
+            },
+            "TimelineLocation": {
+              "Order": 130,
+              "Time": "2024-12-09T10:56:33.64719264+01:00"
+            },
+            "Message": "should not overflow available IPs, with specific IPs)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 373
+            },
+            "TimelineLocation": {
+              "Order": 132,
+              "Time": "2024-12-09T10:56:33.688411723+01:00"
+            },
+            "Message": "should not overflow available IPs, with specific IPs)",
+            "Duration": 41219083,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when acquiring an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 343
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 390
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed (after an ip has been released)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.688460016+01:00",
+        "EndTime": "2024-12-09T10:56:33.689029383+01:00",
+        "RunTime": 569357,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 133,
+              "Time": "2024-12-09T10:56:33.688462962+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 135,
+              "Time": "2024-12-09T10:56:33.68855552+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 92568,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 390
+            },
+            "TimelineLocation": {
+              "Order": 136,
+              "Time": "2024-12-09T10:56:33.688556993+01:00"
+            },
+            "Message": "should succeed (after an ip has been released)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 390
+            },
+            "TimelineLocation": {
+              "Order": 138,
+              "Time": "2024-12-09T10:56:33.6890278+01:00"
+            },
+            "Message": "should succeed (after an ip has been released)",
+            "Duration": 470807,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when releasing an IP from not existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 411
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 412
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.689051506+01:00",
+        "EndTime": "2024-12-09T10:56:33.689353888+01:00",
+        "RunTime": 302382,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 139,
+              "Time": "2024-12-09T10:56:33.689054251+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 141,
+              "Time": "2024-12-09T10:56:33.689094439+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 40178,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 412
+            },
+            "TimelineLocation": {
+              "Order": 142,
+              "Time": "2024-12-09T10:56:33.68909505+01:00"
+            },
+            "Message": "should not succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 412
+            },
+            "TimelineLocation": {
+              "Order": 144,
+              "Time": "2024-12-09T10:56:33.689352406+01:00"
+            },
+            "Message": "should not succeed",
+            "Duration": 257366,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when releasing an IP from not existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 411
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 421
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed (out of pools)",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.689369398+01:00",
+        "EndTime": "2024-12-09T10:56:33.689862208+01:00",
+        "RunTime": 492810,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 145,
+              "Time": "2024-12-09T10:56:33.689370601+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 147,
+              "Time": "2024-12-09T10:56:33.689422671+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 52080,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 421
+            },
+            "TimelineLocation": {
+              "Order": 148,
+              "Time": "2024-12-09T10:56:33.689426689+01:00"
+            },
+            "Message": "should not succeed (out of pools)",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 421
+            },
+            "TimelineLocation": {
+              "Order": 150,
+              "Time": "2024-12-09T10:56:33.689860535+01:00"
+            },
+            "Message": "should not succeed (out of pools)",
+            "Duration": 433846,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when releasing an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 431
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 432
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should not succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.689879391+01:00",
+        "EndTime": "2024-12-09T10:56:33.690293569+01:00",
+        "RunTime": 414188,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 151,
+              "Time": "2024-12-09T10:56:33.689880894+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 153,
+              "Time": "2024-12-09T10:56:33.689927644+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 46750,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 432
+            },
+            "TimelineLocation": {
+              "Order": 154,
+              "Time": "2024-12-09T10:56:33.689928425+01:00"
+            },
+            "Message": "should not succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 432
+            },
+            "TimelineLocation": {
+              "Order": 156,
+              "Time": "2024-12-09T10:56:33.690292326+01:00"
+            },
+            "Message": "should not succeed",
+            "Duration": 363891,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when releasing an IP from existing network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 431
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 441
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should succeed",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.690310762+01:00",
+        "EndTime": "2024-12-09T10:56:33.691084452+01:00",
+        "RunTime": 773691,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 157,
+              "Time": "2024-12-09T10:56:33.690314159+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 159,
+              "Time": "2024-12-09T10:56:33.690354136+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 39977,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 441
+            },
+            "TimelineLocation": {
+              "Order": 160,
+              "Time": "2024-12-09T10:56:33.690354807+01:00"
+            },
+            "Message": "should succeed",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 441
+            },
+            "TimelineLocation": {
+              "Order": 162,
+              "Time": "2024-12-09T10:56:33.69108305+01:00"
+            },
+            "Message": "should succeed",
+            "Duration": 728243,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when listing IPs in a network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 459
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 478
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should contains the correct IPs",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.691103118+01:00",
+        "EndTime": "2024-12-09T10:56:33.698243064+01:00",
+        "RunTime": 7139936,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 163,
+              "Time": "2024-12-09T10:56:33.691105603+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 165,
+              "Time": "2024-12-09T10:56:33.691158505+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 52912,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 461
+            },
+            "TimelineLocation": {
+              "Order": 166,
+              "Time": "2024-12-09T10:56:33.691159417+01:00"
+            },
+            "Message": "when listing IPs in a network",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 461
+            },
+            "TimelineLocation": {
+              "Order": 168,
+              "Time": "2024-12-09T10:56:33.691580769+01:00"
+            },
+            "Message": "when listing IPs in a network",
+            "Duration": 421352,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 478
+            },
+            "TimelineLocation": {
+              "Order": 169,
+              "Time": "2024-12-09T10:56:33.69158141+01:00"
+            },
+            "Message": "should contains the correct IPs",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 478
+            },
+            "TimelineLocation": {
+              "Order": 171,
+              "Time": "2024-12-09T10:56:33.698239838+01:00"
+            },
+            "Message": "should contains the correct IPs",
+            "Duration": 6658418,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Ipam",
+          "Ipam IPs",
+          "when listing IPs in a network"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 28
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 315
+          },
+          {
+            "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+            "LineNumber": 459
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+          "LineNumber": 485
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should be void",
+        "State": "passed",
+        "StartTime": "2024-12-09T10:56:33.6982721+01:00",
+        "EndTime": "2024-12-09T10:56:33.698792543+01:00",
+        "RunTime": 520443,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 172,
+              "Time": "2024-12-09T10:56:33.698275827+01:00"
+            },
+            "Message": "Ipam IPs",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 321
+            },
+            "TimelineLocation": {
+              "Order": 174,
+              "Time": "2024-12-09T10:56:33.69834464+01:00"
+            },
+            "Message": "Ipam IPs",
+            "Duration": 68813,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 461
+            },
+            "TimelineLocation": {
+              "Order": 175,
+              "Time": "2024-12-09T10:56:33.698345852+01:00"
+            },
+            "Message": "when listing IPs in a network",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 461
+            },
+            "TimelineLocation": {
+              "Order": 177,
+              "Time": "2024-12-09T10:56:33.698781171+01:00"
+            },
+            "Message": "when listing IPs in a network",
+            "Duration": 435319,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 485
+            },
+            "TimelineLocation": {
+              "Order": 178,
+              "Time": "2024-12-09T10:56:33.698782373+01:00"
+            },
+            "Message": "should be void",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/home/cheina/Documents/liqo/liqo/pkg/ipam/core/ipam_test.go",
+              "LineNumber": 485
+            },
+            "TimelineLocation": {
+              "Order": 180,
+              "Time": "2024-12-09T10:56:33.698791281+01:00"
+            },
+            "Message": "should be void",
+            "Duration": 8898,
+            "NodeType": "It"
+          }
+        ]
+      }
+    ]
+  }
+]

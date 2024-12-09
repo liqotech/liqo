@@ -314,9 +314,10 @@ var _ = Describe("Ipam", func() {
 
 	Context("Ipam IPs", func() {
 		var (
-			availableIPs      = 8
-			prefixAcquired    = netip.MustParsePrefix(fmt.Sprintf("10.0.0.0/%d", int(32-math.Sqrt(8))))
-			prefixNotAcquired = netip.MustParsePrefix(fmt.Sprintf("10.1.0.0/%d", int(32-math.Sqrt(8))))
+			// WARNING: availableIPs must be a power of 2
+			availableIPs      = 256
+			prefixAcquired    = netip.MustParsePrefix(fmt.Sprintf("10.0.0.0/%d", int(32-math.Log2(float64(availableIPs)))))
+			prefixNotAcquired = netip.MustParsePrefix(fmt.Sprintf("10.1.0.0/%d", int(32-math.Log2(float64(availableIPs)))))
 		)
 		BeforeEach(func() {
 			var err error
@@ -454,6 +455,39 @@ var _ = Describe("Ipam", func() {
 				}
 			})
 
+		})
+
+		When("listing IPs in a network", func() {
+			var acquiredIPs []netip.Addr
+			BeforeEach(func() {
+				addr := prefixAcquired.Addr()
+				for i := 0; i < availableIPs/2; i++ {
+					result, err := ipam.IPAcquireWithAddr(prefixAcquired, addr)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).NotTo(BeNil())
+					acquiredIPs = append(acquiredIPs, addr)
+					addr = addr.Next()
+				}
+				for i := 0; i < availableIPs/2; i++ {
+					result, err := ipam.IPAcquire(prefixAcquired)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).NotTo(BeNil())
+					acquiredIPs = append(acquiredIPs, *result)
+				}
+
+			})
+			It("should contains the correct IPs", func() {
+				cachedIPs, err := ipam.ListIPs(prefixAcquired)
+				Expect(err).NotTo(HaveOccurred())
+				for i := range acquiredIPs {
+					Expect(cachedIPs).Should(ContainElement(acquiredIPs[i]))
+				}
+			})
+			It("should be void", func() {
+				cachedIPs, err := ipam.ListIPs(prefixNotAcquired)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cachedIPs).Should(HaveLen(0))
+			})
 		})
 	})
 })
