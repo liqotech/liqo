@@ -88,7 +88,7 @@ spec:
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
                 - --leader-election=true
-                {{- if .Values.requirements.kernel.disabled }}
+                {{- if not .Values.requirements.kernel.enabled }}
                 - --disable-kernel-version-check
                 {{- end }}
                 volumeMounts:

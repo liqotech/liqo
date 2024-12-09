@@ -58,7 +58,7 @@ spec:
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}
-          {{- if not .Values.offloading.runtimeClass.enable }}
+          {{- if not .Values.offloading.runtimeClass.enabled }}
           - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
           {{- if .Values.common.extraArgs }}

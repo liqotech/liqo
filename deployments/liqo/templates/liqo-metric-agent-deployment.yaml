@@ -2,7 +2,7 @@
 {{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "version" .Values.metricAgent.image.version) .) -}}
 {{- $certConfig := (merge (dict "name" "cert-creator" "module" "metrics" "version" .Values.metricAgent.initContainer.image.version) .) -}}
 
-{{- if .Values.metricAgent.enable }}
+{{- if .Values.metricAgent.enabled }}
 
 apiVersion: apps/v1
 kind: Deployment
