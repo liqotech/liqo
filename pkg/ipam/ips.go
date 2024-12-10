@@ -21,7 +21,6 @@ import (
 	"time"
 
 	klog "k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 )
@@ -79,16 +78,16 @@ func (lipam *LiqoIPAM) ipRelease(addr netip.Addr, prefix netip.Prefix, gracePeri
 	return nil
 }
 
-// isIPAvailable checks if an IP is available.
-func (lipam *LiqoIPAM) isIPAvailable(addr netip.Addr, prefix netip.Prefix) (bool, error) {
+// ipIsAvailable checks if an IP is available.
+func (lipam *LiqoIPAM) ipIsAvailable(addr netip.Addr, prefix netip.Prefix) (bool, error) {
 	allocated, err := lipam.IpamCore.IPIsAllocated(prefix, addr)
 	return !allocated, err
 }
 
-func (lipam *LiqoIPAM) listIPsOnCluster(ctx context.Context, cl client.Client) (map[netip.Addr]netip.Prefix, error) {
+func (lipam *LiqoIPAM) listIPsOnCluster(ctx context.Context) (map[netip.Addr]netip.Prefix, error) {
 	result := make(map[netip.Addr]netip.Prefix)
 	var ipList ipamv1alpha1.IPList
-	if err := cl.List(ctx, &ipList); err != nil {
+	if err := lipam.Client.List(ctx, &ipList); err != nil {
 		return nil, err
 	}
 

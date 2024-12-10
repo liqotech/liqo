@@ -77,9 +77,8 @@ func main() {
 	cmd.Flags().DurationVar(&options.ServerOpts.SyncGracePeriod, "sync-graceperiod", consts.SyncGracePeriod,
 		"The grace period the sync routine wait before releasing an ip or a network.")
 	cmd.Flags().BoolVar(&options.ServerOpts.GraphvizEnabled, "enable-graphviz", false, "Enable the graphviz output for the IPAM.")
-	cmd.Flags().StringSliceVar(&options.ServerOpts.Pools, "pools",
-		[]string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"},
-		"The pools used by the IPAM to acquire Networks and IPs from. Default: private addesses range.",
+	cmd.Flags().StringSliceVar(&options.ServerOpts.Pools, "pools", consts.PrivateAddressSpace,
+		"The pools used by the IPAM to acquire Networks and IPs from. Default: private addesses space.",
 	)
 
 	// Leader election flags.
@@ -145,7 +144,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	liqoIPAM, err := ipam.New(ctx, cl, options.ServerOpts.Pools, &options.ServerOpts)
+	liqoIPAM, err := ipam.New(ctx, cl, &options.ServerOpts)
 	if err != nil {
 		return err
 	}

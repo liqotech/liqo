@@ -50,3 +50,6 @@ docs/_build
 /tmp
 /graphviz
 /k3s-ansible
+
+# Ginkgo generated files
+*.report
