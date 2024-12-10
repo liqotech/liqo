@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipam_test
+package ipam
 
 import (
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -30,4 +35,9 @@ func TestIpam(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
+
+	Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(liqov1beta1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(networkingv1beta1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(ipamv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 })

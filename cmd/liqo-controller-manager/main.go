@@ -16,7 +16,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"time"
 
@@ -59,6 +58,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -260,21 +260,27 @@ func main() {
 	// NETWORKING MODULE
 	if *networkingEnabled {
 		// Connect to the IPAM server if specified.
-		var ipamClient ipam.IpamClient
+		var ipamClient ipam.IPAMClient
 		if *ipamServer != "" {
 			klog.Infof("connecting to the IPAM server %q", *ipamServer)
-			dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			connection, err := grpc.DialContext(dialctx, *ipamServer,
-				grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-			cancel()
+			conn, err := grpc.NewClient(*ipamServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
 				os.Exit(1)
 			}
-			ipamClient = ipam.NewIpamClient(connection)
+
+			if err := grpcutils.WaitForConnectionReady(ctx, conn, 10*time.Second); err != nil {
+				klog.Errorf("failed to establish a connection to the IPAM server %q", *ipamServer)
+				os.Exit(1)
+			}
+			klog.Infof("connected to the IPAM server (status: %s)", conn.GetState())
+
+			defer conn.Close()
+
+			ipamClient = ipam.NewIPAMClient(conn)
 		}
 
-		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
+		if err := modules.SetupNetworkingModule(ctx, mgr, uncachedClient, &modules.NetworkingOption{
 			DynClient: dynClient,
 			Factory:   factory,
 

@@ -75,7 +75,7 @@ func WaitIPRemapped(ctx context.Context, cl ctrlclient.Client) error {
 		if err := cl.Get(ctx, ctrlclient.ObjectKey{Name: IPName, Namespace: NamespaceName}, &ip); err != nil {
 			return false, err
 		}
-		if len(ip.Status.IPMappings) == 0 {
+		if ip.Status.IP == "" {
 			return false, nil
 		}
 		return true, nil

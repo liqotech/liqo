@@ -440,6 +440,16 @@ ipam:
         requests: {}
       # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod.
       priorityClassName: ""
+    # -- Enable/Disable the generation of graphviz files inside the ipam.
+    # This feature is useful to visualize the status of the ipam.
+    # The graphviz files are stored in the /graphviz directory of the ipam pod (a file for each network pool).
+    # You can access them using "kubectl cp".
+    graphviz: false
+    # -- Set the interval at which the IPAM pod will synchronize it's in-memory status with the local cluster.
+    # If you want to disable the synchronization, set the interval to 0.
+    syncInterval: 2m
+    ## -- Set the grace period the sync routine will wait before deleting an ip or a network.
+    syncGracePeriod: 30s
   # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
   podCIDR: ""
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
@@ -455,10 +465,10 @@ ipam:
   # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then
   # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
   reservedSubnets: []
-  # -- Set of additional network pools to perform the automatic address mapping in Liqo.
+  # -- Set of network pools to perform the automatic address mapping in Liqo.
   # Network pools are used to map a cluster network into another one in order to prevent conflicts.
-  # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
-  additionalPools: []
+  # If left empty, it is defaulted to the private addresses ranges: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
+  pools: []
 
 crdReplicator:
   pod:

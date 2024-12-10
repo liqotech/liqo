@@ -28,17 +28,6 @@ import (
 )
 
 var (
-	// IPAMStorageLabelSelector selector used to get the ipam storage instance.
-	IPAMStorageLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.IpamStorageResourceLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{liqoconst.IpamStorageResourceLabelValue},
-			},
-		},
-	}
-
 	// ClusterIDConfigMapLabelSelector selector used to get the cluster id configmap.
 	ClusterIDConfigMapLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{

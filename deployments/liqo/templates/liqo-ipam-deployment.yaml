@@ -49,17 +49,17 @@ spec:
               port: 6000
           {{- end }}
           args:
-            - --pod-cidr={{ .Values.ipam.podCIDR }}
-            - --service-cidr={{ .Values.ipam.serviceCIDR }}
+            - --pod-name=$(POD_NAME)
+            - --port=6000
+            - --sync-interval={{ .Values.ipam.internal.syncInterval }}
+            - --sync-graceperiod={{ .Values.ipam.internal.syncGracePeriod }}
             {{- if $ha }}
-            - --lease-enabled=true
+            - --leader-election
+            - --leader-election-namespace=$(POD_NAMESPACE)
+            - --deployment-name={{ include "liqo.prefixedName" $ipamConfig }}
             {{- end }}
-            {{- if .Values.ipam.reservedSubnets }}
-            {{- $d := dict "commandName" "--reserved-pools" "list" .Values.ipam.reservedSubnets }}
-            {{- include "liqo.concatenateList" $d | nindent 12 }}
-            {{- end }}
-            {{- if .Values.ipam.additionalPools }}
-            {{- $d := dict "commandName" "--additional-pools" "list" .Values.ipam.additionalPools }}
+            {{- if .Values.ipam.pools }}
+            {{- $d := dict "commandName" "--pools" "list" .Values.ipam.pools }}
             {{- include "liqo.concatenateList" $d | nindent 12 }}
             {{- end }}
             {{- if .Values.common.extraArgs }}
@@ -68,6 +68,7 @@ spec:
             {{- if .Values.ipam.internal.pod.extraArgs }}
             {{- toYaml .Values.ipam.internal.pod.extraArgs | nindent 12 }}
             {{- end }}
+            - --enable-graphviz={{ .Values.ipam.internal.graphviz }}
           env:
           - name: POD_NAME
             valueFrom:
@@ -77,9 +78,12 @@ spec:
             valueFrom:
              fieldRef:
                fieldPath: metadata.namespace
-          - name: DEPLOYMENT_NAME
-            value: {{ include "liqo.prefixedName" $ipamConfig }}
           resources: {{- toYaml .Values.ipam.internal.pod.resources | nindent 12 }}
+          {{- if .Values.ipam.internal.graphviz }}
+          volumeMounts:
+            - mountPath: /graphviz
+              name: graphviz
+          {{- end }}
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}
@@ -95,5 +99,9 @@ spec:
       {{- if .Values.ipam.internal.pod.priorityClassName }}
       priorityClassName: {{ .Values.ipam.internal.pod.priorityClassName }}
       {{- end }}
-
+      {{- if .Values.ipam.internal.graphviz }}
+      volumes:
+        - name: graphviz
+          emptyDir: {}
+      {{- end }}
 {{- end }}

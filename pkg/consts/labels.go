@@ -38,13 +38,6 @@ const (
 	// APIServerProxyAppName label value that denotes the name of the liqo-api-server-proxy deployment.
 	APIServerProxyAppName = "proxy"
 
-	// IpamStorageResourceLabelKey is the constant representing
-	// the key of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelKey = "ipam.liqo.io/ipamstorage"
-	// IpamStorageResourceLabelValue is the constant representing
-	// the value of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelValue = "true"
-
 	// WebhookResourceLabelKey is the constant representing
 	// the key of the label assigned to all Webhook resources.
 	WebhookResourceLabelKey = "liqo.io/webhook"

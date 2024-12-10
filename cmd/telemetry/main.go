@@ -65,7 +65,7 @@ func main() {
 
 	telemetryEndpoint := pflag.String("telemetry-endpoint", "https://api.telemetry.liqo.io/v1", "telemetry endpoint")
 	timeout := pflag.Duration("timeout", 10*time.Second, "timeout for requests")
-	namespace := pflag.String("namespace", "liqo", "the namespace where liqo is deployed")
+	namespace := pflag.String("namespace", consts.DefaultLiqoNamespace, "the namespace where liqo is deployed")
 	liqoVersion := pflag.String("liqo-version", "", "the liqo version")
 	kubernetesVersion := pflag.String("kubernetes-version", "", "the kubernetes version")
 	dryRun := pflag.Bool("dry-run", false, "if true, do not send the telemetry item and print it on stdout")
