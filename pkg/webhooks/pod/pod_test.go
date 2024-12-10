@@ -50,57 +50,55 @@ var _ = Describe("Webhook", func() {
 		}
 	)
 
-	Context("1 - Check the new created toleration according to the PodOffloadingStrategy", func() {
+	Context("Check the new created toleration according to the PodOffloadingStrategy", func() {
 		emptyToleration := corev1.Toleration{}
-		DescribeTable("3 Different type of PodOffloadingStrategy",
+		DescribeTable("Test for each PodOffloadingStrategy",
 			func(strategy offloadingv1beta1.PodOffloadingStrategyType, expectedToleration corev1.Toleration) {
 				By(fmt.Sprintf("Testing %s", strategy))
 				toleration, err := createTolerationFromNamespaceOffloading(strategy)
-				if strategy == offloadingv1beta1.LocalPodOffloadingStrategyType {
+				if strategy == "" {
 					Expect(err).To(HaveOccurred())
 				} else {
 					Expect(err).ToNot(HaveOccurred())
 				}
 				Expect(toleration.MatchToleration(&expectedToleration)).To(BeTrue())
 			},
+			Entry("", offloadingv1beta1.LocalPodOffloadingStrategyType, emptyToleration),
 			Entry("LocalPodOffloadingStrategyType", offloadingv1beta1.LocalPodOffloadingStrategyType, emptyToleration),
 			Entry("RemotePodOffloadingStrategyType", offloadingv1beta1.RemotePodOffloadingStrategyType, virtualNodeToleration),
 			Entry("LocalAndRemotePodOffloadingStrategyType", offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, virtualNodeToleration),
 		)
 	})
 
-	Context("2 - Check the NodeSelector imposed by the NamespaceOffloading", func() {
-		// slice with 3 namespaceOffloading one for each PodOffloadingStrategy
-		namespaceOffloadings := []offloadingv1beta1.NamespaceOffloading{
-			testutils.GetNamespaceOffloading(offloadingv1beta1.LocalPodOffloadingStrategyType),
-			testutils.GetNamespaceOffloading(offloadingv1beta1.RemotePodOffloadingStrategyType),
-			testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
-		}
+	Context("Check the NodeSelector imposed by the NamespaceOffloading", func() {
+		localNamespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalPodOffloadingStrategyType)
+		remoteNamespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.RemotePodOffloadingStrategyType)
+		localAndRemoteNamespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 
-		nodeSelectors := []corev1.NodeSelector{
-			{},
-			testutils.GetImposedNodeSelector(offloadingv1beta1.RemotePodOffloadingStrategyType),
-			testutils.GetImposedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
-		}
-		DescribeTable("3 Different type of PodOffloadingStrategy",
-			func(namespaceOffloading offloadingv1beta1.NamespaceOffloading, expectedNodeSelector corev1.NodeSelector) {
+		remoteNodeSelector := testutils.GetImposedNodeSelector(offloadingv1beta1.RemotePodOffloadingStrategyType)
+		localAndRemoteNodeSelector := testutils.GetImposedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
+
+		DescribeTable("Test for each PodOffloadingStrategy",
+			func(namespaceOffloading offloadingv1beta1.NamespaceOffloading, expectedNodeSelector *corev1.NodeSelector) {
 				By(fmt.Sprintf("Testing %s", namespaceOffloading.Spec.PodOffloadingStrategy))
 				nodeSelector, err := createNodeSelectorFromNamespaceOffloading(&namespaceOffloading)
-				if namespaceOffloading.Spec.PodOffloadingStrategy == offloadingv1beta1.LocalPodOffloadingStrategyType {
-					Expect(nodeSelector).To(BeNil())
-					Expect(err).To(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
+				if expectedNodeSelector == nil {
+					Expect(nodeSelector).To(BeNil(), "Expected the node selectors to be nil")
 				} else {
-					Expect(err).ToNot(HaveOccurred())
-					Expect(nodeSelector).To(PointTo(Equal(expectedNodeSelector)))
+					Expect(nodeSelector).To(
+						PointTo(Equal(*expectedNodeSelector)),
+						"Node selectors are not the expected ones",
+					)
 				}
 			},
-			Entry("LocalPodOffloadingStrategyType", namespaceOffloadings[0], nodeSelectors[0]),
-			Entry("RemotePodOffloadingStrategyType", namespaceOffloadings[1], nodeSelectors[1]),
-			Entry("LocalAndRemotePodOffloadingStrategyType", namespaceOffloadings[2], nodeSelectors[2]),
+			Entry("LocalPodOffloadingStrategyType", localNamespaceOffloading, nil),
+			Entry("RemotePodOffloadingStrategyType", remoteNamespaceOffloading, &remoteNodeSelector),
+			Entry("LocalAndRemotePodOffloadingStrategyType", localAndRemoteNamespaceOffloading, &localAndRemoteNodeSelector),
 		)
 	})
 
-	Context("3 - Check if the pod NodeSelector is correctly merged with the NamespaceOffloading NodeSelector", func() {
+	Context("Check if the pod NodeSelector is correctly merged with the NamespaceOffloading NodeSelector", func() {
 		It("Check the merged NodeSelector", func() {
 			podNodeSelector := testutils.GetPodNodeSelector()
 			imposedNodeSelector := testutils.GetImposedNodeSelector("")
@@ -110,10 +108,10 @@ var _ = Describe("Webhook", func() {
 		})
 	})
 
-	Context("4 - Check how the new NodeSelector is inserted into the pod", func() {
+	Context("Check how the new NodeSelector is inserted into the pod", func() {
 		// imposedNodeSelector that all Pod without NodeAffinity specified by user must have
 		imposedNodeSelector := testutils.GetImposedNodeSelector("")
-		// mergedNodeSelector is a merge of NodeSelector specified in NamespaceOffloading and NodeSelector
+		// mergedNodeSelector is a merge of the NodeSelectors specified in NamespaceOffloading and NodeSelector
 		// specified by the user
 		mergedNodeSelector := testutils.GetMergedNodeSelector("")
 		// A fake PodAffinity to test if it is preserved.
@@ -236,7 +234,7 @@ var _ = Describe("Webhook", func() {
 		})
 	})
 
-	Context("5 - Call the mutatePod function and observe the pod is correctly mutated", func() {
+	Context("Test the mutatePod function and observe the pod is correctly mutated", func() {
 
 		podNodeSelector := testutils.GetPodNodeSelector()
 		pod := corev1.Pod{
@@ -260,36 +258,88 @@ var _ = Describe("Webhook", func() {
 			},
 		}
 
-		It("Check the toleration added and the new NodeSelector", func() {
+		type offloadingTestCase struct {
+			policy          offloadingv1beta1.PodOffloadingStrategyType
+			hasRuntimeClass bool
+		}
+
+		DescribeTable("Test different combinations of offloading strategies and runtimeclass",
+			func(testCase offloadingTestCase) {
+				var expectedNodeSelectors corev1.NodeSelector
+				var expectedTolerations []corev1.Toleration
+				runtimeClassName := "my-liqo-runtime"
+
+				namespaceOffloading := testutils.GetNamespaceOffloading(testCase.policy)
+				podTest := pod.DeepCopy()
+
+				resultingPolicy := testCase.policy
+				if testCase.hasRuntimeClass {
+					podTest.Spec.RuntimeClassName = &runtimeClassName
+					// The runtimeclass forces the policy to Remote
+					resultingPolicy = offloadingv1beta1.LocalPodOffloadingStrategyType
+				}
+
+				switch resultingPolicy {
+				case offloadingv1beta1.LocalPodOffloadingStrategyType:
+					expectedTolerations = pod.Spec.Tolerations
+					expectedNodeSelectors = *pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+				default:
+					expectedNodeSelectors = testutils.GetMergedNodeSelector(testCase.policy)
+					expectedTolerations = append(expectedTolerations, pod.Spec.Tolerations[0], virtualNodeToleration)
+				}
+
+				// Mutate the pod according to the policy
+				err := mutatePod(&namespaceOffloading, podTest, runtimeClassName)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Compare tolerations
+				Expect(len(podTest.Spec.Tolerations)).To(Equal(len(expectedTolerations)), "Unexpected number of tolerations")
+				Expect(podTest.Spec.Tolerations).To(Equal(expectedTolerations), "No changes expected in tolerations")
+
+				// Compare node selectors
+				Expect(podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms).To(
+					ConsistOf(expectedNodeSelectors.NodeSelectorTerms),
+					"Not matching node selectors",
+				)
+			},
+			Entry("Local", offloadingTestCase{
+				policy:          offloadingv1beta1.LocalPodOffloadingStrategyType,
+				hasRuntimeClass: false}),
+			Entry("Local + RC", offloadingTestCase{
+				policy:          offloadingv1beta1.LocalPodOffloadingStrategyType,
+				hasRuntimeClass: true}),
+			Entry("Local&Remote", offloadingTestCase{
+				policy:          offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
+				hasRuntimeClass: false}),
+			Entry("Local&Remote + RC", offloadingTestCase{
+				policy:          offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
+				hasRuntimeClass: true}),
+			Entry("Remote", offloadingTestCase{
+				policy:          offloadingv1beta1.RemotePodOffloadingStrategyType,
+				hasRuntimeClass: false}),
+			Entry("Remote + RC", offloadingTestCase{
+				policy:          offloadingv1beta1.RemotePodOffloadingStrategyType,
+				hasRuntimeClass: true}),
+		)
+
+		It("Checks that pod is mutated when a runtime class different than Liqo is defined ", func() {
 			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 			podTest := pod.DeepCopy()
-			err := mutatePod(&namespaceOffloading, podTest, true)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(podTest.Spec.Tolerations) == 2).To(BeTrue())
-			Expect(podTest.Spec.Tolerations[1].MatchToleration(&virtualNodeToleration)).To(BeTrue())
-			mergedNodeSelector := testutils.GetMergedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
-			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Equal(mergedNodeSelector))
-		})
+			runtimeClassName := "my-custom-runtime"
+			podTest.Spec.RuntimeClassName = &runtimeClassName
 
-		It("With LocalPodOffloadingStrategy check that pod is not mutated ", func() {
-			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalPodOffloadingStrategyType)
-			podTest := pod.DeepCopy()
-			oldPodNodeSelector := *podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-			err := mutatePod(&namespaceOffloading, podTest, true)
+			err := mutatePod(&namespaceOffloading, podTest, "liqo")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(podTest.Spec.Tolerations) == 1).To(BeTrue())
-			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Equal(oldPodNodeSelector))
-		})
-
-		It("With disable add toleration check that pod is mutated ", func() {
-			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
-			podTest := pod.DeepCopy()
-			err := mutatePod(&namespaceOffloading, podTest, false)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(podTest.Spec.Tolerations)).To(BeNumerically("==", 1))
-			Expect(podTest.Spec.Tolerations[0].MatchToleration(&pod.Spec.Tolerations[0])).To(BeTrue())
+			Expect(len(podTest.Spec.Tolerations)).To(Equal(2), "Unexpected number of tolerations")
+			Expect(podTest.Spec.Tolerations[1].MatchToleration(&virtualNodeToleration)).To(
+				BeTrue(),
+				"Added tolerations do not match the expected ones",
+			)
 			mergedNodeSelector := testutils.GetMergedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
-			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Equal(mergedNodeSelector))
+			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(
+				Equal(mergedNodeSelector),
+				"Node affinities do not match the expected ones",
+			)
 		})
 	})
 })

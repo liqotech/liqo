@@ -79,18 +79,27 @@ In other words, an empty *cluster selector* matches all virtual clusters.
 The remote clusters are backed by a Liqo Virtual Node, which allows the vanilla Kubernetes scheduler to address the remote cluster as target for pod scheduling.
 However, by default the Liqo virtual nodes have a [Taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) applied to them, which prevents pods from being scheduled on them, unless a *namespace offloading* is enabled in the namespace where the pod is running.
 
-You have two different ways to determine whether a pod can be scheduled on a virtual node (so on a remote cluster) and they are mutually exclusive per Liqo installation:
+You have two different ways to determine whether a pod can be scheduled on a virtual node (so on a remote cluster):
 
 * Defining a **pod offloading strategy** for the offloaded namespaces (default), which tells where the pods created on that namespace should be scheduled (whether in the local cluster, the remote clusters, or both letting the vanilla K8s scheduler decide).
 * Setting the Liqo **RuntimeClass** in the pod, in this case, the namespace offloading strategy is ignored, and the pod will be scheduled to the virtual nodes.
 
+Note these two methods can be used in conjunction to define how pods should be scheduled in the offloaded namespace.
+For example, a user might want to schedule all the pods on physical nodes, and only a subset of them on virtual nodes.
+To do so, it is possible to define `Local` as *pod offloading strategy* of the namespace, so that all the pods are scheduled locally and only the ones having the Liqo runtime class will be executed on a virtual node.
+
 ### Pod offloading strategy
 
-The *pod offloading strategy* defines high-level constraints about pod scheduling, and can be configured through the `--pod-offloading-strategy` flag.
+The *pod offloading strategy* defines high-level constraints about pod scheduling, and can be configured through the `--pod-offloading-strategy` flag to be provided to the `liqoctl offload namespace` command. E.g.
+
+```bash
+liqoctl offload namespace NAMESPACE_NAME --pod-offloading-strategy Local
+```
+
 The accepted values are:
 
-* **LocalAndRemote** (default): pods deployed in the local namespace can be scheduled **both onto local nodes and onto virtual nodes**, hence possibly offloaded to remote clusters. This will leave the Kubernetes scheduler to decide about the best placement, based on the available resources and the pod requirements. You can still influence the scheduler decision on which pods should be scheduled onto virtual nodes using the [standard Kubernetes mechanisms to assign Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/).
-* **Local**: pods deployed in the local namespace are enforced to be scheduled onto **local nodes only**, hence never offloaded to remote clusters.
+* **LocalAndRemote** (default): pods deployed in the local namespace can be scheduled **both onto local nodes and onto virtual nodes**, hence possibly offloaded to remote clusters. This will leave the Kubernetes scheduler to decide about the best placement, based on the available resources and the pod requirements. You can still influence the scheduler decision on which pods should be scheduled onto virtual nodes using the [standard Kubernetes mechanisms to assign Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) or via the [Liqo runtime class](#runtimeclass).
+* **Local**: pods deployed in the local namespace are enforced to be scheduled onto **local nodes only**, hence never offloaded to remote clusters (unless the pod uses the [Liqo runtime class](#runtimeclass)).
 * **Remote**: pods deployed in the local namespace are enforced to be scheduled onto **remote nodes only**, hence always offloaded to remote clusters.
 
 It is worth mentioning that, independently from the selected pod offloading strategy, the services that expose them are propagated to the entire namespace (both locally and in the remote cluster), hence enabling the above pods to be consumed from anywhere in the Liqo domain, as shown in the [service offloading example](../examples/service-offloading.md).
@@ -105,21 +114,21 @@ Due to current limitations of Liqo, the pods violating the *pod offloading strat
 
 ### RuntimeClass
 
-At Liqo install or upgrade time, you can specify a flag to enable the creation of a [RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/) to be used to specify the pods that should be offloaded to the virtual nodes.
+By default Liqo creates a [RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/) with name `liqo`, which can be used to **force pods to be scheduled on virtual nodes (so on the provider clusters) independently from the [pod offloading strategy](#pod-offloading-strategy)** configured on the offloaded namespace.
 
-```bash
-liqoctl install [...] --set offloading.runtimeClass.enable=true
+For example, if the *pod offloading strategy* is `Local` all the pods will be scheduled on the local cluster unless the Liqo runtime class is specified in the manifest of the pod.
+
+To use the Liqo runtime class, you will need to specify `runtimeClassName: liqo` in the Pod spec:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  runtimeClassName: liqo
+  # ...
 ```
-
-or
-
-```bash
-helm install liqo liqo/liqo [...] --set offloading.runtimeClass.enable=true
-```
-
-The RuntimeClass is created with the name `liqo`, and it is configured to add a Toleration to the virtual node taint for pods selecting it and to set a node selector to the virtual node's label.
-
-(UsageOffloadingClusterSelector)=
 
 ## Unoffloading a namespace
 

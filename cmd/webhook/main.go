@@ -90,8 +90,8 @@ func main() {
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
 	refreshInterval := pflag.Duration("resource-validator-refresh-interval",
 		5*time.Minute, "The interval at which the resource validator cache is refreshed")
-	addVirtualNodeTolerationOnOffloadedPods := pflag.Bool("add-virtual-node-toleration-on-offloaded-pods", false,
-		"Automatically add the virtual node toleration on offloaded pods")
+	liqoRuntimeClassName := pflag.String("liqo-runtime-class", "liqo",
+		"Define the Liqo runtime class forcing the pods to be scheduled on virtual nodes")
 
 	flagsutils.InitKlogFlags(pflag.CommandLine)
 	restcfg.InitFlags(pflag.CommandLine)
@@ -192,7 +192,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
-	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *addVirtualNodeTolerationOnOffloadedPods))
+	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *liqoRuntimeClassName))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
 		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator(mgr.GetClient()))
