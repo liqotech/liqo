@@ -17,10 +17,10 @@ package resources
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 
-	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +66,7 @@ func EphemeralStorage(r corev1.ResourceList) string {
 func Others(r corev1.ResourceList) map[string]string {
 	result := map[string]string{}
 
-	keys := maps.Keys(r)
+	keys := slices.Collect(maps.Keys(r))
 	sort.SliceStable(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, k := range keys {
 		if v, ok := (r)[k]; !slices.Contains(WellKnownResources, k.String()) && ok && v.Value() != 0 {
