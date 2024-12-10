@@ -39,16 +39,16 @@ type podwh struct {
 	client  client.Client
 	decoder admission.Decoder
 
-	addVirtualNodeToleration bool
+	runtimeClassName string
 }
 
 // New returns a new PodWebhook instance.
-func New(cl client.Client, addVirtualNodeToleration bool) *webhook.Admission {
+func New(cl client.Client, liqoRuntimeClassName string) *webhook.Admission {
 	return &webhook.Admission{Handler: &podwh{
 		client:  cl,
 		decoder: admission.NewDecoder(runtime.NewScheme()),
 
-		addVirtualNodeToleration: addVirtualNodeToleration,
+		runtimeClassName: liqoRuntimeClassName,
 	}}
 }
 
@@ -91,7 +91,7 @@ func (w *podwh) Handle(ctx context.Context, req admission.Request) admission.Res
 		return admission.Errored(http.StatusInternalServerError, errors.New("failed retrieving NamespaceOffloading"))
 	}
 
-	if err = mutatePod(nsoff, pod, w.addVirtualNodeToleration); err != nil {
+	if err = mutatePod(nsoff, pod, w.runtimeClassName); err != nil {
 		return admission.Errored(http.StatusInternalServerError, errors.New("failed constructing pod mutation"))
 	}
 

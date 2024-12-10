@@ -138,7 +138,6 @@
 | offloading.reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs","loadbalancer.openstack.org/load-balancer-id"]` | List of annotations that must not be reflected on remote clusters. |
 | offloading.reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
 | offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
-| offloading.runtimeClass.enabled | bool | `false` |  |
 | offloading.runtimeClass.handler | string | `"liqo"` | Handler for the runtime class. |
 | offloading.runtimeClass.labels | object | `{}` | Labels for the runtime class. |
 | offloading.runtimeClass.name | string | `"liqo"` | Name of the runtime class to use for offloading. |

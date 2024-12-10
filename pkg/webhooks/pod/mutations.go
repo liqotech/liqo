@@ -38,14 +38,15 @@ func getVirtualNodeToleration() corev1.Toleration {
 // or RemotePodOffloadingStrategyType. In case of PodOffloadingStrategyType not recognized, returns an error.
 func createTolerationFromNamespaceOffloading(strategy offloadingv1beta1.PodOffloadingStrategyType) (corev1.Toleration, error) {
 	var toleration corev1.Toleration
-	switch {
-	case strategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, strategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
+	switch strategy {
+	case offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, offloadingv1beta1.RemotePodOffloadingStrategyType:
 		// The virtual-node toleration must be added.
 		toleration = getVirtualNodeToleration()
+	case offloadingv1beta1.LocalPodOffloadingStrategyType:
+		return toleration, nil
 	default:
-		err := fmt.Errorf("PodOffloadingStrategyType '%s' not recognized", strategy)
-		klog.Error(err)
-		return corev1.Toleration{}, err
+		err := fmt.Errorf("unknown PodOffloadingStrategyType %q", strategy)
+		return toleration, err
 	}
 	return toleration, nil
 }
@@ -53,8 +54,8 @@ func createTolerationFromNamespaceOffloading(strategy offloadingv1beta1.PodOfflo
 // createNodeSelectorFromNamespaceOffloading creates the right NodeSelector according to the PodOffloadingStrategy chosen.
 func createNodeSelectorFromNamespaceOffloading(nsoff *offloadingv1beta1.NamespaceOffloading) (*corev1.NodeSelector, error) {
 	nodeSelector := nsoff.Spec.ClusterSelector
-	switch {
-	case nsoff.Spec.PodOffloadingStrategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
+	switch nsoff.Spec.PodOffloadingStrategy {
+	case offloadingv1beta1.RemotePodOffloadingStrategyType:
 		// To ensure that the pod is not scheduled on local nodes is necessary to add to every NodeSelectorTerm a
 		// new NodeSelectorRequirement. This NodeSelectorRequirement requires explicitly the label
 		// "liqo.io/type=virtual-node" to exclude local nodes from the scheduler choice.
@@ -71,7 +72,7 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offloadingv1beta1.Namespac
 				})
 		}
 
-	case nsoff.Spec.PodOffloadingStrategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType:
+	case offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType:
 		// In case the selector is empty, it is not necessary to modify anything, as it already allows pods to be scheduled on all nodes.
 		if len(nodeSelector.NodeSelectorTerms) == 0 {
 			return nil, nil
@@ -86,10 +87,10 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offloadingv1beta1.Namespac
 			}},
 		}
 		nodeSelector.NodeSelectorTerms = append(nodeSelector.NodeSelectorTerms, newNodeSelectorTerm)
-
+	case offloadingv1beta1.LocalPodOffloadingStrategyType:
+		return nil, nil
 	default:
-		err := fmt.Errorf("PodOffloadingStrategyType '%s' not recognized", nsoff.Spec.PodOffloadingStrategy)
-		klog.Error(err)
+		err := fmt.Errorf("unknown PodOffloadingStrategyType %q", nsoff.Spec.PodOffloadingStrategy)
 		return nil, err
 	}
 	return &nodeSelector, nil
@@ -130,7 +131,8 @@ func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod
 // chosen in the CR. Two possible modifications:
 // - The VirtualNodeToleration is added to the Pod Toleration if necessary.
 // - The old Pod NodeSelector is substituted with a new one according to the PodOffloadingStrategyType.
-func mutatePod(namespaceOffloading *offloadingv1beta1.NamespaceOffloading, pod *corev1.Pod, addVirtualNodeToleration bool) error {
+// No changes are applied to the Pod if the Liqo runtime when the Liqo runtime class is specified.
+func mutatePod(namespaceOffloading *offloadingv1beta1.NamespaceOffloading, pod *corev1.Pod, liqoRuntimeClassName string) error {
 	// The NamespaceOffloading CR contains information about the PodOffloadingStrategy and
 	// the NodeSelector inserted by the user (ClusterSelector field).
 	klog.V(5).Infof("Chosen strategy: %s", namespaceOffloading.Spec.PodOffloadingStrategy)
@@ -140,31 +142,36 @@ func mutatePod(namespaceOffloading *offloadingv1beta1.NamespaceOffloading, pod *
 		return nil
 	}
 
-	if addVirtualNodeToleration {
+	// Mutate Pod affinity and tolerations only if the Pod has NOT the Liqo runtime class.
+	hasLiqoRuntimeClass := pod.Spec.RuntimeClassName != nil && *pod.Spec.RuntimeClassName == liqoRuntimeClassName
+	if !hasLiqoRuntimeClass {
 		// Create the right Toleration according to the PodOffloadingStrategy case.
 		toleration, err := createTolerationFromNamespaceOffloading(namespaceOffloading.Spec.PodOffloadingStrategy)
 		if err != nil {
-			klog.Errorf("The NamespaceOffloading in namespace '%s' has unknown strategy '%s'",
-				namespaceOffloading.Namespace, namespaceOffloading.Spec.PodOffloadingStrategy)
-			return err
+			wErr := fmt.Errorf("unable to define tolerations for pod %q in namespace %q: %w",
+				pod.Name, namespaceOffloading.Namespace, err)
+			klog.Error(wErr)
+			return wErr
 		}
 		klog.V(5).Infof("Generated Toleration: %s", toleration.String())
 
 		// It is necessary to add the just created toleration.
 		pod.Spec.Tolerations = append(pod.Spec.Tolerations, toleration)
+
+		// Create the right NodeSelector according to the PodOffloadingStrategy case.
+		imposedNodeSelector, err := createNodeSelectorFromNamespaceOffloading(namespaceOffloading)
+		if err != nil {
+			wErr := fmt.Errorf("unable to define node selectors for pod %q in namespace %q: %w",
+				pod.Name, namespaceOffloading.Namespace, err)
+			klog.Error(wErr)
+			return wErr
+		}
+		klog.V(5).Infof("ImposedNodeSelector: %s", imposedNodeSelector)
+
+		// Enforce the new NodeSelector policy imposed by the NamespaceOffloading creator.
+		fillPodWithTheNewNodeSelector(imposedNodeSelector, pod)
+		klog.V(5).Infof("Pod NodeSelector: %s", imposedNodeSelector)
 	}
 
-	// Create the right NodeSelector according to the PodOffloadingStrategy case.
-	imposedNodeSelector, err := createNodeSelectorFromNamespaceOffloading(namespaceOffloading)
-	if err != nil {
-		klog.Errorf("The NamespaceOffloading in namespace '%s' has unknown strategy '%s'",
-			namespaceOffloading.Namespace, namespaceOffloading.Spec.PodOffloadingStrategy)
-		return err
-	}
-	klog.V(5).Infof("ImposedNodeSelector: %s", imposedNodeSelector)
-
-	// Enforce the new NodeSelector policy imposed by the NamespaceOffloading creator.
-	fillPodWithTheNewNodeSelector(imposedNodeSelector, pod)
-	klog.V(5).Infof("Pod NodeSelector: %s", imposedNodeSelector)
 	return nil
 }

@@ -178,6 +178,15 @@ var _ = Describe("Liqo E2E", func() {
 				deploymentRunning()
 			})
 
+			It("should schedule the remote deployment with runtime class", func() {
+				createRemoteDeployment(util.RuntimeClassOption("liqo"))
+				deploymentRunning()
+			})
+
+			It("should not schedule the local deployment with runtime class", func() {
+				createLocalDeployment(util.RuntimeClassOption("liqo"))
+				deploymentPending()
+			})
 		})
 
 		When("the offloading policy is set to Remote", func() {
@@ -197,6 +206,16 @@ var _ = Describe("Liqo E2E", func() {
 
 			It("should not schedule the local deployment", func() {
 				createLocalDeployment()
+				deploymentPending()
+			})
+
+			It("should schedule the remote deployment with runtime class", func() {
+				createRemoteDeployment(util.RuntimeClassOption("liqo"))
+				deploymentRunning()
+			})
+
+			It("should not schedule the local deployment with runtime class", func() {
+				createLocalDeployment(util.RuntimeClassOption("liqo"))
 				deploymentPending()
 			})
 
@@ -222,63 +241,9 @@ var _ = Describe("Liqo E2E", func() {
 				deploymentRunning()
 			})
 
-		})
-
-		When("the Liqo runtime class is enabled", func() {
-
-			BeforeEach(func() {
-				Expect(util.RemoveArgumentFromDeployment(ctx, testContext.Clusters[0].ControllerClient,
-					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
-
-				Eventually(func() appsv1.DeploymentStatus {
-					var d appsv1.Deployment
-					_ = testContext.Clusters[0].ControllerClient.Get(ctx, client.ObjectKey{Namespace: "liqo", Name: "liqo-webhook"}, &d)
-					return d.Status
-				}, timeout, interval).Should(MatchFields(IgnoreExtras, Fields{
-					"ReadyReplicas":   BeNumerically("==", 1),
-					"UpdatedReplicas": BeNumerically("==", 1),
-					"Replicas":        BeNumerically("==", 1),
-				}))
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
-
-				_ = util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName)
-
-				// wait for the namespace to be offloaded, this avoids race conditions
-				time.Sleep(2 * time.Second)
-			})
-
-			AfterEach(func() {
-				Expect(util.AddArgumentToDeployment(ctx, testContext.Clusters[0].ControllerClient,
-					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
-
-				Eventually(func() appsv1.DeploymentStatus {
-					var d appsv1.Deployment
-					_ = testContext.Clusters[0].ControllerClient.Get(ctx, client.ObjectKey{Namespace: "liqo", Name: "liqo-webhook"}, &d)
-					return d.Status
-				}, timeout, interval).Should(MatchFields(IgnoreExtras, Fields{
-					"ReadyReplicas":   BeNumerically("==", 1),
-					"UpdatedReplicas": BeNumerically("==", 1),
-					"Replicas":        BeNumerically("==", 1),
-				}))
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
-
-				deleteDeployment()
-			})
-
 			It("should schedule the remote deployment with runtime class", func() {
 				createRemoteDeployment(util.RuntimeClassOption("liqo"))
 				deploymentRunning()
-			})
-
-			It("should not schedule the remote deployment without runtime class", func() {
-				createRemoteDeployment()
-				deploymentPending()
 			})
 
 			It("should not schedule the local deployment with runtime class", func() {
@@ -286,13 +251,7 @@ var _ = Describe("Liqo E2E", func() {
 				deploymentPending()
 			})
 
-			It("should schedule the local deployment without runtime class", func() {
-				createLocalDeployment()
-				deploymentRunning()
-			})
-
 		})
-
 	})
 })
 
