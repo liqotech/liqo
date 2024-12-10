@@ -18,13 +18,13 @@ const (
 	// EndpointIP simulate a node or a load balancer IP.
 	EndpointIP = "1.0.0.1"
 	// PodCIDR is the CIDR of the pod network used for testing.
-	PodCIDR = "fake pod CIDR"
+	PodCIDR = "10.10.0.0/16"
 	// ServiceCIDR is the CIDR of the service network used for testing.
-	ServiceCIDR = "fake service CIDR"
+	ServiceCIDR = "10.11.0.0/16"
 	// ExternalCIDR is the external CIDR used for testing.
-	ExternalCIDR = "fake external CIDR"
+	ExternalCIDR = "10.12.0.0/16"
 	// InternalCIDR is the internal CIDR used for testing.
-	InternalCIDR = "fake internal CIDR"
+	InternalCIDR = "10.13.0.0/16"
 	// OverrideAPIAddress is the overrided address of the API server used for testing.
 	OverrideAPIAddress = "1.0.0.2:6443"
 	// ForeignAuthURL is the URL of the foreign cluster used for testing.

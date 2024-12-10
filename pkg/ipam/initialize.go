@@ -45,7 +45,7 @@ func (lipam *LiqoIPAM) initialize(ctx context.Context) error {
 
 func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 	// List all networks present in the cluster.
-	nets, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
+	nets, err := lipam.listNetworksOnCluster(ctx)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 
 func (lipam *LiqoIPAM) initializeIPs(ctx context.Context) error {
 	// List all IPs present in the cluster.
-	ips, err := lipam.listIPsOnCluster(ctx, lipam.Client)
+	ips, err := lipam.listIPsOnCluster(ctx)
 	if err != nil {
 		return err
 	}

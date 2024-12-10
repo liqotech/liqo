@@ -181,19 +181,19 @@ var _ = Describe("Sync routine tests", func() {
 				newCreationTimestamp := time.Now().Add(-syncGracePeriod)
 
 				// Check the cache before grace period
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
 
 				Expect(fakeIpamServer.syncIPs(ctx)).To(Succeed())
 
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
 
 				// Update the creation timestamp of the IPs
 				Expect(fakeIpamServer.IpamCore.IPSetCreationTimestamp(
@@ -209,11 +209,11 @@ var _ = Describe("Sync routine tests", func() {
 				Expect(fakeIpamServer.syncIPs(ctx)).To(Succeed())
 
 				// Check the cache after grace period
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
 
 				// Update the creation timestamp of the IPs
 				Expect(fakeIpamServer.IpamCore.IPSetCreationTimestamp(
@@ -223,11 +223,11 @@ var _ = Describe("Sync routine tests", func() {
 				Expect(fakeIpamServer.syncIPs(ctx)).To(Succeed())
 
 				// Check the cache after grace period
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
-				Expect(fakeIpamServer.isIPAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
 			})
 		})
 	})

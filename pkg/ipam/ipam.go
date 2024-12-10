@@ -52,12 +52,12 @@ type ServerOptions struct {
 }
 
 // New creates a new instance of the LiqoIPAM.
-func New(ctx context.Context, cl client.Client, roots []string, opts *ServerOptions) (*LiqoIPAM, error) {
+func New(ctx context.Context, cl client.Client, opts *ServerOptions) (*LiqoIPAM, error) {
 	hs := health.NewServer()
 	hs.SetServingStatus(IPAM_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
-	prefixRoots := make([]netip.Prefix, len(roots))
-	for i, r := range roots {
+	prefixRoots := make([]netip.Prefix, len(opts.Pools))
+	for i, r := range opts.Pools {
 		p, err := netip.ParsePrefix(r)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse pool with prefix %q: %w", r, err)
