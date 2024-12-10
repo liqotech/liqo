@@ -1,6 +1,7 @@
 # Roadmap
 
 **tl;dr**
+
 - Liqo **1.0.0-rc3**: December 20th, 2024
 - Liqo **1.0.0-rc4**: March 2025
 - Liqo **1.0.0 final**: Late spring 2025
