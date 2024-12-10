@@ -1,7 +1,7 @@
 # Offloading with Policies
 
 This tutorial aims to guide you through a tour to learn how to use the core Liqo features.
-You will learn how to tune namespace offloading, and specify the target clusters through the [cluster selector](UsageOffloadingClusterSelector) concept.
+You will learn how to tune namespace offloading, and specify the target clusters through the [cluster selector](../usage/namespace-offloading.md#cluster-selector) concept.
 
 More specifically, you will configure a scenario composed of a *single entry point cluster* leveraged for the deployment of the applications (i.e., the *Venice* cluster, located in *north* Italy) and two *worker clusters* characterized by different geographical regions (i.e., the *Florence* and *Naples* clusters, respectively located in *center* and *south* Italy).
 Then, you will offload a given namespace (and the applications contained therein) to a subset of the worker clusters (i.e., only to the *Naples* cluster), while allowing pods to be also scheduled on the local cluster (i.e., the *Venice* one).
