@@ -17,9 +17,10 @@ package getters
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 
-	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -174,7 +175,7 @@ func RetrieveClusterIDsFromVirtualNodes(virtualNodes *offloadingv1beta1.VirtualN
 	for i := range virtualNodes.Items {
 		clusterIDs[string(virtualNodes.Items[i].Spec.ClusterID)] = nil
 	}
-	return maps.Keys(clusterIDs)
+	return slices.Collect(maps.Keys(clusterIDs))
 }
 
 // RetrieveClusterIDsFromObjectsLabels returns the remote cluster IDs in a list of objects avoiding duplicates.
@@ -191,5 +192,5 @@ func RetrieveClusterIDsFromObjectsLabels[T metav1.Object](objectList []T) []stri
 		}
 		clusterIDs[clusterID] = nil
 	}
-	return maps.Keys(clusterIDs)
+	return slices.Collect(maps.Keys(clusterIDs))
 }
