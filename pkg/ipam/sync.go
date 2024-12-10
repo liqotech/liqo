@@ -98,7 +98,7 @@ func syncNetworkFree(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefixDet
 
 func (lipam *LiqoIPAM) syncNetworks(ctx context.Context) error {
 	// List all networks present in the cluster.
-	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
+	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx)
 	if err != nil {
 		return err
 	}
@@ -155,12 +155,12 @@ func syncIPsFree(lipam *LiqoIPAM, clusterIPs, cachedIPs map[netip.Addr]netip.Pre
 
 func (lipam *LiqoIPAM) syncIPs(ctx context.Context) error {
 	// List all IPs present in the cluster.
-	clusterIPsMap, err := lipam.listIPsOnCluster(ctx, lipam.Client)
+	clusterIPsMap, err := lipam.listIPsOnCluster(ctx)
 	if err != nil {
 		return err
 	}
 
-	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx, lipam.Client)
+	clusterNetworksMap, err := lipam.listNetworksOnCluster(ctx)
 	if err != nil {
 		return err
 	}
