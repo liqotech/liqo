@@ -21,7 +21,6 @@ import (
 	"time"
 
 	klog "k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 )
@@ -84,10 +83,10 @@ type prefixDetails struct {
 	preallocated uint32
 }
 
-func (lipam *LiqoIPAM) listNetworksOnCluster(ctx context.Context, cl client.Client) (map[netip.Prefix]prefixDetails, error) {
+func (lipam *LiqoIPAM) listNetworksOnCluster(ctx context.Context) (map[netip.Prefix]prefixDetails, error) {
 	result := make(map[netip.Prefix]prefixDetails)
 	var networks ipamv1alpha1.NetworkList
-	if err := cl.List(ctx, &networks); err != nil {
+	if err := lipam.Client.List(ctx, &networks); err != nil {
 		return nil, err
 	}
 

@@ -59,3 +59,8 @@ const (
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"
 )
+
+var (
+	// PrivateAddressSpace contains all the ranges for private addresses as defined in RFC1918.
+	PrivateAddressSpace = []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}
+)
