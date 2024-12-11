@@ -118,6 +118,9 @@ func RunChecks(ctx context.Context, cl *client.Client, cfg client.Configs, opts 
 	logger.Info("All checks completed")
 	PrintCheckResults(successCountTot, errorCountTot, logger)
 
+	if errorCountTot > 0 {
+		return fmt.Errorf("some checks failed")
+	}
 	return nil
 }
 
