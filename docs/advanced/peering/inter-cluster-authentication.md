@@ -12,8 +12,7 @@ The `liqoctl peer` command automatically sets up the network pairing and perform
 However, **authentication and resource reflection are independent from the network pairing**, which means that we can offload tasks and reflect resources without setting up the network.
 
 The authentication process can be completed without the network pairing by using the `liqoctl authenticate` command or by manually applying the CRs.
- 
- 
+
 ## Authentication via liqoctl authenticate
 
 ```{warning}
