@@ -13,6 +13,7 @@ However, **authentication and resource reflection are independent from the netwo
 
 The authentication process can be completed without the network pairing by using the `liqoctl authenticate` command or by manually applying the CRs.
  
+ 
 ## Authentication via liqoctl authenticate
 
 ```{warning}
