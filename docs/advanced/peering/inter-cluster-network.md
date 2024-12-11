@@ -1,19 +1,20 @@
-# Inter-cluster Network Connectivity
+# Inter-cluster Networking
 
 ## Overview
 
-The following resources are involved in the network connectivity:
+Liqo needs a proper network connectivity to connect two clusters, which may involve both network resources as well as logical parameters (e.g., dedicated IP routes).
+By default, Liqo creates a WireGuard tunnel to provision the above inter-cluster network connectivity.
+In order to setup this feature, the following Kubernetes Custom Resources (CRs) are involved:
 
-* **GatewayServer**: this resource is used to deploy the Liqo Gateway on the cluster, it exposes a service to the outside of the cluster.
-* **GatewayClient**: this resource is used to connect to the Liqo Gateway of a remote cluster.
-* **Connection**: this resource shows the status of the connection between two clusters.
+* **GatewayServer**: used to deploy the Liqo Gateway acting as _server_ on one cluster; it exposes a Kubernetes service that has to be reachable from outside of the cluster.
+* **GatewayClient**: used to deploy a Liqo Gateway acting as a _client_ toward a remote cluster. The deployed pod must be able to reach the Kubernetes service exported by the gateway server on the remote cluster.
+* **Connection**: it shows the status of the connection between two clusters.
 
-With the different methods of network configuration, you will create and manage these resources with different levels of automation and customization.
+This section presents how to deal with the above resources in order to achieve different levels of automation and customization.
 
-## Automatic
-
-When you [create a peering](/usage/peer) between two clusters, Liqo automatically deploys a Liqo Gateway for each cluster in the tenant namespace, no further configuration is required.
-The cluster that is requesting resources and where the virtual node will be created will be configured as a client, while the cluster that is providing resources is configured as a server.
+However, before delving into the configuration details, let use recap what happens, from the networking standpoind, when you use the [automatic peering](/usage/peer) between two clusters.
+In this case, Liqo automatically deploys a Gateway in the tenant namespace of each cluster, and no further configuration is required.
+The cluster that is requesting resources and where the virtual node will be created is configured as a _client_, while the cluster that is providing resources is configured as a _server_.
 
 ```{figure} /_static/images/usage/inter-cluster-network/automatic.drawio.svg
 ---
@@ -22,13 +23,17 @@ align: center
 Automatic network configuration
 ```
 
-The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
+The `unpeer` process will automatically remove the Liqo Gateway from the tenant namespace, in both clusters.
+
+Note that in the automatic process we have a sort of assumption that the _provider cluster_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled when using a manual peering process.
+
+Finally, it is worth remembering that the network configuration is applied independently per each peering; for instance, a first cluster A can act as gateway client toward a second cluster B, but it can act as gateway server with respect to the peering with cluster C.
 
 ## Setup the inter-cluster network via `liqoctl network` command
 
-When you have access to both clusters, you can configure the inter-cluster network connectivity via the `liqoctl network` command.
+When your management machine has access to the Kubernetes API server of both clusters, you can configure the inter-cluster network connectivity via the `liqoctl network` command.
 
-Note that when you use the `liqoctl network` command, the argument specifying the remote kubeconfig/context corresponds to the cluster that acts as gateway server for the Wireguard tunnel.
+Note that the `liqoctl network` command assumes that the remote kubeconfig/context (`--remote-kubeconfig`, `--remote-context`) is the cluster that acts as gateway server for the Wireguard tunnel, independently from the role of the above cluster from the offloading point of view (i.e., _provider_ or _consumer_).
 
 To establish a connection between two clusters, you can run the following command:
 
@@ -68,7 +73,50 @@ You should see an output like the following:
  INFO   (remote) Connection is established
 ```
 
+<<<<<<< HEAD
 If the command was successful you will be able to see a new connection resource with status `Connected`:
+=======
+This command deploys a Liqo Gateway in the tenant namespace of each cluster and sets up the connection between them.
+The Liqo Gateway of the first cluster will act as a client, while the one in the second cluster will act as a server.
+
+```{admonition} Note
+You can see further configuration options with `liqoctl network connect --help`.
+
+For instance, in the previous command we have used the `--server-service-type NodePort` option to expose the service associated to the Liqo Gateway server as a NodePort.
+Alternatively, you can use the `--server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer (if supported in your Kubernetes cluster).
+```
+
+In the first cluster (acting as gateway client), you can find the following resources:
+
+```bash
+kubectl get gatewayclients.networking.liqo.io -A
+```
+
+```text
+NAMESPACE             NAME      TEMPLATE NAME      IP           PORT    AGE
+liqo-tenant-cl02      cl02      wireguard-client   172.19.0.8   32009   28s
+```
+
+```bash
+kubectl get connections.networking.liqo.io -A
+```
+
+```text
+NAMESPACE          NAME            TYPE     STATUS      AGE
+liqo-tenant-cl02   gw-cl02         Client   Connected   76s
+```
+
+In the second cluster (acting as gateway server) you can find the following resources:
+
+```bash
+kubectl get gatewayservers.networking.liqo.io -A
+```
+
+```text
+NAMESPACE          NAME        TEMPLATE NAME      IP           PORT    AGE
+liqo-tenant-cl01   cl01        wireguard-server   172.19.0.8   32009   69s
+```
+>>>>>>> 05c1030e (docs: polishing docs for manual authentication)
 
 ```bash
 kubectl get connections.networking.liqo.io -A
@@ -183,7 +231,7 @@ INFO   (local) Gateway client correctly deleted
 INFO   (remote) Gateway server correctly deleted
 ```
 
-Optionally, you can remove the network configuration with the following command:
+Optionally, you can remove all the network configuration (and the associated CRs) with the following command:
 
 ```bash
 liqoctl network reset \
@@ -207,10 +255,10 @@ INFO   (remote) Network configuration correctly deleted
 
 ### Customization
 
-You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command on the server side:
+You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command with respect to the server side:
 
 * `--server-service-type` (default `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
-* `--server-port` (default `51840`): the port of the Gateway service.
+* `--server-port` (default `51840`): the UDP port used by the Gateway service.
 * `--node-port` (default `0`): set it to force the NodePort binding to a specific port. If set to `0`, the system will allocate a port automatically.
 * `--load-balancer-ip` (default `""`): set it to force the LoadBalancer service to bind to a specific IP address. If set to `""`, the system will allocate an IP address automatically.
 * `--mtu` (default `1340`): the MTU of the Gateway interface. Note that the MTU must be the same on both sides.
@@ -230,7 +278,9 @@ More info about the declarative setup of the network can be found [here](./peeri
 
 ### Definition of the network configuration (Configuration CRDs)
 
-In this step, each cluster needs to exchange the network configuration. Therefore, you will need to apply in **both clusters** a `Configuration` resource, paying attention to apply in each cluster, the network configuration of the other one.
+In this step, each cluster needs to exchange the network configuration. Therefore, you will need to apply a `Configuration` resource in **both clusters**, paying attention to apply, _in each cluster_, the network configuration _of the other one_.
+
+This is an example of a possible `Configuration` resource:
 
 ```yaml
 apiVersion: networking.liqo.io/v1beta1
