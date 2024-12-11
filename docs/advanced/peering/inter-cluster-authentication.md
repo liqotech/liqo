@@ -5,7 +5,7 @@
 To enable the [**namespace offloading**](/usage/namespace-offloading) along with the [**resource reflection**](/usage/reflection) on a provider cluster (i.e., which _offers_ its resources), the consumer cluster (i.e., which _uses_ the resources provided by another cluster) should be able to interact with the K8s API server of the provider.
 In fact, the consumer cluster must create some CRs (`NamespaceOffloading` and `ResourceSlice`) on the provider cluster, which are used to ask for the authorization to offload on a given namespace and to use a certain amount of resources.
 
-The authentication process is the first step of this process and it looks like a handshake between the clusters, allowing the consumer to obtain a valid identity to interact with the other cluster (i.e. access to the Kubernetes API server).
+The authentication procedure is the first step of this process and it looks like a handshake between the clusters, allowing the consumer to obtain a valid identity to interact with the other cluster (i.e. access to the Kubernetes API server).
 **This identity grants only limited permissions on the Liqo-related resources** used during the offloading process.
 
 The `liqoctl peer` command automatically sets up the network pairing and performs the authentication process.
