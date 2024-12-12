@@ -162,7 +162,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Register IPAM service
 	ipam.RegisterIPAMServer(server, liqoIPAM)
 
-	if err := server.Serve(lis); err != nil {
+	if err := server.Serve(lis); err != nil { // we do not need to close the listener as Serve will close it when returning
 		klog.Errorf("failed to serve: %v", err)
 		return err
 	}
