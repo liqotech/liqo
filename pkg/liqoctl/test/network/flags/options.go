@@ -29,6 +29,8 @@ const (
 	NodePortNodesAll NodePortNodes = "all"
 	// NodePortNodesWorkers represents the value to target worker nodes.
 	NodePortNodesWorkers NodePortNodes = "workers"
+	// NodePortNodesControlPlanes represents the value to target control plane nodes.
+	NodePortNodesControlPlanes NodePortNodes = "control-planes"
 )
 
 // NodePortNodesValues contains the possible values for NodePortNodes.
