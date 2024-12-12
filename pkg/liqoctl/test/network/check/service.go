@@ -112,6 +112,9 @@ func RunCheckExternalToNodePortServiceWithClient(ctx context.Context, cl ctrlcli
 			if opts.NodePortNodes == flags.NodePortNodesWorkers && setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
 				continue
 			}
+			if opts.NodePortNodes == flags.NodePortNodesControlPlanes && !setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
+				continue
+			}
 			nodeip := GetNodeAddress(&nodes.Items[i])
 			ok, err := httpclient.Curl(ctx, fmt.Sprintf("http://%s:%d", nodeip, nodeport), !opts.Topts.Verbose, opts.Topts.LocalFactory.Printer.Logger)
 			successCount, errorCount, err = utils.ManageResults(opts.Topts.FailFast, err, ok, successCount, errorCount)
@@ -261,7 +264,10 @@ func RunsCheckPodToNodePortServiceWithClient(ctx context.Context, cl ctrlclient.
 			if nodes.Items[i].GetLabels()[consts.TypeLabel] == consts.TypeNode {
 				continue
 			}
-			if opts.NodePortNodes == "workers" && setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
+			if opts.NodePortNodes == flags.NodePortNodesWorkers && setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
+				continue
+			}
+			if opts.NodePortNodes == flags.NodePortNodesControlPlanes && !setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
 				continue
 			}
 			nodeip := GetNodeAddress(&nodes.Items[i])
