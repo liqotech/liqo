@@ -36,6 +36,7 @@ token
 
 # test generated files
 coverage*
+*.report
 
 # example kubeconfig generates by examples
 liqo_kubeconf*
@@ -50,6 +51,3 @@ docs/_build
 /tmp
 /graphviz
 /k3s-ansible
-
-# Ginkgo generated files
-*.report
