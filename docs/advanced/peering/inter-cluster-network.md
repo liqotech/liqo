@@ -1,19 +1,19 @@
-# Inter-cluster Network Connectivity
+# Inter-cluster Networking
 
 ## Overview
 
-The following resources are involved in the network connectivity:
+Liqo needs a proper network connectivity to connect two clusters, which may involve both network resources as well as logical parameters (e.g., dedicated IP routes). By default, Liqo creates a WireGuard tunnel to provision the above inter-cluster network connectivity.
+In order to setup this feature, the following Kubernetes Custom Resources (CRs) are involved:
 
-* **GatewayServer**: this resource is used to deploy the Liqo Gateway on the cluster, it exposes a service to the outside of the cluster.
-* **GatewayClient**: this resource is used to connect to the Liqo Gateway of a remote cluster.
-* **Connection**: this resource shows the status of the connection between two clusters.
+* **GatewayServer**: used to deploy the Liqo Gateway acting as _server_ on one cluster; it exposes a Kubernetes service that has to be reachable from outside of the cluster.
+* **GatewayClient**: used to deploy a Liqo Gateway acting as a _client_ toward a remote cluster. The deployed pod must be able to reach the Kubernetes service exported by the gateway server on the remote cluster.
+* **Connection**: it shows the status of the connection between two clusters.
 
-With the different methods of network configuration, you will create and manage these resources with different levels of automation and customization.
+This section presents how to deal with the above resources in order to achieve different levels of automation and customization.
 
-## Automatic
-
-When you [create a peering](/usage/peer) between two clusters, Liqo automatically deploys a Liqo Gateway for each cluster in the tenant namespace, no further configuration is required.
-The cluster that is requesting resources and where the virtual node will be created will be configured as a client, while the cluster that is providing resources is configured as a server.
+However, before delving into the configuration details, let use recap what happens, from the networking standpoing, when you use the [automatic peering](/usage/peer) between two clusters.
+In this case, Liqo automatically deploys a Liqo Gateway in the tenant namespace for each cluster, and no further configuration is required.
+The cluster that is requesting resources and where the virtual node will be created is configured as a _client_, while the cluster that is providing resources is configured as a _server_.
 
 ```{figure} /_static/images/usage/inter-cluster-network/automatic.drawio.svg
 ---
@@ -22,7 +22,9 @@ align: center
 Automatic network configuration
 ```
 
-The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
+The `unpeer` process will automatically remove the Liqo Gateway from the tenant namespace, in both clusters.
+
+Note that in the automatic process we have a sort of assumption that the _cluster provider_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled when using a manual peering process.
 
 ## Setup the inter-cluster network via `liqoctl network` command
 
