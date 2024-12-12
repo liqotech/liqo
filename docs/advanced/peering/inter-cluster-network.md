@@ -11,8 +11,8 @@ In order to setup this feature, the following Kubernetes Custom Resources (CRs) 
 
 This section presents how to deal with the above resources in order to achieve different levels of automation and customization.
 
-However, before delving into the configuration details, let use recap what happens, from the networking standpoing, when you use the [automatic peering](/usage/peer) between two clusters.
-In this case, Liqo automatically deploys a Liqo Gateway in the tenant namespace for each cluster, and no further configuration is required.
+However, before delving into the configuration details, let use recap what happens, from the networking standpoind, when you use the [automatic peering](/usage/peer) between two clusters.
+In this case, Liqo automatically deploys a Gateway in the tenant namespace of each cluster, and no further configuration is required.
 The cluster that is requesting resources and where the virtual node will be created is configured as a _client_, while the cluster that is providing resources is configured as a _server_.
 
 ```{figure} /_static/images/usage/inter-cluster-network/automatic.drawio.svg
