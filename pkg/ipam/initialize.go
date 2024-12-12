@@ -55,10 +55,9 @@ func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 		if _, err := lipam.networkAcquireSpecific(net); err != nil {
 			return err
 		}
-		for i := 0; i < int(netdetails.preallocated); i++ {
-			if _, err := lipam.ipAcquire(net); err != nil {
-				return errors.Join(err, lipam.networkRelease(net, 0))
-			}
+
+		if err := lipam.acquirePreallocatedIPs(net, netdetails.preallocated); err != nil {
+			return errors.Join(err, lipam.networkRelease(net, 0))
 		}
 	}
 

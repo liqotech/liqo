@@ -164,11 +164,8 @@ func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequ
 		}
 	}
 
-	for i := 0; i < int(req.GetPreAllocated()); i++ {
-		_, err := lipam.ipAcquire(*remappedCidr)
-		if err != nil {
-			return &NetworkAcquireResponse{}, errors.Join(err, lipam.networkRelease(*remappedCidr, 0))
-		}
+	if err := lipam.acquirePreallocatedIPs(*remappedCidr, req.GetPreAllocated()); err != nil {
+		return &NetworkAcquireResponse{}, errors.Join(err, lipam.networkRelease(*remappedCidr, 0))
 	}
 
 	return &NetworkAcquireResponse{Cidr: remappedCidr.String()}, nil

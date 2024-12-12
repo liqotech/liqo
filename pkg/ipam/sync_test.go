@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	ipamcore "github.com/liqotech/liqo/pkg/ipam/core"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -53,6 +54,11 @@ var _ = Describe("Sync routine tests", func() {
 			prefix, err := netip.ParsePrefix(cidr)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(server.ipAcquireWithAddr(addr, prefix)).Should(Succeed())
+		}
+
+		addPreAllocated = func(nw *ipamv1alpha1.Network, preAllocated uint32) *ipamv1alpha1.Network {
+			nw.Spec.PreAllocated = preAllocated
+			return nw
 		}
 	)
 
@@ -228,6 +234,63 @@ var _ = Describe("Sync routine tests", func() {
 				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(false))
 				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.3"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
 				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.4"), netip.MustParsePrefix("10.0.0.0/24"))).To(Equal(true))
+			})
+		})
+
+		Context("Sync preAllocated IPs", func() {
+			BeforeEach(func() {
+				client := fakeClientBuilder.Build()
+
+				ipamCore, err := ipamcore.NewIpam([]netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")})
+				Expect(err).To(BeNil())
+
+				fakeIpamServer = &LiqoIPAM{
+					Client:   client,
+					IpamCore: ipamCore,
+					opts: &ServerOptions{
+						GraphvizEnabled: false,
+						SyncGracePeriod: syncGracePeriod,
+					},
+				}
+
+				// Acquire network with preAllocated IPs
+				_, err = fakeIpamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:         "10.0.0.0/24",
+					Immutable:    true,
+					PreAllocated: 3,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(fakeIpamServer.networkIsAvailable(netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse()) // preAllocated
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse()) // preAllocated
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse()) // preAllocated
+
+				// release preallocated IP
+				_, err = fakeIpamServer.IPRelease(ctx, &IPReleaseRequest{
+					Cidr: "10.0.0.0/24",
+					Ip:   "10.0.0.1",
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeTrue())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
+			})
+
+			It("it should re-allocate preAllocated IP if deleted", func() {
+				// Run sync.
+				// Add the network with the preallocated IP to the cluster (i.e., inject to the client),
+				// so that the sync routine does not delete it.
+				cl := fakeClientBuilder.WithObjects(
+					addPreAllocated(testutil.FakeNetwork("net1", testNamespace, "10.0.0.0/24", nil), 3),
+				).Build()
+				fakeIpamServer.Client = cl
+				Expect(fakeIpamServer.syncNetworks(ctx)).To(Succeed())
+				Expect(fakeIpamServer.syncIPs(ctx)).To(Succeed())
+
+				// The preAllocated IP should be re-allocated
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.0"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.1"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
+				Expect(fakeIpamServer.ipIsAvailable(netip.MustParseAddr("10.0.0.2"), netip.MustParsePrefix("10.0.0.0/24"))).To(BeFalse())
 			})
 		})
 	})

@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -36,6 +37,8 @@ import (
 
 var _ = Describe("IPAM integration tests", func() {
 	const (
+		testNamespace = "test"
+
 		grpcAddress = "0.0.0.0"
 		grpcPort    = consts.IpamPort
 	)
@@ -60,6 +63,11 @@ var _ = Describe("IPAM integration tests", func() {
 
 		ipamClient IPAMClient
 		conn       *grpc.ClientConn
+
+		addPreAllocated = func(nw *ipamv1alpha1.Network, preAllocated uint32) *ipamv1alpha1.Network {
+			nw.Spec.PreAllocated = preAllocated
+			return nw
+		}
 	)
 
 	BeforeEach(func() {
@@ -612,6 +620,28 @@ var _ = Describe("IPAM integration tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr(ip), netip.MustParsePrefix("10.20.0.0/16"))).To(BeTrue())
 				// should not interfere with preAllocated IP
+				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr("10.20.0.0"), netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
+			})
+
+			It("should not release an IP that is preallocated", func() {
+				_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
+					Cidr: "10.20.0.0/16",
+					Ip:   "10.20.0.0",
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr("10.20.0.0"), netip.MustParsePrefix("10.20.0.0/16"))).To(BeTrue())
+
+				// Run sync.
+				// Add the network with the preallocated IP to the cluster (i.e., inject to the client),
+				// so that the sync routine does not delete it.
+				cl := fakeClientBuilder.WithObjects(
+					addPreAllocated(testutil.FakeNetwork("net1", testNamespace, "10.20.0.0/16", nil), 1),
+				).Build()
+				ipamServer.Client = cl
+				Expect(ipamServer.syncNetworks(ctx)).To(Succeed())
+				Expect(ipamServer.syncIPs(ctx)).To(Succeed())
+
+				// The preallocated IP should now be allocated again
 				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr("10.20.0.0"), netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
 			})
 		})
