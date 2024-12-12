@@ -179,7 +179,6 @@ offloading:
   # by setting the "disableNetworkCheck" field in the resource Spec.
   disableNetworkCheck: false
   runtimeClass:
-    enabled: false
     # -- Name of the runtime class to use for offloading.
     name: liqo
     # -- Annotations for the runtime class.

@@ -53,13 +53,11 @@ spec:
           - --cluster-id=$(CLUSTER_ID)
           - --liqo-namespace=$(POD_NAMESPACE)
           - --secret-name={{ include "liqo.prefixedName" $webhookConfig }}-certs
+          - --liqo-runtime-class={{ .Values.offloading.runtimeClass.name }}
           - --podcidr={{ .Values.ipam.podCIDR }}
           - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
-          {{- end }}
-          {{- if not .Values.offloading.runtimeClass.enabled }}
-          - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
