@@ -7,7 +7,7 @@ metadata:
   labels:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
-  {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
+    {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
