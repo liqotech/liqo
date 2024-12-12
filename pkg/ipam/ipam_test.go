@@ -16,19 +16,30 @@ package ipam
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/netip"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var _ = Describe("IPAM integration tests", func() {
+	const (
+		grpcAddress = "0.0.0.0"
+		grpcPort    = consts.IpamPort
+	)
+
 	var (
 		ctx               context.Context
 		fakeClientBuilder *fake.ClientBuilder
@@ -37,15 +48,24 @@ var _ = Describe("IPAM integration tests", func() {
 		ipamServer *LiqoIPAM
 		serverOpts = &ServerOptions{
 			Pools:           consts.PrivateAddressSpace,
-			Port:            consts.IpamPort,
+			Port:            grpcPort,
 			SyncInterval:    time.Duration(0), // we disable sync routine as already tested in sync_test.go
 			SyncGracePeriod: time.Duration(0), // same as above
 			GraphvizEnabled: false,
 		}
+		server        *grpc.Server
+		lis           net.Listener
+		listenAddress = fmt.Sprintf("%s:%d", grpcAddress, grpcPort)
+		errServe      error
+
+		ipamClient IPAMClient
+		conn       *grpc.ClientConn
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
+
+		// Build kubernetes (fake) client
 		fakeClientBuilder = fake.NewClientBuilder().WithScheme(scheme.Scheme)
 		cl := fakeClientBuilder.WithObjects(
 			testutil.FakeNetworkPodCIDR(),
@@ -54,10 +74,38 @@ var _ = Describe("IPAM integration tests", func() {
 			testutil.FakeNetworkInternalCIDR(),
 		).Build()
 
+		// Start grpc ipam server
 		ipamServer, err = New(ctx, cl, serverOpts)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipamServer).ToNot(BeNil())
 		Expect(ipamServer.IpamCore).ToNot(BeNil())
+
+		server = grpc.NewServer()
+		Expect(server).ToNot(BeNil())
+		grpc_health_v1.RegisterHealthServer(server, ipamServer.HealthServer) // register health service
+		RegisterIPAMServer(server, ipamServer)                               // register IPAM service
+
+		lis, err = net.Listen("tcp", listenAddress)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(lis).ToNot(BeNil())
+		go func() {
+			errServe = fmt.Errorf("server failed when serving") // set error to check if server fails
+			errServe = server.Serve(lis)
+		}()
+
+		// Start gprc ipam client
+		conn, err = grpc.NewClient(listenAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(conn).ToNot(BeNil())
+		Expect(grpcutils.WaitForConnectionReady(ctx, conn, 10*time.Second)).To(Succeed())
+		ipamClient = NewIPAMClient(conn)
+	})
+
+	AfterEach(func() {
+		Expect(conn.Close()).To(Succeed()) // close grpc client
+		server.GracefulStop()              // graceful stop grpc server
+		time.Sleep(10 * time.Millisecond)  // wait a bit for the gprc server to gracefully stop
+		Expect(errServe).ToNot(HaveOccurred())
 	})
 
 	Describe("Preinstalled networks", func() {
@@ -73,7 +121,7 @@ var _ = Describe("IPAM integration tests", func() {
 		When("acquiring a network not occupied", func() {
 			When("remapping is allowed", func() {
 				It("should acquire the network without remapping", func() {
-					res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: false,
 					})
@@ -86,7 +134,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("remapping is not allowed", func() {
 				It("should acquire the network without remapping", func() {
-					res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: true,
 					})
@@ -100,7 +148,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a network already occupied", func() {
 			BeforeEach(func() {
-				res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
 				})
@@ -112,7 +160,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("remapping is allowed", func() {
 				It("should acquire the network and get a remapping", func() {
-					res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: false,
 					})
@@ -123,7 +171,7 @@ var _ = Describe("IPAM integration tests", func() {
 				})
 
 				It("should acquire a network that contains it and get a remapping", func() {
-					res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/17",
 						Immutable: false,
 					})
@@ -134,7 +182,7 @@ var _ = Describe("IPAM integration tests", func() {
 				})
 
 				It("should acquire a network that contains it and get a remapping", func() {
-					res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/15",
 						Immutable: false,
 					})
@@ -147,7 +195,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("remapping is not allowed", func() {
 				It("should not acquire the network and get an error", func() {
-					_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: true,
 					})
@@ -155,7 +203,7 @@ var _ = Describe("IPAM integration tests", func() {
 				})
 
 				It("should not acquire a network that is contained in and get an error", func() {
-					_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/17",
 						Immutable: true,
 					})
@@ -163,7 +211,7 @@ var _ = Describe("IPAM integration tests", func() {
 				})
 
 				It("should not acquire a network that contains it and get an error", func() {
-					_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/15",
 						Immutable: true,
 					})
@@ -175,7 +223,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a network out of the pools", func() {
 			It("should not acquire the network and get an error", func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "50.0.0.0/24",
 					Immutable: false,
 				})
@@ -185,7 +233,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a network bigger than a pool", func() {
 			It("should not acquire the network and get an error", func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "192.168.0.0/15",
 					Immutable: false,
 				})
@@ -195,7 +243,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a network equal to a pool", func() {
 			It("should acquire the network", func() {
-				res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "192.168.0.0/16",
 					Immutable: true,
 				})
@@ -208,7 +256,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a network with preallocated IPs", func() {
 			It("should acquire the network and preallocate the IPs", func() {
-				res, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
 					PreAllocated: 2,
@@ -229,7 +277,7 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			It("should not acquire the network if the preallocated IPs are more than the network size", func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "192.168.1.0/31",
 					Immutable:    true,
 					PreAllocated: 3,
@@ -248,7 +296,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring an invalid network", func() {
 			It("should not acquire the network and get an error", func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.0.0.256/16",
 					Immutable: false,
 				})
@@ -260,7 +308,7 @@ var _ = Describe("IPAM integration tests", func() {
 	Describe("Releasing networks", func() {
 		When("releasing an allocated network", func() {
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
 				})
@@ -269,7 +317,7 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			It("should release the network", func() {
-				_, err := ipamServer.NetworkRelease(ctx, &NetworkReleaseRequest{
+				_, err := ipamClient.NetworkRelease(ctx, &NetworkReleaseRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -279,7 +327,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("releasing an unallocated network", func() {
 			It("should do nothing and succeed without errors for idempotency", func() {
-				_, err := ipamServer.NetworkRelease(ctx, &NetworkReleaseRequest{
+				_, err := ipamClient.NetworkRelease(ctx, &NetworkReleaseRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -289,7 +337,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("releasing a network with preallocated IPs", func() {
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
 					PreAllocated: 2,
@@ -305,7 +353,7 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			It("should release the network and the preallocated IPs", func() {
-				_, err := ipamServer.NetworkRelease(ctx, &NetworkReleaseRequest{
+				_, err := ipamClient.NetworkRelease(ctx, &NetworkReleaseRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -321,7 +369,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("releasing an invalid network", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.NetworkRelease(ctx, &NetworkReleaseRequest{
+				_, err := ipamClient.NetworkRelease(ctx, &NetworkReleaseRequest{
 					Cidr: "10.0.0.256/16",
 				})
 				Expect(err).To(HaveOccurred())
@@ -333,7 +381,7 @@ var _ = Describe("IPAM integration tests", func() {
 		// normal
 		When("checking for an available network", func() {
 			It("should return true", func() {
-				res, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+				res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -344,7 +392,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("checking for an occupied network", func() {
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
 				})
@@ -354,7 +402,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("checking for the same network", func() {
 				It("should return false", func() {
-					res, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+					res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 						Cidr: "10.20.0.0/16",
 					})
 					Expect(err).ToNot(HaveOccurred())
@@ -365,7 +413,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("checking for a network that is contained in", func() {
 				It("should return false", func() {
-					res, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+					res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 						Cidr: "10.20.0.0/17",
 					})
 					Expect(err).ToNot(HaveOccurred())
@@ -376,7 +424,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("checking for a network that contains it", func() {
 				It("should return false", func() {
-					res, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+					res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 						Cidr: "10.20.0.0/15",
 					})
 					Expect(err).ToNot(HaveOccurred())
@@ -388,7 +436,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("checking for an out of pool network", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+				_, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "50.0.0.0/24",
 				})
 				Expect(err).To(HaveOccurred())
@@ -397,7 +445,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("checking for a network bigger than a pool", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+				_, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "192.168.0.0/15",
 				})
 				Expect(err).To(HaveOccurred())
@@ -406,7 +454,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("checking for an invalid network", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+				_, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "10.0.0.256/16",
 				})
 				Expect(err).To(HaveOccurred())
@@ -420,7 +468,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			BeforeEach(func() {
 				// Allocate network of size 4, with 2 preallocated IPs
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/30",
 					Immutable:    true,
 					PreAllocated: 2,
@@ -429,7 +477,7 @@ var _ = Describe("IPAM integration tests", func() {
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/30"))).To(BeFalse())
 
 				// First IP
-				res, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				res, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/30",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -437,7 +485,7 @@ var _ = Describe("IPAM integration tests", func() {
 				firstIP = res.Ip
 
 				// Second IP
-				res, err = ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				res, err = ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/30",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -462,7 +510,7 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			It("should not acquire an IP if network is full", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/30",
 				})
 				Expect(err).To(HaveOccurred())
@@ -471,7 +519,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring a free IP from a network contained in an allocated one", func() {
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
 				})
@@ -480,7 +528,7 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			It("should not acquire the IP and get an error", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/24",
 				})
 				Expect(err).To(HaveOccurred())
@@ -489,7 +537,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring an IP from a network not allocated", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).To(HaveOccurred())
@@ -498,7 +546,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring an IP from a network out of the pools", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "50.0.0.0/24",
 				})
 				Expect(err).To(HaveOccurred())
@@ -507,7 +555,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring an IP from a network bigger than a pool", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "192.168.0.0/15",
 				})
 				Expect(err).To(HaveOccurred())
@@ -516,7 +564,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("acquiring an IP from an invalid network", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				_, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.0.0.256/16",
 				})
 				Expect(err).To(HaveOccurred())
@@ -529,7 +577,7 @@ var _ = Describe("IPAM integration tests", func() {
 			var ip string
 
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
 					PreAllocated: 1,
@@ -538,7 +586,7 @@ var _ = Describe("IPAM integration tests", func() {
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
 				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr("10.20.0.0"), netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse()) // preAllocated
 
-				res, err := ipamServer.IPAcquire(ctx, &IPAcquireRequest{
+				res, err := ipamClient.IPAcquire(ctx, &IPAcquireRequest{
 					Cidr: "10.20.0.0/16",
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -549,7 +597,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			It("should release the allocated IP and guarantee idempotency", func() {
 				// Release the IP
-				_, err := ipamServer.IPRelease(ctx, &IPReleaseRequest{
+				_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
 					Cidr: "10.20.0.0/16",
 					Ip:   ip,
 				})
@@ -557,7 +605,7 @@ var _ = Describe("IPAM integration tests", func() {
 				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr(ip), netip.MustParsePrefix("10.20.0.0/16"))).To(BeTrue())
 
 				// Release the IP again. It should not return an error and the IP should still be available (idempotency)
-				_, err = ipamServer.IPRelease(ctx, &IPReleaseRequest{
+				_, err = ipamClient.IPRelease(ctx, &IPReleaseRequest{
 					Cidr: "10.20.0.0/16",
 					Ip:   ip,
 				})
@@ -570,17 +618,18 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("releasing an IP from an unallocated network", func() {
 			It("should do nothing and succeed without errors for idempotency", func() {
-				_, err := ipamServer.IPRelease(ctx, &IPReleaseRequest{
+				_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
 					Cidr: "10.20.0.0/16",
 					Ip:   "10.20.0.0",
 				})
 				Expect(err).ToNot(HaveOccurred())
+				Expect(ipamServer.ipIsAvailable(netip.MustParseAddr("10.20.0.0"), netip.MustParsePrefix("10.20.0.0/16"))).To(BeTrue())
 			})
 		})
 
 		When("releasing an IP outside of the pools", func() {
 			It("should get an error", func() {
-				_, err := ipamServer.IPRelease(ctx, &IPReleaseRequest{
+				_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
 					Cidr: "50.0.0.0/16",
 					Ip:   "50.0.0.0",
 				})
@@ -590,7 +639,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 		When("input is valid", func() {
 			BeforeEach(func() {
-				_, err := ipamServer.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
 				})
@@ -600,7 +649,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("releasing an invalid ip", func() {
 				It("should get an error", func() {
-					_, err := ipamServer.IPRelease(ctx, &IPReleaseRequest{
+					_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
 						Cidr: "10.20.0.0/16",
 						Ip:   "10.0.0.256",
 					})
@@ -610,7 +659,7 @@ var _ = Describe("IPAM integration tests", func() {
 
 			When("releasing an ip from an invalid network", func() {
 				It("should get an error", func() {
-					_, err := ipamServer.IPRelease(ctx, &IPReleaseRequest{
+					_, err := ipamClient.IPRelease(ctx, &IPReleaseRequest{
 						Cidr: "10.0.0.256/16",
 						Ip:   "10.0.0.0",
 					})
