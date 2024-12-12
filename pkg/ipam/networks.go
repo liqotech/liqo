@@ -23,6 +23,7 @@ import (
 	klog "k8s.io/klog/v2"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 // networkAcquire acquires a network, eventually remapped if conflicts are found.
@@ -57,6 +58,29 @@ func (lipam *LiqoIPAM) networkAcquireSpecific(prefix netip.Prefix) (*netip.Prefi
 		return result, lipam.IpamCore.ToGraphviz()
 	}
 	return result, nil
+}
+
+func (lipam *LiqoIPAM) acquirePreallocatedIPs(prefix netip.Prefix, preallocated uint32) error {
+	// Check if the network can allocate all preallocated IPs.
+	if prefix.Bits() < int(preallocated) {
+		return fmt.Errorf("network %s can not preallocate %d IPs (insufficient size)", prefix.String(), preallocated)
+	}
+
+	// Range over the first N IPs of the network, where N is the number of preallocated IPs.
+	for addr := range ipamutils.FirstNIPsFromPrefix(prefix, preallocated) {
+		available, err := lipam.ipIsAvailable(addr, prefix)
+		if err != nil {
+			return err
+		}
+		if available {
+			if err := lipam.ipAcquireWithAddr(addr, prefix); err != nil {
+				return err
+			}
+		}
+		// Else, the IP is already reserved. Do nothing.
+	}
+
+	return nil
 }
 
 // networkRelease frees a network, removing it from the cache.
