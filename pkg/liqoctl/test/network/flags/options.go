@@ -29,12 +29,15 @@ const (
 	NodePortNodesAll NodePortNodes = "all"
 	// NodePortNodesWorkers represents the value to target worker nodes.
 	NodePortNodesWorkers NodePortNodes = "workers"
+	// NodePortNodesControlPlanes represents the value to target control plane nodes.
+	NodePortNodesControlPlanes NodePortNodes = "control-planes"
 )
 
 // NodePortNodesValues contains the possible values for NodePortNodes.
 var NodePortNodesValues = []string{
 	string(NodePortNodesAll),
 	string(NodePortNodesWorkers),
+	string(NodePortNodesControlPlanes),
 }
 
 // String returns the string representation of the NodePortNodes.
@@ -44,7 +47,7 @@ func (npn *NodePortNodes) String() string {
 
 // Set sets the NodePortNodes value.
 func (npn *NodePortNodes) Set(s string) error {
-	if s != "" && s != string(NodePortNodesAll) && s != string(NodePortNodesWorkers) {
+	if s != "" && s != string(NodePortNodesAll) && s != string(NodePortNodesWorkers) && s != string(NodePortNodesControlPlanes) {
 		return fmt.Errorf("valid values are %s", strings.Join(NodePortNodesValues, ","))
 	}
 	if s == "" {
