@@ -18,6 +18,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
+
+	"iter"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -95,4 +98,17 @@ func NetFirstAndLastIP(networkCIDR string) (first, last net.IP, err error) {
 	}
 
 	return first, last, nil
+}
+
+// FirstNIPsFromPrefix returns an iterator with first num IPs from the given prefix.
+func FirstNIPsFromPrefix(prefix netip.Prefix, num uint32) iter.Seq[netip.Addr] {
+	return func(yield func(netip.Addr) bool) {
+		addr := prefix.Addr()
+		for i := 0; i < int(num); i++ {
+			if !yield(addr) {
+				return
+			}
+			addr = addr.Next()
+		}
+	}
 }
