@@ -69,13 +69,13 @@ func syncNetworkAcquire(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefix
 			if _, err := lipam.networkAcquireSpecific(clusterNetwork); err != nil {
 				return fmt.Errorf("failed to acquire network %q: %w", clusterNetwork, err)
 			}
-			for i := 0; i < int(clusterNetworkDetails.preallocated); i++ {
-				if _, err := lipam.ipAcquire(clusterNetwork); err != nil {
-					return errors.Join(err, lipam.networkRelease(clusterNetwork, 0))
-				}
-			}
+		}
+
+		if err := lipam.acquirePreallocatedIPs(clusterNetwork, clusterNetworkDetails.preallocated); err != nil {
+			return errors.Join(err, lipam.networkRelease(clusterNetwork, 0))
 		}
 	}
+
 	return nil
 }
 
