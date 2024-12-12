@@ -48,7 +48,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.RemoveNamespace, string(FlagNamesRemoveNamespace), false, "Remove namespace after the test")
 	fs.BoolVar(&o.Info, string(FlagNamesInfo), false, "Print information about the network configurations of the clusters")
 	fs.BoolVar(&o.NodePortExt, string(FlagNamesNodeportExternal), false, "Enable curl from external to nodeport service")
-	fs.Var(&o.NodePortNodes, string(FlagNamesNodeportNodes), "Select nodes type for NodePort tests. Possible values: all, workers")
+	fs.Var(&o.NodePortNodes, string(FlagNamesNodeportNodes), "Select nodes type for NodePort tests. Possible values: all, workers, control-planes")
 	fs.BoolVar(&o.LoadBalancer, string(FlagNamesLoadbalancer), false, "Enable curl from external to loadbalancer service")
 	fs.BoolVar(&o.Basic, string(FlagNamesBasic), false, "Run only pod-to-pod checks")
 	fs.BoolVar(&o.PodToNodePort, string(FlagNamesPodNodeport), false, "Enable curl from pod to nodeport service")
