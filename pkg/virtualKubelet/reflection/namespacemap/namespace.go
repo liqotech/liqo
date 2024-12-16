@@ -121,7 +121,10 @@ func (nh *Handler) onUpdateNamespaceMap(oldObj, newObj interface{}) {
 }
 
 func (nh *Handler) checkNamespaceMapUniqueness(_ interface{}) bool {
-	nsList, err := nh.lister.List(labels.Everything())
+	nsList, err := nh.lister.List(labels.SelectorFromSet(labels.Set{
+		liqoconst.RemoteClusterID:             string(forge.RemoteCluster),
+		liqoconst.ReplicationDestinationLabel: string(forge.RemoteCluster),
+	}))
 	utilruntime.Must(err)
 
 	if nNamespaceMaps := len(nsList); nNamespaceMaps > 1 {
