@@ -20,6 +20,7 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -72,15 +73,23 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 
 func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 	internalnode *networkingv1beta1.InternalNode, opts *Options) error {
-	fwcfg := &networkingv1beta1.FirewallConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: configurationNameSvc, Namespace: opts.Namespace},
+	fwcfg := &networkingv1beta1.FirewallConfiguration{}
+
+	err := cl.Get(ctx, client.ObjectKey{Name: configurationNameSvc, Namespace: opts.Namespace}, fwcfg)
+	if k8serrors.IsNotFound(err) {
+		// If the firewall configuration does not exist no needs to clean things up.
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("unable to get firewall configuration: %w", err)
 	}
 
-	if _, err := resource.CreateOrUpdate(ctx, cl, fwcfg,
-		cleanFirewallConfigurationMutateFunction(internalnode, fwcfg)); err != nil {
+	// We need to remove from the firewall configurations all the rules related to the InternalNode to be remove
+	cleanFirewallConfigurationChains(fwcfg, internalnode)
+	if err := cl.Update(ctx, fwcfg); err != nil {
 		return fmt.Errorf("an error occurred while cleaning the firewall configuration: %w", err)
 	}
 
+	// If there are no firewall configurations left, delete the resource
 	if err := deleteVoidFwcfg(ctx, cl, fwcfg); err != nil {
 		return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
 	}
@@ -237,14 +246,6 @@ func forgeRouteConfigurationRules(internalnode *networkingv1beta1.InternalNode, 
 				Kind: networkingv1beta1.InternalNodeKind,
 			},
 		},
-	}
-}
-
-func cleanFirewallConfigurationMutateFunction(internalnode *networkingv1beta1.InternalNode,
-	fwcfg *networkingv1beta1.FirewallConfiguration) controllerutil.MutateFn {
-	return func() error {
-		cleanFirewallConfigurationChains(fwcfg, internalnode)
-		return nil
 	}
 }
 
