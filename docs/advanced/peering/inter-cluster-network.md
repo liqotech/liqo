@@ -517,10 +517,48 @@ spec:
     namespace: liqo
 ```
 
-This allows the user to reference custom-made templates, giving also the possibility to implement custom technologies different from WireGuard.
+This allows you to reference custom-made templates, giving also the possibility to implement custom technologies different from WireGuard.
 
-The `examples/networking` folder contains a bunch of template manifests, showing possible customizations to the default WireGuard template.
+The [`examples/networking`](https://github.com/liqotech/liqo/tree/master/examples/networking) folder contains a bunch of template manifests, showing possible customizations to the default WireGuard template.
 
-```{admonition} Tip
-A field with a value in the form of `'{{ EXAMPLE }}'` (**go-template** syntax) will be templated automatically by the Gateway operator with the value(s) from the `GatewayServer`/`GatewayClient` resource.
+### Template Variables and Usage
+
+The Gateway operator automatically injects the following variables into your templates:
+
+For GatewayServer templates:
+
+* `{{ .Spec }}`: Access to all fields from the GatewayServer spec
+* `{{ .Name }}`: Name of the GatewayServer resource
+* `{{ .Namespace }}`: Namespace of the GatewayServer resource
+* `{{ .GatewayUID }}`: Unique identifier of the Gateway resource
+* `{{ .ClusterID }}`: ID of the remote cluster
+* `{{ .SecretName }}`: Name of the referenced secret
+
+For GatewayClient templates:
+
+* `{{ .Spec }}`: Access to all fields from the GatewayClient spec
+* `{{ .Name }}`: Name of the GatewayClient resource
+* `{{ .Namespace }}`: Namespace of the GatewayClient resource
+* `{{ .GatewayUID }}`: Unique identifier of the Gateway resource
+* `{{ .ClusterID }}`: ID of the remote cluster
+* `{{ .SecretName }}`: Name of the referenced secret
+
+These variables can be used in the following template fields:
+
+* `metadata.name`
+* `metadata.namespace`
+* `metadata.labels`
+* `metadata.annotations`
+* `spec` (any field)
+
+Optional fields in your template should start with a `?` prefix.
+These fields will be included only if the templated value is not empty.
+For example:
+
+```yaml
+spec:
+  # Required field - always included
+  name: "{{ .Name }}"
+  # Optional field - included only if .Spec.ExtraConfig is not empty
+  ?extraConfig: "{{ .Spec.ExtraConfig }}"
 ```
