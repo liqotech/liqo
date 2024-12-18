@@ -112,6 +112,46 @@ cluster-1-md-0-dzl4s            Ready    <none>          29m   v1.27.4
 mypool                          Ready    agent           67s   v1.27.4
 ```
 
+### Custom Resource Allocation
+
+To customize the behavior of resource sharing, you can specify a custom Resource Slice class. This can be done either in the YAML specification or by using the `--class` flag with `liqoctl`:
+
+`````{tab-set}
+
+````{tab-item} liqoctl
+```bash
+liqoctl create resourceslice mypool --remote-cluster-id cool-firefly --class custom-class
+```
+````
+
+````{tab-item} YAML
+```yaml
+apiVersion: authentication.liqo.io/v1beta1
+kind: ResourceSlice
+metadata:
+  name: mypool
+  namespace: liqo-tenant-cool-firefly
+spec:
+  class: custom-class
+  providerClusterID: cool-firefly
+```
+````
+
+`````
+
+The provider cluster can handle this custom class with a dedicated controller.
+Liqo provides a template repository for implementing such controllers.
+
+When using a custom class:
+
+1. Specify the class in the `ResourceSlice` spec.
+2. The provider's custom controller should fill the resources in the status and set the condition regarding resources.
+3. The `VirtualNode` and `Quota` will be created according to the resources specified by the custom controller.
+
+This approach allows for more flexible and dynamic resource allocation based on specific policies or requirements defined by the provider cluster.
+
+For more information on implementing a custom Resource Slice controller, refer to the [Liqo Resource Slice Controller template repository](https://github.com/liqotech/resource-slice-class-controller-template).
+
 ### Delete ResourceSlice
 
 You can revert the process by deleting the `ResourceSlice` in the consumer cluster.
