@@ -2,26 +2,28 @@
 
 ## Overview
 
-To enable the [**namespace offloading**](/usage/namespace-offloading) along with the [**resource reflection**](/usage/reflection) on a cluster provider, the cluster consumer should be able to interact with the provider K8s API server to create some CRs (`NamespaceOffloading` and `ResourceSlice`), used by the consumer to ask for the authorization to offload on a given namespace and to use a certain amount of resources on the cluster provider.
+To enable the [**namespace offloading**](/usage/namespace-offloading) along with the [**resource reflection**](/usage/reflection) on a provider cluster (i.e., which _offers_ its resources), the consumer cluster (i.e., which _uses_ the resources provided by another cluster) should be able to interact with the K8s API server of the provider.
+In fact, the consumer cluster must create some CRs (`NamespaceOffloading` and `ResourceSlice`) on the provider cluster, which are used to ask for the authorization to offload on a given namespace and to use a certain amount of resources.
 
-The authentication process is a handshake between the clusters, allowing the cluster consumer to obtain a valid identity to interact with the other cluster (i.e. access to the Kubernetes API server).
+The authentication procedure is the first step of this process and it looks like a handshake between the clusters, allowing the consumer to obtain a valid identity to interact with the other cluster (i.e. access to the Kubernetes API server).
 **This identity grants only limited permissions on the Liqo-related resources** used during the offloading process.
 
 The `liqoctl peer` command automatically sets up the network pairing and performs the authentication process.
-However, **authentication and resource reflection are independent of the network pairing**, which means that it is possible to offload tasks and reflect resources without setting up the network.
+However, **authentication and resource reflection are independent from the network pairing**, which means that we can offload tasks and reflect resources without setting up the network.
 
-The authentication process can be manually performed using `liqoctl authenticate` command or by manually applying the CRs.
+The authentication process can be completed without the network pairing by using the `liqoctl authenticate` command or by manually applying the CRs.
 
 ## Authentication via liqoctl authenticate
 
 ```{warning}
-The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address the more complex cases.
-For the major part of the cases the `liqoctl peer` is enough, so [stick with it](/usage/peer) if you do not have any specific needs.
+The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address more complex scenarios.
+The `liqoctl peer` is enough for the most part of the cases, so [stick with it](/usage/peer) if you do not have any specific needs.
 ```
 
-The `liqoctl authenticate` command starts an authentication process, **this command can be used only when the user has access to both the clusters that need to be paired**.
+The `liqoctl authenticate` command starts an authentication process between **two** clusters, the provider and the consumer.
+**This command can be used only when the user has access to both the clusters that need to be paired**.
 
-For example, given a *cluster consumer* (which starts the authentication and wants to offload the resources on another cluster) and a *cluster provider* (which offers its resources to the consumer), the following command starts an authentication process between the consumer and the provider:
+A possible example of the above command is the following (the first `kubeconfig` refers to the consumer, the second to the provider):
 
 ```{code-block} bash
 :caption: "Cluster consumer"
@@ -56,9 +58,9 @@ NAMESPACE                 NAME                       AGE   TYPE           KUBECO
 liqo-tenant-cl-provider   controlplane-cl-provider   88s   ControlPlane   kubeconfig-controlplane-cl-provider
 ```
 
-As it is possible to notice, the `Identity` resource points to a secret, in this case called `kubeconfig-controlplane-cl-provider`, containing the kubeconfig of the newly created user in the cluster provider, with the permissions to manage Liqo-related resources used during the offloading process (`NamespaceOffloading` and `ResourceSlice`) in the `tenant` namespace dedicated to this pairing (`liqo-tenant-cl-provider`).
+As shown, the `Identity` resource points to a secret, in this case called `kubeconfig-controlplane-cl-provider`, containing the kubeconfig of the newly created user in the cluster provider, with the permissions to manage Liqo-related resources used during the offloading process (`NamespaceOffloading` and `ResourceSlice`) in the `tenant` namespace dedicated to this pairing (`liqo-tenant-cl-provider`).
 
-On the other side, in the cluster provider, we will be able to see a new `Tenant` resource with status `ACTIVE`, saying that the cluster consumer is currently able to ask for new resources:
+On the other side, the provider cluster will have a new `Tenant` resource with `ACTIVE` status, which means that the consumer cluster is currently able to ask for new resources:
 
 ```{code-block} bash
 :caption: "Cluster provider"
@@ -71,8 +73,10 @@ Check the [offloading guide](/advanced/peering/offloading-in-depth) to understan
 
 ### In-Band
 
-If you can't make the Kubernetes API Server of the **Provider** cluster reachable from the **Consumer**, you can leverage on **in-band** peering.
-You can enable this by setting the `--in-band` flag in the `liqoctl authenticate` command, which automatically configure all the features needed for this mechanism to work (i.e., the API server proxy and the IP remapping).
+If the Kubernetes API Server of the **Provider** cluster is not reachable from the **Consumer**, you can leverage the **in-band** peering.
+This is a special feature of Liqo that automatically configures all the features needed for the authentication to work, which consists in setting up a TCP proxy to reach the provider API server and configure the proper remapping of its IP address.
+
+This feature can be turned on by setting the `--in-band` flag in the `liqoctl authenticate` command.
 
 ```{admonition} Note
 For this feature to work, the Liqo **networking module** must be enabled.
@@ -80,49 +84,50 @@ For this feature to work, the Liqo **networking module** must be enabled.
 
 ### Undo the authentication
 
-`liqoctl unauthenticate` allows to undo the changes applied by the `authenticate` command. Even in this case, the user should be able to access both the involved clusters.
+`liqoctl unauthenticate` allows to undo the changes applied by the `authenticate` command. Also in this case, the user should be able to access both the involved clusters.
 
-For example, given the previous case, if the user wants to undo the authentication between cluster consumer and provider, the following command can be used:
+For example, given the previous case, if the user would like to undo the authentication between consumer and provider custers (hence, clearing all the CRs associated with this process), the following command can be used:
 
 ```{code-block} bash
 :caption: "Cluster consumer"
 liqoctl unauthenticate --kubeconfig $CONSUMER_KUBECONFIG_PATH --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH
 ```
 
-When successful, **the identity** used to operate on the cluster provider, **and the tenant resource** on the provider **are removed**. Therefore, from this point on, the cluster consumer is not authorized to offload and reflect resources on the provider.
+When successful, **the identity** used to operate on the cluster provider, **and the tenant resource** on the provider **are removed**. Therefore, from this point on, the cluster consumer is no longer authorized to offload and reflect resources on the provider.
 
 ## Manual authentication
 
 ```{warning}
-The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address the more complex cases. For the major part of the cases the `liqoctl peer` is enough, so [stick with it](/usage/peer) if you do not have any specific needs.
+The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address more complex scenarios.
+The `liqoctl peer` is enough for the most part of the cases, so [stick with it](/usage/peer) if you do not have any specific needs.
 ```
 
-When the user has no access to both the clusters, it is possible to perform the authentication by calling some commands in each of the clusters.
+When the user does not have contemporary access to both clusters, he can still perform the authentication process by issuing some commands in each one of the clusters.
 
-The authentication process consists of the following steps (where we call *consumer* the cluster offloading resources, *provider* the one offering resources):
+The authentication process consists of the following steps:
 
-1. **Cluster provider**: generates a nonce to be signed
-2. **Cluster consumer**: generates a `Tenant` resource to be applied on the provider cluster. It contains:
-    - the provider's signed nonce (each cluster in Liqo has a pair of keys and certificate, at the moment the certificate is self-signed and created at installation time)
+1. **Provider cluster** (the one that offers resources): generates a _nonce_ to be signed
+2. **Consumer cluster** (the one that offloads resources): generates a `Tenant` resource to be applied on the provider cluster. It contains:
+    - the provider's signed nonce (each cluster in Liqo has a pair of keys and one certificate; currently the certificate is self-signed and created at installation time)
     - a *CSR* for the certificate to use to authenticate to the provider's K8S API server
-3. **Cluster provider**: applies the consumer-generated `Tenant` resource and if the signature of the nonce is valid, the consumer-provided CSR is signed, and it is possible to generate an `Identity` resource containing the signed certificate.
-4. **Cluster consumer**: applies the provider-generated `Identity`, which will trigger the automatic creation of the `kubeconfig` to interact with the provider K8S API server.
+3. **Provider cluster**: applies the consumer-generated `Tenant` resource and, if the signature of the nonce is valid, the consumer-provided CSR is signed. Hence, it can generate an `Identity` resource containing the signed certificate.
+4. **Consumer cluster**: applies the provider-generated `Identity`, which will trigger the automatic creation of the special `kubeconfig`  (which has the minimum set of permissions required by Liqo to operate) to interact with the provider K8S API server.
 
-### Nonce and tenant namespace generation (cluster provider)
+### Nonce and tenant namespace generation (provider cluster)
 
-In this step, starting from the cluster provider, we need to:
+In this step, starting from the provider cluster, we need to:
 
 - Create a **tenant namespace**, which will be used for the resource related to new peering;
 - Create a secret to contain the nonce
 
-These operations can be performed via `liqoctl`, executing the following command **from the cluster provider**:
+These operations can be performed via `liqoctl`, executing the following command **in the cluster provider**:
 
 ```{code-block} bash
 :caption: "Cluster provider"
 liqoctl create nonce --remote-cluster-id $CLUSTER_CONSUMER_ID
 ```
 
-When successful the output of the command will be something like the following:
+When successful, the output of the command will be something like the following:
 
 ```text
  INFO  Nonce created
@@ -131,10 +136,10 @@ When successful the output of the command will be something like the following:
 ```
 
 ```{admonition} Tip
-Take note of the **nonce** as it can will be used in the following step.
+Take note of the **nonce** as it will be used in the following step.
 ```
 
-As a result of this command, you should be able to see:
+As a result of this command, you should see:
 
 - a new **tenant namespace**:
 
@@ -156,21 +161,21 @@ As a result of this command, you should be able to see:
   liqo-nonce   Opaque   1      5m5s
   ```
 
-### Creation of the Tenant resource (cluster consumer)
+### Creation of the Tenant resource (consumer cluster)
 
-Once on the cluster provider side, the nonce has been generated, it is possible to create the Tenant resource. This involves:
+Once the nonce has been generated on the provider cluster, we can create the Tenant resource. This involves:
 
-- The sign of nonce with the cluster consumer private key
-- The creation of a *CSR* for the certificate to be used to authenticate to the cluster provider K8S API server
+- To sign of nonce with the consumer cluster private key
+- The creation of a *CSR* for the certificate, which is used to authenticate with the K8s API server of the provider cluster
 
-To do so, **on the cluster consumer**, launch the following `liqoctl` command:
+To do so, type the following `liqoctl` command **on the consumer cluster**:
 
 ```{code-block} bash
 :caption: "Cluster consumer"
 liqoctl generate tenant --remote-cluster-id $CLUSTER_PROVIDER_ID --nonce $NONCE
 ```
 
-As a result, the command above **generates a `Tenant` resource to be applied on the cluster provider**, which contains the signed nonce and the CSR:
+As a result, the above command **generates a `Tenant` resource to be applied on the provider cluster**, which contains the signed nonce and the CSR:
 
 ```yaml
 apiVersion: authentication.liqo.io/v1beta1
@@ -187,7 +192,7 @@ spec:
   signature: K5GP+UkTKJ5ao02l8RBUJLwaUPp+gE85HtCYdJ2i2g8IW/pkmBmzjdAw1RujU3//Mnp+zdgExlQA2MWiv7jTBw==
 ```
 
-As a result of the command, you should be able to see:
+As a result of the command, you should see:
 
 - a new **tenant namespace**:
 
@@ -210,13 +215,13 @@ As a result of the command, you should be able to see:
   ```
 
 ```{admonition} Note
-If you want to use the [in-band](UsagePeeringInBand) approach, use the `spec.proxyURL` field inside the `Tenant` CRD.
-Check the [Kubernetes API Server Proxy](/advanced/k8s-api-server-proxy.md) page
+If you need to use the [in-band](UsagePeeringInBand) approach, set the proper value to the `spec.proxyURL` field inside the `Tenant` CRD.
+Check the [Kubernetes API Server Proxy](/advanced/k8s-api-server-proxy.md) page.
 ```
 
-### Creation of the Identity resource (cluster provider)
+### Creation of the Identity resource (provider cluster)
 
-At this point, **on the cluster provider**, it is possible to apply the `Tenant` resource previously generated on the cluster consumer.
+At this point, **on the provider cluster**, you can apply the `Tenant` resource previously generated on the consumer cluster.
 
 ```{code-block} bash
 :caption: "Cluster provider"
@@ -231,7 +236,7 @@ NAME                  AGE     SIGNERNAME                            REQUESTOR   
 liqo-identity-k47v5   2m59s   kubernetes.io/kube-apiserver-client   system:serviceaccount:liqo:liqo-controller-manager   <none>              Approved,Issued
 ```
 
-Once signed, we have the certificate to be used by the cluster consumer to authenticate to the provider's K8S API server. So, it is possible to generate the `Identity` resource to be applied on the consumer:
+Once signed, we have the certificate to be used by the consumer cluster to authenticate to the provider's K8S API server. Hence, we can generate the `Identity` resource to be applied on the consumer:
 
 ```{code-block} bash
 :caption: "Cluster provider"
@@ -259,43 +264,43 @@ spec:
 status: {}
 ```
 
-Which can be applied **on the cluster consumer**, making sure that the resource is created in the tenant namespace (`liqo-tenant-cl-consumer` in this case):
+This Identity resource can be applied **on the consumer cluster**, making sure that the resource is created in the tenant namespace (`liqo-tenant-cl-consumer` in this case):
 
 ```{code-block} bash
 :caption: "Cluster consumer"
 kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH -n liqo-tenant-cl-consumer
 ```
 
-Once the Identity resource is correctly applied, the clusters are able to negotiate the resources for the [offloading](/advanced/peering/offloading-in-depth).
+Once the Identity resource is correctly applied, the clusters are able to automatically negotiate the resources for the [offloading](/advanced/peering/offloading-in-depth).
 
 ### Summary
 
-All in all, these are the steps to be followed by the administrators of each of the clusters to manually complete the authentication process:
+We summarize here the steps that need to be performed by the administrators of each cluster to complete the authentication process using the manual procedure:
 
-1. **Cluster provider**: creates the nonce to be provided to the **cluster consumer** administrator:
+1. **Provider cluster**: creates the nonce to be provided to the **consumer cluster** administrator:
 
    ```bash
    liqoctl create nonce --remote-cluster-id $CLUSTER_CONSUMER_ID
    liqoctl get nonce --remote-cluster-id $CLUSTER_CONSUMER_ID > nonce.txt
    ```
 
-2. **Cluster consumer**: generates the `Tenant` resource to be applied by the **cluster provider**:
+2. **Consumer cluster**: generates the `Tenant` resource to be applied by the **provider cluster**:
 
    ```bash
    liqoctl generate tenant --remote-cluster-id $CLUSTER_PROVIDER_ID --nonce $(cat nonce.txt) > tenant.yaml
    ```
 
-3. **Cluster provider**: applies `tenant.yaml` and generates the `Identity` resource to be applied by the consumer:
+3. **Provider cluster**: applies `tenant.yaml` and generates the `Identity` resource to be applied by the consumer:
 
    ```bash
    kubectl apply -f tenant.yaml
    liqoctl generate identity --remote-cluster-id $CLUSTER_CONSUMER_ID > identity.yaml
    ```
 
-4. **Cluster consumer** applies `identity.yaml` in the tenant namespace:
+4. **Consumer cluster** applies `identity.yaml` in the tenant namespace:
 
    ```bash
    kubectl apply -f identity.yaml -n $TENANT_NAMESPACE
    ```
 
-You can check whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).
+You can see whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).
