@@ -5,7 +5,7 @@ go 1.23.3
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.29
-	github.com/Azure/go-autorest/autorest/azure/auth v0.5.12
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.13
 	github.com/aws/aws-sdk-go v1.54.6
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/nftables v0.2.0
