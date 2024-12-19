@@ -29,8 +29,15 @@ jobs:
             * `/hold`, `/unhold`    Add/remove the hold label to prevent merging with /merge
 
             Make sure this PR appears in the **${{ github.event.repository.name }} changelog**, adding one of the following **labels**:
-            * `kind/breaking`:      :boom: Breaking Change
-            * `kind/feature`:       :rocket: New Feature
-            * `kind/bug`:           :bug: Bug Fix
-            * `kind/cleanup`:       :broom: Code Refactoring
-            * `kind/docs`:          :memo: Documentation
+            * `feat`:          :rocket: New Feature
+            * `fix`:           :bug: Bug Fix
+            * `refactor`:      :broom: Code Refactoring
+            * `docs`:          :memo: Documentation
+            * `style`:         :lipstick: Code Style
+            * `perf`:          :racehorse: Performance Improvement
+            * `test`:          :white_check_mark: Tests
+            * `chore`:         :truck: Dependencies Management
+            * `build`:         :package: Builds Management
+            * `ci`:            :construction_worker: CI/CD
+            * `revert`:        :rewind: Reverts Previous Changes
+

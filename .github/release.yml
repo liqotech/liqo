@@ -1,25 +1,43 @@
 changelog:
   exclude:
     labels:
-    - kind/no-changelog
+    - no-changelog
     authors:
     - dependabot
   categories:
-    - title: ":boom: Breaking Change"
-      labels:
-      - kind/breaking
     - title: ":rocket: New Features"
       labels:
-      - kind/feature
+      - feat
     - title: ":bug: Bug Fixes"
       labels:
-      - kind/bug
+      - fix
     - title: ":broom: Code Refactoring"
       labels:
-      - kind/cleanup
+      - refactor
     - title: ":memo: Documentation"
       labels:
-      - kind/docs
+      - docs
+    - title: ":lipstick: Code Style"
+      labels:
+      - style
+    - title: ":racehorse: Performance Improvement"
+      labels:
+      - perf
+    - title: ":white_check_mark: Tests"
+      labels:
+      - test
+    - title: ":truck: Dependencies Management"
+      labels:
+      - chore
+    - title: ":package: Builds Management"
+      labels:
+      - build
+    - title: ":construction_worker: CI/CD"
+      labels:
+      - ci
+    - title: ":rewind: Reverts Previous Changes"
+      labels:
+      - revert
     - title: Other Changes
       labels:
       - "*"
