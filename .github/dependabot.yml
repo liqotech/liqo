@@ -4,43 +4,61 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
   
   - package-ecosystem: "pip"
     directory: "/docs"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/cert-creator"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/common"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/liqo-test"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/proxy"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/gateway"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "docker"
     directory: "/build/gateway/wireguard"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
