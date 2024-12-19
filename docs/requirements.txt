@@ -6,4 +6,4 @@ sphinx_external_toc==1.0.1
 semver==3.0.2
 urllib3==2.2.3
 sphinx-autobuild==2024.10.3
-sphinxawesome-theme==5.3.1
+sphinxawesome-theme==5.3.2
