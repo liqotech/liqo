@@ -76,12 +76,18 @@ spec:
                     properties:
                       external:
                         description: External CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                       pod:
                         description: Pod CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                     type: object
                 type: object
               remote:
@@ -92,12 +98,18 @@ spec:
                     properties:
                       external:
                         description: External CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                       pod:
                         description: Pod CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                     type: object
                 type: object
             type: object
@@ -113,12 +125,18 @@ spec:
                     properties:
                       external:
                         description: External CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                       pod:
                         description: Pod CIDR of the cluster.
-                        format: cidr
-                        type: string
+                        items:
+                          description: CIDR defines a syntax validated CIDR.
+                          format: cidr
+                          type: string
+                        type: array
                     type: object
                 type: object
             type: object

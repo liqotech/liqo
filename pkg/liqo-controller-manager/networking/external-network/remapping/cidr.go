@@ -29,6 +29,7 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -139,11 +140,11 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuratio
 	var remoteCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
-		remoteCIDR = cfg.Spec.Remote.CIDR.Pod.String()
-		remoteRemapCIDR = cfg.Status.Remote.CIDR.Pod.String()
+		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String()
+		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
 	case ExternalCIDR:
-		remoteCIDR = cfg.Spec.Remote.CIDR.External.String()
-		remoteRemapCIDR = cfg.Status.Remote.CIDR.External.String()
+		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String()
+		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
 	}
 	return []firewall.NatRule{
 		{
@@ -181,11 +182,11 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 	var localCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
-		localCIDR = cfg.Spec.Local.CIDR.Pod.String()
-		remoteRemapCIDR = cfg.Status.Remote.CIDR.Pod.String()
+		localCIDR = cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()
+		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
 	case ExternalCIDR:
-		localCIDR = cfg.Spec.Local.CIDR.External.String()
-		remoteRemapCIDR = cfg.Status.Remote.CIDR.External.String()
+		localCIDR = cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String()
+		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
 	}
 
 	return []firewall.NatRule{

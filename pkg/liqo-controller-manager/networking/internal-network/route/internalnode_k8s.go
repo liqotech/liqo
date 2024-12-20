@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -297,9 +298,9 @@ func forgeRouteConfigurationExtCIDRRules(internalnode *networkingv1beta1.Interna
 	rules := []networkingv1beta1.Rule{}
 	for i := range configurations {
 		rules = append(rules, networkingv1beta1.Rule{
-			Dst:    &configurations[i].Status.Remote.CIDR.Pod,
+			Dst:    cidrutils.GetPrimary(configurations[i].Status.Remote.CIDR.Pod),
 			Iif:    ptr.To(tunnel.TunnelInterfaceName),
-			Routes: forgeRouteConfigurationExtCIDRRoutes(internalnode, &configurations[i].Status.Remote.CIDR.Pod),
+			Routes: forgeRouteConfigurationExtCIDRRoutes(internalnode, cidrutils.GetPrimary(configurations[i].Status.Remote.CIDR.Pod)),
 		})
 	}
 	rules = append(rules, networkingv1beta1.Rule{
