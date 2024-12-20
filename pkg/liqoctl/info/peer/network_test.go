@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
 	"github.com/liqotech/liqo/pkg/liqoctl/info/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -215,12 +216,12 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakepod",
-						External: "fakeexternal",
+						Pod:      cidrutils.SetPrimary("fakepod"),
+						External: cidrutils.SetPrimary("fakeexternal"),
 					},
 					Remapped: &networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakeremappedpod",
-						External: "fakeremappedexternal",
+						Pod:      cidrutils.SetPrimary("fakeremappedpod"),
+						External: cidrutils.SetPrimary("fakeremappedexternal"),
 					},
 				},
 				Gateway: GatewayInfo{
@@ -233,8 +234,8 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakepod",
-						External: "fakeexternal",
+						Pod:      cidrutils.SetPrimary("fakepod"),
+						External: cidrutils.SetPrimary("fakeexternal"),
 					},
 				},
 				Gateway: GatewayInfo{

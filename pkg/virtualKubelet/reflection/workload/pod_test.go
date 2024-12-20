@@ -33,6 +33,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -75,16 +76,16 @@ var _ = Describe("Pod Reflection Tests", func() {
 						Spec: networkingv1beta1.ConfigurationSpec{
 							Remote: networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      "192.168.200.0/24",
-									External: "192.168.100.0/24",
+									Pod:      cidrutils.SetPrimary("192.168.200.0/24"),
+									External: cidrutils.SetPrimary("192.168.100.0/24"),
 								},
 							},
 						},
 						Status: networkingv1beta1.ConfigurationStatus{
 							Remote: &networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      "192.168.201.0/24",
-									External: "192.168.101.0/24",
+									Pod:      cidrutils.SetPrimary("192.168.201.0/24"),
+									External: cidrutils.SetPrimary("192.168.101.0/24"),
 								},
 							},
 						},

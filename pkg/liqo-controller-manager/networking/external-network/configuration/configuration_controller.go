@@ -28,6 +28,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -110,8 +111,8 @@ func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *
 		}
 
 		r.localCIDR = &networkingv1beta1.ClusterConfigCIDR{
-			Pod:      networkingv1beta1.CIDR(podCIDR),
-			External: networkingv1beta1.CIDR(externalCIDR),
+			Pod:      cidr.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
+			External: cidr.SetPrimary(networkingv1beta1.CIDR(externalCIDR)),
 		}
 	}
 
@@ -155,11 +156,11 @@ func ForgeConfigurationStatus(cfg *networkingv1beta1.Configuration, net *ipamv1a
 	cidrNew = net.Status.CIDR
 	switch cidrType {
 	case LabelCIDRTypePod:
-		cidrOld = cfg.Spec.Remote.CIDR.Pod
-		cfg.Status.Remote.CIDR.Pod = cidrNew
+		cidrOld = *cidr.GetPrimary(cfg.Spec.Remote.CIDR.Pod)
+		cfg.Status.Remote.CIDR.Pod = cidr.SetPrimary(cidrNew)
 	case LabelCIDRTypeExternal:
-		cidrOld = cfg.Spec.Remote.CIDR.External
-		cfg.Status.Remote.CIDR.External = cidrNew
+		cidrOld = *cidr.GetPrimary(cfg.Spec.Remote.CIDR.External)
+		cfg.Status.Remote.CIDR.External = cidr.SetPrimary(cidrNew)
 	}
 	klog.Infof("Configuration %s %s CIDR: %s -> %s", client.ObjectKeyFromObject(cfg).String(), cidrType, cidrOld, cidrNew)
 }
@@ -168,7 +169,7 @@ func isConfigurationConfigured(cfg *networkingv1beta1.Configuration) bool {
 	if cfg.Status.Remote == nil {
 		return false
 	}
-	return cfg.Status.Remote.CIDR.Pod != "" && cfg.Status.Remote.CIDR.External != ""
+	return !cidr.IsVoid(cidr.GetPrimary(cfg.Status.Remote.CIDR.Pod)) && !cidr.IsVoid(cidr.GetPrimary(cfg.Status.Remote.CIDR.External))
 }
 
 // SetupWithManager register the ConfigurationReconciler to the manager.
