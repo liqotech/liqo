@@ -26,6 +26,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
 	"github.com/liqotech/liqo/pkg/liqoctl/info/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -121,8 +122,8 @@ func (nc *NetworkChecker) FormatForClusterID(clusterID liqov1beta1.ClusterID, op
 				remoteCIDRSection.AddEntry("External CIDR",
 					fmt.Sprintf("%s → Remapped to %s", data.CIDRs.Remote.External, data.CIDRs.Remapped.External))
 			} else {
-				remoteCIDRSection.AddEntry("Pod CIDR", string(data.CIDRs.Remote.Pod))
-				remoteCIDRSection.AddEntry("External CIDR", string(data.CIDRs.Remote.External))
+				remoteCIDRSection.AddEntry("Pod CIDR", cidrutils.GetPrimary(data.CIDRs.Remote.Pod).String())
+				remoteCIDRSection.AddEntry("External CIDR", cidrutils.GetPrimary(data.CIDRs.Remote.External).String())
 			}
 
 			// Print info about Gateway

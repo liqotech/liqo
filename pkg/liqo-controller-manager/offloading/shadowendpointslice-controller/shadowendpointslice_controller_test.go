@@ -36,6 +36,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -189,16 +190,16 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Spec: networkingv1beta1.ConfigurationSpec{
 					Remote: networkingv1beta1.ClusterConfig{
 						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      "10.10.0.0/16",
-							External: "10.20.0.0/16",
+							Pod:      cidrutils.SetPrimary("10.10.0.0/16"),
+							External: cidrutils.SetPrimary("10.20.0.0/16"),
 						},
 					},
 				},
 				Status: networkingv1beta1.ConfigurationStatus{
 					Remote: &networkingv1beta1.ClusterConfig{
 						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      remappedPodCIDR,
-							External: remappedExternalCIDR,
+							Pod:      cidrutils.SetPrimary(remappedPodCIDR),
+							External: cidrutils.SetPrimary(remappedExternalCIDR),
 						},
 					},
 				},
