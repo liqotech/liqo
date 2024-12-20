@@ -37,9 +37,9 @@ var ConfigurationGroupVersionResource = GroupVersion.WithResource(ConfigurationR
 // ClusterConfigCIDR defines the CIDR of the cluster.
 type ClusterConfigCIDR struct {
 	// Pod CIDR of the cluster.
-	Pod CIDR `json:"pod,omitempty"`
+	Pod []CIDR `json:"pod,omitempty"`
 	// External CIDR of the cluster.
-	External CIDR `json:"external,omitempty"`
+	External []CIDR `json:"external,omitempty"`
 }
 
 // ClusterConfig defines the configuration of a cluster.

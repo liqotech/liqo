@@ -12,16 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
-
-import (
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
-)
-
-// IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(confStatus networkingv1beta1.ConfigurationStatus) bool {
-	return confStatus.Remote != nil &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.Pod)) &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.External))
-}
+// Package cidr provides utility functions for working with CIDR type defined in networking API.
+package cidr

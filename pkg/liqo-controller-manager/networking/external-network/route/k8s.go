@@ -30,6 +30,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -115,20 +116,20 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 				[]networkingv1beta1.Rule{
 					{
 						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
-						Dst: &cfg.Spec.Remote.CIDR.Pod,
+						Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod),
 						Routes: []networkingv1beta1.Route{
 							{
-								Dst: &cfg.Spec.Remote.CIDR.Pod,
+								Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod),
 								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 							},
 						},
 					},
 					{
 						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
-						Dst: &cfg.Spec.Remote.CIDR.External,
+						Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External),
 						Routes: []networkingv1beta1.Route{
 							{
-								Dst: &cfg.Spec.Remote.CIDR.External,
+								Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External),
 								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 							},
 						},

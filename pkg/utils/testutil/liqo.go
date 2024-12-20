@@ -29,6 +29,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -265,22 +266,22 @@ func FakeConfiguration(remoteClusterID, podCIDR, extCIDR, remotePodCIDR, remoteE
 		Spec: networkingv1beta1.ConfigurationSpec{
 			Local: &networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      networkingv1beta1.CIDR(podCIDR),
-					External: networkingv1beta1.CIDR(extCIDR),
+					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
+					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(extCIDR)),
 				},
 			},
 			Remote: networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      networkingv1beta1.CIDR(remotePodCIDR),
-					External: networkingv1beta1.CIDR(remoteExtCIDR),
+					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(remotePodCIDR)),
+					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteExtCIDR)),
 				},
 			},
 		},
 		Status: networkingv1beta1.ConfigurationStatus{
 			Remote: &networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      networkingv1beta1.CIDR(remoteRemappedPodCIDR),
-					External: networkingv1beta1.CIDR(remoteRemappedExtCIDR),
+					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteRemappedPodCIDR)),
+					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteRemappedExtCIDR)),
 				},
 			},
 		},

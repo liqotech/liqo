@@ -18,6 +18,7 @@ package peer
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -117,12 +118,12 @@ func (nc *NetworkChecker) FormatForClusterID(clusterID liqov1beta1.ClusterID, op
 			remoteCIDRSection := cidrSection.AddSection("Remote")
 			if data.CIDRs.Remapped != nil {
 				remoteCIDRSection.AddEntry("Pod CIDR",
-					fmt.Sprintf("%s → Remapped to %s", data.CIDRs.Remote.Pod, data.CIDRs.Remapped.Pod))
+					fmt.Sprintf("%s → Remapped to %s", joinCidrs(data.CIDRs.Remote.Pod), joinCidrs(data.CIDRs.Remapped.Pod)))
 				remoteCIDRSection.AddEntry("External CIDR",
-					fmt.Sprintf("%s → Remapped to %s", data.CIDRs.Remote.External, data.CIDRs.Remapped.External))
+					fmt.Sprintf("%s → Remapped to %s", joinCidrs(data.CIDRs.Remote.External), joinCidrs(data.CIDRs.Remapped.External)))
 			} else {
-				remoteCIDRSection.AddEntry("Pod CIDR", string(data.CIDRs.Remote.Pod))
-				remoteCIDRSection.AddEntry("External CIDR", string(data.CIDRs.Remote.External))
+				remoteCIDRSection.AddEntry("Pod CIDR", joinCidrs(data.CIDRs.Remote.Pod))
+				remoteCIDRSection.AddEntry("External CIDR", joinCidrs(data.CIDRs.Remote.External))
 			}
 
 			// Print info about Gateway
@@ -189,4 +190,12 @@ func (nc *NetworkChecker) collectGatewayInfo(ctx context.Context, cl client.Clie
 	}
 
 	return nil
+}
+
+func joinCidrs(cidrs []networkingv1beta1.CIDR) string {
+	cidrsString := make([]string, len(cidrs))
+	for i := range cidrs {
+		cidrsString[i] = cidrs[i].String()
+	}
+	return strings.Join(cidrsString, ",")
 }

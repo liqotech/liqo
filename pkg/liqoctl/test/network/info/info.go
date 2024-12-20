@@ -23,6 +23,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
 // Info prints the configurations of the clusters.
@@ -72,8 +73,8 @@ func PrintConfigurations(ctx context.Context, cl ctrlclient.Client, table *pterm
 func AppendLocalConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		"local",
-		cfg.Spec.Local.CIDR.Pod.String(), "N/R",
-		cfg.Spec.Local.CIDR.External.String(), "N/R",
+		cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(), "N/R",
+		cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String(), "N/R",
 	})
 }
 
@@ -81,7 +82,7 @@ func AppendLocalConfigurationTableData(cfg *networkingv1beta1.Configuration, td 
 func AppendRemoteConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		cfg.Name,
-		cfg.Spec.Remote.CIDR.Pod.String(), cfg.Status.Remote.CIDR.Pod.String(),
-		cfg.Spec.Remote.CIDR.External.String(), cfg.Status.Remote.CIDR.External.String(),
+		cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String(), cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
+		cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String(), cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
 	})
 }

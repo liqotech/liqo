@@ -27,6 +27,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -137,27 +138,27 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 		err                                        error
 	)
 
-	podNeedsRemap := cfg.Spec.Remote.CIDR.Pod.String() != cfg.Status.Remote.CIDR.Pod.String()
-	extNeedsRemap := cfg.Spec.Remote.CIDR.External.String() != cfg.Status.Remote.CIDR.External.String()
+	podNeedsRemap := cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String() != cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
+	extNeedsRemap := cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String() != cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
 
-	_, podnet, err = net.ParseCIDR(cfg.Spec.Remote.CIDR.Pod.String())
+	_, podnet, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String())
 	if err != nil {
 		return "", err
 	}
 	if podNeedsRemap {
-		_, podnetMapped, err = net.ParseCIDR(cfg.Status.Remote.CIDR.Pod.String())
+		_, podnetMapped, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String())
 		if err != nil {
 			return "", err
 		}
 		podNetMaskLen, _ = podnetMapped.Mask.Size()
 	}
 
-	_, extnet, err = net.ParseCIDR(cfg.Spec.Remote.CIDR.External.String())
+	_, extnet, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String())
 	if err != nil {
 		return "", err
 	}
 	if extNeedsRemap {
-		_, extnetMapped, err = net.ParseCIDR(cfg.Status.Remote.CIDR.External.String())
+		_, extnetMapped, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String())
 		if err != nil {
 			return "", err
 		}

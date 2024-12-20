@@ -25,6 +25,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
@@ -51,9 +52,9 @@ func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1beta1.Configuratio
 	var cidr networkingv1beta1.CIDR
 	switch cidrType {
 	case LabelCIDRTypePod:
-		cidr = cfg.Spec.Remote.CIDR.Pod
+		cidr = *cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod)
 	case LabelCIDRTypeExternal:
-		cidr = cfg.Spec.Remote.CIDR.External
+		cidr = *cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External)
 	}
 	net.Spec = ipamv1alpha1.NetworkSpec{
 		CIDR: cidr,

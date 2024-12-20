@@ -27,6 +27,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -94,7 +95,7 @@ func forgeFirewallChain() *firewallapi.Chain {
 }
 
 func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
-	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
+	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
@@ -108,19 +109,19 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
 						Position: firewallapi.MatchPositionDst,
-						Value:    cfg.Status.Remote.CIDR.Pod.String(),
+						Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
 					},
 				},
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
 						Position: firewallapi.MatchPositionSrc,
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+						Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
 					},
 				},
 			},
 			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
+			To:      ptr.To(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()),
 		})
 	}
 
@@ -131,7 +132,7 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 				Op: firewallapi.MatchOperationEq,
 				IP: &firewallapi.MatchIP{
 					Position: firewallapi.MatchPositionDst,
-					Value:    cfg.Status.Remote.CIDR.Pod.String(),
+					Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
 				},
 			},
 		},
@@ -143,7 +144,7 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 			Op: firewallapi.MatchOperationNeq,
 			IP: &firewallapi.MatchIP{
 				Position: firewallapi.MatchPositionSrc,
-				Value:    cfg.Spec.Local.CIDR.Pod.String(),
+				Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
 			},
 		})
 	}
@@ -157,19 +158,19 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
 						Position: firewallapi.MatchPositionDst,
-						Value:    cfg.Status.Remote.CIDR.External.String(),
+						Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
 					},
 				},
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
 						Position: firewallapi.MatchPositionSrc,
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+						Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
 					},
 				},
 			},
 			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
+			To:      ptr.To(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()),
 		})
 	}
 
@@ -180,7 +181,7 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 				Op: firewallapi.MatchOperationEq,
 				IP: &firewallapi.MatchIP{
 					Position: firewallapi.MatchPositionDst,
-					Value:    cfg.Status.Remote.CIDR.External.String(),
+					Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
 				},
 			},
 		},
@@ -192,7 +193,7 @@ func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (
 			Op: firewallapi.MatchOperationNeq,
 			IP: &firewallapi.MatchIP{
 				Position: firewallapi.MatchPositionSrc,
-				Value:    cfg.Spec.Local.CIDR.Pod.String(),
+				Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
 			},
 		})
 	}

@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
 	"github.com/liqotech/liqo/pkg/liqoctl/info/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -105,11 +106,19 @@ var _ = Describe("NetworkChecker tests", func() {
 
 				Expect(data.Status).To(Equal(common.ModuleHealthy), "Unexpected status")
 
-				Expect(data.CIDRs.Remote.Pod).To(Equal(networkingv1beta1.CIDR(expectedPodCIDR)), "Unexpected remote Pod CIDR")
-				Expect(data.CIDRs.Remote.External).To(Equal(networkingv1beta1.CIDR(expectedExternalCIDR)), "Unexpected remote external CIDR")
+				Expect(data.CIDRs.Remote.Pod).To(HaveLen(1), "Unexpected alerts")
+				Expect(data.CIDRs.Remote.Pod).To(ContainElement(networkingv1beta1.CIDR(expectedPodCIDR)), "Unexpected remote Pod CIDR")
+
+				Expect(data.CIDRs.Remote.External).To(HaveLen(1), "Unexpected alerts")
+				Expect(data.CIDRs.Remote.External).To(ContainElement(networkingv1beta1.CIDR(expectedExternalCIDR)), "Unexpected remote external CIDR")
+
 				Expect(data.CIDRs.Remapped).NotTo(BeNil(), "Expected remapped CIDRs but empty received")
-				Expect(data.CIDRs.Remapped.Pod).To(Equal(networkingv1beta1.CIDR(expectedRemappedPod)), "Unexpected remapped Pod CIDR")
-				Expect(data.CIDRs.Remapped.External).To(Equal(networkingv1beta1.CIDR(expectedRemappedExternal)), "Unexpected remapped external CIDR")
+
+				Expect(data.CIDRs.Remapped.Pod).To(HaveLen(1), "Unexpected alerts")
+				Expect(data.CIDRs.Remapped.Pod).To(ContainElement(networkingv1beta1.CIDR(expectedRemappedPod)), "Unexpected remapped Pod CIDR")
+
+				Expect(data.CIDRs.Remapped.External).To(HaveLen(1), "Unexpected alerts")
+				Expect(data.CIDRs.Remapped.External).To(ContainElement(networkingv1beta1.CIDR(expectedRemappedExternal)), "Unexpected remapped external CIDR")
 
 				// Check gateway parameters
 				Expect(data.Gateway.Role).To(Equal(GatewayServerType), "Unexpected Gateway type")
@@ -185,19 +194,23 @@ var _ = Describe("NetworkChecker tests", func() {
 				// Check CIDRs
 				if testCase.CIDRs.Remapped != nil {
 					Expect(text).To(ContainSubstring(
-						pterm.Sprintf("Pod CIDR: %s → Remapped to %s", testCase.CIDRs.Remote.Pod, testCase.CIDRs.Remapped.Pod)),
+						pterm.Sprintf("Pod CIDR: %s → Remapped to %s",
+							joinCidrs(testCase.CIDRs.Remote.Pod), joinCidrs(testCase.CIDRs.Remapped.Pod))),
 						"Unexpected POD CIDR shown",
 					)
 					Expect(text).To(ContainSubstring(
-						pterm.Sprintf("External CIDR: %s → Remapped to %s", testCase.CIDRs.Remote.External, testCase.CIDRs.Remapped.External)),
+						pterm.Sprintf("External CIDR: %s → Remapped to %s",
+							joinCidrs(testCase.CIDRs.Remote.External), joinCidrs(testCase.CIDRs.Remapped.External))),
 						"Unexpected External CIDR shown",
 					)
 				} else {
 					Expect(text).To(ContainSubstring(
-						pterm.Sprintf("Pod CIDR: %s", testCase.CIDRs.Remote.Pod)), "Unexpected POD CIDR shown",
+						pterm.Sprintf("Pod CIDR: %s",
+							joinCidrs(testCase.CIDRs.Remote.Pod))), "Unexpected POD CIDR shown",
 					)
 					Expect(text).To(ContainSubstring(
-						pterm.Sprintf("External CIDR: %s", testCase.CIDRs.Remote.External)),
+						pterm.Sprintf("External CIDR: %s",
+							joinCidrs(testCase.CIDRs.Remote.External))),
 						"Unexpected External CIDR shown",
 					)
 				}
@@ -215,12 +228,12 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakepod",
-						External: "fakeexternal",
+						Pod:      cidrutils.SetPrimary("fakepod"),
+						External: cidrutils.SetPrimary("fakeexternal"),
 					},
 					Remapped: &networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakeremappedpod",
-						External: "fakeremappedexternal",
+						Pod:      cidrutils.SetPrimary("fakeremappedpod"),
+						External: cidrutils.SetPrimary("fakeremappedexternal"),
 					},
 				},
 				Gateway: GatewayInfo{
@@ -233,8 +246,8 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      "fakepod",
-						External: "fakeexternal",
+						Pod:      cidrutils.SetPrimary("fakepod"),
+						External: cidrutils.SetPrimary("fakeexternal"),
 					},
 				},
 				Gateway: GatewayInfo{
