@@ -26,6 +26,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -62,8 +63,8 @@ func MutateConfiguration(conf *networkingv1beta1.Configuration, remoteClusterID 
 		conf.Labels = make(map[string]string)
 	}
 	conf.Labels[consts.RemoteClusterID] = string(remoteClusterID)
-	conf.Spec.Remote.CIDR.Pod = networkingv1beta1.CIDR(podCIDR)
-	conf.Spec.Remote.CIDR.External = networkingv1beta1.CIDR(externalCIDR)
+	conf.Spec.Remote.CIDR.Pod = cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR))
+	conf.Spec.Remote.CIDR.External = cidrutils.SetPrimary(networkingv1beta1.CIDR(externalCIDR))
 }
 
 // ConfigurationForRemoteCluster forges a Configuration of the local cluster to be applied to a remote cluster.
@@ -99,8 +100,8 @@ func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		Spec: networkingv1beta1.ConfigurationSpec{
 			Remote: networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      networkingv1beta1.CIDR(podCIDR),
-					External: networkingv1beta1.CIDR(externalCIDR),
+					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
+					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(externalCIDR)),
 				},
 			},
 		},

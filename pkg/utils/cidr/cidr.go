@@ -12,16 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package cidr
 
-import (
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
-)
+import networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 
-// IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(confStatus networkingv1beta1.ConfigurationStatus) bool {
-	return confStatus.Remote != nil &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.Pod)) &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.External))
+// GetPrimary returns the primary CIDR from a list of CIDRs.
+func GetPrimary(cidrs []networkingv1beta1.CIDR) *networkingv1beta1.CIDR {
+	if len(cidrs) == 0 {
+		return nil
+	}
+	return &cidrs[0]
+}
+
+// SetPrimary sets the primary CIDR in a list of CIDRs.
+func SetPrimary(cidr networkingv1beta1.CIDR) []networkingv1beta1.CIDR {
+	return []networkingv1beta1.CIDR{cidr}
+}
+
+// IsVoid checks if a CIDR is void.
+func IsVoid(cidr *networkingv1beta1.CIDR) bool {
+	return cidr.String() == ""
 }
