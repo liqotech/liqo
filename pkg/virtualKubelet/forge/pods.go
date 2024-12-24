@@ -182,6 +182,8 @@ func RemoteShadowPod(local *corev1.Pod, remote *offloadingv1beta1.ShadowPod,
 			AntiAffinityHardMutator(FilterAntiAffinityLabels(localMetaFiltered.GetLabels(), local.Annotations[liqoconst.PodAntiAffinityLabelsKey])))
 	}
 
+	mutators = append(mutators, RuntimeClassNameMutator(local, forgingOpts))
+
 	return &offloadingv1beta1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(localMetaFiltered, &remote.ObjectMeta),
 		Spec: offloadingv1beta1.ShadowPodSpec{
@@ -419,6 +421,30 @@ func FilterAntiAffinityLabels(labels map[string]string, whitelist string) map[st
 
 	return maps.Filter(labels, maps.FilterBlacklist(appsv1.ControllerRevisionHashLabelKey,
 		appsv1.DefaultDeploymentUniqueLabelKey, appsv1.StatefulSetPodNameLabel))
+}
+
+// RuntimeClassNameMutator is a mutator which implements the support to propagate the runtimeclass name.
+func RuntimeClassNameMutator(local *corev1.Pod, forgingOpts *ForgingOpts) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		// 1st priority: use RuntimeClass from pod annotation if set.
+		if v, ok := local.GetAnnotations()[liqoconst.RemoteRuntimeClassNameAnnotKey]; ok && v != "" {
+			remote.RuntimeClassName = &v
+			return
+		}
+
+		// 2nd priority: use RuntimeClass from local pod spec if set (and not equal to "liqo").
+		if local.Spec.RuntimeClassName != nil &&
+			*local.Spec.RuntimeClassName != "" && *local.Spec.RuntimeClassName != liqoconst.LiqoRuntimeClassName {
+			remote.RuntimeClassName = local.Spec.RuntimeClassName
+			return
+		}
+
+		// 3rd priority: use RuntimeClass from virtualnode OffloadingPatch if set.
+		if forgingOpts != nil && forgingOpts.RuntimeClassName != nil &&
+			*forgingOpts.RuntimeClassName != "" && *forgingOpts.RuntimeClassName != liqoconst.LiqoRuntimeClassName {
+			remote.RuntimeClassName = forgingOpts.RuntimeClassName
+		}
+	}
 }
 
 // RemoteContainersAPIServerSupport forges the containers for a reflected pod, appropriately adding the environment variables

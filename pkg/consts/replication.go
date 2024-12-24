@@ -84,4 +84,7 @@ const (
 	// RemoteUnavailableValue is the annotation value of the label indicating that the remote cluster hosting the local offloaded pod is currently
 	// not available.
 	RemoteUnavailableValue = "true"
+
+	// RemoteRuntimeClassNameAnnotKey is the annotation key used to store the name of the remote pod runtimeclass.
+	RemoteRuntimeClassNameAnnotKey = "liqo.io/remote-runtime-class-name"
 )
