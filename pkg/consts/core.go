@@ -23,4 +23,7 @@ const (
 
 	// LiqoAppLabelValue is the value of the label used to identify Liqo app.
 	LiqoAppLabelValue = "liqo"
+
+	// LiqoRuntimeClassName is the name of the runtimeclass used by Liqo.
+	LiqoRuntimeClassName = "liqo"
 )

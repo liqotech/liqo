@@ -389,6 +389,10 @@ spec:
                     description: NodeSelector contains the node selector to target
                       the remote cluster.
                     type: object
+                  runtimeClassName:
+                    description: RuntimeClassName contains the runtimeclass name the
+                      pods should have on the target remote cluster.
+                    type: string
                   tolerations:
                     description: Tolerations contains the tolerations to target the
                       remote cluster.

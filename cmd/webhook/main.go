@@ -90,7 +90,7 @@ func main() {
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
 	refreshInterval := pflag.Duration("resource-validator-refresh-interval",
 		5*time.Minute, "The interval at which the resource validator cache is refreshed")
-	liqoRuntimeClassName := pflag.String("liqo-runtime-class", "liqo",
+	liqoRuntimeClassName := pflag.String("liqo-runtime-class", consts.LiqoRuntimeClassName,
 		"Define the Liqo runtime class forcing the pods to be scheduled on virtual nodes")
 
 	flagsutils.InitKlogFlags(pflag.CommandLine)
