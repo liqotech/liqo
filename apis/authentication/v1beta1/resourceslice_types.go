@@ -133,7 +133,7 @@ type ResourceSlice struct {
 
 // +kubebuilder:object:root=true
 
-// ResourceSliceList contains a list of Identities.
+// ResourceSliceList contains a list of ResourceSlices.
 type ResourceSliceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

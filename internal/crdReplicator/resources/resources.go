@@ -42,5 +42,9 @@ func GetResourcesToReplicate() []Resource {
 			GroupVersionResource: authv1beta1.ResourceSliceGroupVersionResource,
 			Ownership:            consts.OwnershipShared,
 		},
+		{
+			GroupVersionResource: authv1beta1.RenewGroupVersionResource,
+			Ownership:            consts.OwnershipShared,
+		},
 	}
 }
