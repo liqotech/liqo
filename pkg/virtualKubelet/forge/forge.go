@@ -77,6 +77,7 @@ type ForgingOpts struct {
 	NodeSelector            map[string]string
 	Tolerations             []corev1.Toleration
 	Affinity                *offloadingv1beta1.Affinity
+	RuntimeClassName        *string
 }
 
 // NewForgingOpts returns a new ForgingOpts instance.
@@ -91,6 +92,7 @@ func NewForgingOpts(offloadingPatch *offloadingv1beta1.OffloadingPatch) ForgingO
 		NodeSelector:            offloadingPatch.NodeSelector,
 		Tolerations:             offloadingPatch.Tolerations,
 		Affinity:                offloadingPatch.Affinity,
+		RuntimeClassName:        offloadingPatch.RuntimeClassName,
 	}
 }
 
