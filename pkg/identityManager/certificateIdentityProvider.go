@@ -84,7 +84,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(ctx co
 	}
 
 	// check that this certificate is related to this signing request
-	if !bytes.Equal(signingRequestSecret, options.SigningRequest) {
+	if !bytes.Equal(signingRequestSecret, options.SigningRequest) && !options.IsUpdate {
 		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", options.Cluster))
 		klog.Error(err)
 		return response, err
