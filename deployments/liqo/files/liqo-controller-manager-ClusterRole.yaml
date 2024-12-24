@@ -43,6 +43,7 @@ rules:
   resources:
   - identities
   - identities/status
+  - renews
   - resourceslices
   - resourceslices/status
   - tenants
@@ -55,6 +56,21 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - identities/finalizers
+  - renews/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - renews/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - certificates.k8s.io
   resources:

@@ -40,6 +40,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -48,6 +49,7 @@ import (
 func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, config *rest.Config,
 	recorder record.EventRecorder,
 	identityProvider identitymanager.IdentityProvider,
+	namespaceManager tenantnamespace.Manager,
 	apiServerAddressOverride string, caOverride []byte, trustedCA bool,
 	sliceStatusOptions *SliceStatusOptions) *RemoteResourceSliceReconciler {
 	return &RemoteResourceSliceReconciler{
@@ -57,6 +59,7 @@ func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, confi
 
 		eventRecorder:    recorder,
 		identityProvider: identityProvider,
+		namespaceManager: namespaceManager,
 
 		apiServerAddressOverride: apiServerAddressOverride,
 		caOverride:               caOverride,
@@ -79,6 +82,7 @@ type RemoteResourceSliceReconciler struct {
 
 	eventRecorder    record.EventRecorder
 	identityProvider identitymanager.IdentityProvider
+	namespaceManager tenantnamespace.Manager
 
 	apiServerAddressOverride string
 	caOverride               []byte
@@ -111,6 +115,17 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		err = fmt.Errorf("ConsumerClusterID not set")
 		klog.Errorf("Unable to ensure the remote certificate for the ResourceSlice %q: %s", req.NamespacedName, err)
 		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
+		return ctrl.Result{}, nil
+	}
+
+	tenantNamespace, err := r.namespaceManager.GetNamespace(ctx, *resourceSlice.Spec.ConsumerClusterID)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if tenantNamespace.Name != resourceSlice.Namespace {
+		klog.Errorf("The namespace %q of the ResourceSlice %q doesn't match with the tenant namespace %q, skipping",
+			resourceSlice.Namespace, resourceSlice.Name, tenantNamespace.Name)
 		return ctrl.Result{}, nil
 	}
 
