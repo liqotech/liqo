@@ -39,6 +39,8 @@ type OffloadingPatch struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// Affinity contains the affinity and anti-affinity rules to target the remote cluster.
 	Affinity *Affinity `json:"affinity,omitempty"`
+	// RuntimeClassName contains the runtimeclass name the pods should have on the target remote cluster.
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 }
 
 // DeploymentTemplate contains the deployment template of the virtual node.

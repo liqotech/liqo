@@ -192,3 +192,21 @@ More specifically, an event is propagated if it belongs to an offloaded namespac
 The event reflector is the only one that propagates a resource from the remote cluster to the local cluster.
 Local events are not reflected to the remote cluster.
 ```
+
+(UsageReflectionRuntimeClass)=
+
+## RuntimeClass
+
+The **RuntimeClass** (`.spec.runtimeClassName` field) is reflected from the local pod to the remote one.
+
+If you are using the [Liqo RuntimeClass](../usage/namespace-offloading.md#runtimeclass), you cannot specify the RuntimeClass name as the field is already used.
+To overcome this problem, you can annotate the pod with `liqo.io/remote-runtime-class-name: <MY_RUNTIMECLASS_NAME>`.
+
+It is also possible to enforce a remote RuntimeClass to all pods scheduled on a virtual node, by specifying it in the *OffladingPatch* of the virtualnode (`.spec.offloadingPatch.runtimeClassName`).
+If you are using liqoctl to create the virtual node, you can leverage the `--runtime-class-name` flag.  
+
+If these options are used in combination, the following priority (from higher to lower priority) will be used to determine the remote RuntimeClass:
+
+1. pod Annotation (`liqo.io/remote-runtime-class-name`).
+2. pod RuntimeClass (`.spec.runtimeClassName`). It is ignored if set to `liqo`.
+3. virtualNode OffloadingPatch (`.spec.offloadingPatch.runtimeClassName`).

@@ -42,6 +42,7 @@ type Options struct {
 	loadBalancerClasses []string
 	labels              map[string]string
 	nodeSelector        map[string]string
+	runtimeClassName    string
 }
 
 var _ rest.API = &Options{}
