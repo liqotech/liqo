@@ -32,6 +32,7 @@ import (
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	"github.com/liqotech/liqo/pkg/utils"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -131,8 +132,8 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		internalFabric.Spec.Interface.Gateway.IP = networkingv1beta1.IP(ip.String())
 
 		internalFabric.Spec.RemoteCIDRs = []networkingv1beta1.CIDR{
-			configuration.Status.Remote.CIDR.Pod,
-			configuration.Status.Remote.CIDR.External,
+			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.Pod),
+			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.External),
 		}
 
 		return controllerutil.SetControllerReference(gwClient, internalFabric, r.Scheme)

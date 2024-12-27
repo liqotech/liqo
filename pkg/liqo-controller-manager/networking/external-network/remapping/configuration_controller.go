@@ -31,6 +31,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
 // cluster-role
@@ -75,14 +76,14 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	if conf.Spec.Remote.CIDR.Pod != conf.Status.Remote.CIDR.Pod {
+	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.Pod) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.Pod) {
 		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, PodCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if conf.Spec.Remote.CIDR.External != conf.Status.Remote.CIDR.External {
+	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.External) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.External) {
 		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, ExternalCIDR); err != nil {
 			return ctrl.Result{}, err

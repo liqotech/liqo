@@ -33,6 +33,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	"github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -74,8 +75,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	extCIDR := cfg.Status.Remote.CIDR.External
-	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(string(extCIDR))
+	extCIDR := cidr.GetPrimary(cfg.Status.Remote.CIDR.External)
+	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(extCIDR.String())
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the unknown source IP: %w", err)
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 )
@@ -117,7 +118,7 @@ func forgeIPTarget(ctx context.Context, cl clientctrl.Client, localIPRemapped ma
 			return nil, fmt.Errorf("failed to parse IP: %s", ip)
 		}
 
-		_, cidrtarget, err := net.ParseCIDR(cfgs.Items[i].Status.Remote.CIDR.External.String())
+		_, cidrtarget, err := net.ParseCIDR(cidrutils.GetPrimary(cfgs.Items[i].Status.Remote.CIDR.External).String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse CIDR: %w", err)
 		}
