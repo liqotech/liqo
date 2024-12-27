@@ -58,7 +58,7 @@ func VirtualNode(name, namespace string) *offloadingv1beta1.VirtualNode {
 
 // MutateVirtualNode mutates a VirtualNode resource.
 func MutateVirtualNode(ctx context.Context, cl client.Client, virtualNode *offloadingv1beta1.VirtualNode,
-	remoteClusterID liqov1beta1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
+	remoteClusterID liqov1beta1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool, runtimeClassName *string) error {
 	// VirtualNode metadata
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
@@ -88,6 +88,13 @@ func MutateVirtualNode(ctx context.Context, cl client.Client, virtualNode *offlo
 	virtualNode.Spec.StorageClasses = opts.StorageClasses
 	virtualNode.Spec.IngressClasses = opts.IngressClasses
 	virtualNode.Spec.LoadBalancerClasses = opts.LoadBalancerClasses
+
+	if runtimeClassName != nil && *runtimeClassName != "" {
+		if virtualNode.Spec.OffloadingPatch == nil {
+			virtualNode.Spec.OffloadingPatch = &offloadingv1beta1.OffloadingPatch{}
+		}
+		virtualNode.Spec.OffloadingPatch.RuntimeClassName = runtimeClassName
+	}
 
 	if len(opts.NodeSelector) > 0 {
 		if virtualNode.Spec.OffloadingPatch == nil {
