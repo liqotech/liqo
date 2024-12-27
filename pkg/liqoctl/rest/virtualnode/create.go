@@ -102,6 +102,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		[]string{}, "The load balancer classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
 	cmd.Flags().StringToStringVar(&o.nodeSelector, "node-selector", map[string]string{}, "The node selector to be applied to offloaded pods")
+	cmd.Flags().StringVar(&o.runtimeClassName, "runtime-class-name", "", "The runtimeClass the pods should have on the target remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -166,7 +167,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	virtualNode := forge.VirtualNode(opts.Name, tenantNamespace)
 	if _, err := resource.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
 		return forge.MutateVirtualNode(ctx, opts.CRClient,
-			virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck)
+			virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck, &o.runtimeClassName)
 	}); err != nil {
 		s.Fail("Unable to create virtual node: ", output.PrettyErr(err))
 		return err
@@ -301,7 +302,7 @@ func (o *Options) output(ctx context.Context, name, namespace string, vnOpts *fo
 
 	virtualNode := forge.VirtualNode(name, namespace)
 	if err := forge.MutateVirtualNode(ctx, opts.CRClient,
-		virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck); err != nil {
+		virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck, &o.runtimeClassName); err != nil {
 		return err
 	}
 

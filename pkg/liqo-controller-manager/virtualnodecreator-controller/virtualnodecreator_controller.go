@@ -125,7 +125,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 			virtualNode.Spec.VkOptionsTemplateRef)
 
 		if err := forge.MutateVirtualNode(ctx, r.Client,
-			virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil); err != nil {
+			virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil, nil); err != nil {
 			return err
 		}
 		if virtualNode.Labels == nil {
