@@ -2,6 +2,8 @@ rules:
 - apiGroups:
   - authentication.liqo.io
   resources:
+  - renews
+  - renews/status
   - resourceslices
   - resourceslices/status
   verbs:

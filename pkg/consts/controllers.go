@@ -58,6 +58,8 @@ const (
 	// Authentication.
 	CtrlIdentity            = "identity"
 	CtrlIdentityCreator     = "identity_creator"
+	CtrlLocalRenewer        = "localrenwer"
+	CtrlRemoteRenewer       = "remoterenewer"
 	CtrlSecretNonceCreator  = "secret_noncecreator"
 	CtrlSecretNonceSigner   = "secret_noncesigner"
 	CtrlResourceSliceLocal  = "resourceslice_local"

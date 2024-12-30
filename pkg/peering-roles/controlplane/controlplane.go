@@ -19,5 +19,8 @@ package controlplane
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
 
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=renews,verbs=get;update;patch;list;watch;delete;create;deletecollection
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=renews/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
+
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
