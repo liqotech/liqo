@@ -92,9 +92,16 @@ labels:
 Common Labels for Gateway Templates
 */}}
 {{- define "liqo.labelsTemplate" -}}
-{{ include "liqo.selectorLabelsTemplate" . }}
+{{ include "liqo.selectorTemplate" . }}
 helm.sh/chart: {{ quote (include "liqo.chart" .) }}
 app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
+{{- end }}
+
+{{/*
+Common Label Selector for Gateway Template
+*/}}
+{{- define "liqo.selectorTemplate" -}}
+{{ include "liqo.selectorLabelsTemplate" . }}
 app.kubernetes.io/managed-by: {{ quote .Release.Service }}
 networking.liqo.io/component: "gateway"
 networking.liqo.io/gateway-name: "{{"{{ .Name }}"}}"
