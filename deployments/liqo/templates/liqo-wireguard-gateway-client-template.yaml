@@ -30,7 +30,7 @@ spec:
             type: Recreate
           selector:
             matchLabels:
-              {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
+              {{- include "liqo.selectorTemplate" $templateConfig | nindent 14 }}
           template:
             metadata:
               {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}

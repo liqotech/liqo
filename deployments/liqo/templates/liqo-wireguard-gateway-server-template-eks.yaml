@@ -39,7 +39,7 @@ spec:
           {{- end }}
         spec:
           selector:
-            {{- include "liqo.labelsTemplate" (merge (dict "isService" true) $templateConfig) | nindent 12 }}
+            {{- include "liqo.selectorTemplate" (merge (dict "isService" true) $templateConfig) | nindent 12 }}
           type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
           ports:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
@@ -57,7 +57,7 @@ spec:
             type: Recreate
           selector:
             matchLabels:
-              {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
+              {{- include "liqo.selectorTemplate" $templateConfig | nindent 14 }}
           template:
             metadata:
               {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
