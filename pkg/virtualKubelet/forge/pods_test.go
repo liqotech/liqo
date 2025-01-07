@@ -28,6 +28,7 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -454,6 +455,99 @@ var _ = Describe("Pod forging", func() {
 				Expect(output).To(HaveKeyWithValue("key1", "value1"))
 				Expect(output).To(HaveKeyWithValue("key2", "value2"))
 				Expect(output).To(HaveKeyWithValue("key3", "value3"))
+			})
+		})
+	})
+
+	Describe("the runtimeClassNameMutator function", func() {
+		const (
+			fakeRuntimeClassOffPatch = "foo"
+			fakeRuntimeClassPodSpec  = "bar"
+			fakeRuntimeClassPodAnnot = "baz"
+		)
+
+		var (
+			local       *corev1.Pod
+			remote      *corev1.PodSpec
+			forgingOpts *forge.ForgingOpts
+		)
+
+		BeforeEach(func() {
+			local = &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: corev1.PodSpec{},
+			}
+			remote = &corev1.PodSpec{}
+			forgingOpts = &forge.ForgingOpts{}
+		})
+
+		JustBeforeEach(func() { forge.RuntimeClassNameMutator(local, forgingOpts)(remote) })
+
+		When("runtimeclass is set in the OffloadingPatch", func() {
+			BeforeEach(func() {
+				forgingOpts.RuntimeClassName = ptr.To(fakeRuntimeClassOffPatch)
+			})
+
+			It("should set the runtimeclass of the OffloadingPatch", func() {
+				Expect(remote.RuntimeClassName).To(PointTo(Equal(fakeRuntimeClassOffPatch)))
+			})
+		})
+
+		When("runtimeclass is set in the OffloadingPatch and in the Pod spec", func() {
+			BeforeEach(func() {
+				forgingOpts.RuntimeClassName = ptr.To(fakeRuntimeClassOffPatch)
+				local.Spec.RuntimeClassName = ptr.To(fakeRuntimeClassPodSpec)
+			})
+
+			It("should set the runtimeclass of the pod spec", func() {
+				Expect(remote.RuntimeClassName).To(PointTo(Equal(fakeRuntimeClassPodSpec)))
+			})
+		})
+
+		When("runtimeclass is set in the OffloadingPatch, Pod spec and Pod annotation", func() {
+			BeforeEach(func() {
+				forgingOpts.RuntimeClassName = ptr.To(fakeRuntimeClassOffPatch)
+				local.Spec.RuntimeClassName = ptr.To(fakeRuntimeClassPodSpec)
+				local.Annotations = map[string]string{consts.RemoteRuntimeClassNameAnnotKey: fakeRuntimeClassPodAnnot}
+			})
+
+			It("should set the runtimeclass of the pod annotation", func() {
+				Expect(remote.RuntimeClassName).To(PointTo(Equal(fakeRuntimeClassPodAnnot)))
+			})
+		})
+
+		When("runtimeclass is set to the liqo one", func() {
+			BeforeEach(func() {
+				local.Spec.RuntimeClassName = ptr.To(consts.LiqoRuntimeClassName)
+			})
+
+			When("OffloadingPatch and Pod annotation are not set", func() {
+				It("should leave the runtimeclass empty", func() {
+					Expect(remote.RuntimeClassName).To(BeNil())
+				})
+			})
+
+			When("OffloadingPatch is set", func() {
+				BeforeEach(func() {
+					forgingOpts.RuntimeClassName = ptr.To(fakeRuntimeClassOffPatch)
+				})
+
+				It("should set the runtimeclass of the OffloadingPatch", func() {
+					Expect(remote.RuntimeClassName).To(PointTo(Equal(fakeRuntimeClassOffPatch)))
+				})
+			})
+
+			When("Pod annotation is set", func() {
+				BeforeEach(func() {
+					local.Annotations = map[string]string{consts.RemoteRuntimeClassNameAnnotKey: fakeRuntimeClassPodAnnot}
+				})
+
+				It("should set the runtimeclass of the Pod annotation", func() {
+					Expect(remote.RuntimeClassName).To(PointTo(Equal(fakeRuntimeClassPodAnnot)))
+				})
 			})
 		})
 	})
