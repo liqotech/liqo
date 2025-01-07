@@ -41,13 +41,20 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	version, err := liqogetters.GetLiqoVersion(ctx, o.CRClient, o.LiqoNamespace)
+	serverVersion, err := liqogetters.GetLiqoVersion(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
-		o.Printer.Error.Printfln("Failed to retrieve Liqo version: %v", output.PrettyErr(err))
+		fmt.Println("Server version: Unknown")
+		o.Printer.Warning.Printfln("Failed to retrieve Liqo server version: %v", output.PrettyErr(err))
+		o.Printer.Warning.Println(
+			"Is Liqo installed in your cluster? Is the cluster reachable? Do you have the permissions to access the target cluster?")
 		return err
 	}
 
-	fmt.Printf("Server version: %s\n", version)
+	fmt.Printf("Server version: %s\n", serverVersion)
+
+	if serverVersion != LiqoctlVersion {
+		o.Printer.Warning.Println("The version of liqoctl does not match the Liqo server version. This might cause unexpected behaviors.")
+	}
 
 	return nil
 }
