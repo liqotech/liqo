@@ -96,6 +96,7 @@ fmt: gci addlicense docs
 	go fmt ./...
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) write -s standard -s default -s "prefix(github.com/liqotech/liqo)" {} \;
 	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" {} \;
+	find . -type f -name "*.go" -exec sed -i "s/Copyright 2019-[0-9]\{4\} The Liqo Authors/Copyright 2019-$(shell date +%Y) The Liqo Authors/" {} +
 
 # Install golangci-lint if not available
 golangci-lint:
