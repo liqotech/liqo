@@ -106,6 +106,15 @@ spec:
                 - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
+                ports:
+                - containerPort: 8083
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:
@@ -143,6 +152,15 @@ spec:
                 - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
+                ports:
+                - containerPort: 8085
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 securityContext:
                   capabilities:
                     add:
@@ -172,7 +190,7 @@ spec:
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8086
                 {{- end }}
-                - --health-probe-bind-address=:8086
+                - --health-probe-bind-address=:8087
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
@@ -181,6 +199,15 @@ spec:
                 - containerPort: 8086
                   name: gv-metrics
                 {{- end }}
+                ports:
+                - containerPort: 8087
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:
