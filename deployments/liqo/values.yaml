@@ -124,6 +124,12 @@ networking:
       # In some cases (like K3S), this monitor can cause a huge amount of CPU usage.
       # If you are experiencing high CPU usage, you can disable this feature.
       nftablesMonitor: true
+      # -- Set the port where the fabric pod will expose the health probe.
+      # To disable the health probe, set the port to 0.
+      healthProbeBindAddressPort: "8081"
+      # -- Set the port where the fabric pod will expose the metrics.
+      # To disable the metrics, set the port to 0.
+      metricsAddressPort: "8082"
 
 authentication:
   # -- Enable/Disable the authentication module.
