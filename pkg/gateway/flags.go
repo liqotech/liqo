@@ -108,7 +108,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"RetryPeriod for the leader election")
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), "0", "Address for the metrics endpoint")
-	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
+	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), "0", "Address for the health probe endpoint")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, FlagNameMinimumKernelVersion.String(), "Minimum kernel version required by Liqo")
