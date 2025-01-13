@@ -79,6 +79,14 @@ spec:
                 - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
+                - containerPort: 8083
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:
@@ -117,6 +125,14 @@ spec:
                 - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
+                - containerPort: 8085
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 securityContext:
                   capabilities:
                     add:
@@ -155,6 +171,14 @@ spec:
                 - containerPort: 8086
                   name: gv-metrics
                 {{- end }} 
+                - containerPort: 8087
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:

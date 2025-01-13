@@ -80,9 +80,9 @@ spec:
                 {{- include "liqo.concatenateMap" $d | nindent 16 }}
                 {{- end }}
                 {{- if .Values.metrics.enabled }}
-                - --metrics-address=:8084
+                - --metrics-address=:8082
                 {{- end }}
-                - --health-probe-bind-address=:8085
+                - --health-probe-bind-address=:8083
                 - --ping-enabled=true
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
@@ -96,9 +96,17 @@ spec:
                   mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
-                - containerPort: 8084
+                - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
+                - containerPort: 8083
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:
@@ -127,15 +135,23 @@ spec:
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --listen-port={{"{{ .Spec.Endpoint.Port }}"}}
                 {{- if .Values.metrics.enabled }}
-                - --metrics-address=:8082
+                - --metrics-address=:8084
                 {{- end }}
-                - --health-probe-bind-address=:8083
+                - --health-probe-bind-address=:8085
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
                 {{- if .Values.metrics.enabled }}
                 ports:
-                - containerPort: 8082
+                - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
+                - containerPort: 8085
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 securityContext:
                   capabilities:
                     add:
@@ -174,6 +190,14 @@ spec:
                 - containerPort: 8086
                   name: gv-metrics
                 {{- end }}
+                - containerPort: 8087
+                  name: healthz
+                # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
+                # If you have more replicas of the same gateway, the passive ones will not reach the ready state.
+                #readinessProbe:
+                #  httpGet:
+                #    path: /readyz
+                #    port: healthz
                 env:
                 - name: NODE_NAME
                   valueFrom:

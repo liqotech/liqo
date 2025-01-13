@@ -45,6 +45,8 @@ spec:
           - --podname=$(POD_NAME)
           - --nodename=$(NODE_NAME)
           - --geneve-port={{ .Values.networking.genevePort }}
+          - --health-probe-bind-address=:{{ .Values.networking.fabric.config.healthProbeBindAddressPort}}
+          - --metrics-address=:{{ .Values.networking.fabric.config.metricsAddressPort}}
           {{- if not .Values.requirements.kernel.enabled }}
           - --disable-kernel-version-check
           {{- end }}
@@ -79,6 +81,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+          {{- if and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0") }}
+          ports:
+          - name: healthz
+            containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: healthz
+          {{- end }}
       hostNetwork: true
       {{- if .Values.networking.fabric.pod.priorityClassName }}
       priorityClassName: {{ .Values.networking.fabric.pod.priorityClassName }}
