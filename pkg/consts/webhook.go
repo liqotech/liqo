@@ -18,4 +18,10 @@ const (
 	// VirtualNodeTolerationKey all Pods that have to be scheduled on virtual nodes must have this toleration
 	// to Liqo taint.
 	VirtualNodeTolerationKey = "virtual-node.liqo.io/not-allowed"
+
+	// WebHookLabel used to mark the resouces related to the Liqo webhooks.
+	WebHookLabel = "liqo.io/webhook"
+
+	// WebHookLabelValue is the value of the label used to identify Liqo webhooks.
+	WebHookLabelValue = "true"
 )

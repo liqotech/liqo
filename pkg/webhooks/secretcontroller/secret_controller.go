@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -161,9 +162,16 @@ func HandleSecret(ctx context.Context, cl client.Client, secret *corev1.Secret) 
 	}
 
 	// patch webhook configurations
+	whListOptions := client.ListOptions{
+		LabelSelector: client.MatchingLabelsSelector{
+			Selector: labels.SelectorFromSet(map[string]string{
+				consts.WebHookLabel: consts.WebHookLabelValue,
+			}),
+		},
+	}
 
 	var mwhcList adminssionregistrationv1.MutatingWebhookConfigurationList
-	if err := cl.List(ctx, &mwhcList); err != nil {
+	if err := cl.List(ctx, &mwhcList, &whListOptions); err != nil {
 		return fmt.Errorf("unable to list MutatingWebhookConfigurations: %w", err)
 	}
 
@@ -180,7 +188,7 @@ func HandleSecret(ctx context.Context, cl client.Client, secret *corev1.Secret) 
 	}
 
 	var vwhcList adminssionregistrationv1.ValidatingWebhookConfigurationList
-	if err := cl.List(ctx, &vwhcList); err != nil {
+	if err := cl.List(ctx, &vwhcList, &whListOptions); err != nil {
 		return fmt.Errorf("unable to list ValidatingWebhookConfigurations: %w", err)
 	}
 
