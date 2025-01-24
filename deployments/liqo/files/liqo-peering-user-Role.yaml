@@ -1,0 +1,17 @@
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - "networking.liqo.io"
+  resources:
+  - "wggatewayservertemplates"
+  - "wggatewayclienttemplates"
+  verbs:
+  - "get"
+  - "list"

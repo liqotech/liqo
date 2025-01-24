@@ -171,12 +171,14 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		return err
 	}
 
+	crbName := k8strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, virtualNode.Name), 253)
 	err = r.Client.Delete(ctx, &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
-		Name: k8strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, virtualNode.Name), 253),
+		Name: crbName,
 	}})
 	if client.IgnoreNotFound(err) != nil {
 		return err
 	}
+	klog.Info(fmt.Sprintf("[%v] Deleted virtual-kubelet CRB %s", virtualNode.Spec.ClusterID, crbName))
 
 	err = r.Client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{
 		Name: virtualNode.Name, Namespace: virtualNode.Namespace,
