@@ -39,6 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/kubeconfig"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
+	peeringuser "github.com/liqotech/liqo/pkg/liqoctl/rest/peering-user"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
@@ -56,6 +57,7 @@ var liqoResources = []rest.APIProvider{
 	publickey.PublicKey,
 	tenant.Tenant,
 	nonce.Nonce,
+	peeringuser.PeeringUser,
 	identity.Identity,
 	resourceslice.ResourceSlice,
 	kubeconfig.Kubeconfig,
