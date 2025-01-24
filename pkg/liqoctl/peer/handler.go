@@ -86,7 +86,7 @@ func (o *Options) RunPeer(ctx context.Context) error {
 	// Ensure networking
 	if !o.NetworkingDisabled {
 		if err := ensureNetworking(ctx, o); err != nil {
-			o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure networking")
+			o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to ensure networking: %v", err)
 			return err
 		}
 	}
