@@ -17,13 +17,11 @@ package forge
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/utils/ptr"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	kubeconfigutils "github.com/liqotech/liqo/pkg/utils/kubeconfig"
 )
 
 // generateKubeconfigSecretName generates the name of the kubeconfig secret associated to an identity.
@@ -61,7 +59,7 @@ func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1beta1.Identit
 		secret.Annotations[consts.RemoteTenantNamespaceAnnotKey] = *namespace
 	}
 
-	kubeconfig, err := generateKubeconfiguration(identity.Name, string(identity.Spec.ClusterID),
+	kubeconfig, err := kubeconfigutils.GenerateKubeconfig(identity.Name, string(identity.Spec.ClusterID),
 		identity.Spec.AuthParams.APIServer, identity.Spec.AuthParams.CA, identity.Spec.AuthParams.SignedCRT, clientKey,
 		identity.Spec.AuthParams.ProxyURL, namespace)
 	if err != nil {
@@ -85,37 +83,4 @@ func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1beta1.Identit
 	}
 
 	return nil
-}
-
-func generateKubeconfiguration(user, cluster, server string, ca, clientCertificate, clientKey []byte, proxyURL, namespace *string) ([]byte, error) {
-	clusters := make(map[string]*clientcmdapi.Cluster)
-	clusters[cluster] = &clientcmdapi.Cluster{
-		Server:                   server,
-		CertificateAuthorityData: ca,
-		ProxyURL:                 ptr.Deref(proxyURL, ""),
-	}
-
-	contexts := make(map[string]*clientcmdapi.Context)
-	contexts["default-context"] = &clientcmdapi.Context{
-		Cluster:   cluster,
-		Namespace: ptr.Deref(namespace, ""),
-		AuthInfo:  user,
-	}
-
-	authinfos := make(map[string]*clientcmdapi.AuthInfo)
-	authinfos[user] = &clientcmdapi.AuthInfo{
-		ClientKeyData:         clientKey,
-		ClientCertificateData: clientCertificate,
-	}
-
-	clientConfig := clientcmdapi.Config{
-		Kind:           "Config",
-		APIVersion:     "v1",
-		Clusters:       clusters,
-		Contexts:       contexts,
-		CurrentContext: "default-context",
-		AuthInfos:      authinfos,
-	}
-
-	return clientcmd.Write(clientConfig)
 }

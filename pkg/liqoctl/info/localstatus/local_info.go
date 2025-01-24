@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	liqoctlutils "github.com/liqotech/liqo/pkg/liqoctl/utils"
@@ -46,10 +47,6 @@ type InstallationChecker struct {
 	data Installation
 }
 
-const (
-	ctrlManagerContainerName = "controller-manager"
-)
-
 // Collect data about the local installation of Liqo.
 func (l *InstallationChecker) Collect(ctx context.Context, options info.Options) {
 	// Get the cluster ID of the local cluster
@@ -64,7 +61,7 @@ func (l *InstallationChecker) Collect(ctx context.Context, options info.Options)
 	if err != nil {
 		l.AddCollectionError(fmt.Errorf("unable to get Liqo version and cluster labels: %w", err))
 	} else {
-		ctrlContainer, err := l.getCtrlManagerContainer(ctrlDeployment)
+		ctrlContainer, err := liqoctlutils.GetCtrlManagerContainer(ctrlDeployment)
 		if err != nil {
 			l.AddCollectionError(fmt.Errorf("unable to get Liqo instance info: %w", err))
 		} else {
@@ -143,22 +140,10 @@ func (l *InstallationChecker) collectClusterLabels(ctrlContainer *corev1.Contain
 }
 
 func (l *InstallationChecker) collectLiqoVersion(ctrlDeployment *appsv1.Deployment) error {
-	version, err := getters.GetContainerImageVersion(ctrlDeployment.Spec.Template.Spec.Containers, ctrlManagerContainerName)
+	version, err := getters.GetContainerImageVersion(ctrlDeployment.Spec.Template.Spec.Containers, consts.ControllerManagerAppName)
 	if err != nil {
 		return err
 	}
 	l.data.Version = version
 	return nil
-}
-
-func (l *InstallationChecker) getCtrlManagerContainer(ctrlDeployment *appsv1.Deployment) (*corev1.Container, error) {
-	// Get the container of the controller manager
-	containers := ctrlDeployment.Spec.Template.Spec.Containers
-	for i := range containers {
-		if containers[i].Name == ctrlManagerContainerName {
-			return &containers[i], nil
-		}
-	}
-
-	return nil, fmt.Errorf("invalid controller manager deployment: no container with name %q found", ctrlManagerContainerName)
 }
