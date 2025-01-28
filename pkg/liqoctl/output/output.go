@@ -270,7 +270,10 @@ func NewGlobalPrinter(scoped, verbose bool) *Printer {
 }
 
 func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer {
-	generic := &pterm.PrefixPrinter{MessageStyle: pterm.NewStyle(pterm.FgDefault)}
+	generic := &pterm.PrefixPrinter{
+		MessageStyle: pterm.NewStyle(pterm.FgDefault),
+		Writer:       os.Stderr,
+	}
 
 	if scoped {
 		generic = generic.WithScope(pterm.Scope{Text: scope, Style: pterm.NewStyle(pterm.FgGray)})
@@ -311,6 +314,7 @@ func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer 
 		ShowTimer:           true,
 		TimerRoundingFactor: time.Second,
 		TimerStyle:          &pterm.ThemeDefault.TimerStyle,
+		Writer:              os.Stderr,
 	}
 
 	printer.BulletList = &pterm.BulletListPrinter{}
