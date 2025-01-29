@@ -215,9 +215,17 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID liqov
 }
 
 // GetNonceSecretByClusterID returns the secret containing the nonce to be signed by the consumer cluster.
-func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (*corev1.Secret, error) {
+func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID,
+	tenantNs *string) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
+
+	ns := corev1.NamespaceAll
+	if tenantNs != nil {
+		ns = *tenantNs
+	}
+
 	if err := cl.List(ctx, &secrets, &client.ListOptions{
+		Namespace: ns,
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID:     string(remoteClusterID),
 			consts.NonceSecretLabelKey: "true",
@@ -237,12 +245,22 @@ func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClus
 }
 
 // GetSignedNonceSecretByClusterID returns the secret containing the nonce signed by the consumer cluster.
-func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (*corev1.Secret, error) {
+func GetSignedNonceSecretByClusterID(
+	ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID, tenantNs *string) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
-	if err := cl.List(ctx, &secrets, client.MatchingLabels{
-		consts.RemoteClusterID:           string(remoteClusterID),
-		consts.SignedNonceSecretLabelKey: "true",
-	}); err != nil {
+
+	ns := corev1.NamespaceAll
+	if tenantNs != nil {
+		ns = *tenantNs
+	}
+
+	if err := cl.List(ctx, &secrets,
+		client.MatchingLabels{
+			consts.RemoteClusterID:           string(remoteClusterID),
+			consts.SignedNonceSecretLabelKey: "true",
+		},
+		client.InNamespace(ns),
+	); err != nil {
 		return nil, err
 	}
 
