@@ -39,14 +39,21 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-CONSUMER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "${SCRIPT_DIR}/../../utils.sh"
 
+CONSUMER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
+CLUSTER_ID=$(forge_clustername 1)
 for i in $(seq 2 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${CONSUMER_KUBECONFIG}"
-  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
 
   "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
+  "${LIQOCTL}" delete peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}"
 done;
 
 # check that the peering is correctly removed
