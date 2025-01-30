@@ -26,13 +26,24 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "${SCRIPT_DIR}/../../utils.sh"
+
+mkdir -p "${TMPDIR}/kubeconfigs/generated"
+CLUSTER_ID=$(forge_clustername 1)
 for i in $(seq 2 "${CLUSTER_NUMBER}")
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
-  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
+  echo "Generating kubeconfig for consumer cluster ${i}"
+  "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" > "${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+
+  PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
   ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
-  
+
   if [[ "${INFRA}" == "kubeadm" ]]; then
     ARGS=("${ARGS[@]}" --server-service-type NodePort)
   elif [[ "${INFRA}" == "kind" ]]; then
@@ -52,7 +63,7 @@ do
 
   ARGS=("${ARGS[@]}")
   "${LIQOCTL}" peer "${ARGS[@]}"
-  
+
   # Sleep a bit, to avoid generating a race condition with the
   # authentication process triggered by the incoming peering.
   sleep 1
