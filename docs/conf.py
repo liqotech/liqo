@@ -165,10 +165,10 @@ def generate_version() -> str:
         version = x.json()['tag_name']
     return version
 
-# generate_telemetry_link generates the link to the telemetry page for the current page.
-def generate_telemetry_link(text: str) -> str:
+# generate_link_to_repo generates a link to the repository for the given file, according to the current version of the documentation.
+def generate_link_to_repo(text: str, file_path: str) -> str:
     version = generate_version()
-    return f"[{text}](https://github.com/liqotech/liqo/blob/{version}/pkg/telemetry/doc.go)"
+    return f"[{text}](https://github.com/liqotech/liqo/blob/{version}/{file_path})"
 
 # generate_clone_example generates the clone and checkout code for the given example.
 def generate_clone_example(example_name: str) -> str:
@@ -236,9 +236,9 @@ html_context = {
     'generate_clone_example': generate_clone_example,
     'generate_clone_example_tf': generate_clone_example_tf,
     'generate_liqoctl_install': generate_liqoctl_install,
+    'generate_link_to_repo': generate_link_to_repo,
     'generate_helm_install': generate_helm_install,
     'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
-    'generate_telemetry_link': generate_telemetry_link,
     'github_repo': 'liqo',
     'display_github': True,
 }

@@ -36,8 +36,8 @@ To perform a peering without having access to both clusters, you need to manuall
 The peering command enables all 3 liqo modules and performs the following steps:
 
 1. **enables networking**.
-Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.  
-The location of the client/server gateway can be customized when creating the peering using the `--server-service-location` flag in `liqoctl`.  
+Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.
+The location of the client/server gateway can be customized when creating the peering using the `--server-service-location` flag in `liqoctl`.
 2. **enables authentication**.
 Authenticates the consumer with the provider.
 In this step, the consumer obtains an `Identity` (*kubeconfig*) to replicate resources to the provider cluster.
@@ -57,12 +57,17 @@ You can configure and fine-tune each module separately using the individual comm
 For the majority and the cases the `liqoctl peer` is enough.
 However, **to know the best strategy for each case and the requirements of each approach, check the [peering strategies guide](/advanced/peering-strategies.md)**.
 
-### Peering establishment
+### Establish a peering connection
 
-To proceed, ensure that you are operating in the *consumer* cluster, and then issue the *liqoctl peer* command:
+To set up a peering with a *provider* cluster, `liqoctl` requires a `kubeconfig` with the necessary permissions to create a few resources on the provider cluster, which are used to establish the peering connection.
+More details about the specific permissions required in this phase are presented in a dedicated [section](#get-a-kubeconfig-with-the-minimum-permissions-to-establish-a-peering) of the documentation, which shows how this `kubeconfig` limits actions on the other resources of the provider cluster.
+
+To establish a peering connection between two clusters, ensure that you are operating in the *consumer* cluster, then issue the *liqoctl peer* command:
 
 ```bash
-liqoctl --kubeconfig=$CONSUMER_KUBECONFIG_PATH peer --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH
 ```
 
 ```{warning}
@@ -277,3 +282,50 @@ Hence, the specular command shall be executed on the opposite clusters to comple
 ```bash
 liqoctl --kubeconfig $PROVIDER_KUBECONFIG_PATH unpeer --remote-kubeconfig $CONSUMER_KUBECONFIG_PATH
 ```
+
+## Get a Kubeconfig with the minimum permissions to establish a peering
+
+The setup of a peering with a *provider* cluster requires the creation of a `kubeconfig` tailored with the proper set of permissions to minimize security risks, namely, to allow the creation of the peering connection with the provider cluster, while preventing any other actions on the other resources on that cluster.
+
+The [liqoctl](../installation/liqoctl.md) CLI tool provides utility functions to manage the permissions of users able to create only a peering connection with the current cluster.
+
+```{danger}
+liqoctl is designed to support administrators that needs to connect their clusters with Liqo.
+Even though **the generated kubeconfig** has the minimum permissions to create a peering connection, it **must never be shared with third parties**, as it still grants some access to the provider cluster.
+**In that cases, avoid using liqoctl and refer to the [advanced peering](../advanced/manual-peering.md)** guide for a secure setup.
+```
+
+**From the *provider* cluster**, you can run the following command to generate a *kubeconfig*:
+
+```bash
+liqoctl generate peering-user \
+  --kubeconfig $PROVIDER_KUBECONFIG_PATH \
+  --consumer-cluster-id $CONSUMER_CLUSTER_ID > $CONSUMER_KUBECONFIG_PATH
+```
+
+```{warning}
+Remember that the generated *kubeconfig* is not saved anywhere by Liqo.
+Hence, it would be your responsibility to keep it safely stored.
+If you lose it, you will need to delete and recreate it.
+```
+
+This command will create a *kubeconfig* with **the minimum permissions to create and destroy a peering with the current cluster** from a cluster with ID `$CONSUMER_CLUSTER_ID`.
+These permissions are limited to the _tenant namespace_ related to the peering with that specific cluster and some resources in the _Liqo_ namespace.
+
+For a detailed list of the granted permissions:
+
+- **tenant namespace**, refer to {{ env.config.html_context.generate_link_to_repo('this link', 'deployments/liqo/files/liqo-peering-user-tenant-ns-ClusterRole.yaml') }}
+- **Liqo namespace**, refer to {{ env.config.html_context.generate_link_to_repo('this link', 'deployments/liqo/files/liqo-peering-user-liqo-ns-Role.yaml') }}
+
+````{admonition} Note
+**You are allowed to have a single peering user for each consumer cluster**, so you will not be able to create a new kubeconfig for the same consumer cluster unless you delete the previous one.
+
+To delete a peering user for the consumer cluster with ID `$CONSUMER_CLUSTER_ID`, run:
+
+```bash
+liqoctl delete peering-user \
+  --consumer-cluster-id $CONSUMER_CLUSTER_ID
+```
+
+**Once you delete a peering user, its kubeconfig will not be valid anymore, even though a new peering user for the same cluster is created.**
+````
