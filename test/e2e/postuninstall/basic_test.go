@@ -17,6 +17,7 @@ package postuninstall
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -128,7 +129,11 @@ func NoLiqoNodes(ctx context.Context, clientset *kubernetes.Clientset) error {
 		return err
 	}
 	if len(nodes.Items) > 0 {
-		return fmt.Errorf("There are still virtual nodes in the cluster")
+		nodesNames := make([]string, 0, len(nodes.Items))
+		for i := range nodes.Items {
+			nodesNames = append(nodesNames, nodes.Items[i].Name)
+		}
+		return fmt.Errorf("There are still the virtual nodes %q in the cluster", strings.Join(nodesNames, ", "))
 	}
 	return nil
 }
@@ -140,7 +145,11 @@ func NoRoles(ctx context.Context, cl client.Client, namespaces []string, lSelect
 			return err
 		}
 		if len(roles) > 0 {
-			return fmt.Errorf("There are still roles in namespace %s matching the selector", namespace)
+			rolesNames := make([]string, 0, len(roles))
+			for i := range roles {
+				rolesNames = append(rolesNames, roles[i].Name)
+			}
+			return fmt.Errorf("There are still the roles %q in namespace %s matching the selector", strings.Join(rolesNames, ", "), namespace)
 		}
 	}
 	return nil
@@ -153,7 +162,11 @@ func NoRoleBindings(ctx context.Context, cl client.Client, namespaces []string, 
 			return err
 		}
 		if len(roleBindings) > 0 {
-			return fmt.Errorf("There are still rolebindings in namespace %s matching the selector", namespace)
+			roleBindingNames := make([]string, 0, len(roleBindings))
+			for i := range roleBindings {
+				roleBindingNames = append(roleBindingNames, roleBindings[i].Name)
+			}
+			return fmt.Errorf("There are still the rolebindings %q in namespace %s matching the selector", strings.Join(roleBindingNames, ", "), namespace)
 		}
 	}
 	return nil
@@ -165,7 +178,11 @@ func NoClusterRoles(ctx context.Context, cl client.Client, lSelector labels.Sele
 		return err
 	}
 	if len(clusterRoles) > 0 {
-		return fmt.Errorf("There are still clusterroles in the cluster matching the selector")
+		clusterRolesNames := make([]string, 0, len(clusterRoles))
+		for i := range clusterRoles {
+			clusterRolesNames = append(clusterRolesNames, clusterRoles[i].Name)
+		}
+		return fmt.Errorf("There are still the clusterroles %q in the cluster matching the selector", strings.Join(clusterRolesNames, ", "))
 	}
 	return nil
 }
@@ -176,7 +193,12 @@ func NoClusterRoleBindings(ctx context.Context, cl client.Client, lSelector labe
 		return err
 	}
 	if len(clusterRoleBindings) > 0 {
-		return fmt.Errorf("There are still clusterrolebindings in the cluster matching the selector")
+		clusterRoleBindingsNames := make([]string, 0, len(clusterRoleBindings))
+		for i := range clusterRoleBindings {
+			clusterRoleBindingsNames = append(clusterRoleBindingsNames, clusterRoleBindings[i].Name)
+		}
+		return fmt.Errorf("There are still the clusterrolebindings %q in the cluster matching the selector",
+			strings.Join(clusterRoleBindingsNames, ", "))
 	}
 	return nil
 }
