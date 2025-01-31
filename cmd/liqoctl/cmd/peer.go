@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -90,8 +91,11 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	// Networking flags
 	cmd.Flags().BoolVar(&options.NetworkingDisabled, "networking-disabled", false, "Disable networking between the two clusters")
+	cmd.Flags().Var(options.ServerServiceLocation, "server-service-location",
+		fmt.Sprintf("Location of the service to expose the Gateway Server (%q or %q). Default: %q",
+			liqov1beta1.ConsumerRole, liqov1beta1.ProviderRole, nwforge.DefaultGwServerLocation))
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server service. Default: %s."+
+		fmt.Sprintf("Service type of the Gateway Server service. Default: %q."+
 			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
 			nwforge.DefaultGwServerServiceType))
 	cmd.Flags().Int32Var(&options.ServerServicePort, "server-service-port", nwforge.DefaultGwServerPort,
@@ -111,6 +115,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,
 		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", nwforge.DefaultMTU))
 
+	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-location", completion.Enumeration(options.ServerServiceLocation.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
 
 	// Authentication flags
