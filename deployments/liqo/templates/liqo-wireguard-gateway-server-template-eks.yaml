@@ -101,12 +101,11 @@ spec:
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
-                ports:
                 - containerPort: 8083
                   name: healthz
                 # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
@@ -147,12 +146,11 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8085
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
-                ports:
                 - containerPort: 8085
                   name: healthz
                 # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
@@ -194,12 +192,11 @@ spec:
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8086
                   name: gv-metrics
                 {{- end }}
-                ports:
                 - containerPort: 8087
                   name: healthz
                 # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.

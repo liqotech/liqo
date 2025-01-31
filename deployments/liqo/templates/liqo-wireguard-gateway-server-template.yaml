@@ -94,8 +94,8 @@ spec:
                 volumeMounts:
                 - name: ipc
                   mountPath: /ipc
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8082
                   name: gw-metrics
                 {{- end }}
@@ -139,8 +139,8 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8085
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8084
                   name: wg-metrics
                 {{- end }}
@@ -185,8 +185,8 @@ spec:
                 volumeMounts:
                 - name: ipc
                   mountPath: /ipc
-                {{- if .Values.metrics.enabled }}
                 ports:
+                {{- if .Values.metrics.enabled }}
                 - containerPort: 8086
                   name: gv-metrics
                 {{- end }}
