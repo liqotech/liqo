@@ -17,7 +17,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/klog/v2"
@@ -25,7 +24,6 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -75,33 +73,4 @@ type Flag struct {
 // String returns the flag as a string.
 func (f Flag) String() string {
 	return fmt.Sprintf("%s=%s", f.Name, f.Value)
-}
-
-// CheckVirtualKubeletFlagsConsistence checks if the VirtualKubelet args are consistent with the flag list provided.
-// It returns true if all the flags are consistent, false otherwise.
-// A flag is not consistent if it is present in the VirtualKubelet args with a different value.
-func CheckVirtualKubeletFlagsConsistence(
-	ctx context.Context, cl client.Client, vn *offloadingv1beta1.VirtualNode, flags ...Flag) (bool, error) {
-	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn)
-	if err != nil {
-		return false, err
-	}
-	for i := range list.Items {
-		for j := range list.Items[i].Spec.Containers {
-			if list.Items[i].Spec.Containers[j].Name != vkMachinery.ContainerName {
-				continue
-			}
-			for _, arg := range list.Items[i].Spec.Containers[j].Args {
-				for _, flag := range flags {
-					if strings.HasPrefix(arg, flag.Name) {
-						if flag.String() != arg {
-							return false, nil
-						}
-						break
-					}
-				}
-			}
-		}
-	}
-	return true, nil
 }
