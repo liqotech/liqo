@@ -137,31 +137,9 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 				Status: offloadingv1beta1.DrainingConditionStatusType,
 			}})
 
-	var node *corev1.Node
-	node, err = getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
-	if client.IgnoreNotFound(err) != nil {
-		err = fmt.Errorf("error getting node: %w", err)
+	if err = dr.deleteVirtualKubelet(ctx, vn); err != nil {
+		err = fmt.Errorf("error deleting node and Virtual Kubelet: %w", err)
 		return err
-	}
-
-	if node != nil {
-		if !*vn.Spec.CreateNode {
-			// We need to ensure that the current pods will no recreate the node after deleting it.
-			var found bool
-			if found, err = vkutils.CheckVirtualKubeletFlagsConsistence(
-				ctx, dr.vnr.Client, vn, createNodeFalseFlag); err != nil || !found {
-				if err == nil {
-					err = fmt.Errorf("virtual kubelet pods are still running with arg %s", createNodeFalseFlag.String())
-					return err
-				}
-				err = fmt.Errorf("error checking virtual kubelet pods: %w", err)
-				return err
-			}
-		}
-		if err = dr.deleteNode(ctx, node, vn); err != nil {
-			err = fmt.Errorf("error deleting node: %w", err)
-			return err
-		}
 	}
 
 	if !vn.DeletionTimestamp.IsZero() {
@@ -188,19 +166,28 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 	return nil
 }
 
-// deleteNode deletes the Node created by VirtualNode.
-func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn *offloadingv1beta1.VirtualNode) error {
-	if err := cordonNode(ctx, dr.vnr.Client, node); err != nil {
-		return fmt.Errorf("error cordoning node: %w", err)
+// deleteVirtualKubelet deletes the Node and the VirtualKubelet deployment related to the given VirtualNode.
+func (dr *DeletionRoutine) deleteVirtualKubelet(ctx context.Context, vn *offloadingv1beta1.VirtualNode) error {
+	// Check if the Node resource exists to make sure that we are not in a case in which it should not exist.
+	node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
+	if client.IgnoreNotFound(err) != nil {
+		err = fmt.Errorf("error getting node: %w", err)
+		return err
 	}
 
-	klog.Infof("Node %s cordoned", node.Name)
+	if node != nil {
+		if err := cordonNode(ctx, dr.vnr.Client, node); err != nil {
+			return fmt.Errorf("error cordoning node: %w", err)
+		}
 
-	if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
-		return fmt.Errorf("error draining node: %w", err)
+		klog.Infof("Node %s cordoned", node.Name)
+
+		if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
+			return fmt.Errorf("error draining node: %w", err)
+		}
+
+		klog.Infof("Node %s drained", node.Name)
 	}
-
-	klog.Infof("Node %s drained", node.Name)
 
 	if !vn.DeletionTimestamp.IsZero() {
 		ForgeCondition(vn,
@@ -214,7 +201,21 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 			return fmt.Errorf("error deleting virtual kubelet deployment: %w", err)
 		}
 	}
+
+	// Even node is nil we make sure that no Node resource has been created before the deletion of the VK deployment.
 	klog.Infof("VirtualKubelet deployment %s deleted", vn.Name)
+
+	var nodeToDelete *corev1.Node
+
+	if node != nil {
+		nodeToDelete = node
+	} else {
+		nodeToDelete, err = getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
+		if client.IgnoreNotFound(err) != nil {
+			err = fmt.Errorf("error getting node before deletion: %w", err)
+			return err
+		}
+	}
 
 	ForgeCondition(vn,
 		VnConditionMap{
@@ -222,10 +223,16 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 				Status: offloadingv1beta1.DeletingConditionStatusType,
 			},
 		})
-	if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {
-		return fmt.Errorf("error deleting node: %w", err)
+
+	if nodeToDelete != nil {
+		if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, nodeToDelete, &client.DeleteOptions{})); err != nil {
+			return fmt.Errorf("error deleting node: %w", err)
+		}
+
+		klog.Infof("Node %s deleted", node.Name)
+	} else {
+		klog.Infof("Node of VirtualNode %s already deleted", vn.Name)
 	}
 
-	klog.Infof("Node %s deleted", node.Name)
 	return nil
 }
