@@ -78,7 +78,7 @@ func (o *Options) RunPeer(ctx context.Context) error {
 
 	// To ease the experience for most users, we disable the namespace and remote-namespace flags
 	// so that resources are created according to the default Liqo logic.
-	// Advanced users can use the individual commands (e.g., liqoctl init, liqoctl connect, etc..) to
+	// Advanced users can use the individual commands (e.g., liqoctl network connect, liqoctl network disconnect, etc..) to
 	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
 	o.LocalFactory.Namespace = ""
 	o.RemoteFactory.Namespace = ""
@@ -133,10 +133,6 @@ func ensureNetworking(ctx context.Context, o *Options) error {
 
 		MTU:                o.MTU,
 		DisableSharingKeys: false,
-	}
-
-	if err := networkOptions.RunInit(ctx); err != nil {
-		return err
 	}
 
 	if err := networkOptions.RunConnect(ctx); err != nil {

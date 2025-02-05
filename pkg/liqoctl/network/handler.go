@@ -71,58 +71,6 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	}
 }
 
-// RunInit initializes the liqo networking between two clusters.
-func (o *Options) RunInit(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
-	defer cancel()
-
-	// Create and initialize cluster 1.
-	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, true)
-	if err != nil {
-		return err
-	}
-
-	// Create and initialize cluster 2.
-	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, true)
-	if err != nil {
-		return err
-	}
-
-	// Forges the local Configuration of cluster 1 to be applied on remote clusters.
-	if err := cluster1.SetLocalConfiguration(ctx); err != nil {
-		return err
-	}
-
-	// Forges the local Configuration of cluster 2 to be applied on remote clusters.
-	if err := cluster2.SetLocalConfiguration(ctx); err != nil {
-		return err
-	}
-
-	// Setup Configurations in cluster 1.
-	if err := cluster1.SetupConfiguration(ctx, cluster2.networkConfiguration); err != nil {
-		return err
-	}
-
-	// Setup Configurations in cluster 2.
-	if err := cluster2.SetupConfiguration(ctx, cluster1.networkConfiguration); err != nil {
-		return err
-	}
-
-	if o.Wait {
-		// Wait for cluster 1 to be ready.
-		if err := cluster1.waiter.ForConfiguration(ctx, cluster2.localClusterID); err != nil {
-			return err
-		}
-
-		// Wait for cluster 2 to be ready.
-		if err := cluster2.waiter.ForConfiguration(ctx, cluster1.localClusterID); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // RunReset reset the liqo networking between two clusters.
 // If the clusters are still connected through the gateways, it deletes them before removing network Configurations.
 func (o *Options) RunReset(ctx context.Context) error {
@@ -179,7 +127,12 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Exchange network configurations between the clusters
+	if err := o.initNetworkConfigs(ctx, cluster1, cluster2); err != nil {
+		return err
+	}
 
+	// Connect the two clusters
 	if !o.SkipValidation {
 		// Check if the Templates exists and is valid on cluster 2
 		if err := cluster2.CheckTemplateGwServer(ctx, o); err != nil {
@@ -355,6 +308,40 @@ func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster
 
 	// Delete gateway server on cluster 2
 	return cluster2.DeleteGatewayServer(ctx, cluster1.localClusterID)
+}
+
+func (o *Options) initNetworkConfigs(ctx context.Context, cluster1, cluster2 *Cluster) error {
+	// Forges the local Configuration of cluster 1 to be applied on remote clusters.
+	if err := cluster1.SetLocalConfiguration(ctx); err != nil {
+		return err
+	}
+
+	// Forges the local Configuration of cluster 2 to be applied on remote clusters.
+	if err := cluster2.SetLocalConfiguration(ctx); err != nil {
+		return err
+	}
+
+	// Setup Configurations in cluster 1.
+	if err := cluster1.SetupConfiguration(ctx, cluster2.networkConfiguration); err != nil {
+		return err
+	}
+
+	// Setup Configurations in cluster 2.
+	if err := cluster2.SetupConfiguration(ctx, cluster1.networkConfiguration); err != nil {
+		return err
+	}
+
+	// Wait for cluster 1 to be ready.
+	if err := cluster1.waiter.ForConfiguration(ctx, cluster2.localClusterID); err != nil {
+		return err
+	}
+
+	// Wait for cluster 2 to be ready.
+	if err := cluster2.waiter.ForConfiguration(ctx, cluster1.localClusterID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID) *forge.GwServerOptions {

@@ -350,12 +350,14 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID l
 		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
 		return err
 	case apierrors.IsNotFound(err):
-		s.Fail(fmt.Sprintf("Network Configuration not found. Initialize the network first with `liqoctl network init`: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("Network Configuration not found. Retry to issue `liqoctl network connect`. If the issue persist, "+
+			"you can try to reset the network with `liqoctl network reset`: %v", output.PrettyErr(err)))
 		return err
 	}
 
 	if !networkingutils.IsConfigurationStatusSet(conf.Status) {
-		err := fmt.Errorf("network Configuration status is not set yet. Retry later or initialize the network again with `liqoctl network init`")
+		err := fmt.Errorf("network Configuration status is not set yet. Retry later. If the issue persist, " +
+			"you can try to reset the network with `liqoctl network reset`")
 		s.Fail(err)
 		return err
 	}
