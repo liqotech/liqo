@@ -31,10 +31,6 @@ import (
 
 const liqoctlNetworkLongHelp = `Manage liqo networking.`
 
-const liqoctlNetworkInitLongHelp = `Initialize the liqo networking between two clusters.
-
-It generates all network configurations required to connect the two clusters.`
-
 const liqoctlNetworkResetLongHelp = `Tear down all liqo networking between two clusters.
 
 It disconnects the two clusters and remove network configurations generated with the *network init* command.`
@@ -44,9 +40,10 @@ const liqoctlNetworConnectLongHelp = `Connect two clusters using liqo networking
 This command creates the Gateways to connect the two clusters.
 Run this command after inizialiting the network using the *network init* command.`
 
-const liqoctlNetworkDisconnectLongHelp = `Disconnect two clusters.
+const liqoctlNetworkDisconnectLongHelp = `Disconnect two clusters keeping the network configuration.
 
-It deletes the Gateways, but keeps the network configurations generated with the *network init* command.`
+It deletes the Gateways, but keeps the network configurations generated with the *network init* command.
+Useful when a user wants to disconnect the clusters keeping the same IP mapping.`
 
 func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options := network.NewOptions(f)
@@ -85,30 +82,9 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options.LocalFactory.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-liqo-namespace",
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
-	cmd.AddCommand(newNetworkInitCommand(ctx, options))
 	cmd.AddCommand(newNetworkResetCommand(ctx, options))
 	cmd.AddCommand(newNetworkConnectCommand(ctx, options))
 	cmd.AddCommand(newNetworkDisconnectCommand(ctx, options))
-
-	return cmd
-}
-
-func newNetworkInitCommand(ctx context.Context, options *network.Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize the liqo networking between two clusters",
-		Long:  WithTemplate(liqoctlNetworkInitLongHelp),
-		Args:  cobra.NoArgs,
-
-		Run: func(_ *cobra.Command, _ []string) {
-			err := options.RunInit(ctx)
-			if err != nil {
-				options.LocalFactory.Printer.CheckErr(
-					fmt.Errorf("`network init` failed (error: %w). Issue `network reset` to cleanup the environment", err))
-			}
-			output.ExitOnErr(err)
-		},
-	}
 
 	return cmd
 }
@@ -191,7 +167,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disconnect",
-		Short: "Disconnect two clusters",
+		Short: "Disconnect two clusters keeping the network configuration",
 		Long:  WithTemplate(liqoctlNetworkDisconnectLongHelp),
 		Args:  cobra.NoArgs,
 

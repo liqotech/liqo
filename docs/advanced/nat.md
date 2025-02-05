@@ -61,7 +61,7 @@ liqoctl peer \
 ```
 
 The command above sets up a complete peering between cluster 1 and cluster 2.
-**To configure only the network**, you can pass the same parameters to the `liqoctl network connect` command, once network have been initialized with `liqoctl init`:
+**To configure only the network**, you can pass the same parameters to the `liqoctl network connect` command:
 
 ```bash
 liqoctl network connect \

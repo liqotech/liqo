@@ -28,41 +28,9 @@ The unpeer process will automatically remove the Liqo Gateway from the tenant na
 
 When you have access to both clusters, you can configure the inter-cluster network connectivity via the `liqoctl network` command.
 
-Note that when you use the `liqoctl network` command, the argument specifying the remote kubeconfig/context corresponds to the cluster that acts as gateway server for the Wireguard tunnel
+Note that when you use the `liqoctl network` command, the argument specifying the remote kubeconfig/context corresponds to the cluster that acts as gateway server for the Wireguard tunnel.
 
-The first step to configure networking is initializing the network configuration, allowing the clusters to exchange the network configurations to configure the IP addresses remapping:
-
-```bash
-liqoctl network init \
-  --kubeconfig $CLUSTER_1_KUBECONFIG_PATH \
-  --remote-kubeconfig $CLUSTER_2_KUBECONFIG_PATH \
-  --wait
-```
-
-You should see the following output:
-
-```text
-INFO   (local) Cluster identity correctly retrieved
-INFO   (remote) Cluster identity correctly retrieved
-INFO   (local) Network configuration correctly retrieved
-INFO   (remote) Network configuration correctly retrieved
-INFO   (local) Network configuration correctly set up
-INFO   (remote) Network configuration correctly set up
-INFO   (local) Configuration applied successfully
-INFO   (remote) Configuration applied successfully
-```
-
-This command will share and configure the required resources between the two clusters.
-You will find in both your clusters a new Configuration in the tenant namespace.
-
-```bash
-kubectl get configurations.networking.liqo.io -A
-
-NAMESPACE                      NAME        DESIRED POD CIDR    REMAPPED POD CIDR   AGE
-liqo-tenant-dry-paper-5d16c0   dry-paper   10.243.0.0/16       10.71.0.0/16        4m48s
-```
-
-Now, you can establish the connection between the two clusters:
+To establish a connection between two clusters, you can run the following command:
 
 ```bash
 liqoctl network connect \
@@ -72,68 +40,35 @@ liqoctl network connect \
   --wait
 ```
 
-You should see the following output:
+You should see an output like the following:
 
 ```text
-INFO   (local) Cluster identity correctly retrieved
-INFO   (remote) Cluster identity correctly retrieved
-INFO   (local) Network correctly initialized
-INFO   (remote) Network correctly initialized
-INFO   (remote) Gateway server correctly set up
-INFO   (remote) Gateway pod gw-crimson-rain is ready
-INFO   (remote) Gateway server Service created successfully
-INFO   (local) Gateway client correctly set up
-INFO   (local) Gateway pod gw-damp-feather is ready
-INFO   (remote) Gateway server Secret created successfully
-INFO   (local) Public key correctly created
-INFO   (local) Gateway client Secret created successfully
-INFO   (remote) Public key correctly created
-INFO   (remote) Connection created successfully
-INFO   (local) Connection created successfully
-INFO   (local) Connection is established
-INFO   (remote) Connection is established
+ INFO   (local) Network configuration correctly retrieved
+ INFO   (remote) Network configuration correctly retrieved
+ INFO   (local) Network configuration correctly set up
+ INFO   (remote) Network configuration correctly set up
+ INFO   (local) Configuration applied successfully
+ INFO   (remote) Configuration applied successfully
+ INFO   (remote) Gateway server template "wireguard-server/liqo" correctly checked
+ INFO   (local) Gateway client template "wireguard-client/liqo" correctly checked
+ INFO   (local) Network correctly initialized
+ INFO   (remote) Network correctly initialized
+ INFO   (remote) Gateway server correctly set up
+ INFO   (remote) Gateway pod gw-cl01 is ready
+ INFO   (remote) Gateway server Service created successfully
+ INFO   (local) Gateway client correctly set up
+ INFO   (local) Gateway pod gw-cl02 is ready
+ INFO   (remote) Gateway server Secret created successfully
+ INFO   (local) Public key correctly created
+ INFO   (local) Gateway client Secret created successfully
+ INFO   (remote) Public key correctly created
+ INFO   (remote) Connection created successfully
+ INFO   (local) Connection created successfully
+ INFO   (local) Connection is established
+ INFO   (remote) Connection is established
 ```
 
-This command will deploy a Liqo Gateway for each cluster in the tenant namespace and establish the connection between them.
-In the first cluster, the Liqo Gateway will be configured as a client, while in the second cluster, it will be configured as a server.
-
-```{admonition} Note
-You can see further configuration options with `liqoctl network connect --help`.
-
-For instance, in the previous command we have used the `--server-service-type NodePort` option to expose the Liqo Gateway service as a NodePort service.
-Alternatively, you can use the `--server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer service (if supported by your cloud provider).
-```
-
-In cluster 1 you will find the following resources:
-
-```bash
-kubectl get gatewayclients.networking.liqo.io -A
-```
-
-```text
-NAMESPACE             NAME      TEMPLATE NAME      IP           PORT    AGE
-liqo-tenant-cl02      cl02      wireguard-client   172.19.0.8   32009   28s
-```
-
-```bash
-kubectl get connections.networking.liqo.io -A
-```
-
-```text
-NAMESPACE          NAME            TYPE     STATUS      AGE
-liqo-tenant-cl02   gw-cl02         Client   Connected   76s
-```
-
-In cluster 2 you will find the following resources:
-
-```bash
-kubectl get gatewayservers.networking.liqo.io -A
-```
-
-```text
-NAMESPACE          NAME        TEMPLATE NAME      IP           PORT    AGE
-liqo-tenant-cl01   cl01        wireguard-server   172.19.0.8   32009   69s
-```
+If the command was successful you will be able to see a new connection resource with status `Connected`:
 
 ```bash
 kubectl get connections.networking.liqo.io -A
@@ -144,7 +79,88 @@ NAMESPACE             NAME      TYPE     STATUS      AGE
 liqo-tenant-cl01      cl01      Server   Connected   51s
 ```
 
-You can check the status of the connection to see if it is working correctly.
+The command above applied the following changes to the clusters:
+
+* Exchanged the network configuration to configure the IPs remapping, which allows to reach pods and services in the other cluster
+* it deployed a Liqo Gateway for each cluster in the tenant namespace and established the connection between them.
+  By default, in the first cluster, the Liqo Gateway is configured as a client, while in the second cluster, is configured as a server.
+
+```{admonition} Note
+You can see further configuration options with `liqoctl network connect --help`.
+
+For instance, in the previous command we have used the `--server-service-type NodePort` option to expose the Liqo Gateway service as a NodePort service.
+Alternatively, you can use the `--server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer service (if supported by your cloud provider).
+```
+
+In **cluster 1**, which, in this case, **hosts the client gateway**, you will find the following resources:
+
+* A `Configuration` resource describing how the POD cidr of the other cluster is remapped in the current cluster:
+
+  ```bash
+  kubectl get configurations.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE           NAME     DESIRED POD CIDR    REMAPPED POD CIDR   AGE
+  liqo-tenant-cl02    cl02     10.243.0.0/16       10.71.0.0/16        4m48s
+  ```
+
+* A `GatewayClient` resource, which describes the configuration of the gateway acting as a **client** for establishing the tunnel between the two clusters:
+
+  ```bash
+  kubectl get gatewayclients.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE             NAME      TEMPLATE NAME      IP           PORT    AGE
+  liqo-tenant-cl02      cl02      wireguard-client   172.19.0.8   32009   28s
+  ```
+
+* A `Connection` resource, describing the status of the tunnel with the peer cluster:
+
+  ```bash
+  kubectl get connections.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE          NAME            TYPE     STATUS      AGE
+  liqo-tenant-cl02   gw-cl02         Client   Connected   76s
+  ```
+
+In **cluster 2**, which, in this case, **hosts the server gateway**, you will find the following resources:
+
+* A `Configuration` resource describing how the POD cidr of the other cluster is remapped in the current cluster:
+
+  ```bash
+  kubectl get configurations.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE           NAME     DESIRED POD CIDR    REMAPPED POD CIDR   AGE
+  liqo-tenant-cl01    cl01     10.243.0.0/16       10.71.0.0/16        4m48s
+  ```
+
+* A `GatewayServer` resource, which describes the configuration of the gateway acting as a **server** for establishing the tunnel between the two clusters:
+
+  ```bash
+  kubectl get gatewayservers.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE          NAME        TEMPLATE NAME      IP           PORT    AGE
+  liqo-tenant-cl01   cl01        wireguard-server   172.19.0.8   32009   69s
+  ```
+
+* A `Connection` resource, describing the status of the tunnel with the peer cluster:
+
+  ```bash
+  kubectl get connections.networking.liqo.io -A
+  ```
+
+  ```text
+  NAMESPACE             NAME      TYPE     STATUS      AGE
+  liqo-tenant-cl01      cl01      Server   Connected   51s
+  ```
 
 ### Tear down
 
