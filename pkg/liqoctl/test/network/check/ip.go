@@ -127,8 +127,7 @@ func forgeIPTarget(ctx context.Context, cl clientctrl.Client, localIPRemapped ma
 		if !needsRemap {
 			target = append(target, ipnet.String())
 		} else {
-			maskLen, _ := cidrtarget.Mask.Size()
-			mapping.RemapMask(ipnet, *cidrtarget, maskLen)
+			ipnet = mapping.RemapMask(ipnet, *cidrtarget)
 			target = append(target, ipnet.String())
 		}
 	}
