@@ -16,6 +16,7 @@ package mapping
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net"
 
@@ -134,7 +135,6 @@ func MapAddress(ctx context.Context, cl client.Client,
 func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address string) (string, error) {
 	var (
 		podnet, podnetMapped, extnet, extnetMapped *net.IPNet
-		podNetMaskLen, extNetMaskLen               int
 		err                                        error
 	)
 
@@ -150,7 +150,6 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 		if err != nil {
 			return "", err
 		}
-		podNetMaskLen, _ = podnetMapped.Mask.Size()
 	}
 
 	_, extnet, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String())
@@ -162,29 +161,88 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 		if err != nil {
 			return "", err
 		}
-		extNetMaskLen, _ = extnetMapped.Mask.Size()
 	}
 
 	paddr := net.ParseIP(address)
 	if podNeedsRemap && podnet.Contains(paddr) {
-		return RemapMask(paddr, *podnetMapped, podNetMaskLen).String(), nil
+		return RemapMask(paddr, *podnetMapped).String(), nil
 	}
 	if extNeedsRemap && extnet.Contains(paddr) {
-		return RemapMask(paddr, *extnetMapped, extNetMaskLen).String(), nil
+		return RemapMask(paddr, *extnetMapped).String(), nil
 	}
 
 	return address, nil
 }
 
-// RemapMask remaps the mask of the address.
-// Consider that net.IP is always a slice of 16 bytes (big-endian).
-// The mask is a slice of 4 or 16 bytes (big-endian).
-func RemapMask(addr net.IP, mask net.IPNet, maskLen int) net.IP {
-	maskLenBytes := maskLen / 8
-	for i := 0; i < maskLenBytes; i++ {
-		// i+(len(addr)-len(mask.IP)) allows to start from the rightmost byte of the address.
-		// e.g if addr is ipv4 len(addr) = 16, and mask is ipv4 len(mask.IP) = 4, then we start from addr[12].
-		addr[i+(len(addr)-len(mask.IP))] = mask.IP[i]
+// RemapMask take an IP address and a network mask and remap the address to the network.
+// This means that the host part of the address is preserved, while the network part is replaced with the one in the mask.
+//
+// Example:
+// addr: 		10.1.0.1
+// mask:    	40.32.0.0/10
+// result:  	40.1.0.1
+// addrBin: 	00001010000000010000000000000001
+// maskBin: 	11111111110000000000000000000000
+// netBin : 	00101000000000000000000000000000
+// hostBin: 	00000000000000010000000000000001
+// resultBin : 	00101000000000010000000000000001
+//
+// addr:		10.255.1.1
+// mask:		78.5.78.143/18
+// result:		78.5.65.1
+// addrBin: 	00001010111111110000000100000001
+// maskBin: 	11111111111111111100000000000000
+// netBin : 	01001110000001010100000000000000
+// hostBin: 	00000000000000000000000100000001
+// resultBin:	01001110000001010100000100000001 // nolint: godot // this comment must not end with a period.
+func RemapMask(addr net.IP, mask net.IPNet) net.IP {
+	switch len(mask.IP) {
+	case net.IPv4len:
+		addr = addr.To4()
+
+		// Convert addr,mask,net to binary representation
+		// Check the comment of the RemapMask function to better understand the values stored in the variables.
+		addrBin := binary.BigEndian.Uint32(addr)
+		maskBin := binary.BigEndian.Uint32(mask.Mask)
+		netBin := binary.BigEndian.Uint32(mask.IP)
+
+		// Calculate the host part of the address
+		// We need to invert the mask and apply the AND operation to the address
+		// to keep only the host part
+		hostBin := addrBin & (^maskBin)
+
+		// Calculate the result
+		// We need to apply the OR operation to the network part and the host part
+		result := netBin | hostBin
+
+		resultBytes := make([]byte, 4)
+
+		binary.BigEndian.PutUint32(resultBytes, result)
+
+		return resultBytes
+	case net.IPv6len:
+		// Refer to the IPv4 case for the explanation of the following operations.
+		addr = addr.To16()
+
+		addrBin1 := binary.BigEndian.Uint64(addr[:8])
+		addrBin2 := binary.BigEndian.Uint64(addr[8:])
+		maskBin1 := binary.BigEndian.Uint64(mask.Mask[:8])
+		maskBin2 := binary.BigEndian.Uint64(mask.Mask[8:])
+		netBin1 := binary.BigEndian.Uint64(mask.IP[:8])
+		netBin2 := binary.BigEndian.Uint64(mask.IP[8:])
+
+		hostBin1 := addrBin1 & (^maskBin1)
+		hostBin2 := addrBin2 & (^maskBin2)
+
+		result1 := netBin1 | hostBin1
+		result2 := netBin2 | hostBin2
+
+		resultBytes := make([]byte, 16)
+
+		binary.BigEndian.PutUint64(resultBytes[:8], result1)
+		binary.BigEndian.PutUint64(resultBytes[8:], result2)
+
+		return resultBytes
 	}
-	return addr
+	return nil
 }
