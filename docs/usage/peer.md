@@ -36,7 +36,8 @@ To perform a peering without having access to both clusters, you need to manuall
 The peering command enables all 3 liqo modules and performs the following steps:
 
 1. **enables networking**.
-Exchanges network configurations and creates the two **gateways** (server in the provider, client in the consumer) to let the two clusters communicate over a secure tunnel.
+Exchanges network configurations and creates the two **gateways** (one server in a cluster and one client in the other) to let the two clusters communicate over a secure tunnel.
+By default the gateway server in placed in the provider, while the gateway client in the consumer, but you can configure it with the `--server-service-location` flag.
 2. **enables authentication**.
 Authenticates the consumer with the provider.
 In this step, the consumer obtains an `Identity` (*kubeconfig*) to replicate resources to the provider cluster.
