@@ -32,6 +32,8 @@ func SetPrimary(cidr networkingv1beta1.CIDR) []networkingv1beta1.CIDR {
 // IsVoid checks if a CIDR is void.
 func IsVoid(cidr *networkingv1beta1.CIDR) bool {
 	if cidr == nil {
+		// This should never happen.
+		// This is an assertion.
 		panic("CIDR is nil")
 	}
 	return cidr.String() == ""
