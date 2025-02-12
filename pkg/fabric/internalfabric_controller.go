@@ -105,7 +105,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
+		return ctrl.Result{}, fmt.Errorf("internalfabriccontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
