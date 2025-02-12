@@ -16,8 +16,7 @@ spec:
     any: true
   selector:
     matchLabels: 
-      app.kubernetes.io/name: "virtual-kubelet"
-      app.kubernetes.io/component: "virtual-kubelet"
+      offloading.liqo.io/component: virtual-kubelet
   podMetricsEndpoints:
   - port: metrics
     {{- with .Values.virtualKubelet.metrics.podMonitor.interval }}

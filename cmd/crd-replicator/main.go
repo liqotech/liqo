@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
@@ -47,6 +48,9 @@ func init() {
 }
 
 func main() {
+	// Manager flags
+	metricsAddr := pflag.String("metrics-address", ":8082", "The address the metric endpoint binds to")
+
 	clusterFlags := args.NewClusterIDFlags(true, nil)
 	resyncPeriod := pflag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
 	workers := pflag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
@@ -65,6 +69,9 @@ func main() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: *metricsAddr,
+		},
 		LeaderElection: false,
 	})
 	if err != nil {
