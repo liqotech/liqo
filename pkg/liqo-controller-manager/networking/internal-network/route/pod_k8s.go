@@ -129,10 +129,12 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1beta1.InternalNode, r
 // forgeRoutePodDeleteFunction removes the pod entries from the route configuration.
 func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1beta1.RouteConfiguration) controllerutil.MutateFn {
 	return func() error {
-		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) == 0 {
+		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) <= 1 {
 			return nil
 		}
 
+		// We allocate this array statically with length 2.
+		// The rule we are managing is the second one.
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
 			routecfg.Spec.Table.Rules[1].Routes = slices.DeleteFunc(routecfg.Spec.Table.Rules[1].Routes, func(r networkingv1beta1.Route) bool {
 				return r.Dst == existingroute.Dst
