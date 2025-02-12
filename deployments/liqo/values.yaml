@@ -123,7 +123,7 @@ networking:
       # It means that the fabric pod will monitor the nftables rules and will restore them in case of changes.
       # In some cases (like K3S), this monitor can cause a huge amount of CPU usage.
       # If you are experiencing high CPU usage, you can disable this feature.
-      nftablesMonitor: true
+      nftablesMonitor: false
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
       healthProbeBindAddressPort: "8081"
