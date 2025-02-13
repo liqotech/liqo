@@ -1,4 +1,4 @@
-FROM golang:1.23 AS gobuilder-wg
+FROM golang:1.24 AS gobuilder-wg
 WORKDIR /tmp/builder
 
 ARG ref=12269c2761734b15625017d8565745096325392f
@@ -6,7 +6,7 @@ RUN git clone https://git.zx2c4.com/wireguard-go && cd wireguard-go && git check
     CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" -o wireguard-go
 
 
-FROM golang:1.23 AS gobuilder
+FROM golang:1.24 AS gobuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
