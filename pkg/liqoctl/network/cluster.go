@@ -146,13 +146,23 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 		// If the remote namespace is not set or it is the default one, create or retrieve the tenant namespace and
 		// set it as the remote network namespace.
 		var remoteTenantNs *corev1.Namespace
+		creationError := false
 		if createTenantNs {
 			remoteTenantNs, err = c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID)
-			if err != nil {
+			switch {
+			case apierrors.IsForbidden(err):
+				c.remote.Printer.Warning.Printfln(
+					"Current user has no permissions to create a namespace in the remote cluster. " +
+						"Checking whether a tenant namespace has been created in advance",
+				)
+				creationError = true
+			case err != nil:
 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating remote tenant namespace: %v", output.PrettyErr(err)))
 				return err
 			}
-		} else {
+		}
+
+		if !createTenantNs || creationError {
 			remoteTenantNs, err = c.remoteNamespaceManager.GetNamespace(ctx, c.localClusterID)
 			if err != nil {
 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving remote tenant namespace: %v", output.PrettyErr(err)))

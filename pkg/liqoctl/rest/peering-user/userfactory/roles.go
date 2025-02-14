@@ -40,11 +40,6 @@ var peeringUserLabel = client.ListOptions{
 
 var minimumClusterPermissions = []rbacv1.PolicyRule{
 	{
-		APIGroups: []string{""},
-		Resources: []string{"namespaces"},
-		Verbs:     []string{"get", "list", "create"},
-	},
-	{
 		APIGroups: []string{ipamv1alpha1.NetworkGroupResource.Group},
 		Resources: []string{ipamv1alpha1.NetworkResource},
 		Verbs:     []string{"get", "list"},

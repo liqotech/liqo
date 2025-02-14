@@ -62,3 +62,9 @@ rules:
   - "tenants/status"
   verbs:
   - "get"
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
