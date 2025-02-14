@@ -35,11 +35,13 @@ import (
 )
 
 type namespaceLister func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error)
+type namespaceGetter func(ctx context.Context, cluster liqov1beta1.ClusterID) (ret *v1.Namespace, err error)
 
 type tenantNamespaceManager struct {
-	client         kubernetes.Interface
-	listNamespaces namespaceLister
-	scheme         *runtime.Scheme
+	client                    kubernetes.Interface
+	listNamespaces            namespaceLister
+	getNamespaceByDefaultName namespaceGetter
+	scheme                    *runtime.Scheme
 }
 
 // NewManager creates a new TenantNamespaceManager object.
@@ -57,10 +59,18 @@ func NewManager(client kubernetes.Interface, scheme *runtime.Scheme) Manager {
 		return nsref, nil
 	}
 
+	getNamespace := func(ctx context.Context, cluster liqov1beta1.ClusterID) (ret *v1.Namespace, err error) {
+		defaultNsName := getNameForNamespace(cluster)
+		ret, err = client.CoreV1().Namespaces().Get(ctx, defaultNsName, metav1.GetOptions{})
+
+		return
+	}
+
 	return &tenantNamespaceManager{
-		client:         client,
-		listNamespaces: listNamespaces,
-		scheme:         scheme,
+		client:                    client,
+		listNamespaces:            listNamespaces,
+		getNamespaceByDefaultName: getNamespace,
+		scheme:                    scheme,
 	}
 }
 
@@ -146,8 +156,21 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqo
 	req2, err := labels.NewRequirement(consts.TenantNamespaceLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
-	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req).Add(*req2))
-	if err != nil {
+	labelSelector := labels.NewSelector().Add(*req).Add(*req2)
+	namespaces, err := nm.listNamespaces(ctx, labelSelector)
+	if kerrors.IsForbidden(err) {
+		// Use has not the permissions to access to all the namespaces in the cluster, try to retrieve the default namespace
+		ns, err := nm.getNamespaceByDefaultName(ctx, cluster)
+		if kerrors.IsNotFound(err) || (ns != nil && !labelSelector.Matches(labels.Set(ns.Labels))) {
+			return nil, fmt.Errorf(
+				"namespace access is forbidden to current user and no tenant namespace with default name has been created in advance",
+			)
+		} else if err != nil {
+			return nil, err
+		}
+
+		namespaces = []*v1.Namespace{ns}
+	} else if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
