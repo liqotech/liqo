@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
+package geneve
 
 import (
 	"context"
@@ -23,18 +23,18 @@ import (
 )
 
 const (
-	// internalfabricControllerFinalizer is the finalizer added to internalfabric to allow the controller to clean up.
-	internalfabricControllerFinalizer = "internalfabric-controller.liqo.io/finalizer"
+	// internalnodeControllerFinalizer is the finalizer added to internalnode to allow the controller to clean up.
+	internalnodeControllerFinalizer = "internalnode-controller.liqo.io/finalizer"
 )
 
-func (r *InternalFabricReconciler) ensureinternalfabricFinalizerPresence(
-	ctx context.Context, internalfabric *networkingv1beta1.InternalFabric) error {
-	ctrlutil.AddFinalizer(internalfabric, internalfabricControllerFinalizer)
-	return r.Client.Update(ctx, internalfabric)
+func (r *InternalNodeReconciler) ensureinternalnodeFinalizerPresence(
+	ctx context.Context, internalnode *networkingv1beta1.InternalNode) error {
+	ctrlutil.AddFinalizer(internalnode, internalnodeControllerFinalizer)
+	return r.Client.Update(ctx, internalnode)
 }
 
-func (r *InternalFabricReconciler) ensureinternalfabricFinalizerAbsence(
-	ctx context.Context, internalfabric *networkingv1beta1.InternalFabric) error {
-	ctrlutil.RemoveFinalizer(internalfabric, internalfabricControllerFinalizer)
-	return r.Client.Update(ctx, internalfabric)
+func (r *InternalNodeReconciler) ensureinternalnodeFinalizerAbsence(
+	ctx context.Context, internalnode *networkingv1beta1.InternalNode) error {
+	ctrlutil.RemoveFinalizer(internalnode, internalnodeControllerFinalizer)
+	return r.Client.Update(ctx, internalnode)
 }

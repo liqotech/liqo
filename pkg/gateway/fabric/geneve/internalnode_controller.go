@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -71,6 +72,34 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	klog.V(4).Infof("Reconciling internalnode %s", req.String())
+
+	// Manage Finalizers and routeconfiguration deletion.
+	deleting := !internalnode.ObjectMeta.DeletionTimestamp.IsZero()
+	containsFinalizer := controllerutil.ContainsFinalizer(internalnode, internalnodeControllerFinalizer)
+	switch {
+	case !deleting && !containsFinalizer:
+		if err = r.ensureinternalnodeFinalizerPresence(ctx, internalnode); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+
+	case deleting && containsFinalizer:
+		if err := geneve.EnsureGeneveInterfaceAbsence(internalnode.Spec.Interface.Gateway.Name); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface absence: %w", err)
+		}
+
+		if err = r.ensureinternalnodeFinalizerAbsence(ctx, internalnode); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		klog.V(2).Infof("InternalNode %s deleted", req.String())
+
+		return ctrl.Result{}, nil
+
+	case deleting && !containsFinalizer:
+		return ctrl.Result{}, nil
+	}
 
 	// The internal fabric has the same name of the gateway resource.
 	internalFabricName := r.Options.GwOptions.Name
