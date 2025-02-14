@@ -65,11 +65,6 @@ var minimumClusterPermissions = []rbacv1.PolicyRule{
 		Verbs:     []string{"get", "list"},
 	},
 	{
-		APIGroups: []string{liqov1beta1.ForeignClusterGroupResource.Group},
-		Resources: []string{liqov1beta1.ForeignClusterResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
 		APIGroups: []string{authv1beta1.TenantGroupResource.Group},
 		Resources: []string{authv1beta1.TenantResource},
 		Verbs:     []string{"create", "list"},
