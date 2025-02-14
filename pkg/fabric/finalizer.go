@@ -28,13 +28,13 @@ const (
 )
 
 func (r *InternalFabricReconciler) ensureinternalfabricFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1beta1.InternalFabric) error {
-	ctrlutil.AddFinalizer(fwcfg, internalfabricControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, internalfabric *networkingv1beta1.InternalFabric) error {
+	ctrlutil.AddFinalizer(internalfabric, internalfabricControllerFinalizer)
+	return r.Client.Update(ctx, internalfabric)
 }
 
 func (r *InternalFabricReconciler) ensureinternalfabricFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1beta1.InternalFabric) error {
-	ctrlutil.RemoveFinalizer(fwcfg, internalfabricControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, internalfabric *networkingv1beta1.InternalFabric) error {
+	ctrlutil.RemoveFinalizer(internalfabric, internalfabricControllerFinalizer)
+	return r.Client.Update(ctx, internalfabric)
 }

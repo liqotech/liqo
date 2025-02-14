@@ -12,25 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
-
-import (
-	"time"
-
-	"github.com/liqotech/liqo/pkg/gateway"
-)
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions             *gateway.Options
-	DisableARP            bool
-	GenevePort            uint16
-	GeneveCleanupInterval time.Duration
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
-	}
-}
+// Package cleanup provides a gateway to the cleanup service.
+package cleanup

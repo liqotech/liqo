@@ -138,3 +138,18 @@ func ExistGeneveInterfaceAddr(link netlink.Link, addr net.IP) *netlink.Addr {
 	}
 	return nil
 }
+
+// ListGeneveInterfaces returns all the geneve interfaces.
+func ListGeneveInterfaces() ([]netlink.Link, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("cannot list geneve links: %w", err)
+	}
+	var geneveLinks []netlink.Link
+	for i := range links {
+		if links[i].Type() == "geneve" {
+			geneveLinks = append(geneveLinks, links[i])
+		}
+	}
+	return geneveLinks, nil
+}

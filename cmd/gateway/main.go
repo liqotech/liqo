@@ -226,7 +226,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGateway(
+	runnable, err := concurrent.NewRunnableGatewayStartup(
 		cl,
 		connoptions.GwOptions.PodName,
 		connoptions.GwOptions.Name,
