@@ -31,6 +31,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/cleanup"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
@@ -118,14 +119,23 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
+	runnableGuest, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
 	if err != nil {
 		return fmt.Errorf("unable to create runnable guest: %w", err)
 	}
-	if err := runnable.Start(cmd.Context()); err != nil {
+	if err := runnableGuest.Start(cmd.Context()); err != nil {
 		return fmt.Errorf("unable to start runnable guest: %w", err)
 	}
-	defer runnable.Close()
+	defer runnableGuest.Close()
+
+	runnableGeneveCleanup, err := cleanup.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
+	if err != nil {
+		return fmt.Errorf("unable to create runnable geneve cleanup: %w", err)
+	}
+
+	if err := mgr.Add(runnableGeneveCleanup); err != nil {
+		return fmt.Errorf("unable to add geneve cleanup runnable: %w", err)
+	}
 
 	// Start the manager.
 	return mgr.Start(cmd.Context())

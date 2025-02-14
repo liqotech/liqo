@@ -32,10 +32,14 @@ const (
 	FlagNameDisableARP FlagName = "disable-arp"
 	// FlagNameGenevePort is the flag to set the Geneve port.
 	FlagNameGenevePort FlagName = "geneve-port"
+	// FlagNameGeneveCleanupInterval is the flag to set the Geneve cleanup interval.
+	FlagNameGeneveCleanupInterval FlagName = "geneve-cleanup-interval"
 )
 
 // InitFlags initializes the flags for the gateway.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
+	flagset.DurationVar(&opts.GeneveCleanupInterval, FlagNameGeneveCleanupInterval.String(),
+		consts.DefaultGeneveCleanupInterval, "Geneve cleanup interval")
 }
