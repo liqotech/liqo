@@ -68,6 +68,26 @@ func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1beta1.Cl
 	return generateCSR(key, CommonNameControlPlaneCSR(clusterID), OrganizationControlPlaneCSR())
 }
 
+// GenerateCSRForPeerUser generates a new CSR given a private key and the clusterID from which the peering will start.
+func GenerateCSRForPeerUser(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, userCN string, err error) {
+	userCN, err = commonNamePeerUser(clusterID)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to generate user CN: %w", err)
+	}
+
+	csrBytes, err = generateCSR(key, userCN, OrganizationControlPlaneCSR())
+	return
+}
+
+// commonNamePeerUser returns the common name for the user creating the peering. To avoid reuses of the same name, a suffix is added.
+func commonNamePeerUser(clusterID liqov1beta1.ClusterID) (string, error) {
+	randSuffix := make([]byte, 16)
+	if _, err := rand.Read(randSuffix); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("liqo-peer-user-%s-%x", clusterID, randSuffix), nil
+}
+
 // CommonNameControlPlaneCSR returns the common name for a control plane CSR.
 func CommonNameControlPlaneCSR(clusterID liqov1beta1.ClusterID) string {
 	return string(clusterID)
