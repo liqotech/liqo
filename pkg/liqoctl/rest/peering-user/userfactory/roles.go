@@ -45,16 +45,6 @@ var minimumClusterPermissions = []rbacv1.PolicyRule{
 		Verbs:     []string{"get", "list"},
 	},
 	{
-		APIGroups: []string{networkingv1beta1.GatewayClientGroupResource.Group},
-		Resources: []string{networkingv1beta1.GatewayClientResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.GatewayServerGroupResource.Group},
-		Resources: []string{networkingv1beta1.GatewayServerResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
 		APIGroups: []string{networkingv1beta1.PublicKeyGroupResource.Group},
 		Resources: []string{networkingv1beta1.PublicKeyResource},
 		Verbs:     []string{"get", "list"},
