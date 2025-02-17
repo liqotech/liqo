@@ -96,22 +96,23 @@ func (o *Options) handleCreate(ctx context.Context) error {
 		return err
 	}
 
+	tenantNsName := tenantNs.GetName()
 	// Ensure the presence of the nonce secret.
 	s := opts.Printer.StartSpinner("Creating nonce")
-	if err := authutils.EnsureNonceSecret(ctx, opts.CRClient, o.clusterID.GetClusterID(), tenantNs.GetName()); err != nil {
+	if err := authutils.EnsureNonceSecret(ctx, opts.CRClient, o.clusterID.GetClusterID(), tenantNsName); err != nil {
 		s.Fail(fmt.Sprintf("Unable to create nonce secret: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("Nonce created")
 
 	// Wait for secret to be filled with the nonce.
-	if err := waiter.ForNonce(ctx, o.clusterID.GetClusterID(), false); err != nil {
+	if err := waiter.ForNonce(ctx, o.clusterID.GetClusterID(), tenantNsName, false); err != nil {
 		return err
 	}
 
 	// Retrieve nonce from secret.
 	s = opts.Printer.StartSpinner("Retrieving nonce")
-	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID())
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID(), tenantNsName)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err

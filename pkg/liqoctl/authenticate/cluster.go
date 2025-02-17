@@ -104,13 +104,13 @@ func (c *Cluster) EnsureNonce(ctx context.Context) ([]byte, error) {
 	s.Success("Nonce secret ensured")
 
 	// Wait for secret to be filled with the nonce.
-	if err := c.waiter.ForNonce(ctx, c.RemoteClusterID, false); err != nil {
+	if err := c.waiter.ForNonce(ctx, c.RemoteClusterID, c.TenantNamespace, false); err != nil {
 		return nil, err
 	}
 
 	// Retrieve nonce from secret.
 	s = c.local.Printer.StartSpinner("Retrieving nonce")
-	nonceValue, err := authutils.RetrieveNonce(ctx, c.local.CRClient, c.RemoteClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, c.local.CRClient, c.RemoteClusterID, c.TenantNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return nil, err
@@ -135,13 +135,13 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 	s.Success("Signed nonce secret ensured")
 
 	// Wait for secret to be filled with the signed nonce.
-	if err := c.waiter.ForSignedNonce(ctx, c.RemoteClusterID, false); err != nil {
+	if err := c.waiter.ForSignedNonce(ctx, c.RemoteClusterID, c.TenantNamespace, false); err != nil {
 		return nil, err
 	}
 
 	// Retrieve signed nonce from secret.
 	s = c.local.Printer.StartSpinner("Retrieving signed nonce")
-	signedNonceValue, err := authutils.RetrieveSignedNonce(ctx, c.local.CRClient, c.RemoteClusterID)
+	signedNonceValue, err := authutils.RetrieveSignedNonce(ctx, c.local.CRClient, c.RemoteClusterID, c.TenantNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve signed nonce: %v", output.PrettyErr(err)))
 		return nil, err
