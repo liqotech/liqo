@@ -333,7 +333,8 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 }
 
 // ForNonce waits until the secret containing the nonce has been created or the timeout expires.
-func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, silent bool) error {
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNamespace string, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -341,7 +342,7 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1beta1.Clust
 	}
 
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		secret, err := getters.GetNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID)
+		secret, err := getters.GetNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID, tenantNamespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
@@ -366,7 +367,8 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1beta1.Clust
 }
 
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, silent bool) error {
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNamespace string, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -374,7 +376,7 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1beta1
 	}
 
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		secret, err := getters.GetSignedNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID)
+		secret, err := getters.GetSignedNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID, tenantNamespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}

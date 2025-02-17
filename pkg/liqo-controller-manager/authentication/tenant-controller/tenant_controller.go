@@ -138,7 +138,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
 		// get the nonce for the tenant
 
-		nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID)
+		nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 		if err != nil {
 			klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())

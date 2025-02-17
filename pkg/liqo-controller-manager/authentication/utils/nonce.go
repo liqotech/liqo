@@ -47,7 +47,7 @@ func EnsureNonceSecret(ctx context.Context, cl client.Client,
 // already a nonce secret in the tenant namespace.
 func EnsureSignedNonceSecret(ctx context.Context, cl client.Client,
 	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string, nonce *string) error {
-	nonceSecret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID)
+	nonceSecret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID, tenantNamespace)
 	switch {
 	case errors.IsNotFound(err):
 		// Secret not found. Create it given the provided nonce.
@@ -80,8 +80,8 @@ func EnsureSignedNonceSecret(ctx context.Context, cl client.Client,
 }
 
 // RetrieveNonce retrieves the nonce from the secret in the tenant namespace.
-func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) ([]byte, error) {
-	nonce, err := getters.GetNonceSecretByClusterID(ctx, cl, remoteClusterID)
+func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) ([]byte, error) {
+	nonce, err := getters.GetNonceSecretByClusterID(ctx, cl, remoteClusterID, tenantNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get nonce secret: %w", err)
 	}
@@ -90,8 +90,9 @@ func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID liqov1
 }
 
 // RetrieveSignedNonce retrieves the signed nonce from the secret in the tenant namespace.
-func RetrieveSignedNonce(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) ([]byte, error) {
-	secret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID)
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func RetrieveSignedNonce(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) ([]byte, error) {
+	secret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID, tenantNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get signed nonce secret: %w", err)
 	}
