@@ -712,10 +712,12 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector 
 }
 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
 func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1beta1.ClusterID) (*networkingv1beta1.Configuration, error) {
+	clusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(clusterID)}.AsSelector()
-	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
+
+	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, tenantNamespace, remoteClusterIDSelector)
 	if err != nil {
 		return nil, err
 	}

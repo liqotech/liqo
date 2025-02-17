@@ -197,7 +197,7 @@ func (r *ForeignClusterReconciler) handleGatewaysStatus(ctx context.Context,
 func (r *ForeignClusterReconciler) handleNetworkConfigurationStatus(ctx context.Context,
 	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
 	clusterID := fc.Spec.ClusterID
-	_, err := getters.GetConfigurationByClusterID(ctx, r.Client, clusterID)
+	_, err := getters.GetConfigurationByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Configuration resource not found for ForeignCluster %q", clusterID)
