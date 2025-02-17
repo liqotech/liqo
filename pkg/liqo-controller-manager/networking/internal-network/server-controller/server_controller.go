@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,7 +82,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	configuration, err := getters.GetConfigurationByClusterID(ctx, r.Client, remoteClusterID)
+	configuration, err := getters.GetConfigurationByClusterID(ctx, r.Client, remoteClusterID, corev1.NamespaceAll)
 	if err != nil {
 		klog.Errorf("Unable to get the configuration for the remote cluster %q: %s", remoteClusterID, err)
 		return ctrl.Result{}, err
