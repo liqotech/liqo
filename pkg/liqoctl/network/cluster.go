@@ -349,12 +349,12 @@ func (c *Cluster) checkTemplateServerServiceLoadBalancer(template *unstructured.
 	return nil
 }
 
-// CheckNetworkInitialized checks if the network is initialized correctly.
+// CheckNetworkInitialized checks if the network is initialized correctly in the current cluster.
 func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
 	// Get the network Configuration.
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
@@ -513,11 +513,12 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 }
 
 // DeleteConfiguration deletes a Configuration.
-func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNs string) error {
 	s := c.local.Printer.StartSpinner("Deleting network configuration")
 
 	// Retrieve Configuration.
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, tenantNs)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail("An error occurred while retrieving network configuration: ", output.PrettyErr(err))
 		return err

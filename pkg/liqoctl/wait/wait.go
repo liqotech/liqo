@@ -184,11 +184,11 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 }
 
 // ForConfiguration waits until the status on the Configuration resource states that the configuration has been
-// successfully applied.
-func (w *Waiter) ForConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
+// successfully applied. If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func (w *Waiter) ForConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) error {
 	s := w.Printer.StartSpinner("Waiting for configuration to be applied")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		conf, err := getters.GetConfigurationByClusterID(ctx, w.CRClient, remoteClusterID)
+		conf, err := getters.GetConfigurationByClusterID(ctx, w.CRClient, remoteClusterID, tenantNamespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}

@@ -95,12 +95,12 @@ func (o *Options) RunReset(ctx context.Context) error {
 	}
 
 	// Delete Configuration on cluster 1
-	if err := cluster1.DeleteConfiguration(ctx, cluster2.localClusterID); err != nil {
+	if err := cluster1.DeleteConfiguration(ctx, cluster2.localClusterID, cluster1.localNetworkNamespace); err != nil {
 		return err
 	}
 
 	// Delete Configuration on cluster 2
-	return cluster2.DeleteConfiguration(ctx, cluster1.localClusterID)
+	return cluster2.DeleteConfiguration(ctx, cluster1.localClusterID, cluster2.localNetworkNamespace)
 }
 
 // RunConnect connect two clusters using liqo networking.
@@ -332,12 +332,12 @@ func (o *Options) initNetworkConfigs(ctx context.Context, cluster1, cluster2 *Cl
 	}
 
 	// Wait for cluster 1 to be ready.
-	if err := cluster1.waiter.ForConfiguration(ctx, cluster2.localClusterID); err != nil {
+	if err := cluster1.waiter.ForConfiguration(ctx, cluster2.localClusterID, cluster1.localNetworkNamespace); err != nil {
 		return err
 	}
 
 	// Wait for cluster 2 to be ready.
-	if err := cluster2.waiter.ForConfiguration(ctx, cluster1.localClusterID); err != nil {
+	if err := cluster2.waiter.ForConfiguration(ctx, cluster1.localClusterID, cluster2.localNetworkNamespace); err != nil {
 		return err
 	}
 

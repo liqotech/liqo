@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -81,7 +82,7 @@ func (nc *NetworkChecker) Collect(ctx context.Context, options info.Options) {
 		// If the module is disabled we do not need to collect any additional info
 		if peerNetwork.Status != common.ModuleDisabled {
 			// Get the network CIDRs
-			config, err := getters.GetConfigurationByClusterID(ctx, options.CRClient, clusterID)
+			config, err := getters.GetConfigurationByClusterID(ctx, options.CRClient, clusterID, corev1.NamespaceAll)
 			if err != nil {
 				nc.AddCollectionError(fmt.Errorf("unable to get network configuration for cluster %q: %w", clusterID, err))
 			} else {
