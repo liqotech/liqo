@@ -38,7 +38,7 @@ offloaded workloads to be rescheduled. The Identity and Tenant are respectively
 removed from the consumer and provider clusters, and the networking between the
 two clusters is destroyed.
 
-The reverse peering, if any, is preserved, and the remote cluster can continue 
+The reverse peering, if any, is preserved, and the remote cluster can continue
 offloading workloads to its virtual node representing the local cluster.
 
 Examples:
@@ -66,7 +66,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
 	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for resource to be deleted before returning")
-	cmd.PersistentFlags().BoolVar(&options.KeepNamespaces, "keep-namespaces", false, "Keep tenant namespaces after unpeering")
+	cmd.PersistentFlags().BoolVar(&options.DeleteNamespace, "delete-namespaces", false, "Delete the tenant namespace after unpeering")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
