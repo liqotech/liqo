@@ -35,9 +35,9 @@ type Options struct {
 	RemoteFactory *factory.Factory
 	waiter        *wait.Waiter
 
-	Timeout        time.Duration
-	Wait           bool
-	KeepNamespaces bool
+	Timeout         time.Duration
+	Wait            bool
+	DeleteNamespace bool
 
 	consumerClusterID liqov1beta1.ClusterID
 	providerClusterID liqov1beta1.ClusterID
@@ -85,8 +85,8 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("an error occurred while checking bidirectional peering: %v", output.PrettyErr(err)))
 		return err
 	}
-	if bidirectional && !o.KeepNamespaces {
-		err = fmt.Errorf("cannot unpeer bidirectional peering without keeping namespaces, please set the --keep-namespaces flag")
+	if bidirectional && o.DeleteNamespace {
+		err = fmt.Errorf("cannot delete the tenant namespace when a bidirectional is enabled, please remove the --delete-namespaces flag")
 		o.LocalFactory.Printer.CheckErr(err)
 		return err
 	}
@@ -111,7 +111,7 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		}
 	}
 
-	if !o.KeepNamespaces {
+	if o.DeleteNamespace {
 		consumer := unauthenticate.NewCluster(o.LocalFactory)
 		provider := unauthenticate.NewCluster(o.RemoteFactory)
 
