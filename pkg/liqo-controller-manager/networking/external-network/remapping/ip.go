@@ -27,17 +27,16 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
-	"github.com/liqotech/liqo/pkg/consts"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 func generateNatMappingIPGwName(ip *ipamv1alpha1.IP) string {
-	return fmt.Sprintf("%s%s", generateNatMappingIPPrefix(ip), TableIPMappingGwName)
+	return fmt.Sprintf("%s-%s", ip.Name, TableIPMappingGwName)
 }
 
 func generateNatMappingIPFabricName(ip *ipamv1alpha1.IP) string {
-	return fmt.Sprintf("%s%s", generateNatMappingIPPrefix(ip), TableIPMappingFabricName)
+	return fmt.Sprintf("%s-%s", ip.Name, TableIPMappingFabricName)
 }
 
 // CreateOrUpdateNatMappingIP creates or updates the NAT mapping for an IP.
@@ -294,14 +293,4 @@ func ensureFirewallConfigurationMasqSNATRules(rules *firewall.RulesSet,
 			},
 		})
 	}
-}
-
-func generateNatMappingIPPrefix(ip *ipamv1alpha1.IP) string {
-	if ip.Labels == nil {
-		return ""
-	}
-	if v, ok := ip.Labels[consts.RemoteClusterID]; ok {
-		return fmt.Sprintf("%s-", v)
-	}
-	return ""
 }
