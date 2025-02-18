@@ -11,7 +11,7 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-GO_VERSION="1.23"
+GO_VERSION="1.24"
 
 CGO_ENABLED="${CGO_ENABLED:-0}"
 GOOS="${GOOS:-linux}"
