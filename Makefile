@@ -75,7 +75,7 @@ rbacs: controller-gen
 # Install gci if not available
 gci:
 ifeq (, $(shell which gci))
-	@go install github.com/daixiang0/gci@v0.13.4
+	@go install github.com/daixiang0/gci@v0.13.5
 GCI=$(GOBIN)/gci
 else
 GCI=$(shell which gci)
