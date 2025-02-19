@@ -1,0 +1,42 @@
+name: Feature Proposal 🚀
+description: Suggest a feature to Liqo
+labels: ["feature proposal"]
+body:
+- type: textarea
+  attributes:
+    label: Is your proposed feature related to a problem?
+    description: If so, please describe the problem.
+    placeholder: A clear and concise description of what the problem is.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Describe the solution you'd like
+    description: Include any specific requirements you need
+    placeholder: A clear description of what you would like to happen.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Describe your proposed solution
+    description: Please complete this section if you have ideas / suggestions on how to implement the feature. We strongly recommend discussing your approach within the Liqo community before spending time implementing a change.
+    placeholder: A clear description of how you want to implement it.
+  validations:
+    required: false
+- type: checkboxes
+  id: implement
+  attributes:
+    label: Do you volunteer to implement this feature?
+    description: If you are willing to implement this feature, please check the box below. 
+    options:
+      - label: I want to implement this feature
+        required: false
+- type: checkboxes
+  id: terms
+  attributes:
+    label: Code of Conduct
+    description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/liqotech/liqo/blob/master/CODE_OF_CONDUCT.md)
+    options:
+      - label: I agree to follow this project's Code of Conduct
+        required: true
+  

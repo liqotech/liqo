@@ -1,0 +1,90 @@
+name: Bug Report 🐛
+description: Report a bug encountered while operating Liqo
+labels: ["bug"]
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for taking the time to fill out this bug report!
+      **Important**: For security related issues we strongly encourage you to report security vulnerabilities on [Slack](https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ) writing a DM to [maintainers](https://github.com/liqotech/liqo/blob/master/COMMUNITY.md#maintainers-and-owners).
+- type: checkboxes
+  attributes:
+    label: Is there an existing issue for this?
+    description: Please search to see if an issue already exists for the bug you encountered.
+    options:
+    - label: I have searched the existing issues
+      required: true
+- type: input
+  id: version
+  attributes:
+    label: Version
+    placeholder: Liqo version
+    description: |
+      What version of Liqo was running when you discovered this issue? (run `liqoctl version`)
+  validations:
+    required: true
+- type: textarea
+  id: what-happened
+  attributes:
+    label: What happened?
+    description: Also tell us, what did you expect to happen?
+    placeholder: |
+      1. In this environment ...
+      2. With this config ...
+      3. Run ...
+      4. See error ...
+  validations:
+    required: true
+- type: textarea
+  id: logs
+  attributes:
+    label: Relevant log output
+    description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+    render: shell
+- type: textarea
+  id: how-happened
+  attributes:
+    label: How can we reproduce the issue?
+    description: Please give us reproducible steps so that it is easier to find the root cause.
+    placeholder: |
+      1. Install Liqo with liqoctl using this command ...
+      2. Peer two clusters usin this command ...
+      3. Run ...
+  validations:
+    required: true
+- type: input
+  id: provider
+  attributes:
+    label: Provider or distribution
+    description: Which provider (EKS, GKE, AKS, etc.) or distribution (Kubeadm, Rancher, K3S, K0S, etc.) are you using?
+  validations:
+    required: true
+- type: input
+  id: cni-version
+  attributes:
+    label: CNI version
+    description: Which CNI plugin (calico, cilium, flannel, etc.) are you using? Include the version if possible.
+  validations:
+    required: false
+- type: input
+  id: kernel-version
+  attributes:
+    label: Kernel Version
+    description: Which kernel version was Liqo running on? (run `uname -a`)
+  validations:
+    required: false
+- type: input
+  id: k8s-version
+  attributes:
+    label: Kubernetes Version
+    description: Which Kubernetes version are you running? (run `kubectl version`)
+  validations:
+    required: true
+- type: checkboxes
+  id: terms
+  attributes:
+    label: Code of Conduct
+    description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/liqotech/liqo/blob/master/CODE_OF_CONDUCT.md)
+    options:
+      - label: I agree to follow this project's Code of Conduct
+        required: true
