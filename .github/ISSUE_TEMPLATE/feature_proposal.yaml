@@ -4,16 +4,16 @@ labels: ["feature proposal"]
 body:
 - type: textarea
   attributes:
-    label: Is your proposed feature related to a problem?
-    description: If so, please describe the problem.
-    placeholder: A clear and concise description of what the problem is.
-  validations:
-    required: false
-- type: textarea
-  attributes:
     label: Describe the solution you'd like
     description: Include any specific requirements you need
     placeholder: A clear description of what you would like to happen.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Describe the user value of this feature
+    description: Explain how this feature will benefit the users.
+    placeholder: A clear description of the user value.
   validations:
     required: true
 - type: textarea
@@ -39,4 +39,3 @@ body:
     options:
       - label: I agree to follow this project's Code of Conduct
         required: true
-  
