@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -232,14 +233,14 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 	var networksToReserve []ipamv1alpha1.Network
 
 	// PodCIDR is a special case of reserved network
-	podCidr, err := ipamutils.GetPodCIDRNetwork(ctx, cl)
+	podCidr, err := ipamutils.GetPodCIDRNetwork(ctx, cl, corev1.NamespaceAll)
 	if err != nil {
 		return err
 	}
 	networksToReserve = append(networksToReserve, *podCidr)
 
 	// ServiceCIDR is a special case of reserved network
-	serviceCidr, err := ipamutils.GetServiceCIDRNetwork(ctx, cl)
+	serviceCidr, err := ipamutils.GetServiceCIDRNetwork(ctx, cl, corev1.NamespaceAll)
 	if err != nil {
 		return err
 	}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -100,12 +101,12 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1beta1.Configuration) error {
 	if r.localCIDR == nil {
-		podCIDR, err := ipamutils.GetPodCIDR(ctx, r.Client)
+		podCIDR, err := ipamutils.GetPodCIDR(ctx, r.Client, corev1.NamespaceAll)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the podCIDR: %w", err)
 		}
 
-		externalCIDR, err := ipamutils.GetExternalCIDR(ctx, r.Client)
+		externalCIDR, err := ipamutils.GetExternalCIDR(ctx, r.Client, corev1.NamespaceAll)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the externalCIDR: %w", err)
 		}

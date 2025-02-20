@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
@@ -47,7 +48,7 @@ type NetworkChecker struct {
 
 // Collect data about the network of the local installation of Liqo.
 func (l *NetworkChecker) Collect(ctx context.Context, options info.Options) {
-	fields := map[string]func(ctx context.Context, cl client.Client) (string, error){
+	fields := map[string]func(ctx context.Context, cl client.Client, namespace string) (string, error){
 		"PodCIDR":      ipam.GetPodCIDR,
 		"ServiceCIDR":  ipam.GetServiceCIDR,
 		"ExternalCIDR": ipam.GetExternalCIDR,
@@ -55,7 +56,7 @@ func (l *NetworkChecker) Collect(ctx context.Context, options info.Options) {
 	}
 
 	for key, fn := range fields {
-		val, err := fn(ctx, options.CRClient)
+		val, err := fn(ctx, options.CRClient, corev1.NamespaceAll)
 		if err != nil {
 			l.AddCollectionError(fmt.Errorf("unable to get %s: %w", key, err))
 		}

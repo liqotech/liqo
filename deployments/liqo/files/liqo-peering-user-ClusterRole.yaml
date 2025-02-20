@@ -27,6 +27,15 @@ rules:
   verbs:
   - "get"
 - apiGroups:
+  - "ipam.liqo.io"
+  resources:
+  - "ips"
+  verbs:
+  - "create"
+  - "update"
+  - "get"
+  - "delete"
+- apiGroups:
   - ""
   resources:
   - "secrets"
@@ -47,15 +56,6 @@ rules:
   - "deployments"
   verbs:
   - "get"
-- apiGroups:
-  - "ipam.liqo.io"
-  resources:
-  - "ips"
-  verbs:
-  - "create"
-  - "update"
-  - "get"
-  - "delete"
 - apiGroups:
   - "authentication.liqo.io"
   resources:
