@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -111,7 +112,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	extCIDR, err := ipam.GetExternalCIDR(ctx, r.Client)
+	extCIDR, err := ipam.GetExternalCIDR(ctx, r.Client, corev1.NamespaceAll)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

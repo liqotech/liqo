@@ -27,7 +27,6 @@ import (
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -38,11 +37,6 @@ var peeringUserLabel = client.ListOptions{
 }
 
 var minimumClusterPermissions = []rbacv1.PolicyRule{
-	{
-		APIGroups: []string{ipamv1alpha1.NetworkGroupResource.Group},
-		Resources: []string{ipamv1alpha1.NetworkResource},
-		Verbs:     []string{"get", "list"},
-	},
 	{
 		APIGroups: []string{authv1beta1.TenantGroupResource.Group},
 		Resources: []string{authv1beta1.TenantResource},

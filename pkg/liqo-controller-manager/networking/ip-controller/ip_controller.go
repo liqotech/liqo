@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,7 +49,7 @@ type IPReconciler struct {
 
 	ipamClient ipam.IPAMClient
 
-	externalCidrRef v1.ObjectReference
+	externalCidrRef corev1.ObjectReference
 	externalCidr    networkingv1beta1.CIDR
 }
 
@@ -180,7 +180,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 func (r *IPReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlIP).
 		For(&ipamv1alpha1.IP{}).
-		Owns(&v1.Service{}).
+		Owns(&corev1.Service{}).
 		Owns(&discoveryv1.EndpointSlice{}).
 		Watches(&ipamv1alpha1.Network{}, handler.EnqueueRequestsFromMapFunc(r.ipEnqueuerFromNetwork)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
@@ -212,11 +212,11 @@ func (r *IPReconciler) ipEnqueuerFromNetwork(ctx context.Context, obj client.Obj
 
 // handleNetworkRef get the CIDR of the Network referenced by the IP, or default to the
 // external CIDR of the local cluster if the IP has no NetworkRef set.
-func (r *IPReconciler) handleNetworkRef(ctx context.Context, ip *ipamv1alpha1.IP) (*v1.ObjectReference, networkingv1beta1.CIDR, error) {
+func (r *IPReconciler) handleNetworkRef(ctx context.Context, ip *ipamv1alpha1.IP) (*corev1.ObjectReference, networkingv1beta1.CIDR, error) {
 	// If the IP has not set a reference to a Network CIDR, we remap it on the external CIDR of the local cluster.
 	if ip.Spec.NetworkRef == nil {
 		if r.externalCidr == "" {
-			network, err := ipamutils.GetExternalCIDRNetwork(ctx, r.Client)
+			network, err := ipamutils.GetExternalCIDRNetwork(ctx, r.Client, corev1.NamespaceAll)
 			if err != nil {
 				return nil, "", err
 			}
@@ -225,7 +225,7 @@ func (r *IPReconciler) handleNetworkRef(ctx context.Context, ip *ipamv1alpha1.IP
 				return nil, "", fmt.Errorf("externalCIDR is not set yet. Configure it to correctly handle IP mapping")
 			}
 
-			r.externalCidrRef = v1.ObjectReference{
+			r.externalCidrRef = corev1.ObjectReference{
 				Namespace: network.Namespace,
 				Name:      network.Name,
 			}

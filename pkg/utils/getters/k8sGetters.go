@@ -946,8 +946,8 @@ func ListGeneveTunnelsByLabels(ctx context.Context, cl client.Client,
 
 // GetUniqueNetworkByLabel retrieves the Network resource with the given label selector.
 // It returns error if multiple resources are found.
-func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.Network, error) {
-	networks, err := GetNetworksByLabel(ctx, cl, lSelector)
+func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector, namespace string) (*ipamv1alpha1.Network, error) {
+	networks, err := GetNetworksByLabel(ctx, cl, lSelector, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -963,9 +963,14 @@ func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector la
 }
 
 // GetNetworksByLabel retrieves the Network resources with the given labelSelector.
-func GetNetworksByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) ([]ipamv1alpha1.Network, error) {
+func GetNetworksByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector, namespace string) ([]ipamv1alpha1.Network, error) {
 	var networks ipamv1alpha1.NetworkList
-	if err := cl.List(ctx, &networks, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+	if err := cl.List(
+		ctx,
+		&networks,
+		&client.ListOptions{LabelSelector: lSelector},
+		client.InNamespace(namespace),
+	); err != nil {
 		return nil, err
 	}
 	return networks.Items, nil
