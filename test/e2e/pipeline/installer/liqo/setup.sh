@@ -108,7 +108,7 @@ do
     COMMON_ARGS=("${COMMON_ARGS[@]}" --project-id "${GCLOUD_PROJECT_ID}" --zone "${GKE_ZONES[$i-1]}" --credentials-path "${GCLOUD_KEY_FILE}")
   fi
 
-  if [[ "${INFRA}" == "cluster-api" ]]; then
+  if [[ "${INFRA}" == "kubeadm" ]]; then
     LIQO_PROVIDER="kubeadm"
     COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.gatewayTemplates.replicas=$HA_REPLICAS" )
     COMMON_ARGS=("${COMMON_ARGS[@]}" --set "ipam.internal.replicas=$HA_REPLICAS" )
