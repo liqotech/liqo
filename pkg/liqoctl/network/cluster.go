@@ -484,7 +484,7 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 
 	// Check if the PublicKey already exists.
 	var name *string
-	pk, err := getters.GetPublicKeyByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	pk, err := getters.GetPublicKeyByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving public key: %v", output.PrettyErr(err)))
 		return err
