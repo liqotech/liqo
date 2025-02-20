@@ -27,6 +27,10 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/build/common"
@@ -34,6 +38,10 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/build/liqo-test"
@@ -41,6 +49,10 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/build/proxy"
@@ -48,6 +60,10 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/build/gateway"
@@ -55,6 +71,10 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/build/gateway/wireguard"
@@ -62,3 +82,7 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
