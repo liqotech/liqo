@@ -24,6 +24,8 @@ const (
 	IPValueTypeSubnet IPValueType = "subnet"
 	// IPValueTypeVoid is a void match value.
 	IPValueTypeVoid IPValueType = "void"
+	// IPValueTypeRange is a string representing a range of IPs (eg. 10.0.0.1-10.0.0.20).
+	IPValueTypeRange IPValueType = "range"
 )
 
 // PortValueType is the type of the match value.

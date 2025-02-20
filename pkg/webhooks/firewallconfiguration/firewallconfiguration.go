@@ -95,7 +95,7 @@ func (w *webhookMutate) Handle(_ context.Context, req admission.Request) admissi
 	return w.CreatePatchResponse(&req, firewallConfiguration)
 }
 
-// Handle implements the firewallconfiguration validate webhook logic.
+// Handsle implements the firewallconfiguration validate webhook logic.
 //
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
