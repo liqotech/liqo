@@ -84,14 +84,19 @@ func allowedChainType(chaintype *firewallapi.ChainType, rules firewallapi.RulesS
 }
 
 // refer to https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks
-func allowedTableFamilyChainTypeHook(familiy firewallapi.TableFamily, chainType firewallapi.ChainType, hook firewallapi.ChainHook) bool {
-	switch familiy {
+func allowedTableFamilyChainTypeHook(family firewallapi.TableFamily, chainType firewallapi.ChainType, hook firewallapi.ChainHook) bool {
+	switch family {
 	case firewallapi.TableFamilyINet, firewallapi.TableFamilyIPv4, firewallapi.TableFamilyIPv6:
 		switch chainType {
 		case firewallapi.ChainTypeFilter:
 			switch hook {
 			case firewallapi.ChainHookIngress:
-				if familiy == firewallapi.TableFamilyINet {
+				if family == firewallapi.TableFamilyINet {
+					return true
+				}
+				return false
+			case firewallapi.ChainHookForward:
+				if family == firewallapi.TableFamilyIPv4 {
 					return true
 				}
 				return false
@@ -176,7 +181,7 @@ func allowedTableFamilyChainTypeHook(familiy firewallapi.TableFamily, chainType 
 			return false
 		}
 	default:
-		klog.Warningf("unknown table family %v", familiy)
+		klog.Warningf("unknown table family %v", family)
 		return false
 	}
 }

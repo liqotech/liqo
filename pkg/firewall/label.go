@@ -21,4 +21,6 @@ const (
 	FirewallSubCategoryTargetKey = "networking.liqo.io/firewall-subcategory"
 	// FirewallUniqueTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a single component.
 	FirewallUniqueTargetKey = "networking.liqo.io/firewall-unique"
+	// FirewallAllTargetKey is the key used by the firewallconfiguration controller to reconcile resources related to all components.
+	FirewallAllTargetKey = "networking.liqo.io/firewall-all"
 )

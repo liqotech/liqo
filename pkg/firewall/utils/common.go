@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/utils/network/port"
@@ -39,7 +40,45 @@ func GetIPValueType(value *string) (firewallv1beta1.IPValueType, error) {
 		return firewallv1beta1.IPValueTypeIP, nil
 	}
 
-	return firewallv1beta1.IPValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
+	// Check if the value is an IP range.
+	if _, err := GetIPValueTypeRange(*value); err == nil {
+		return firewallv1beta1.IPValueTypeRange, nil
+	}
+
+	return firewallv1beta1.IPValueTypeVoid, fmt.Errorf("invalid match value IP %s", *value)
+}
+
+// GetIPValueTypeRange parses the match value and returns the type of the value.
+func GetIPValueTypeRange(s string) (firewallv1beta1.IPValueType, error) {
+	_, _, err := GetIPValueRange(s)
+	if err == nil {
+		return firewallv1beta1.IPValueTypeRange, nil
+	}
+
+	return firewallv1beta1.IPValueTypeVoid, err
+}
+
+// GetIPValueRange parses the match value and returns the range of IPs.
+func GetIPValueRange(s string) (address1, address2 net.IP, err error) {
+	parts := strings.Split(s, "-")
+	if len(parts) != 2 {
+		return nil, nil, fmt.Errorf("invalid format: %s", s)
+	}
+
+	addr1 := strings.TrimSpace(parts[0])
+	startIP := net.ParseIP(addr1)
+
+	if startIP == nil {
+		return nil, nil, fmt.Errorf("invalid first IP address: %s", addr1)
+	}
+
+	addr2 := strings.TrimSpace(parts[1])
+	endIP := net.ParseIP(addr2)
+	if endIP == nil {
+		return nil, nil, fmt.Errorf("invalid second IP address: %s", addr2)
+	}
+
+	return startIP, endIP, nil
 }
 
 // GetPortValueType parses the match value and returns the type of the value.
