@@ -105,7 +105,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	switch testContext.Infrastructure {
-	case "cluster-api":
+	case "kubeadm":
 		overrideArgsClusterAPI(&defaultArgs)
 	case "k3s":
 		overrideArgsK3s(&defaultArgs)

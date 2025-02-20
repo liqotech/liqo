@@ -52,7 +52,7 @@ function setup_arch_and_os(){
 
   OS=$(uname |tr '[:upper:]' '[:lower:]')
   case "$OS" in
-    # Minimalist GNU for Windows
+  # Minimalist GNU for Windows
     "mingw"*) OS='windows'; return ;;
   esac
 }
@@ -89,11 +89,11 @@ function install_kubectl() {
 
   if ! command -v "${KUBECTL}" &> /dev/null
   then
-      echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
-      if ! curl --fail -Lo "${KUBECTL}" "https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"; then
-          echo "Error: Unable to download kubectl for '${os}-${arch}'"
-          return 1
-      fi
+    echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
+    if ! curl --fail -Lo "${KUBECTL}" "https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"; then
+      echo "Error: Unable to download kubectl for '${os}-${arch}'"
+      return 1
+    fi
   fi
 
   chmod +x "${KUBECTL}"
@@ -106,7 +106,7 @@ function install_helm() {
   local arch=$2
 
   # list of helm supported architectures
-	local supported="darwin-amd64\ndarwin-arm64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nlinux-s390x\nwindows-amd64"
+  local supported="darwin-amd64\ndarwin-arm64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nlinux-s390x\nwindows-amd64"
   check_supported_arch_and_os "${supported}" "${os}" "${arch}" helm
 
   HELM_VERSION="v3.15.3"
@@ -115,8 +115,8 @@ function install_helm() {
   then
     echo "WARNING: helm could not be found. Downloading and installing it locally..."
     if ! curl --fail -Lo "./helm-${HELM_VERSION}-${os}-${arch}.tar.gz" "https://get.helm.sh/helm-${HELM_VERSION}-${os}-${arch}.tar.gz"; then
-        echo "Error: Unable to download helm for '${os}-${arch}'"
-        return 1
+      echo "Error: Unable to download helm for '${os}-${arch}'"
+      return 1
     fi
     tar -zxvf "helm-${HELM_VERSION}-${os}-${arch}.tar.gz"
     mv "${os}-${arch}/helm" "${HELM}"
@@ -142,8 +142,8 @@ function install_metrics_server() {
   "${HELM}" repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
   "${HELM}" repo update
   "${HELM}" upgrade --install metrics-server metrics-server/metrics-server \
-      --set 'args={"--kubelet-insecure-tls=true"}' \
-      --namespace kube-system --kubeconfig "${kubeconfig}"
+    --set 'args={"--kubelet-insecure-tls=true"}' \
+    --namespace kube-system --kubeconfig "${kubeconfig}"
   "${KUBECTL}" -n kube-system rollout status deployment metrics-server --kubeconfig "${kubeconfig}"
 }
 
@@ -157,7 +157,7 @@ function install_gcloud() {
 
   #Login to gcloud
   echo "${GCLOUD_KEY}" | base64 -d > "${GCLOUD_KEY_FILE}" 
-  "${GCLOUD}" auth activate-service-account --key-file="${BINDIR}/gke_key_file.json" 
+  "${GCLOUD}" auth activate-service-account --key-file="${BINDIR}/gke_key_file.json"
   "${GCLOUD}" config set project "${GCLOUD_PROJECT_ID}" -q
 }
 
@@ -178,4 +178,13 @@ function wait_kyverno() {
     echo "Failed to wait for kyverno deployments to be ready"
     exit 1
   fi
+}
+
+function install_clusterctl() {
+  local os=$1
+  local arch=$2
+
+  curl -L "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.5/clusterctl-${os}-${arch}" -o clusterctl
+  sudo install -o root -g root -m 0755 clusterctl /usr/local/bin/clusterctl
+  clusterctl version
 }
