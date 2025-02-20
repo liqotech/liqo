@@ -20,7 +20,7 @@ body:
   attributes:
     label: Describe your proposed solution
     description: Please complete this section if you have ideas / suggestions on how to implement the feature. We strongly recommend discussing your approach within the Liqo community before spending time implementing a change.
-    placeholder: A clear description of how you want to implement it.
+    placeholder: A clear description of how you want to implement it. Please consider to ask for a slot in one of the upcoming community meetings as described in [COMMUNITY-HOW-TO.md](COMMUNITY-HOW-TO.md).
   validations:
     required: false
 - type: checkboxes
