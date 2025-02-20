@@ -21,10 +21,25 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
+
+// GetCtrlManagerContainer retrieves the container of the controller manager from the deployment.
+func GetCtrlManagerContainer(ctrlDeployment *appsv1.Deployment) (*corev1.Container, error) {
+	// Get the container of the controller manager
+	containers := ctrlDeployment.Spec.Template.Spec.Containers
+	for i := range containers {
+		if containers[i].Name == consts.ControllerManagerAppName {
+			return &containers[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid controller manager deployment: no container with name %q found", consts.ControllerManagerAppName)
+}
 
 // RetrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
 func RetrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, cl client.Client, namespace string) ([]string, error) {
