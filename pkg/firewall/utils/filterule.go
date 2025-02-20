@@ -122,6 +122,16 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		}
 	case firewallv1beta1.ActionSetMetaMarkFromCtMark:
 		applySetMetaMarkFromCtMarkAction(rule)
+	case firewallv1beta1.ActionAccept:
+		err := applyAcceptAction(rule)
+		if err != nil {
+			return nil, fmt.Errorf("cannot apply accept action: %w", err)
+		}
+	case firewallv1beta1.ActionDrop:
+		err := applyDropAction(rule)
+		if err != nil {
+			return nil, fmt.Errorf("cannot apply drop action: %w", err)
+		}
 	default:
 	}
 	return rule, nil
@@ -142,6 +152,16 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 			Key:            expr.CtKeyMARK,
 		},
 	)
+	return nil
+}
+
+func applyAcceptAction(rule *nftables.Rule) error {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictAccept})
+	return nil
+}
+
+func applyDropAction(rule *nftables.Rule) error {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictDrop})
 	return nil
 }
 
