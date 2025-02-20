@@ -32,6 +32,8 @@ const (
 	IPValueTypeSubnet IPValueType = "subnet"
 	// IPValueTypeVoid is a void match value.
 	IPValueTypeVoid IPValueType = "void"
+	// IPValueTypeRange is a string representing a range of IPs (eg. 10.0.0.1-10.0.0.20).
+	IPValueTypeRange IPValueType = "range"
 )
 
 // PortValueType is the type of the match value.
@@ -60,6 +62,11 @@ func GetIPValueType(value *string) (IPValueType, error) {
 	// Check if the value is an IP.
 	if net.ParseIP(*value) != nil {
 		return IPValueTypeIP, nil
+	}
+
+	// Check if the value is an IP range.
+	if _, _, err := net.ParseRange(*value); err == nil {
+		return IPValueTypeRange, nil
 	}
 
 	return IPValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
