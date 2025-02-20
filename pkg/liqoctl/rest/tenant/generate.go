@@ -35,7 +35,7 @@ const liqoctlGenerateConfigHelp = `Generate the Tenant resource to be applied on
 
 This commands generates a Tenant filled with all the authentication parameters needed to authenticate with the remote cluster.
 It signs the nonce provided by the remote cluster and generates the CSR.
-The Nonce can be provided as a flag or it can be retrieved from the secret in the tenant namespace (if existing).   
+The Nonce can be provided as a flag or it can be retrieved from the secret in the tenant namespace (if existing).
 
 Examples:
   $ {{ .Executable }} generate tenant --remote-cluster-id remote-cluster-id`
@@ -90,6 +90,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %w", err))
 		return err
 	}
+	tenantNsName := tenantNs.GetName()
 
 	// Ensure the presence of the signed nonce secret.
 	err = authutils.EnsureSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), tenantNs.GetName(), &o.nonce)
@@ -98,13 +99,13 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	// Wait for secret to be filled with the signed nonce.
-	if err := waiter.ForSignedNonce(ctx, o.remoteClusterID.GetClusterID(), true); err != nil {
+	if err := waiter.ForSignedNonce(ctx, o.remoteClusterID.GetClusterID(), tenantNsName, true); err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to wait for nonce to be signed: %w", err))
 		return err
 	}
 
 	// Retrieve signed nonce from secret.
-	signedNonce, err := authutils.RetrieveSignedNonce(ctx, opts.CRClient, o.remoteClusterID.GetClusterID())
+	signedNonce, err := authutils.RetrieveSignedNonce(ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), tenantNsName)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve signed nonce: %w", err))
 		return err

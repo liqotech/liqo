@@ -169,7 +169,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	var netConfiguration *networkingv1beta1.Configuration
 	if fcutils.IsNetworkingModuleEnabled(foreignCluster) {
-		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
+		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID(), corev1.NamespaceAll)
 		if err != nil {
 			klog.Errorf("Unable to get network configuration: %v", err)
 			return err

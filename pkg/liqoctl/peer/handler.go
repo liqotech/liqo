@@ -86,21 +86,21 @@ func (o *Options) RunPeer(ctx context.Context) error {
 	// Ensure networking
 	if !o.NetworkingDisabled {
 		if err := ensureNetworking(ctx, o); err != nil {
-			o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure networking")
+			o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to ensure networking: %v", err)
 			return err
 		}
 	}
 
 	// Ensure authentication
 	if err := ensureAuthentication(ctx, o); err != nil {
-		o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure authentication")
+		o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to ensure authentication: %v", err)
 		return err
 	}
 
 	// Ensure offloading
 	if o.CreateResourceSlice {
 		if err := ensureOffloading(ctx, o); err != nil {
-			o.LocalFactory.PrinterGlobal.Error.Println("unable to ensure offloading")
+			o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to ensure offloading: %v", err)
 			return err
 		}
 	}

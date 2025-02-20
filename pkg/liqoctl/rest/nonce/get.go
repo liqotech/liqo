@@ -25,6 +25,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 const liqoctlGetNonceLongHelp = `Get a Nonce.
@@ -47,6 +48,8 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 
 		PreRun: func(_ *cobra.Command, _ []string) {
 			o.getOptions = options
+
+			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient, options.CRClient.Scheme())
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {
@@ -67,7 +70,14 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 func (o *Options) handleGet(ctx context.Context) error {
 	opts := o.getOptions
 
-	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID())
+	tenantNs, err := o.namespaceManager.GetNamespace(ctx, o.clusterID.GetClusterID())
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve tenant namespace: %v", output.PrettyErr(err)))
+		return err
+	}
+	tenantNsName := tenantNs.GetName()
+
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID(), tenantNsName)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err
