@@ -32,7 +32,7 @@ func checkRulesInChain(chain *firewallapi.Chain) error {
 	if err := checkUniqueRuleNames(rules); err != nil {
 		return forgeChainError(chain, err)
 	}
-	if err := checkFilterRules(rules); err != nil {
+	if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
 		return forgeChainError(chain, err)
 	}
 	return nil
@@ -61,35 +61,6 @@ func checkUniqueRuleNames(rules []firewallutils.Rule) error {
 		names[*name] = nil
 	}
 	return nil
-}
-
-func checkFilterRules(rules []firewallutils.Rule) error {
-	for i := range rules {
-		if r, ok := rules[i].(*firewallutils.FilterRuleWrapper); ok {
-			if err := checkFilterRule(r.FilterRule); err != nil {
-				return fmt.Errorf("rule %v is invalid: %w", r.Name, err)
-			}
-		}
-	}
-	return nil
-}
-
-func checkFilterRule(r *firewallapi.FilterRule) error {
-	switch r.Action {
-	case firewallapi.ActionTCPMssClamp:
-		return checkFilterRuleTCPMssClamp(r)
-	default:
-		return nil
-	}
-}
-
-func checkFilterRuleTCPMssClamp(r *firewallapi.FilterRule) error {
-	for i := range r.Match {
-		if r.Match[i].Proto.Value == firewallapi.L4ProtoTCP && r.Match[i].Op == firewallapi.MatchOperationEq {
-			return nil
-		}
-	}
-	return fmt.Errorf("tcp mss clamp rule should have a match for tcp protocol")
 }
 
 func generateRuleNames(chains []firewallapi.Chain) {

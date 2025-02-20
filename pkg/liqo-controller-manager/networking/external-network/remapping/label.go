@@ -37,6 +37,15 @@ func ForgeFirewallTargetLabels(remoteID string) map[string]string {
 	}
 }
 
+// ForgeFirewallAllTargetLabels returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to all gateways.
+func ForgeFirewallAllTargetLabels() map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey: FirewallCategoryTargetValueGw,
+		firewall.FirewallAllTargetKey:      "true",
+	}
+}
+
 // ForgeFirewallTargetLabelsIPMappingGw returns the labels used by the firewallconfiguration
 // controller to reconcile only resources related to the IP mapping.
 func ForgeFirewallTargetLabelsIPMappingGw() map[string]string {
