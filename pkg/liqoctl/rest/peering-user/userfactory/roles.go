@@ -28,7 +28,6 @@ import (
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -42,11 +41,6 @@ var minimumClusterPermissions = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{ipamv1alpha1.NetworkGroupResource.Group},
 		Resources: []string{ipamv1alpha1.NetworkResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.PublicKeyGroupResource.Group},
-		Resources: []string{networkingv1beta1.PublicKeyResource},
 		Verbs:     []string{"get", "list"},
 	},
 	{

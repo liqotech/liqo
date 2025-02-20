@@ -848,8 +848,8 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 
 // GetPublicKeyByClusterID returns the PublicKey resource with the given clusterID.
 func GetPublicKeyByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1beta1.ClusterID) (*networkingv1beta1.PublicKey, error) {
-	publicKeys, err := ListPublicKeysByLabel(ctx, cl, corev1.NamespaceAll, labels.SelectorFromSet(map[string]string{
+	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.PublicKey, error) {
+	publicKeys, err := ListPublicKeysByLabel(ctx, cl, tenantNamespace, labels.SelectorFromSet(map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}))
 	if err != nil {
