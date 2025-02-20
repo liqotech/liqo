@@ -41,3 +41,5 @@ setup_arch_and_os
 install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
 
 install_helm "${OS}" "${ARCH}"
+
+install_clusterctl "${OS}" "${ARCH}"
