@@ -37,10 +37,11 @@ function gke_create_cluster() {
     local num_nodes=$4
     local index=$5
 
-    local cluster_version="${K8S_VERSION%.*}"
+    local cluster_version="${K8S_VERSION#v}"
+    cluster_version=$(echo "${cluster_version}" | awk -F. '{print $1"."$2}')
 
     local arg_dataplane=""
-    if [[ $GKE_DATAPLANE == "v2" ]]; then
+    if [[ $CNI == "v2" ]]; then
         arg_dataplane="--enable-dataplane-v2"
     fi
 
@@ -50,7 +51,7 @@ function gke_create_cluster() {
     fi
         
     "${GCLOUD}" container --project "${GCLOUD_PROJECT_ID}" clusters create "${cluster_id}" --zone "${cluster_zone}" \
-        --num-nodes "${num_nodes}" --machine-type "${GKE_MACHINE_TYPE}" --image-type "${GKE_IMAGE_TYPE}" --disk-type "${GKE_DISK_TYPE}" --disk-size "${GKE_DISK_SIZE}" \
+        --num-nodes "${num_nodes}" --machine-type "${GKE_MACHINE_TYPE}" --image-type "${OS_IMAGE}" --disk-type "${GKE_DISK_TYPE}" --disk-size "${GKE_DISK_SIZE}" \
         --cluster-version "${cluster_version}" --no-enable-intra-node-visibility --enable-shielded-nodes --enable-ip-alias \
         --release-channel "regular" --no-enable-basic-auth --metadata disable-legacy-endpoints=true \
         --network "projects/${GCLOUD_PROJECT_ID}/global/networks/liqo-${index}" --subnetwork "projects/${GCLOUD_PROJECT_ID}/regions/${cluster_region}/subnetworks/liqo-nodes" $arg_dataplane --cluster-ipv4-cidr="${pod_cidr}" \
@@ -81,6 +82,11 @@ source "$WORKDIR/../../utils.sh"
 # shellcheck disable=SC1091
 # shellcheck source=./const.sh
 source "$WORKDIR/const.sh"
+
+if [[ "${CLUSTER_NUMBER}" -gt 3 ]]; then
+    echo "Error: CLUSTER_NUMBER cannot be greater than 3."
+    exit 1
+fi
 
 PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}");

@@ -125,7 +125,16 @@ func (o *Options) Initialize(ctx context.Context) error {
 
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
-	return map[string]interface{}{}
+	return map[string]interface{}{
+		"ipam": map[string]interface{}{
+			"pools": []interface{}{
+				"10.0.0.0/8",
+				"192.168.0.0/16",
+				"172.16.0.0/12",
+				"34.118.224.0/20",
+			},
+		},
+	}
 }
 
 func (o *Options) checkFeatures(cluster *container.Cluster) error {
