@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -285,11 +286,16 @@ func overrideArgsEKS(args *networkTestsArgs) {
 }
 
 func overrideArgsGKE(args *networkTestsArgs) {
+	cni, ok := os.LookupEnv("CNI")
+	if !ok {
+		panic(fmt.Errorf("CNI environment variable not set"))
+	}
+
+	if cni != "v1" && cni != "v2" {
+		panic(fmt.Errorf("CNI environment %q variable not valid", cni))
+	}
+
 	args.failfast = false
-	args.loadBalancer = true
-	args.nodePortExt = false // nodeport are not exposed by default // TODO: modify GKE plugin to open nodeport firewall
-	args.podNodePort = false
-	args.ip = false
 }
 
 func overrideArgsAKS(args *networkTestsArgs) {
