@@ -69,6 +69,9 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 		"Output format of the resulting Tenant resource. Supported formats: json, yaml")
 
 	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The ID of the remote cluster")
+	cmd.Flags().StringVar(&o.remoteTenantNs, "remote-tenant-namespace", "",
+		"The namespace on the remote cluster where the Tenant will be applied, if not sure about the value, you can omit this flag "+
+			"and define it when the manifest is applied")
 	cmd.Flags().StringVar(&o.nonce, "nonce", "", "The nonce to sign for the authentication with the remote cluster")
 	cmd.Flags().StringVar(&o.proxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
@@ -118,7 +121,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 		return err
 	}
 
-	tenant, err := authutils.GenerateTenant(ctx, opts.CRClient, localClusterID, opts.LiqoNamespace, signedNonce, &o.proxyURL)
+	tenant, err := authutils.GenerateTenant(ctx, opts.CRClient, localClusterID, opts.LiqoNamespace, o.remoteTenantNs, signedNonce, &o.proxyURL)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to generate tenant: %w", err))
 		return err

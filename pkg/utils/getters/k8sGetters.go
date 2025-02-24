@@ -267,9 +267,11 @@ func GetSignedNonceSecretByClusterID(
 }
 
 // GetTenantByClusterID returns the Tenant resource for the given cluster id.
-func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov1beta1.ClusterID) (*authv1beta1.Tenant, error) {
+func GetTenantByClusterID(
+	ctx context.Context, cl client.Client, clusterID liqov1beta1.ClusterID, tenantNamespace string) (*authv1beta1.Tenant, error) {
 	list := new(authv1beta1.TenantList)
 	if err := cl.List(ctx, list, &client.ListOptions{
+		Namespace: tenantNamespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID: string(clusterID),
 		}),
@@ -285,6 +287,29 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov
 	default:
 		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
 			" when only one was expected", authv1beta1.TenantResource, clusterID)
+	}
+}
+
+// GetTenantByName returns the Tenant resource given its name.
+func GetTenantByName(
+	ctx context.Context, cl client.Client, name string, tenantNamespace string) (*authv1beta1.Tenant, error) {
+	list := new(authv1beta1.TenantList)
+	if err := cl.List(
+		ctx, list,
+		client.InNamespace(tenantNamespace),
+		client.MatchingFields{"metadata.name": name},
+	); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(authv1beta1.TenantGroupResource, name)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+			" when only one was expected", authv1beta1.TenantResource, name)
 	}
 }
 
@@ -714,10 +739,10 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
 // If tenantNamespace is empty this function searches in all the namespaces in the cluster.
 func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.Configuration, error) {
+	clusterID liqov1beta1.ClusterID, namespace string) (*networkingv1beta1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(clusterID)}.AsSelector()
 
-	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, tenantNamespace, remoteClusterIDSelector)
+	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, namespace, remoteClusterIDSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -799,14 +824,14 @@ func GetGatewaysByClusterID(ctx context.Context, cl client.Client,
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 // If tenantNamespace is empty this function searches in all the namespaces in the cluster.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.GatewayServer, error) {
+	remoteClusterID liqov1beta1.ClusterID, namespace string) (*networkingv1beta1.GatewayServer, error) {
 	var gwServers networkingv1beta1.GatewayServerList
 	if err := cl.List(
 		ctx, &gwServers,
 		client.MatchingLabels{
 			consts.RemoteClusterID: string(remoteClusterID),
 		},
-		client.InNamespace(tenantNamespace),
+		client.InNamespace(namespace),
 	); err != nil {
 		return nil, err
 	}
@@ -824,14 +849,14 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 // GetGatewayClientByClusterID returns the GatewayClient resource with the given clusterID.
 // If tenantNamespace is empty this function searches in all the namespaces in the cluster.
 func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.GatewayClient, error) {
+	remoteClusterID liqov1beta1.ClusterID, namespace string) (*networkingv1beta1.GatewayClient, error) {
 	var gwClients networkingv1beta1.GatewayClientList
 	if err := cl.List(
 		ctx, &gwClients,
 		client.MatchingLabels{
 			consts.RemoteClusterID: string(remoteClusterID),
 		},
-		client.InNamespace(tenantNamespace),
+		client.InNamespace(namespace),
 	); err != nil {
 		return nil, err
 	}
@@ -848,8 +873,8 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 
 // GetPublicKeyByClusterID returns the PublicKey resource with the given clusterID.
 func GetPublicKeyByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1beta1.ClusterID, tenantNamespace string) (*networkingv1beta1.PublicKey, error) {
-	publicKeys, err := ListPublicKeysByLabel(ctx, cl, tenantNamespace, labels.SelectorFromSet(map[string]string{
+	remoteClusterID liqov1beta1.ClusterID, namespace string) (*networkingv1beta1.PublicKey, error) {
+	publicKeys, err := ListPublicKeysByLabel(ctx, cl, namespace, labels.SelectorFromSet(map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}))
 	if err != nil {

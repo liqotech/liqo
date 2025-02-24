@@ -1,5 +1,4 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager" "version" .Values.controllerManager.image.version) .) -}}
-{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
 {{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 

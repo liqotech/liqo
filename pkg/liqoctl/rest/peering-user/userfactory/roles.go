@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -36,14 +35,6 @@ var peeringUserLabel = client.ListOptions{
 	}),
 }
 
-var minimumClusterPermissions = []rbacv1.PolicyRule{
-	{
-		APIGroups: []string{authv1beta1.TenantGroupResource.Group},
-		Resources: []string{authv1beta1.TenantResource},
-		Verbs:     []string{"create", "list"},
-	},
-}
-
 // EnsureRoles ensures that the required roles are created and bound to the user.
 func EnsureRoles(ctx context.Context, c client.Client, clusterID liqov1beta1.ClusterID, userCN, tenantNsName string) error {
 	if err := ensureLiqoNsReaderRole(ctx, c, userCN, clusterID); err != nil {
@@ -51,10 +42,6 @@ func EnsureRoles(ctx context.Context, c client.Client, clusterID liqov1beta1.Clu
 	}
 
 	if err := ensureTenantNsWriterRole(ctx, c, userCN, clusterID, tenantNsName); err != nil {
-		return err
-	}
-
-	if err := ensureClusterMinPermissions(ctx, c, userCN, clusterID); err != nil {
 		return err
 	}
 
@@ -80,16 +67,6 @@ func RemovePermissions(ctx context.Context, c client.Client, clusterID liqov1bet
 	userName := GetUserNameFromClusterID(clusterID)
 
 	userLabelSelector := getUserLabelSelector(userName)
-
-	// Delete the ClusterRole related to the user
-	if err := c.DeleteAllOf(ctx, &rbacv1.ClusterRole{}, client.MatchingLabelsSelector{Selector: userLabelSelector}); err != nil {
-		return fmt.Errorf("unable to delete ClusterRoles: %w", err)
-	}
-
-	// Delete the ClusterRoleBindings related to the user
-	if err := c.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabelsSelector{Selector: userLabelSelector}); err != nil {
-		return fmt.Errorf("unable to delete ClusterRoleBindings: %w", err)
-	}
 
 	// Cannot delete RoleBinding with DeleteAllOf, list it and delete one by one
 	roleBindingList := &rbacv1.RoleBindingList{}
@@ -210,64 +187,6 @@ func ensureTenantNsWriterRole(ctx context.Context, c client.Client, userCN strin
 
 	if err := c.Create(ctx, clusterRoleBinding); err != nil {
 		return fmt.Errorf("unable to create cluster role binding: %w", err)
-	}
-
-	return nil
-}
-
-func ensureClusterMinPermissions(ctx context.Context, c client.Client, userCN string, clusterID liqov1beta1.ClusterID) error {
-	userName := GetUserNameFromClusterID(clusterID)
-
-	// Append to the minimum permissions the permissions to operate on the user Tenant resource
-	permissions := append(
-		[]rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{authv1beta1.TenantGroupResource.Group},
-				Resources:     []string{authv1beta1.TenantResource},
-				ResourceNames: []string{string(clusterID)},
-				Verbs:         []string{"update", "get", "delete"},
-			},
-		},
-		minimumClusterPermissions...,
-	)
-
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-cluster-min-perm", userName),
-			Labels: map[string]string{
-				consts.PeeringUserNameLabelKey: userName,
-			},
-		},
-		Rules: permissions,
-	}
-
-	if err := c.Create(ctx, clusterRole); err != nil {
-		return fmt.Errorf("unable to create ClusterRole for minimum permissions on the cluster: %w", err)
-	}
-
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-cluster-min-perm", userName),
-			Labels: map[string]string{
-				consts.PeeringUserNameLabelKey: userName,
-			},
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:     "User",
-				Name:     userCN,
-				APIGroup: "rbac.authorization.k8s.io",
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRole.Name,
-		},
-	}
-
-	if err := c.Create(ctx, clusterRoleBinding); err != nil {
-		return fmt.Errorf("unable to create ClusterRoleBinding for minimum permissions on the cluster: %w", err)
 	}
 
 	return nil

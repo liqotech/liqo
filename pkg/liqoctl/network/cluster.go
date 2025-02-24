@@ -514,11 +514,11 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 
 // DeleteConfiguration deletes a Configuration.
 // If tenantNamespace is empty this function searches in all the namespaces in the cluster.
-func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNs string) error {
+func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, namespace string) error {
 	s := c.local.Printer.StartSpinner("Deleting network configuration")
 
 	// Retrieve Configuration.
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, tenantNs)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, namespace)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail("An error occurred while retrieving network configuration: ", output.PrettyErr(err))
 		return err

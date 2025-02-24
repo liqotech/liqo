@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -27,6 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // Options encapsulates the arguments of the uncordon command.
@@ -51,8 +53,8 @@ func (o *Options) RunUncordonTenant(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	var tenant authv1beta1.Tenant
-	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name}, &tenant); err != nil {
+	tenant, err := getters.GetTenantByName(ctx, o.CRClient, o.Name, corev1.NamespaceAll)
+	if err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to get tenant: %v", output.PrettyErr(err)))
 		return err
 	}
@@ -63,7 +65,7 @@ func (o *Options) RunUncordonTenant(ctx context.Context) error {
 	}
 
 	tenant.Spec.TenantCondition = authv1beta1.TenantConditionActive
-	if err := o.CRClient.Update(ctx, &tenant); err != nil {
+	if err := o.CRClient.Update(ctx, tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to update tenant: %v", output.PrettyErr(err)))
 		return err
 	}

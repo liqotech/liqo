@@ -57,6 +57,7 @@ func GetAuthzPolicyValue(policy *AuthzPolicy) AuthzPolicy {
 // TenantSpec defines the desired state of Tenant.
 type TenantSpec struct {
 	// ClusterID is the id of the consumer cluster.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ClusterID is immutable"
 	ClusterID liqov1beta1.ClusterID `json:"clusterID,omitempty"`
 	// AuthzPolicy is the policy used by the cluster to authorize or reject an incoming ResourceSlice.
 	// Default is KeysExchange.
@@ -99,7 +100,7 @@ type TenantStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster,categories=liqo,shortName=tn
+// +kubebuilder:resource:categories=liqo,shortName=tn
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=`.spec.tenantCondition`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`

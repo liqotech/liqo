@@ -20,8 +20,8 @@ package tenantns
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=connections,verbs=get;list
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients/status;gatewayservers/status,verbs=get
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=create;update;get;delete
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants,verbs=create;update;delete;get;list;
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=create;get;list;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get
-// +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get

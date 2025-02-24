@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -40,12 +41,16 @@ import (
 )
 
 var (
-	tenantClusterRoles = []string{
-		"liqo-remote-controlplane",
+	// tenantClusterRolesLabelValues is the list "app.kubernetes.io/name" label values assigned to the
+	// ClusterRoles to be binded to the control-plane Identity.
+	tenantClusterRolesLabelValues = []string{
+		"remote-controlplane",
 	}
 
-	tenantClusterRolesClusterWide = []string{
-		"liqo-virtual-kubelet-remote-clusterwide",
+	// tenantClusterRolesClusterWideLabelValues is the list "app.kubernetes.io/name" label values assigned to the
+	// ClusterRoles to be binded to the control-plane Identity with cluster-wide scope.
+	tenantClusterRolesClusterWideLabelValues = []string{
+		"virtual-kubelet-remote-clusterwide",
 	}
 )
 
@@ -114,6 +119,21 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 		klog.Errorf("Unable to get the Tenant %q: %s", req.Name, err)
 		return ctrl.Result{}, err
+	}
+
+	// If the Tenant is being deleted, we remove the finalizer and delete related resources.
+	if !tenant.DeletionTimestamp.IsZero() {
+		// To allow the deletion of the resource we should first remove the ClusterRoleBindings.
+		if err := r.NamespaceManager.UnbindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, r.tenantClusterRolesClusterWide...); err != nil {
+			klog.Errorf("Unable to unbind the ClusterRolesClusterWide for the Tenant %q before deletion: %s", req.Name, err)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, r.enforceTenantFinalizerAbsence(ctx, tenant)
+	}
+
+	// Check if the tenant has a finalizer and if not, add it.
+	if !controllerutil.ContainsFinalizer(tenant, tenantControllerFinalizer) {
+		return ctrl.Result{}, r.enforceTenantFinalizerPresence(ctx, tenant)
 	}
 
 	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources and
@@ -226,16 +246,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 		// bind permissions
 
-		_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID,
-			tenant, r.tenantClusterRoles...)
+		_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID, tenant, r.tenantClusterRoles...)
 		if err != nil {
 			klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
 			return ctrl.Result{}, err
 		}
 
-		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
-			tenant, r.tenantClusterRolesClusterWide...)
+		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
 		if err != nil {
 			klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
@@ -246,27 +264,45 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	return ctrl.Result{}, nil
 }
 
-func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
-	if r.tenantClusterRoles == nil || len(r.tenantClusterRoles) == 0 {
-		r.tenantClusterRoles = make([]*rbacv1.ClusterRole, len(tenantClusterRoles))
-		for i, roleName := range tenantClusterRoles {
-			role := &rbacv1.ClusterRole{}
-			if err := r.Get(ctx, client.ObjectKey{Name: roleName}, role); err != nil {
-				return err
-			}
-			r.tenantClusterRoles[i] = role
+// getCusterRoles returns the ClusterRoles having the `app.kubernetes.io/name` equals to the provided strings.
+func (r *TenantReconciler) getClusterRoles(ctx context.Context, rolesAppLabel []string) ([]*rbacv1.ClusterRole, error) {
+	res := []*rbacv1.ClusterRole{}
+	for _, roleName := range rolesAppLabel {
+		var clusterRoles rbacv1.ClusterRoleList
+		if err := r.List(ctx, &clusterRoles, client.MatchingLabels{consts.K8sAppNameKey: roleName}); err != nil {
+			return nil, err
+		}
+
+		if len(clusterRoles.Items) == 0 {
+			return nil, fmt.Errorf("required ClusterRole resources with %s=%q not found", consts.K8sAppNameKey, roleName)
+		}
+
+		for i := range clusterRoles.Items {
+			res = append(res, &clusterRoles.Items[i])
 		}
 	}
+	return res, nil
+}
 
-	if r.tenantClusterRolesClusterWide == nil || len(r.tenantClusterRolesClusterWide) == 0 {
-		r.tenantClusterRolesClusterWide = make([]*rbacv1.ClusterRole, len(tenantClusterRolesClusterWide))
-		for i, roleName := range tenantClusterRolesClusterWide {
-			role := &rbacv1.ClusterRole{}
-			if err := r.Get(ctx, client.ObjectKey{Name: roleName}, role); err != nil {
-				return err
-			}
-			r.tenantClusterRolesClusterWide[i] = role
+func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
+	if len(r.tenantClusterRoles) == 0 {
+		cRoles, err := r.getClusterRoles(ctx, tenantClusterRolesLabelValues)
+
+		if err != nil {
+			return fmt.Errorf("unable to get ClusterRoles to bind on tenant namespace: %w", err)
 		}
+
+		r.tenantClusterRoles = cRoles
+	}
+
+	if len(r.tenantClusterRolesClusterWide) == 0 {
+		cRoles, err := r.getClusterRoles(ctx, tenantClusterRolesClusterWideLabelValues)
+
+		if err != nil {
+			return fmt.Errorf("unable to get ClusterRoles to bind cluster-wide: %w", err)
+		}
+
+		r.tenantClusterRolesClusterWide = cRoles
 	}
 
 	return nil
@@ -338,13 +374,13 @@ func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *a
 func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	// Delete binding of cluster roles cluster wide
 	if err := r.NamespaceManager.UnbindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
-		tenantClusterRolesClusterWide...); err != nil {
+		r.tenantClusterRolesClusterWide...); err != nil {
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideUnbindingFailed", err.Error())
 		return err
 	}
 
 	// Delete binding of cluster roles
-	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterID, tenantClusterRoles...); err != nil {
+	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterID, r.tenantClusterRoles...); err != nil {
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesUnbindingFailed", err.Error())
 		return err
 	}
