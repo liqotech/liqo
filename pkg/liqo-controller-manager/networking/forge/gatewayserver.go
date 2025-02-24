@@ -30,6 +30,7 @@ import (
 const (
 	DefaultGwServerType         = "networking.liqo.io/v1beta1/wggatewayservertemplates"
 	DefaultGwServerTemplateName = "wireguard-server"
+	DefaultGwServerLocation     = liqov1beta1.ProviderRole
 	DefaultGwServerServiceType  = corev1.ServiceTypeLoadBalancer
 	DefaultGwServerPort         = 51840
 	DefaultKeysDir              = "/etc/wireguard/keys"

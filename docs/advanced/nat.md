@@ -9,12 +9,15 @@ This page describes how to configure Liqo in the above scenarios.
 
 ![The provider is behind a NAT](../_static/images/advanced/nat/provider-nat.svg)
 
-The `liqoctl peer` command configures the gateway server on the provider cluster.
+The `liqoctl peer` command by default configures the gateway server on the provider cluster.
 However, there may be cases where the provider cluster's nodes are not directly reachable, such as when they are behind a NAT, while the consumer cluster is directly accessible.
 For instance, in the image above, cluster 2 is behind a NAT and is therefore not directly reachable.
 
 This problem can be solved by swapping the roles of the gateways, hence configuring the client on the cluster provider and the server on the consumer.
-To do so, you need to use [manual peering](./manual-peering.md), setting the inter-cluster network up separately.
+To do so, you have two options:
+
+- run the `liqoctl peer` command with the `--server-service-location=Consumer` flag
+- perform a [manual peering](./manual-peering.md), setting the inter-cluster network up separately
 
 ![The gateway server has been on the consumer side](../_static/images/advanced/nat/consumer-nat.svg)
 

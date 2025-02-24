@@ -20,6 +20,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/authenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -40,6 +41,7 @@ type Options struct {
 
 	// Networking options
 	NetworkingDisabled          bool
+	ServerServiceLocation       *argsutils.StringEnum
 	ServerServiceType           *argsutils.StringEnum
 	ServerServicePort           int32
 	ServerServiceNodePort       int32
@@ -65,6 +67,9 @@ type Options struct {
 func NewOptions(localFactory *factory.Factory) *Options {
 	return &Options{
 		LocalFactory: localFactory,
+		ServerServiceLocation: argsutils.NewEnum(
+			[]string{string(liqov1beta1.ConsumerRole), string(liqov1beta1.ProviderRole)},
+			string(nwforge.DefaultGwServerLocation)),
 		ServerServiceType: argsutils.NewEnum(
 			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort), string(corev1.ServiceTypeClusterIP)},
 			string(nwforge.DefaultGwServerServiceType)),
@@ -109,9 +114,18 @@ func (o *Options) RunPeer(ctx context.Context) error {
 }
 
 func ensureNetworking(ctx context.Context, o *Options) error {
+	localFactory := o.LocalFactory
+	remoteFactory := o.RemoteFactory
+
+	// Invert the local and remote factories if the server service position is Consumer.
+	if o.ServerServiceLocation.Value == string(liqov1beta1.ConsumerRole) {
+		localFactory = o.RemoteFactory
+		remoteFactory = o.LocalFactory
+	}
+
 	networkOptions := network.Options{
-		LocalFactory:  o.LocalFactory,
-		RemoteFactory: o.RemoteFactory,
+		LocalFactory:  localFactory,
+		RemoteFactory: remoteFactory,
 
 		Timeout:        o.Timeout,
 		Wait:           true,
@@ -119,7 +133,7 @@ func ensureNetworking(ctx context.Context, o *Options) error {
 
 		ServerGatewayType:           nwforge.DefaultGwServerType,
 		ServerTemplateName:          nwforge.DefaultGwServerTemplateName,
-		ServerTemplateNamespace:     o.RemoteFactory.LiqoNamespace,
+		ServerTemplateNamespace:     remoteFactory.LiqoNamespace,
 		ServerServiceType:           o.ServerServiceType,
 		ServerServicePort:           o.ServerServicePort,
 		ServerServiceNodePort:       o.ServerServiceNodePort,
@@ -127,7 +141,7 @@ func ensureNetworking(ctx context.Context, o *Options) error {
 
 		ClientGatewayType:       nwforge.DefaultGwClientType,
 		ClientTemplateName:      nwforge.DefaultGwClientTemplateName,
-		ClientTemplateNamespace: o.LocalFactory.LiqoNamespace,
+		ClientTemplateNamespace: localFactory.LiqoNamespace,
 		ClientConnectAddress:    o.ClientConnectAddress,
 		ClientConnectPort:       o.ClientConnectPort,
 
