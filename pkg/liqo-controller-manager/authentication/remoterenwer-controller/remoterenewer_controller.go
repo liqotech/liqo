@@ -105,7 +105,7 @@ func (r *RemoteRenewerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, renew.Spec.ConsumerClusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, renew.Spec.ConsumerClusterID, tenantNamespace.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

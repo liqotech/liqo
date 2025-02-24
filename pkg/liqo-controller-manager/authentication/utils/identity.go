@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -32,7 +33,7 @@ func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
 	remoteClusterID liqov1beta1.ClusterID, remoteTenantNamespace string,
 	localClusterID liqov1beta1.ClusterID) (*authv1beta1.Identity, error) {
 	// Get tenant with the given remote clusterID.
-	tenant, err := getters.GetTenantByClusterID(ctx, cl, remoteClusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, cl, remoteClusterID, corev1.NamespaceAll)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while retrieving tenant: %w", err)
 	}

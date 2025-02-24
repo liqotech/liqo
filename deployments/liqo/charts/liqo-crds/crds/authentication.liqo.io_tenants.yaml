@@ -16,7 +16,7 @@ spec:
     shortNames:
     - tn
     singular: tenant
-  scope: Cluster
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.tenantCondition
