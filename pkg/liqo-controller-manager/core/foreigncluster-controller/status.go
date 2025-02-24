@@ -262,7 +262,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 	clusterID := fc.Spec.ClusterID
 
 	// Check if a Tenant resource for this cluser exists.
-	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, clusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Tenant resource not found for ForeignCluster %q", clusterID)

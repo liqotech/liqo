@@ -33,7 +33,7 @@ const liqoctlGenerateConfigHelp = `Generate the Identity resource to be applied 
 
 The Identity is generated from the Tenant associated with the provided remote clusterID.
 It is intended to be applied on the remote consumer cluster.
-This command generates only Identities used by the Liqo control plane for authentication purposes (e.g., CRDReplicator).   
+This command generates only Identities used by the Liqo control plane for authentication purposes (e.g., CRDReplicator).
 
 Examples:
   $ {{ .Executable }} generate identity --remote-cluster-id remote-cluster-id`
@@ -85,7 +85,8 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	// Forge Identity resource for the remote cluster and output it.
-	identity, err := authutils.GenerateIdentityControlPlane(ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), o.remoteTenantNs, localClusterID)
+	identity, err := authutils.GenerateIdentityControlPlane(
+		ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), o.remoteTenantNs, localClusterID, nil)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while generating identity: %v", output.PrettyErr(err)))
 		return err

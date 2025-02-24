@@ -130,7 +130,7 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// Get Tenant associated with the ResourceSlice.
-	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, *resourceSlice.Spec.ConsumerClusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, *resourceSlice.Spec.ConsumerClusterID, tenantNamespace.Name)
 	if err != nil {
 		klog.Errorf("Unable to get the Tenant for the ResourceSlice %q: %s", req.NamespacedName, err)
 		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "TenantNotFound", err.Error())
