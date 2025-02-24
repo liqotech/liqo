@@ -140,7 +140,7 @@ var _ = Describe("TenantNamespace", func() {
 				Expect(len(rb)).To(Equal(1))
 				checkRoleBinding(rb[0], namespace.Name, homeCluster, clusterRoles[0].Name)
 
-				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0].Name)
+				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0])
 				Expect(err).To(BeNil())
 
 				_, err = client.RbacV1().RoleBindings(namespace.Name).Get(ctx, rb[0].Name, metav1.GetOptions{})
@@ -158,7 +158,7 @@ var _ = Describe("TenantNamespace", func() {
 				checkRoleBinding(rb[0], namespace.Name, homeCluster, clusterRoles[0].Name)
 				checkRoleBinding(rb[1], namespace.Name, homeCluster, clusterRoles[1].Name)
 
-				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0].Name)
+				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0])
 				Expect(err).To(BeNil())
 
 				_, err = client.RbacV1().RoleBindings(namespace.Name).Get(ctx, rb[0].Name, metav1.GetOptions{})
@@ -169,7 +169,7 @@ var _ = Describe("TenantNamespace", func() {
 				Expect(err).To(BeNil())
 				Expect(kerrors.IsNotFound(err)).NotTo(BeTrue())
 
-				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[1].Name)
+				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[1])
 				Expect(err).To(BeNil())
 			})
 
@@ -192,7 +192,7 @@ var _ = Describe("TenantNamespace", func() {
 				Expect(err).To(BeNil())
 				Expect(len(rbs.Items)).To(BeNumerically("==", 1))
 
-				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0].Name)
+				err = namespaceManager.UnbindClusterRoles(ctx, homeCluster, clusterRoles[0])
 				Expect(err).To(BeNil())
 
 				_, err = client.RbacV1().RoleBindings(namespace.Name).Get(ctx, rb[0].Name, metav1.GetOptions{})

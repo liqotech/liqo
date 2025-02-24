@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var _ = Describe("ShadowPod Description", func() {
@@ -47,7 +48,7 @@ var _ = Describe("ShadowPod Description", func() {
 
 	BeforeEach(func() {
 
-		fakeNamespace = forgeNamespaceWithClusterID(clusterID)
+		fakeNamespace = testutil.FakeNamespaceWithClusterID(clusterID, tenantNamespace)
 
 		fakeClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(fakeNamespace).Build()
 

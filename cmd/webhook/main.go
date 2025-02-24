@@ -55,6 +55,7 @@ import (
 	routecfgwh "github.com/liqotech/liqo/pkg/webhooks/routeconfiguration"
 	"github.com/liqotech/liqo/pkg/webhooks/secretcontroller"
 	shadowpodswh "github.com/liqotech/liqo/pkg/webhooks/shadowpod"
+	tenantwh "github.com/liqotech/liqo/pkg/webhooks/tenant"
 	virtualnodewh "github.com/liqotech/liqo/pkg/webhooks/virtualnode"
 )
 
@@ -199,12 +200,26 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/validate/tenants", tenantwh.NewValidator(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/mutate/tenants", tenantwh.NewMutator(mgr.GetClient()))
 
 	// Register the secret controller
 	secretReconciler := secretcontroller.NewSecretReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("secret-controller"))
 	if err := secretReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to set up the secret controller: %v", err)
+		os.Exit(1)
+	}
+
+	// Configure an indexer for the Tenant resource names
+	// Add an index to the cache for a specific resource
+	if err := mgr.GetFieldIndexer().IndexField(
+		ctx,
+		&authv1beta1.Tenant{},
+		"metadata.name",
+		tenantwh.NameExtractor,
+	); err != nil {
+		klog.Errorf("Unable to set up Tenant cache indexes: %v", err)
 		os.Exit(1)
 	}
 

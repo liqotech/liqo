@@ -59,6 +59,7 @@ rules:
   - authentication.liqo.io
   resources:
   - resourceslices
+  - tenants
   verbs:
   - get
   - list

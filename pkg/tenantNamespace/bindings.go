@@ -16,6 +16,7 @@ package tenantnamespace
 
 import (
 	"context"
+	"maps"
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,15 +54,15 @@ func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster 
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...string) error {
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) error {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	for _, clusterRole := range clusterRoles {
-		if err = nm.unbindClusterRole(ctx, namespace, clusterRole); err != nil {
+	for i := range clusterRoles {
+		if err = nm.unbindClusterRole(ctx, namespace, clusterRoles[i].Name); err != nil {
 			klog.Error(err)
 			return err
 		}
@@ -73,15 +74,20 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluste
 func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	name := getRoleBindingName(clusterRole.Name)
+	labels := map[string]string{
+		consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+		consts.RemoteClusterID:    string(cluster),
+	}
+	maps.Copy(labels, resource.GetGlobalLabels())
+
+	annotations := resource.GetGlobalAnnotations()
 
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace.Name,
-			Labels: map[string]string{
-				consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
-				consts.RemoteClusterID:    string(cluster),
-			},
+			Name:        name,
+			Namespace:   namespace.Name,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -145,14 +151,18 @@ func (nm *tenantNamespaceManager) BindClusterRolesClusterWide(ctx context.Contex
 func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, clusterRole *rbacv1.ClusterRole) (*rbacv1.ClusterRoleBinding, error) {
 	name := getClusterRoleBindingName(clusterRole.Name, cluster)
+	labels := map[string]string{
+		consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+		consts.RemoteClusterID:    string(cluster),
+	}
+	maps.Copy(labels, resource.GetGlobalLabels())
 
+	annotations := resource.GetGlobalAnnotations()
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
-				consts.RemoteClusterID:    string(cluster),
-			},
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -186,9 +196,9 @@ func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context
 
 // UnbindClusterRolesClusterWide deletes ClusterRoleBindings for the given ClusterRoles.
 func (nm *tenantNamespaceManager) UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
-	clusterRoles ...string) error {
-	for _, clusterRole := range clusterRoles {
-		if err := nm.unbindClusterRoleClusterWide(ctx, clusterRole, cluster); err != nil {
+	clusterRoles ...*rbacv1.ClusterRole) error {
+	for i := range clusterRoles {
+		if err := nm.unbindClusterRoleClusterWide(ctx, clusterRoles[i].Name, cluster); err != nil {
 			klog.Error(err)
 			return err
 		}

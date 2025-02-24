@@ -16,6 +16,7 @@ package forge
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -24,22 +25,23 @@ import (
 
 // TenantForRemoteCluster forges a Tenant resource to be applied on a remote cluster.
 func TenantForRemoteCluster(localClusterID liqov1beta1.ClusterID,
-	publicKey, csr, signature []byte, proxyURL *string) *authv1beta1.Tenant {
-	tenant := Tenant(localClusterID)
+	publicKey, csr, signature []byte, namespace, proxyURL *string) *authv1beta1.Tenant {
+	tenant := Tenant(localClusterID, namespace)
 	MutateTenant(tenant, localClusterID, publicKey, csr, signature, proxyURL)
 
 	return tenant
 }
 
 // Tenant forges a Tenant resource.
-func Tenant(remoteClusterID liqov1beta1.ClusterID) *authv1beta1.Tenant {
+func Tenant(remoteClusterID liqov1beta1.ClusterID, namespace *string) *authv1beta1.Tenant {
 	return &authv1beta1.Tenant{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: authv1beta1.GroupVersion.String(),
 			Kind:       authv1beta1.TenantKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: string(remoteClusterID),
+			Name:      string(remoteClusterID),
+			Namespace: ptr.Deref(namespace, ""),
 		},
 	}
 }

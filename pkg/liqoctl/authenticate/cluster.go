@@ -152,9 +152,17 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 }
 
 // GenerateTenant generate the tenant resource to be applied on the provider cluster.
-func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyURL *string) (*authv1beta1.Tenant, error) {
+func (c *Cluster) GenerateTenant(
+	ctx context.Context, signedNonce []byte, remoteTenantNamespace string, proxyURL *string) (*authv1beta1.Tenant, error) {
 	s := c.local.Printer.StartSpinner("Generating tenant")
-	tenant, err := authutils.GenerateTenant(ctx, c.local.CRClient, c.LocalClusterID, c.local.LiqoNamespace, signedNonce, proxyURL)
+	tenant, err := authutils.GenerateTenant(
+		ctx, c.local.CRClient,
+		c.LocalClusterID,
+		c.local.LiqoNamespace,
+		remoteTenantNamespace,
+		signedNonce,
+		proxyURL,
+	)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to generate tenant: %v", output.PrettyErr(err)))
 		return nil, err
@@ -176,7 +184,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1beta1.Tenant) 
 	s.Success("Tenant correctly applied on provider cluster")
 
 	// Wait for the tenant status to be updated.
-	if err := c.waiter.ForTenantStatus(ctx, c.RemoteClusterID); err != nil {
+	if err := c.waiter.ForTenantStatus(ctx, c.RemoteClusterID, tenant.Namespace); err != nil {
 		return err
 	}
 
@@ -187,7 +195,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1beta1.Tenant) 
 func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace string) (*authv1beta1.Identity, error) {
 	s := c.local.Printer.StartSpinner("Generating identity")
 	identity, err := authutils.GenerateIdentityControlPlane(ctx, c.local.CRClient,
-		c.RemoteClusterID, remoteTenantNamespace, c.LocalClusterID)
+		c.RemoteClusterID, remoteTenantNamespace, c.LocalClusterID, &c.TenantNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while generating identity: %v", output.PrettyErr(err)))
 		return nil, err
