@@ -290,6 +290,29 @@ func GetTenantByClusterID(
 	}
 }
 
+// GetTenantByClusterID returns the Tenant resource for the given cluster id.
+func GetTenantByName(
+	ctx context.Context, cl client.Client, name string, tenantNamespace string) (*authv1beta1.Tenant, error) {
+	list := new(authv1beta1.TenantList)
+	if err := cl.List(
+		ctx, list,
+		client.InNamespace(tenantNamespace),
+		client.MatchingFields{"metadata.name": name},
+	); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(authv1beta1.TenantGroupResource, name)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+			" when only one was expected", authv1beta1.TenantResource, name)
+	}
+}
+
 // GetControlPlaneIdentityByClusterID returns the Identity of type ControlPlane for the given cluster id.
 func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
 	clusterID liqov1beta1.ClusterID) (*authv1beta1.Identity, error) {
