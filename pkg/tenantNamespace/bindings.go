@@ -54,15 +54,15 @@ func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster 
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...string) error {
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) error {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	for _, clusterRole := range clusterRoles {
-		if err = nm.unbindClusterRole(ctx, namespace, clusterRole); err != nil {
+	for i := range clusterRoles {
+		if err = nm.unbindClusterRole(ctx, namespace, clusterRoles[i].Name); err != nil {
 			klog.Error(err)
 			return err
 		}
@@ -196,9 +196,9 @@ func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context
 
 // UnbindClusterRolesClusterWide deletes ClusterRoleBindings for the given ClusterRoles.
 func (nm *tenantNamespaceManager) UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
-	clusterRoles ...string) error {
-	for _, clusterRole := range clusterRoles {
-		if err := nm.unbindClusterRoleClusterWide(ctx, clusterRole, cluster); err != nil {
+	clusterRoles ...*rbacv1.ClusterRole) error {
+	for i := range clusterRoles {
+		if err := nm.unbindClusterRoleClusterWide(ctx, clusterRoles[i].Name, cluster); err != nil {
 			klog.Error(err)
 			return err
 		}
