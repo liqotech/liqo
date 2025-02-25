@@ -217,14 +217,14 @@ E2E_TARGETS = e2e-dir \
 	ctl \
 	e2e-infra \
 	installer/kyverno/install \
-	installer/liqoctl/setup \
+	installer/liqo/setup \
 	telemetry \
-	installer/liqoctl/peer \
+	installer/liqo/peer \
 	e2e/postinstall \
 	e2e/cruise \
 	metrics \
-	installer/liqoctl/unpeer \
-	installer/liqoctl/uninstall \
+	installer/liqo/unpeer \
+	installer/liqo/uninstall \
 	e2e/postuninstall
 
 # Export these variables before to run the e2e tests

@@ -41,9 +41,9 @@ VM_TYPE="Standard_B2s"
 REGIONS=("italynorth" "francecentral" "germanywestcentral" "switzerlandnorth")
 
 POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"true"}
-CNI=${CNI:-"azure"} # "azure", "kubenet", "none"
+CNI=${CNI:-"azure-overlay"} # "azure-overlay", "azure-flat", "kubenet", "none"
 
-if [[ "${CNI}" == "azure" ]]; then
+if [[ "${CNI}" == "azure-flat" || "${CNI}" == "azure-overlay" ]]; then
     POD_CIDR_OVERLAPPING="true"
 fi
 
@@ -75,12 +75,22 @@ function aks_create_cluster() {
     args+=("--tier free")
     args+=("--generate-ssh-keys")
 
-    args+=("--network-plugin $CNI")
+    if [[ "${CNI}" == "azure-flat" || "${CNI}" == "azure-overlay" ]]; then
+        args+=("--network-plugin azure")
+    else
+        args+=("--network-plugin $CNI")
+    fi
+
+    if [[ "${CNI}" == "azure-overlay" ]]; then
+        args+=("--network-plugin-mode overlay")
+    fi
+    
     if [[ "${CNI}" == "kubenet" ]]; then
         args+=("--pod-cidr $pod_cidr")
     fi
     
     ARGS="${args[*]}"
+    echo "Running: az aks create $ARGS"
     eval "az aks create $ARGS"
 
     az aks get-credentials \

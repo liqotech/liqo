@@ -42,18 +42,6 @@ install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
 
 install_helm "${OS}" "${ARCH}"
 
-# Install AZ cli
-if ! command -v az &> /dev/null
-then
-    echo "Azure CLI could not be found. Downloading and installing..."
-    if [[ "${OS}" == "linux" ]]
-    then
-        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-    elif [[ "${OS}" == "darwin" ]]
-    then
-        brew update && brew install azure-cli
-    fi
-fi
+install_az "${OS}"
 
-echo "Azure CLI version:"
-az --version
+login_az "${AZ_USERNAME}" "${AZ_KEY}" "${AZ_TENANT_ID}"
