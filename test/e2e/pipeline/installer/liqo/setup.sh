@@ -102,6 +102,9 @@ do
   if [[ "${INFRA}" == "aks" ]]; then
     AKS_RESOURCE_GROUP="liqo${i}"
     COMMON_ARGS=("${COMMON_ARGS[@]}" --subscription-id "${AZ_SUBSCRIPTION_ID}" --resource-group-name "${AKS_RESOURCE_GROUP}" --resource-name "${CLUSTER_NAME}")
+    if [[ "${CNI}" == "azure-overlay" || "${CNI}" == "kubenet" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.fabric.config.gatewayMasqueradeBypass=false")
+    fi
   fi
 
   if [[ "${INFRA}" == "gke" ]]; then
