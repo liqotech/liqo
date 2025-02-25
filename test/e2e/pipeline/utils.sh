@@ -72,6 +72,7 @@ function check_supported_arch_and_os(){
 
 function forge_clustername() {
   local index=$1
+  RUNNER_NAME=$(echo "${RUNNER_NAME}" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
   RUNNER_NAME=${RUNNER_NAME:-"test"}
   RUNNER_NAME=${RUNNER_NAME#liqo-runner-*-}
   local BASE_CLUSTER_NAME="cl-${RUNNER_NAME}-"
@@ -90,6 +91,7 @@ function install_kubectl() {
   if ! command -v "${KUBECTL}" &> /dev/null
   then
     echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
+    echo "Downloading https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"
     if ! curl --fail -Lo "${KUBECTL}" "https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"; then
       echo "Error: Unable to download kubectl for '${os}-${arch}'"
       return 1
@@ -156,9 +158,9 @@ function install_gcloud() {
   cd -
 
   #Login to gcloud
-  echo "${GCLOUD_KEY}" | base64 -d > "${GCLOUD_KEY_FILE}" 
+  echo "${GCLOUD_KEY}" | base64 -d > "${BINDIR}/gke_key_file.json"
   "${GCLOUD}" auth activate-service-account --key-file="${BINDIR}/gke_key_file.json"
-  "${GCLOUD}" config set project "${GCLOUD_PROJECT_ID}" -q
+  "${GCLOUD}" components install gke-gcloud-auth-plugin
 }
 
 function install_kyverno() {

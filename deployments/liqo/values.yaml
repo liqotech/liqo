@@ -468,7 +468,11 @@ ipam:
   # -- Set of network pools to perform the automatic address mapping in Liqo.
   # Network pools are used to map a cluster network into another one in order to prevent conflicts.
   # If left empty, it is defaulted to the private addresses ranges: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
-  pools: []
+  pools:
+  - "10.0.0.0/8"
+  - "192.168.0.0/16"
+  - "172.16.0.0/12"
+  - "34.118.224.0/20" # GKE service CIDR
 
 crdReplicator:
   pod:

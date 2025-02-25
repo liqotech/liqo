@@ -287,7 +287,7 @@ func overrideArgsEKS(args *networkTestsArgs) {
 func overrideArgsGKE(args *networkTestsArgs) {
 	args.failfast = false
 	args.loadBalancer = true
-	args.nodePortExt = false // nodeport are not exposed by default // TODO: modify GKE plugin to open nodeport firewall
+	args.nodePortExt = true // nodeport are not exposed by default, modify GKE plugin to open nodeport firewall
 	args.podNodePort = false
 	args.ip = false
 }
