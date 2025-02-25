@@ -41,13 +41,14 @@ import (
 )
 
 var (
-	// tenantClusterRolesLabelValues is the list "app.kubernetes.io/name" label values assigned to the ClusterRoles to be binded to the control-plane Identity.
+	// tenantClusterRolesLabelValues is the list "app.kubernetes.io/name" label values assigned to the
+	// ClusterRoles to be binded to the control-plane Identity.
 	tenantClusterRolesLabelValues = []string{
 		"remote-controlplane",
 	}
 
-	// tenantClusterRolesClusterWideLabelValues is the list "app.kubernetes.io/name" label values assigned to the ClusterRoles to be binded to the
-	// control-plane Identity with cluster-wide scope.
+	// tenantClusterRolesClusterWideLabelValues is the list "app.kubernetes.io/name" label values assigned to the
+	// ClusterRoles to be binded to the control-plane Identity with cluster-wide scope.
 	tenantClusterRolesClusterWideLabelValues = []string{
 		"virtual-kubelet-remote-clusterwide",
 	}
@@ -279,24 +280,24 @@ func (r *TenantReconciler) getClusterRoles(ctx context.Context, rolesAppLabel []
 }
 
 func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
-	if r.tenantClusterRoles == nil || len(r.tenantClusterRoles) == 0 {
+	if len(r.tenantClusterRoles) == 0 {
 		cRoles, err := r.getClusterRoles(ctx, tenantClusterRolesLabelValues)
 
 		if err != nil {
-			return fmt.Errorf("Unable to get ClusterRoles to bind on tenant namespace: %w", err)
-		} else {
-			r.tenantClusterRoles = cRoles
+			return fmt.Errorf("unable to get ClusterRoles to bind on tenant namespace: %w", err)
 		}
+
+		r.tenantClusterRoles = cRoles
 	}
 
-	if r.tenantClusterRolesClusterWide == nil || len(r.tenantClusterRolesClusterWide) == 0 {
+	if len(r.tenantClusterRolesClusterWide) == 0 {
 		cRoles, err := r.getClusterRoles(ctx, tenantClusterRolesClusterWideLabelValues)
 
 		if err != nil {
-			return fmt.Errorf("Unable to get ClusterRoles to bind cluster-wide: %w", err)
-		} else {
-			r.tenantClusterRolesClusterWide = cRoles
+			return fmt.Errorf("unable to get ClusterRoles to bind cluster-wide: %w", err)
 		}
+
+		r.tenantClusterRolesClusterWide = cRoles
 	}
 
 	return nil

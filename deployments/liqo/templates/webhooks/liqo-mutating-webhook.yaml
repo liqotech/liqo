@@ -96,3 +96,20 @@ webhooks:
         resources: ["firewallconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: tenant.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate/tenants"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["authentication.liqo.io"]
+        apiVersions: ["v1beta1"]
+        resources: ["tenants"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
