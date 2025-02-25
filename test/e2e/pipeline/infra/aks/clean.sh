@@ -27,9 +27,17 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-PIDS=()
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
+
 
 # Cleaning all remaining clusters
+
+PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
     AKS_RESOURCE_GROUP="liqo${i}"
@@ -41,7 +49,7 @@ do
         az aks delete --resource-group "${AKS_RESOURCE_GROUP}" --name "${CLUSTER_NAME}" --yes &
         PIDS+=($!)
     else
-        echo "Cluster ${CLUSTER_NAME}${i} does not exist"
+        echo "Cluster ${CLUSTER_NAME} does not exist"
     fi
 done
 
@@ -50,6 +58,8 @@ for PID in "${PIDS[@]}"; do
 done
 
 # Cleaning the resource group
+
+PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
     AKS_RESOURCE_GROUP="liqo${i}"

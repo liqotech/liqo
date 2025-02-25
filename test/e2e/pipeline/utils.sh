@@ -163,6 +163,33 @@ function install_gcloud() {
   "${GCLOUD}" components install gke-gcloud-auth-plugin
 }
 
+function install_az() {
+  local os=$1
+
+  if ! command -v az &> /dev/null
+  then
+      echo "Azure CLI could not be found. Downloading and installing..."
+      if [[ "${os}" == "linux" ]]
+      then
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      elif [[ "${os}" == "darwin" ]]
+      then
+          brew update && brew install azure-cli
+      fi
+  fi
+
+  echo "Azure CLI version:"
+  az --version
+}
+
+function login_az() {
+  local username=$1
+  local key=$2
+  local tenant_id=$3
+
+  az login --service-principal --username "${username}" --password "${key}" --tenant "${tenant_id}"
+}
+
 function install_kyverno() {
   local kubeconfig=$1
 
