@@ -236,7 +236,7 @@ func (c *Cluster) GetAPIServerProxyRemappedIP(ctx context.Context) (string, erro
 
 // RemapIPExternalCIDR remaps the given IP address to the external CIDR of the remote cluster.
 func (c *Cluster) RemapIPExternalCIDR(ctx context.Context, ip string) (string, error) {
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, c.RemoteClusterID)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, c.RemoteClusterID, c.TenantNamespace)
 	if err != nil {
 		return "", err
 	}

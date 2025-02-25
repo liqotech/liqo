@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,15 +32,19 @@ import (
 )
 
 // GetPodCIDRNetwork retrieves the Network resource of type PodCIDR.
-func GetPodCIDRNetwork(ctx context.Context, cl client.Client) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.NetworkTypeLabelKey: string(consts.NetworkTypePodCIDR),
-	}))
+func GetPodCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
+	return liqogetters.GetUniqueNetworkByLabel(
+		ctx, cl,
+		labels.SelectorFromSet(map[string]string{
+			consts.NetworkTypeLabelKey: string(consts.NetworkTypePodCIDR),
+		}),
+		liqoNamespace,
+	)
 }
 
 // GetPodCIDR retrieves the podCIDR of the local cluster.
-func GetPodCIDR(ctx context.Context, cl client.Client) (string, error) {
-	nw, err := GetPodCIDRNetwork(ctx, cl)
+func GetPodCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	nw, err := GetPodCIDRNetwork(ctx, cl, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
@@ -52,15 +57,15 @@ func GetPodCIDR(ctx context.Context, cl client.Client) (string, error) {
 }
 
 // GetServiceCIDRNetwork retrieves the Network resource of type ServiceCIDR.
-func GetServiceCIDRNetwork(ctx context.Context, cl client.Client) (*ipamv1alpha1.Network, error) {
+func GetServiceCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
 	return liqogetters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
 		consts.NetworkTypeLabelKey: string(consts.NetworkTypeServiceCIDR),
-	}))
+	}), liqoNamespace)
 }
 
 // GetServiceCIDR retrieves the serviceCIDR of the local cluster.
-func GetServiceCIDR(ctx context.Context, cl client.Client) (string, error) {
-	nw, err := GetServiceCIDRNetwork(ctx, cl)
+func GetServiceCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	nw, err := GetServiceCIDRNetwork(ctx, cl, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
@@ -73,15 +78,19 @@ func GetServiceCIDR(ctx context.Context, cl client.Client) (string, error) {
 }
 
 // GetExternalCIDRNetwork retrieves the Network resource of type ExternalCIDR.
-func GetExternalCIDRNetwork(ctx context.Context, cl client.Client) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.NetworkTypeLabelKey: string(consts.NetworkTypeExternalCIDR),
-	}))
+func GetExternalCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
+	return liqogetters.GetUniqueNetworkByLabel(
+		ctx, cl,
+		labels.SelectorFromSet(map[string]string{
+			consts.NetworkTypeLabelKey: string(consts.NetworkTypeExternalCIDR),
+		}),
+		liqoNamespace,
+	)
 }
 
 // GetExternalCIDR retrieves the externalCIDR of the local cluster.
-func GetExternalCIDR(ctx context.Context, cl client.Client) (string, error) {
-	nw, err := GetExternalCIDRNetwork(ctx, cl)
+func GetExternalCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	nw, err := GetExternalCIDRNetwork(ctx, cl, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
@@ -94,15 +103,19 @@ func GetExternalCIDR(ctx context.Context, cl client.Client) (string, error) {
 }
 
 // GetInternalCIDRNetwork retrieves the Network resource of type InternalCIDR.
-func GetInternalCIDRNetwork(ctx context.Context, cl client.Client) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.NetworkTypeLabelKey: string(consts.NetworkTypeInternalCIDR),
-	}))
+func GetInternalCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
+	return liqogetters.GetUniqueNetworkByLabel(
+		ctx, cl,
+		labels.SelectorFromSet(map[string]string{
+			consts.NetworkTypeLabelKey: string(consts.NetworkTypeInternalCIDR),
+		}),
+		liqoNamespace,
+	)
 }
 
 // GetInternalCIDR retrieves the internalCIDR of the local cluster.
-func GetInternalCIDR(ctx context.Context, cl client.Client) (string, error) {
-	nw, err := GetInternalCIDRNetwork(ctx, cl)
+func GetInternalCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	nw, err := GetInternalCIDRNetwork(ctx, cl, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
@@ -116,9 +129,13 @@ func GetInternalCIDR(ctx context.Context, cl client.Client) (string, error) {
 
 // GetReservedSubnetNetworks retrieves the Network resources of type Reserved.
 func GetReservedSubnetNetworks(ctx context.Context, cl client.Client) ([]ipamv1alpha1.Network, error) {
-	return liqogetters.GetNetworksByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.NetworkTypeLabelKey: string(consts.NetworkTypeReserved),
-	}))
+	return liqogetters.GetNetworksByLabel(
+		ctx,
+		cl, labels.SelectorFromSet(map[string]string{
+			consts.NetworkTypeLabelKey: string(consts.NetworkTypeReserved),
+		}),
+		corev1.NamespaceAll,
+	)
 }
 
 // GetReservedSubnets retrieves the reserved subnets of the local cluster.

@@ -71,6 +71,9 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) paths="{./pkg/gateway/...,./cmd/gateway/...,./pkg/firewall/...,./pkg/route/...}" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-gateway-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="{./cmd/fabric/...,./pkg/firewall/...,./pkg/route/...,./pkg/fabric/...}" rbac:roleName=liqo-fabric output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-fabric-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-fabric-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="{./cmd/ipam/...,./pkg/ipam/...}" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-ipam-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/tenant-ns" rbac:roleName=liqo-peering-user-tenant-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-tenant-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-peering-user-tenant-ns-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/liqo-ns" rbac:roleName=liqo-peering-user-liqo-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-liqo-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-peering-user-liqo-ns-Role.yaml
+
 
 # Install gci if not available
 gci:
@@ -158,7 +161,7 @@ generate-groups:
 	    --output-pkg "github.com/liqotech/liqo/pkg/client" \
 	    --with-watch \
 	    --boilerplate "./hack/boilerplate.go.txt" \
-	    ${PWD}/apis 
+	    ${PWD}/apis
 
 # Generate gRPC files
 grpc: protoc

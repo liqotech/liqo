@@ -176,19 +176,10 @@ func (o *Options) disableAuthentication(ctx context.Context) error {
 }
 
 func (o *Options) isBidirectionalPeering(ctx context.Context) (bool, error) {
-	consumerFC, err := fcutils.GetForeignClusterByID(ctx, o.RemoteFactory.CRClient, o.consumerClusterID)
+	consumerFC, err := fcutils.GetForeignClusterByID(ctx, o.LocalFactory.CRClient, o.providerClusterID)
 	if err != nil {
 		return false, err
 	}
 
-	providerFC, err := fcutils.GetForeignClusterByID(ctx, o.LocalFactory.CRClient, o.providerClusterID)
-	if err != nil {
-		return false, err
-	}
-
-	if consumerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole || providerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole {
-		return true, nil
-	}
-
-	return false, nil
+	return consumerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole, nil
 }
