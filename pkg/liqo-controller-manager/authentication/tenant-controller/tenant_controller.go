@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -109,6 +110,21 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 		klog.Errorf("Unable to get the Tenant %q: %s", req.Name, err)
 		return ctrl.Result{}, err
+	}
+
+	// Check if the tenant has a finalizer and if not, add it.
+	if !controllerutil.ContainsFinalizer(tenant, tenantControllerFinalizer) {
+		return ctrl.Result{}, r.enforceTenantFinalizerPresence(ctx, tenant)
+	}
+
+	// If the Tenant is being deleted, we remove the finalizer and delete related resources.
+	if !tenant.DeletionTimestamp.IsZero() {
+		// To allow the deletion of the resource we should first remove the ClusterRoleBindings.
+		if err := r.NamespaceManager.UnbindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, tenantClusterRolesClusterWide...); err != nil {
+			klog.Errorf("Unable to unbind the ClusterRolesClusterWide for the Tenant %q before deletion: %s", req.Name, err)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, r.enforceTenantFinalizerAbsence(ctx, tenant)
 	}
 
 	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources and
@@ -229,8 +245,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			return ctrl.Result{}, err
 		}
 
-		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
-			tenant, r.tenantClusterRolesClusterWide...)
+		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
 		if err != nil {
 			klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
