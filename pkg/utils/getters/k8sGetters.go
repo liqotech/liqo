@@ -290,7 +290,7 @@ func GetTenantByClusterID(
 	}
 }
 
-// GetTenantByClusterID returns the Tenant resource for the given cluster id.
+// GetTenantByName returns the Tenant resource given its name.
 func GetTenantByName(
 	ctx context.Context, cl client.Client, name string, tenantNamespace string) (*authv1beta1.Tenant, error) {
 	list := new(authv1beta1.TenantList)
