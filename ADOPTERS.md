@@ -6,10 +6,11 @@ If your organization is using Liqo and would like to be featured here, feel free
 
 ## Adopters
 
-| Company/Organization Name                | Industry Vertical                  | Country       | Year | Use Case Type                                                                                                       |
-| ---------------------------------------- | ---------------------------------- | ------------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
-| [**CERN**](https://home.cern/)           | Research & Scientific Institution  | Switzerland   | 2025 | multicluster solutions experimentation                                                                              |
-| [**TIM S.p.A.**](https://www.tim.it/)    | Telco                              | Italy         | 2024 | solution to support PostgreSQL “Multi-cluster” deployment to ensure High-Availability across two different regions  |
-| [**Bot Auto**](https://bot.auto)         | Transportation                     | USA           | 2023 | run workflows via argo workflows in multiple clusters with single workflow control plane                            |
-| [**Fluidos**](https://fluidos.eu/)       | Cross                              | EU            | 2023 | dynamic multi-cluster resource sharing, workload offloading, cross-cluster networking                               |
-| [**Myrtus**](https://myrtus-project.eu/) | Cross                              | EU            | 2025 | seamless computing continuum across cloud, fog, and edge environments                                               |
+| Company/Organization Name                                           | Industry Vertical                  | Country       | Year | Use Case Type                                                                                                       |
+| ------------------------------------------------------------------- | ---------------------------------- | ------------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
+| [**CERN**](https://home.cern/)                                      | Research & Scientific Institution  | Switzerland   | 2025 | multicluster solutions experimentation                                                                              |
+| [**TIM S.p.A.**](https://www.tim.it/)                               | Telco                              | Italy         | 2024 | solution to support PostgreSQL “Multi-cluster” deployment to ensure High-Availability across two different regions  |
+| [**Bot Auto**](https://bot.auto)                                    | Transportation                     | USA           | 2023 | run workflows via argo workflows in multiple clusters with single workflow control plane                            |
+| [**Fluidos**](https://fluidos.eu/)                                  | Cross                              | EU            | 2023 | dynamic multi-cluster resource sharing, workload offloading, cross-cluster networking                               |
+| [**Myrtus**](https://myrtus-project.eu/)                            | Cross                              | EU            | 2025 | seamless computing continuum across cloud, fog, and edge environments                                               |
+| [**Telefonica Research**](https://telefonicainnovaciondigital.com/) | Telco                              | Spain         | 2025 | Research of workload offloading and multicluster solutions                                                          |
