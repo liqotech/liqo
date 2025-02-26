@@ -547,6 +547,17 @@ affinity:
             operator: DoesNotExist
 ```
 
+#### Kube-proxy replacement
+
+Liqo networks present a limitation when used with cilium with *kube-proxy replacement*.
+In particular you won't be able to expose an **offloaded pod** with a *NodePort* or *LoadBalancer* service.
+This not limits the ability to expose **not offloaded pods** like you would normally do.
+
+```{admonition} Note
+Please consider that in kubernetes multicluster environments, the use of *NodePort* and *LoadBalancer*
+services to expose directly a remote pod is not a [best practice](https://github.com/kubernetes/enhancements/tree/master/keps/sig-multicluster/1645-multi-cluster-services-api#service-types).
+```
+
 ### Calico
 
 Liqo adds several interfaces to the cluster nodes to handle cross-cluster traffic routing.
