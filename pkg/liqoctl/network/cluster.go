@@ -146,13 +146,23 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 		// If the remote namespace is not set or it is the default one, create or retrieve the tenant namespace and
 		// set it as the remote network namespace.
 		var remoteTenantNs *corev1.Namespace
+		creationError := false
 		if createTenantNs {
 			remoteTenantNs, err = c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID)
-			if err != nil {
+			switch {
+			case apierrors.IsForbidden(err):
+				c.remote.Printer.Warning.Printfln(
+					"Current user has no permissions to create a namespace in the remote cluster. " +
+						"Checking whether a tenant namespace has been created in advance",
+				)
+				creationError = true
+			case err != nil:
 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating remote tenant namespace: %v", output.PrettyErr(err)))
 				return err
 			}
-		} else {
+		}
+
+		if !createTenantNs || creationError {
 			remoteTenantNs, err = c.remoteNamespaceManager.GetNamespace(ctx, c.localClusterID)
 			if err != nil {
 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving remote tenant namespace: %v", output.PrettyErr(err)))
@@ -339,12 +349,12 @@ func (c *Cluster) checkTemplateServerServiceLoadBalancer(template *unstructured.
 	return nil
 }
 
-// CheckNetworkInitialized checks if the network is initialized correctly.
+// CheckNetworkInitialized checks if the network is initialized correctly in the current cluster.
 func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
 	// Get the network Configuration.
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
@@ -392,7 +402,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, opts *forge.GwServerO
 
 	// Check if the GatewayServer already exists.
 	var name *string
-	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		return nil, err
 	} else if err == nil {
@@ -443,7 +453,7 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, opts *forge.GwClientO
 
 	// Check if the GatewayClient already exists.
 	var name *string
-	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		return nil, err
 	} else if err == nil {
@@ -474,7 +484,7 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 
 	// Check if the PublicKey already exists.
 	var name *string
-	pk, err := getters.GetPublicKeyByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	pk, err := getters.GetPublicKeyByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving public key: %v", output.PrettyErr(err)))
 		return err
@@ -503,11 +513,12 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1bet
 }
 
 // DeleteConfiguration deletes a Configuration.
-func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
+// If tenantNamespace is empty this function searches in all the namespaces in the cluster.
+func (c *Cluster) DeleteConfiguration(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, tenantNs string) error {
 	s := c.local.Printer.StartSpinner("Deleting network configuration")
 
 	// Retrieve Configuration.
-	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, remoteClusterID, tenantNs)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail("An error occurred while retrieving network configuration: ", output.PrettyErr(err))
 		return err
@@ -536,7 +547,7 @@ func (c *Cluster) DeleteGatewayServer(ctx context.Context, remoteClusterID liqov
 	s := c.local.Printer.StartSpinner("Deleting gateway server")
 
 	// Retrieve GatewayServer.
-	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail("An error occurred while retrieving gateway server: ", output.PrettyErr(err))
 		return err
@@ -565,7 +576,7 @@ func (c *Cluster) DeleteGatewayClient(ctx context.Context, remoteClusterID liqov
 	s := c.local.Printer.StartSpinner("Deleting gateway client")
 
 	// Retrieve GatewayClient.
-	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, remoteClusterID, c.localNetworkNamespace)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail("An error occurred while retrieving gateway client: ", output.PrettyErr(err))
 		return err
@@ -591,7 +602,7 @@ func (c *Cluster) DeleteGatewayClient(ctx context.Context, remoteClusterID liqov
 
 // CheckAlreadyEstablishedForGwServer checks if a GatewayServer is already established.
 func (c *Cluster) CheckAlreadyEstablishedForGwServer(ctx context.Context) (bool, error) {
-	_, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	_, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID, c.localNetworkNamespace)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return false, err
@@ -604,7 +615,7 @@ func (c *Cluster) CheckAlreadyEstablishedForGwServer(ctx context.Context) (bool,
 
 // CheckAlreadyEstablishedForGwClient checks if a GatewayClient is already established.
 func (c *Cluster) CheckAlreadyEstablishedForGwClient(ctx context.Context) (bool, error) {
-	_, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	_, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID, c.localNetworkNamespace)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return false, err

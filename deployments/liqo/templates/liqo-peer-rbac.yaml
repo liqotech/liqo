@@ -1,17 +1,18 @@
 {{- $peeringroles := (merge (dict "name" "peering-user" "module" "peering-user") .) -}}
-
+{{- $tenantNsRoleName := printf "%s-tenant-ns" (include "liqo.prefixedName" $peeringroles) -}}
+{{- $liqoNsRoleName := printf "%s-liqo-ns" (include "liqo.prefixedName" $peeringroles) -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "liqo.prefixedName" $peeringroles}}
+  name: {{ $tenantNsRoleName }}
   labels:
   {{- include "liqo.labels" $peeringroles| nindent 4 }}
-{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringroles))) }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" $tenantNsRoleName)) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "liqo.prefixedName" $peeringroles}}
+  name: {{ $liqoNsRoleName}}
   labels:
   {{- include "liqo.labels" $peeringroles| nindent 4 }}
-{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringroles))) }}
+{{ .Files.Get (include "liqo.role-filename" (dict "prefix" $liqoNsRoleName)) }}

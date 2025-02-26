@@ -93,7 +93,7 @@ func (o *Options) RunAuthenticate(ctx context.Context) error {
 	}
 
 	// In the consumer cluster, forge a tenant resource to be applied on the provider cluster
-	tenant, err := consumer.GenerateTenant(ctx, signedNonce, &o.ProxyURL)
+	tenant, err := consumer.GenerateTenant(ctx, signedNonce, provider.TenantNamespace, &o.ProxyURL)
 	if err != nil {
 		return err
 	}

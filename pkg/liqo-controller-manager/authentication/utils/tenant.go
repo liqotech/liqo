@@ -32,7 +32,7 @@ import (
 // It needs the local cluster identity to get the authentication keys and the signature
 // of the nonce given by the provider cluster to complete the authentication challenge.
 func GenerateTenant(ctx context.Context, cl client.Client,
-	localClusterID liqov1beta1.ClusterID, liqoNamespace string,
+	localClusterID liqov1beta1.ClusterID, liqoNamespace, remoteTenantNamespace string,
 	signature []byte, proxyURL *string) (*authv1beta1.Tenant, error) {
 	// Get public and private keys of the local cluster.
 	privateKey, publicKey, err := authentication.GetClusterKeys(ctx, cl, liqoNamespace)
@@ -47,5 +47,5 @@ func GenerateTenant(ctx context.Context, cl client.Client,
 	}
 
 	// Forge tenant resource for the remote cluster.
-	return forge.TenantForRemoteCluster(localClusterID, publicKey, CSR, signature, proxyURL), nil
+	return forge.TenantForRemoteCluster(localClusterID, publicKey, CSR, signature, &remoteTenantNamespace, proxyURL), nil
 }

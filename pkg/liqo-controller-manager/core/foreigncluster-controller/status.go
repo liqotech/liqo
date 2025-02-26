@@ -103,8 +103,8 @@ func (r *ForeignClusterReconciler) handleGatewaysStatus(ctx context.Context,
 	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
 	clusterID := fc.Spec.ClusterID
 
-	gwServer, errServer := getters.GetGatewayServerByClusterID(ctx, r.Client, clusterID)
-	gwClient, errClient := getters.GetGatewayClientByClusterID(ctx, r.Client, clusterID)
+	gwServer, errServer := getters.GetGatewayServerByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
+	gwClient, errClient := getters.GetGatewayClientByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 
 	if errors.IsNotFound(errServer) && errors.IsNotFound(errClient) {
 		klog.V(6).Infof("Both GatewayServer and GatewayClient resources not found for ForeignCluster %q", clusterID)
@@ -197,7 +197,7 @@ func (r *ForeignClusterReconciler) handleGatewaysStatus(ctx context.Context,
 func (r *ForeignClusterReconciler) handleNetworkConfigurationStatus(ctx context.Context,
 	fc *liqov1beta1.ForeignCluster, statusExceptions map[liqov1beta1.ConditionType]statusException) error {
 	clusterID := fc.Spec.ClusterID
-	_, err := getters.GetConfigurationByClusterID(ctx, r.Client, clusterID)
+	_, err := getters.GetConfigurationByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Configuration resource not found for ForeignCluster %q", clusterID)
@@ -262,7 +262,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 	clusterID := fc.Spec.ClusterID
 
 	// Check if a Tenant resource for this cluser exists.
-	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, clusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Tenant resource not found for ForeignCluster %q", clusterID)

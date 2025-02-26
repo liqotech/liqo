@@ -32,8 +32,8 @@ type Manager interface {
 	GetNamespace(ctx context.Context, cluster liqov1beta1.ClusterID) (*corev1.Namespace, error)
 	BindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID,
 		owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
-	UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...string) error
+	UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) error
 	BindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
 		owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.ClusterRoleBinding, error)
-	UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...string) error
+	UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) error
 }

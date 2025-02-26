@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
@@ -37,7 +38,7 @@ func Get(ctx context.Context, cl client.Client) (*IPAM, error) {
 		return fabricIPAM, nil
 	}
 
-	internalCIDR, err := ipamutils.GetInternalCIDR(ctx, cl)
+	internalCIDR, err := ipamutils.GetInternalCIDR(ctx, cl, corev1.NamespaceAll)
 	if err != nil {
 		return nil, err
 	}

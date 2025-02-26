@@ -118,8 +118,13 @@ func (c *Cluster) DeleteControlPlaneIdentity(ctx context.Context, providerCluste
 // DeleteTenant deletes a tenant on a provider cluster given the consumer cluster id.
 func (c *Cluster) DeleteTenant(ctx context.Context, consumerClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting tenant")
+	tenantNamespace, err := c.tenantNamespaceManager.GetNamespace(ctx, consumerClusterID)
+	if err != nil {
+		s.Fail("Error while retrieving tenant namespace: ", output.PrettyErr(err))
+		return err
+	}
 
-	tenant, err := getters.GetTenantByClusterID(ctx, c.local.CRClient, consumerClusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, c.local.CRClient, consumerClusterID, tenantNamespace.Name)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail("error while retrieving tenant: ", output.PrettyErr(err))

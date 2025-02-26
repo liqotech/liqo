@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,7 +117,7 @@ func (r *ConfigurationReconciler) configurationEnqueuerByRemoteID() handler.MapF
 			klog.Errorf("unable to get the remote cluster ID from the labels of gateway %s", obj.GetName())
 			return nil
 		}
-		cfg, err := getters.GetConfigurationByClusterID(ctx, r.Client, remoteID)
+		cfg, err := getters.GetConfigurationByClusterID(ctx, r.Client, remoteID, corev1.NamespaceAll)
 		if err != nil {
 			klog.Errorf("unable to get the configuration for cluster %s: %s", remoteID, err)
 			return nil

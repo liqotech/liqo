@@ -27,8 +27,6 @@ import (
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -39,41 +37,6 @@ var peeringUserLabel = client.ListOptions{
 }
 
 var minimumClusterPermissions = []rbacv1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{"namespaces"},
-		Verbs:     []string{"get", "list", "create"},
-	},
-	{
-		APIGroups: []string{ipamv1alpha1.NetworkGroupResource.Group},
-		Resources: []string{ipamv1alpha1.NetworkResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.ConfigurationGroupResource.Group},
-		Resources: []string{networkingv1beta1.ConfigurationResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.GatewayClientGroupResource.Group},
-		Resources: []string{networkingv1beta1.GatewayClientResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.GatewayServerGroupResource.Group},
-		Resources: []string{networkingv1beta1.GatewayServerResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{networkingv1beta1.PublicKeyGroupResource.Group},
-		Resources: []string{networkingv1beta1.PublicKeyResource},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{liqov1beta1.ForeignClusterGroupResource.Group},
-		Resources: []string{liqov1beta1.ForeignClusterResource},
-		Verbs:     []string{"get", "list"},
-	},
 	{
 		APIGroups: []string{authv1beta1.TenantGroupResource.Group},
 		Resources: []string{authv1beta1.TenantResource},

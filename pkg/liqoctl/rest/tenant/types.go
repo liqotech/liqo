@@ -26,6 +26,7 @@ type Options struct {
 	namespaceManager tenantnamespace.Manager
 
 	remoteClusterID args.ClusterIDFlags
+	remoteTenantNs  string
 	nonce           string
 	proxyURL        string
 }

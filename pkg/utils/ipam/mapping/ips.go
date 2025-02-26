@@ -123,7 +123,7 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 // MapAddress maps the address with the network configuration of the cluster.
 func MapAddress(ctx context.Context, cl client.Client,
 	clusterID liqov1beta1.ClusterID, address string) (string, error) {
-	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
+	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID, corev1.NamespaceAll)
 	if err != nil {
 		return "", err
 	}
