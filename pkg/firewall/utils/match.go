@@ -17,6 +17,7 @@ package utils
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 
 	"github.com/google/nftables"
@@ -72,6 +73,8 @@ func applyMatchIP(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) 
 		return applyMatchIPSingleIP(m, rule, op)
 	case firewallv1beta1.IPValueTypeSubnet:
 		return applyMatchIPPoolSubnet(m, rule, op)
+	case firewallv1beta1.IPValueTypeRange:
+		return applyMatchIPRange(m, rule, op)
 	default:
 		return fmt.Errorf("invalid match value type %s", matchIPValueType)
 	}
@@ -246,6 +249,42 @@ func applyMatchPort(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp
 	default:
 		return fmt.Errorf("invalid match value type %s", matchPortValueType)
 	}
+}
+
+func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	posOffset, err := getMatchIPPositionOffset(m)
+	if err != nil {
+		return err
+	}
+
+	var rangeRegex = regexp.MustCompile(`^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*-\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$`)
+	matches := rangeRegex.FindStringSubmatch(m.IP.Value)
+
+	addr1, addr2 := matches[1], matches[2]
+
+	startIP := net.ParseIP(addr1).To4()
+	endIP := net.ParseIP(addr2).To4()
+
+	if matches == nil || startIP == nil || endIP == nil {
+		return fmt.Errorf("invalid match value %s - %s, matches: %s", startIP, endIP, matches)
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		&expr.Payload{
+			DestRegister: 1,
+			Base:         expr.PayloadBaseNetworkHeader,
+			Offset:       posOffset,
+			Len:          4,
+		},
+		&expr.Range{
+			Op:       op, // Maggiore o uguale a startIP
+			Register: 1,
+			FromData: startIP,
+			ToData:   endIP,
+		},
+	)
+
+	return nil
 }
 
 func getMatchCmpOp(m *firewallv1beta1.Match) (expr.CmpOp, error) {
