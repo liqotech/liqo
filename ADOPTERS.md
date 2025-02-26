@@ -10,3 +10,4 @@ If your organization is using Liqo and would like to be featured here, feel free
 | ---------------------------------------- | ---------------------------------- | ------------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
 | [**CERN**](https://home.cern/)           | Research & Scientific Institution  | Switzerland   | 2025 | multicluster solutions experimentation                                                                              |
 | [**TIM S.p.A.**](https://www.tim.it/)    | Telco                              | Italy         | 2024 | solution to support PostgreSQL “Multi-cluster” deployment to ensure High-Availability across two different regions  |
+| [**Bot Auto**](https://bot.auto)         | Transportation                     | USA           | 2023 | run workflows via argo workflows in multiple clusters with single workflow control plane                            |
