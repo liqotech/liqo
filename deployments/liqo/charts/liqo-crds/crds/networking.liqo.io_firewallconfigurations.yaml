@@ -103,6 +103,8 @@ spec:
                                     enum:
                                     - ctmark
                                     - metamarkfromctmark
+                                    - accept
+                                    - drop
                                     type: string
                                   match:
                                     description: |-

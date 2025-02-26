@@ -17,6 +17,7 @@ package utils
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 
 	"github.com/google/nftables"
@@ -256,9 +257,16 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 		return err
 	}
 
-	startIP, endIP, err := net.ParseRange(m.IP.Value)
-	if err != nil {
-		return err
+	var rangeRegex = regexp.MustCompile(`^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*-\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$`)
+	matches := rangeRegex.FindStringSubmatch(m.IP.Value)
+
+	addr1, addr2 := matches[1], matches[2]
+
+	startIP := net.ParseIP(addr1).To4()
+	endIP := net.ParseIP(addr2).To4()
+
+	if matches == nil || startIP == nil || endIP == nil {
+		return fmt.Errorf("invalid match value %s - %s, matches: %s", startIP, endIP, matches)
 	}
 
 	rule.Exprs = append(rule.Exprs,

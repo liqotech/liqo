@@ -25,11 +25,11 @@ const (
 	// It is used to set the meta mark from the conntrack mark.
 	ActionSetMetaMarkFromCtMark FilterAction = "metamarkfromctmark"
 
-	// ActionCtMark is the action to be applied to the rule.
+	// ActionAccept is the action to be applied to the rule.
 	// ActionAccept accepts the packet.
 	ActionAccept FilterAction = "accept"
 
-	// ActionCtMark is the action to be applied to the rule.
+	// ActionDrop is the action to be applied to the rule.
 	// ActionDrop drops the packet.
 	ActionDrop FilterAction = "drop"
 )

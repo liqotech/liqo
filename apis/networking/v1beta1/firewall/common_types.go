@@ -17,6 +17,7 @@ package firewall
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 
 	"github.com/liqotech/liqo/pkg/utils/network/port"
@@ -65,11 +66,11 @@ func GetIPValueType(value *string) (IPValueType, error) {
 	}
 
 	// Check if the value is an IP range.
-	if _, _, err := net.ParseRange(*value); err == nil {
+	if _, err := getIPValueParseRange(*value); err == nil {
 		return IPValueTypeRange, nil
 	}
 
-	return IPValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
+	return IPValueTypeVoid, fmt.Errorf("invalid match value IP %s", *value)
 }
 
 // GetPortValueType parses the match value and returns the type of the value.
@@ -88,5 +89,21 @@ func GetPortValueType(value *string) (PortValueType, error) {
 		return PortValueTypePort, nil
 	}
 
-	return PortValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
+	return PortValueTypeVoid, fmt.Errorf("invalid match value PORT %s", *value)
+}
+
+// support function, should be moved to pkg/utils
+func getIPValueParseRange(s string) (IPValueType, error) {
+	var rangeRegex = regexp.MustCompile(`^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*-\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$`)
+	matches := rangeRegex.FindStringSubmatch(s)
+
+	addr1, addr2 := matches[1], matches[2]
+
+	ipAddr1 := net.ParseIP(addr1)
+	ipAddr2 := net.ParseIP(addr2)
+
+	if matches != nil && ipAddr1 != nil && ipAddr2 != nil {
+		return IPValueTypeRange, nil
+	}
+	return IPValueTypeVoid, fmt.Errorf("invalid match value %s - %s, matches: %s", ipAddr1, ipAddr2, matches)
 }
