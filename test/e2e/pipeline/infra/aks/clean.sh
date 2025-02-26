@@ -27,6 +27,13 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
+
 PIDS=()
 
 # Cleaning all remaining clusters
@@ -41,7 +48,7 @@ do
         az aks delete --resource-group "${AKS_RESOURCE_GROUP}" --name "${CLUSTER_NAME}" --yes &
         PIDS+=($!)
     else
-        echo "Cluster ${CLUSTER_NAME}${i} does not exist"
+        echo "Cluster ${CLUSTER_NAME} does not exist"
     fi
 done
 

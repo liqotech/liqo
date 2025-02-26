@@ -106,7 +106,7 @@ var _ = BeforeSuite(func() {
 
 	switch testContext.Infrastructure {
 	case "kubeadm":
-		overrideArgsClusterAPI(&defaultArgs)
+		overrideArgsKubeadm(&defaultArgs)
 	case "k3s":
 		overrideArgsK3s(&defaultArgs)
 	case "kind":
@@ -266,7 +266,7 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 	args.nodePortNodes = networkflags.NodePortNodesWorkers
 }
 
-func overrideArgsClusterAPI(args *networkTestsArgs) {
+func overrideArgsKubeadm(args *networkTestsArgs) {
 	args.loadBalancer = false
 }
 
