@@ -8,3 +8,4 @@ If your organization is using Liqo and would like to be featured here, feel free
 
 | Company/Organization Name                | Industry Vertical                  | Country       | Year | Use Case Type                                                                                                       |
 | ---------------------------------------- | ---------------------------------- | ------------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
+| [**CERN**](https://home.cern/)           | Research & Scientific Institution  | Switzerland   | 2025 | multicluster solutions experimentation                                                                              |
