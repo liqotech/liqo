@@ -18,10 +18,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2021-07-01/containerservice"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v6"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
@@ -51,16 +51,20 @@ var _ = Describe("Extract elements from AKS", func() {
 			region      = "region"
 		)
 
-		clusterOutput := &containerservice.ManagedCluster{
-			Location: pointer.StringPtr(region),
-			ManagedClusterProperties: &containerservice.ManagedClusterProperties{
-				Fqdn: pointer.StringPtr(endpoint),
-				NetworkProfile: &containerservice.NetworkProfile{
-					NetworkPlugin: containerservice.NetworkPluginKubenet,
-					PodCidr:       pointer.StringPtr(podCIDR),
-					ServiceCidr:   pointer.StringPtr(serviceCIDR),
+		clusterOutput := &armcontainerservice.ManagedCluster{
+			Location: ptr.To(region),
+			Properties: &armcontainerservice.ManagedClusterProperties{
+				Fqdn: ptr.To(endpoint),
+				NetworkProfile: &armcontainerservice.NetworkProfile{
+					NetworkPlugin: ptr.To(armcontainerservice.NetworkPluginKubenet),
+					PodCidr:       ptr.To(podCIDR),
+					ServiceCidr:   ptr.To(serviceCIDR),
 				},
-				AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{{VnetSubnetID: nil}},
+				AgentPoolProfiles: []*armcontainerservice.ManagedClusterAgentPoolProfile{
+					ptr.To(armcontainerservice.ManagedClusterAgentPoolProfile{
+						VnetSubnetID: nil,
+					}),
+				},
 			},
 		}
 
