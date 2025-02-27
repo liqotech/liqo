@@ -19,17 +19,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/2020-09-01/resources/mgmt/subscriptions"
-	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2021-07-01/containerservice"
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-02-01/network"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v6"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/subscription/armsubscription"
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
+)
+
+const (
+	defaultAzureCNIPodCIDR = "10.224.0.0/16"
+	defaultAksNodeCIDR     = "10.224.0.0/16"
 )
 
 var _ install.Provider = (*Options)(nil)
@@ -46,7 +51,7 @@ type Options struct {
 	privateLink           bool
 	fqdn                  string
 
-	authorizer *autorest.Authorizer
+	azurecredential *azidentity.DefaultAzureCredential
 }
 
 // New initializes a new Provider object.
@@ -79,7 +84,8 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 		"The Azure ResourceGroup name of the Virtual Network (defaults to --resource-group-name if not provided)")
 	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
 	cmd.Flags().BoolVar(&o.privateLink, "private-link", false, "Use the private FQDN for the API server")
-	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "10.224.0.0/16", "The Pod CIDR of the cluster, only used for AzureCNI clusters with no defined subnet")
+	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "",
+		"Pod CIDR of the cluster, only used for AzureCNI (legacy) clusters with no defined subnet")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
 	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
@@ -106,27 +112,29 @@ func (o *Options) Initialize(ctx context.Context) error {
 		o.ClusterID = liqov1beta1.ClusterID(o.resourceName)
 	}
 
-	authorizer, err := auth.NewAuthorizerFromCLI()
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return fmt.Errorf("failed connecting to the Azure API: %w", err)
 	}
-	o.authorizer = &authorizer
+	o.azurecredential = cred
 
 	if o.subscriptionID == "" {
-		if err := o.retrieveSubscriptionID(ctx); err != nil {
+		if err := o.retrieveSubscriptionIDByName(ctx); err != nil {
 			return fmt.Errorf("failed retrieving subscription ID for name %q: %w", o.subscriptionName, err)
 		}
 	}
 
-	aksClient := containerservice.NewManagedClustersClient(o.subscriptionID)
-	aksClient.Authorizer = *o.authorizer
-
-	cluster, err := aksClient.Get(ctx, o.resourceGroupName, o.resourceName)
+	aksClient, err := armcontainerservice.NewManagedClustersClient(o.subscriptionID, o.azurecredential, nil)
 	if err != nil {
-		return fmt.Errorf("failed retrieving cluster information: %w", err)
+		return fmt.Errorf("failed creating new managed clusters client: %w", err)
 	}
 
-	if err = o.parseClusterOutput(ctx, &cluster); err != nil {
+	clusterResp, err := aksClient.Get(ctx, o.resourceGroupName, o.resourceName, nil)
+	if err != nil {
+		return fmt.Errorf("failed retrieving cluster %s: %w", o.resourceName, err)
+	}
+
+	if err = o.parseClusterOutput(ctx, &clusterResp.ManagedCluster); err != nil {
 		return fmt.Errorf("failed retrieving cluster information: %w", err)
 	}
 
@@ -155,28 +163,44 @@ func (o *Options) Values() map[string]interface{} {
 	}
 }
 
-func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	switch cluster.NetworkProfile.NetworkPlugin {
-	case containerservice.NetworkPluginKubenet:
-		if err := o.setupKubenet(ctx, cluster); err != nil {
+func (o *Options) parseClusterOutput(ctx context.Context, cluster *armcontainerservice.ManagedCluster) error {
+	if cluster.Properties == nil || cluster.Properties.NetworkProfile == nil {
+		return fmt.Errorf("failed to retrieve cluster network profile")
+	}
+
+	switch ptr.Deref(cluster.Properties.NetworkProfile.NetworkPlugin, "") {
+	case armcontainerservice.NetworkPluginKubenet:
+		if err := o.setupKubenetOrAzureCNIOverlay(ctx, cluster); err != nil {
 			return err
 		}
-	case containerservice.NetworkPluginAzure:
-		if err := o.setupAzureCNI(ctx, cluster); err != nil {
-			return err
+	case armcontainerservice.NetworkPluginAzure:
+		switch ptr.Deref(cluster.Properties.NetworkProfile.NetworkPluginMode, "") {
+		case armcontainerservice.NetworkPluginModeOverlay:
+			if err := o.setupKubenetOrAzureCNIOverlay(ctx, cluster); err != nil {
+				return err
+			}
+		default:
+			if err := o.setupAzureCNI(ctx, cluster); err != nil {
+				return err
+			}
 		}
+	case armcontainerservice.NetworkPluginNone:
+		if o.PodCIDR == "" {
+			return fmt.Errorf("azure network plugin is set to `none`, please specify the PodCIDR with --pod-cidr")
+		}
+		o.ServiceCIDR = *cluster.Properties.NetworkProfile.ServiceCidr
 	default:
-		return fmt.Errorf("unknown AKS network plugin %v", cluster.NetworkProfile.NetworkPlugin)
+		return fmt.Errorf("unknown AKS network plugin %v", cluster.Properties.NetworkProfile.NetworkPlugin)
 	}
 
 	switch {
 	case o.privateLink:
-		if cluster.PrivateFQDN == nil {
+		if cluster.Properties.PrivateFQDN == nil {
 			return fmt.Errorf("private FQDN not found on cluster")
 		}
-		o.APIServer = *cluster.PrivateFQDN
-	case cluster.Fqdn != nil:
-		o.APIServer = *cluster.Fqdn
+		o.APIServer = *cluster.Properties.PrivateFQDN
+	case cluster.Properties.Fqdn != nil:
+		o.APIServer = *cluster.Properties.Fqdn
 	case o.fqdn != "":
 		o.APIServer = o.fqdn
 	default:
@@ -191,63 +215,84 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 }
 
 // setupKubenet setups the data for a Kubenet cluster.
-func (o *Options) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	const defaultAksNodeCIDR = "10.224.0.0/16"
+func (o *Options) setupKubenetOrAzureCNIOverlay(ctx context.Context, cluster *armcontainerservice.ManagedCluster) error {
+	if ptr.Deref(cluster.Properties.NetworkProfile.PodCidr, "") == "" {
+		return fmt.Errorf("no PodCIDR found on network profile")
+	}
+	o.PodCIDR = *cluster.Properties.NetworkProfile.PodCidr
 
-	o.PodCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
-	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+	if ptr.Deref(cluster.Properties.NetworkProfile.ServiceCidr, "") == "" {
+		return fmt.Errorf("no ServiceCIDR found on network profile")
+	}
+	o.ServiceCIDR = *cluster.Properties.NetworkProfile.ServiceCidr
 
 	// AKS Kubenet cluster does not have a subnet (and a subnetID) by default, in this case the node CIDR
 	// is the default one.
 	// But it is possible to specify an existent subnet during the cluster creation to be used as node CIDR,
 	// in that case the vnet subnetID will be provided and we have to retrieve this network information.
-	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
-	if vnetSubjectID == nil {
+	if len(cluster.Properties.AgentPoolProfiles) == 0 ||
+		cluster.Properties.AgentPoolProfiles[0] == nil ||
+		ptr.Deref(cluster.Properties.AgentPoolProfiles[0].VnetSubnetID, "") == "" {
 		o.ReservedSubnets = append(o.ReservedSubnets, defaultAksNodeCIDR)
-	} else {
-		networkClient := network.NewSubnetsClient(o.subscriptionID)
-		networkClient.Authorizer = *o.authorizer
-
-		vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
-		if err != nil {
-			return err
-		}
-
-		vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
-		if err != nil {
-			return err
-		}
-
-		o.ReservedSubnets = append(o.ReservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
+		return nil
 	}
+
+	// VnetSubnet is specified, retrieve the subnet information.
+	vnetSubnetID := *cluster.Properties.AgentPoolProfiles[0].VnetSubnetID
+
+	subnetsClient, err := armnetwork.NewSubnetsClient(o.subscriptionID, o.azurecredential, nil)
+	if err != nil {
+		return err
+	}
+
+	vnetName, subnetName, err := parseSubnetID(vnetSubnetID)
+	if err != nil {
+		return err
+	}
+
+	vnet, err := subnetsClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, nil)
+	if err != nil {
+		return err
+	}
+
+	o.ReservedSubnets = append(o.ReservedSubnets, *vnet.Subnet.Properties.AddressPrefix)
 
 	return nil
 }
 
 // setupAzureCNI setups the data for an Azure CNI cluster.
-func (o *Options) setupAzureCNI(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
+func (o *Options) setupAzureCNI(ctx context.Context, cluster *armcontainerservice.ManagedCluster) error {
+	o.ServiceCIDR = *cluster.Properties.NetworkProfile.ServiceCidr
 
-	if vnetSubjectID != nil {
-		networkClient := network.NewSubnetsClient(o.subscriptionID)
-		networkClient.Authorizer = *o.authorizer
-
-		vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
-		if err != nil {
-			return err
+	if len(cluster.Properties.AgentPoolProfiles) == 0 || cluster.Properties.AgentPoolProfiles[0] == nil ||
+		ptr.Deref(cluster.Properties.AgentPoolProfiles[0].VnetSubnetID, "") == "" {
+		// VnetSubnet is not specified, use specified PodCIDR.
+		if o.PodCIDR == "" {
+			o.PodCIDR = defaultAzureCNIPodCIDR
 		}
-
-		vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
-		if err != nil {
-			return err
-		}
-
-		o.PodCIDR = *vnet.AddressPrefix
-	} else if o.PodCIDR == "" {
-		return fmt.Errorf("no PodCIDR found on cluster, please specify it with --pod-cidr")
+		// PodCIDR already set, nothing to do.
+		return nil
 	}
 
-	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+	// Else, retrieve the pod CIDR from the subnet, as for azure CNI the pod CIDR is the subnet CIDR.
+	vnetSubnetID := *cluster.Properties.AgentPoolProfiles[0].VnetSubnetID
+
+	subnetsClient, err := armnetwork.NewSubnetsClient(o.subscriptionID, o.azurecredential, nil)
+	if err != nil {
+		return err
+	}
+
+	vnetName, subnetName, err := parseSubnetID(vnetSubnetID)
+	if err != nil {
+		return err
+	}
+
+	vnet, err := subnetsClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, nil)
+	if err != nil {
+		return err
+	}
+
+	o.PodCIDR = *vnet.Subnet.Properties.AddressPrefix
 
 	return nil
 }
@@ -268,27 +313,34 @@ func parseSubnetID(subnetID string) (vnetName, subnetName string, err error) {
 	return strs[l-3], strs[l-1], nil
 }
 
-func (o *Options) retrieveSubscriptionID(ctx context.Context) error {
-	subClient := subscriptions.NewClient()
-	subClient.Authorizer = *o.authorizer
-
-	subList, err := subClient.List(ctx)
+func (o *Options) retrieveSubscriptionIDByName(ctx context.Context) error {
+	subClient, err := armsubscription.NewSubscriptionsClient(o.azurecredential, nil)
 	if err != nil {
 		return err
 	}
 
-	for subList.NotDone() {
-		for _, v := range subList.Values() {
-			if *v.DisplayName == o.subscriptionName {
-				o.subscriptionID = *v.SubscriptionID
+	pager := subClient.NewListPager(nil)
+
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve subscription page: %w", err)
+		}
+
+		for _, sub := range page.Value {
+			if sub == nil {
+				continue
+			}
+			if sub.DisplayName != nil && *sub.DisplayName == o.subscriptionName {
+				if sub.SubscriptionID == nil || *sub.SubscriptionID == "" {
+					return fmt.Errorf("subscription %q has an empty ID", o.subscriptionName)
+				}
+				o.subscriptionID = *sub.SubscriptionID
+				o.Printer.Verbosef("Found AKS SubscriptionID: %q", o.subscriptionID)
 				return nil
 			}
 		}
-
-		if err := subList.NextWithContext(ctx); err != nil {
-			return err
-		}
 	}
 
-	return fmt.Errorf("no subscription found matching the name")
+	return fmt.Errorf("subscription %q not found", o.subscriptionName)
 }

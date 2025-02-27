@@ -175,6 +175,9 @@ function install_az() {
       elif [[ "${os}" == "darwin" ]]
       then
           brew update && brew install azure-cli
+      else
+          echo "Error: Azure CLI is not supported on ${os}"
+          exit 1
       fi
   fi
 
