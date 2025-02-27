@@ -75,6 +75,8 @@ function forge_clustername() {
   RUNNER_NAME=${RUNNER_NAME:-"test"}
   RUNNER_NAME=$(echo "${RUNNER_NAME}" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
   RUNNER_NAME=${RUNNER_NAME#liqo-runner-*-}
+  # Replace spaces and invalid characters with dashes, ensure it's valid for Kubernetes labels
+  RUNNER_NAME=$(echo "${RUNNER_NAME}" | tr ' ' '-' | tr -c 'a-zA-Z0-9-_.' '-')
   local BASE_CLUSTER_NAME="cl-${RUNNER_NAME}-"
   echo "${BASE_CLUSTER_NAME}${index}"
 }

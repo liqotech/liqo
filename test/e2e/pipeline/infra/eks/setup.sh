@@ -35,6 +35,8 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+OS_IMAGE=${OS_IMAGE:-"ubuntu-2204"}
+
 # shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
@@ -60,7 +62,7 @@ do
         --nodes 2 \
         --managed \
         --alb-ingress-access \
-        --node-ami-family "AmazonLinux2" \
+        --node-ami-family "${OS_IMAGE}" \
         --vpc-cidr "$POD_CIDR" \
         --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" &
     PIDS+=($!)
@@ -80,7 +82,7 @@ do
   install_local_path_storage "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   # Install metrics-server
-  install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  # install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   # Install AWS Load Balancer Controller
   "${HELM}" repo add eks https://aws.github.io/eks-charts
@@ -90,3 +92,6 @@ do
     --set clusterName="${CLUSTER_NAME}" \
     --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
+
+# Wait for system components to be started
+sleep 120
