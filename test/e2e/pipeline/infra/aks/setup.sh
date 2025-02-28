@@ -41,11 +41,7 @@ VM_TYPE="Standard_B2s"
 REGIONS=("italynorth" "francecentral" "germanywestcentral" "switzerlandnorth")
 
 POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"true"}
-CNI=${CNI:-"azure-overlay"} # "azure-overlay", "azure-flat", "kubenet", "none"
-
-if [[ "${CNI}" == "azure-flat" || "${CNI}" == "azure-overlay" ]]; then
-    POD_CIDR_OVERLAPPING="true"
-fi
+CNI=${CNI:-"azure-flat"} # "azure-overlay", "azure-flat", "kubenet", "none"
 
 function create_resource_group() {
     local aks_resource_group=$1
@@ -72,7 +68,6 @@ function aks_create_cluster() {
     args+=("--node-count $NUM_NODES")
     args+=("--node-vm-size $VM_TYPE")
     args+=("--kubernetes-version $K8S_VERSION")
-    args+=("--tier free")
     args+=("--generate-ssh-keys")
 
     if [[ "${CNI}" == "azure-flat" || "${CNI}" == "azure-overlay" ]]; then
@@ -85,7 +80,7 @@ function aks_create_cluster() {
         args+=("--network-plugin-mode overlay")
     fi
     
-    if [[ "${CNI}" == "kubenet" ]]; then
+    if [[ "${CNI}" != "azure-flat" ]]; then
         args+=("--pod-cidr $pod_cidr")
     fi
     
@@ -111,9 +106,10 @@ do
     
     create_resource_group "${AKS_RESOURCE_GROUP}" "${REGION}"
 
-    # The PodCIDR can be set only for kubenet. On AzureCNI it is fixed, so only pod cidr overlapping is possible.
+    # The PodCIDR can not be set on azure-flat (it is fixed), so only pod cidr overlapping is possible.
+    # For the other CNIs, the pod CIDR is set based on the cluster number (if mode not-overlapping).
     POD_CIDR=""
-    if [[ ${CNI} == "kubenet" ]]; then
+    if [[ ${CNI} != "azure-flat" ]]; then
         if [[ ${POD_CIDR_OVERLAPPING} == "true" ]]; then
             POD_CIDR="10.50.0.0/16"
         else
