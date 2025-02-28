@@ -123,17 +123,19 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 	case firewallv1beta1.ActionSetMetaMarkFromCtMark:
 		applySetMetaMarkFromCtMarkAction(rule)
 	case firewallv1beta1.ActionAccept:
-		err := applyAcceptAction(rule)
-		if err != nil {
-			return nil, fmt.Errorf("cannot apply accept action: %w", err)
-		}
+		applyAcceptAction(rule)
 	case firewallv1beta1.ActionDrop:
-		err := applyDropAction(rule)
-		if err != nil {
-			return nil, fmt.Errorf("cannot apply drop action: %w", err)
-		}
+		applyDropAction(rule)
+	case firewallv1beta1.ActionReject:
+		applyRejectAction(rule)
 	default:
 	}
+
+	if fr.Counter != nil && *fr.Counter {
+		applyCounter(rule)
+	}
+	klog.Info("Rule forged with Counter?: ", fr.Counter)
+
 	return rule, nil
 }
 
@@ -155,16 +157,6 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyAcceptAction(rule *nftables.Rule) error {
-	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictAccept})
-	return nil
-}
-
-func applyDropAction(rule *nftables.Rule) error {
-	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictDrop})
-	return nil
-}
-
 func applySetMetaMarkFromCtMarkAction(rule *nftables.Rule) {
 	rule.Exprs = append(rule.Exprs,
 		&expr.Ct{
@@ -178,4 +170,20 @@ func applySetMetaMarkFromCtMarkAction(rule *nftables.Rule) {
 			Register:       1,
 		},
 	)
+}
+
+func applyAcceptAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictAccept})
+}
+
+func applyDropAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictDrop})
+}
+
+func applyRejectAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Reject{})
+}
+
+func applyCounter(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Counter{Bytes: 1, Packets: 1})
 }

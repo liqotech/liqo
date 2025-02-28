@@ -105,7 +105,12 @@ spec:
                                     - metamarkfromctmark
                                     - accept
                                     - drop
+                                    - reject
                                     type: string
+                                  counter:
+                                    description: Counter is the counter to be used
+                                      for the action.
+                                    type: boolean
                                   match:
                                     description: |-
                                       Match is the match to be applied to the rule.
