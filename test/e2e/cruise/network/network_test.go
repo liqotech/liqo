@@ -106,7 +106,7 @@ var _ = BeforeSuite(func() {
 
 	switch testContext.Infrastructure {
 	case "kubeadm":
-		overrideArgsClusterAPI(&defaultArgs)
+		overrideArgsKubeadm(&defaultArgs)
 	case "k3s":
 		overrideArgsK3s(&defaultArgs)
 	case "kind":
@@ -266,7 +266,7 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 	args.nodePortNodes = networkflags.NodePortNodesWorkers
 }
 
-func overrideArgsClusterAPI(args *networkTestsArgs) {
+func overrideArgsKubeadm(args *networkTestsArgs) {
 	args.loadBalancer = false
 }
 
@@ -280,21 +280,18 @@ func overrideArgsKind(args *networkTestsArgs) {
 
 func overrideArgsEKS(args *networkTestsArgs) {
 	args.failfast = false
-	args.loadBalancer = true
 	args.nodePortExt = false // nodeport are not exposed
 }
 
 func overrideArgsGKE(args *networkTestsArgs) {
 	args.failfast = false
-	args.loadBalancer = true
 	args.nodePortExt = false // nodeport are not exposed by default // TODO: modify GKE plugin to open nodeport firewall
-	args.podNodePort = false
-	args.ip = false
+	args.podNodePort = true
+	args.ip = true
 }
 
 func overrideArgsAKS(args *networkTestsArgs) {
 	args.failfast = false
-	args.loadBalancer = true
 	args.nodePortExt = false // nodeport are not exposed
 }
 
