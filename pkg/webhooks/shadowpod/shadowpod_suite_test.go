@@ -105,17 +105,6 @@ func serializeShadowPod(sp *offloadingv1beta1.ShadowPod) runtime.RawExtension {
 	return runtime.RawExtension{Raw: data}
 }
 
-func forgeNamespaceWithClusterID(clusterID liqov1beta1.ClusterID) *corev1.Namespace {
-	return &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testNamespace,
-			Labels: map[string]string{
-				consts.RemoteClusterID: string(clusterID),
-			},
-		},
-	}
-}
-
 func forgeRequest(op admissionv1.Operation, newShadowPod, oldShadowPod *offloadingv1beta1.ShadowPod) admission.Request {
 	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Operation: op}}
 	if oldShadowPod != nil {

@@ -30,6 +30,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var _ = Describe("Validating webhook", func() {
@@ -50,7 +51,7 @@ var _ = Describe("Validating webhook", func() {
 
 	BeforeEach(func() {
 
-		fakeNamespace = forgeNamespaceWithClusterID(clusterID)
+		fakeNamespace = testutil.FakeNamespaceWithClusterID(clusterID, testNamespace)
 
 		fakeClient = fake.NewClientBuilder().WithScheme(scheme).
 			WithObjects(fakeNamespace, foreignCluster, quota, quota2).

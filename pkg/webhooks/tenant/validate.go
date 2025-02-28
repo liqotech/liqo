@@ -100,7 +100,7 @@ func (w *tenantValidatorWebhook) handleCreate(ctx context.Context, req *admissio
 	}
 
 	if len(tenantsInCluster) > 0 {
-		return admission.Denied("a Tenant with the same name already exists in the cluster")
+		return admission.Denied("tenant should have a unique name across the cluster: a Tenant with the same name already exists in the cluster")
 	}
 
 	return admission.Allowed("")
@@ -117,7 +117,7 @@ func (w *tenantValidatorWebhook) handleUpdate(ctx context.Context, req *admissio
 		return admission.Errored(status, err)
 	}
 
-	// Check that the Tenant name is unique in the tenant namespace.
+	// Check that the Tenant name is unique in the entire cluster.
 	tenantsInCluster, err := w.getTenants(ctx, corev1.NamespaceAll, &tenant.Name)
 	if err != nil {
 		werr := fmt.Errorf("failed getting Tenants in cluster: %v", output.PrettyErr(err))
