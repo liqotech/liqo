@@ -24,9 +24,13 @@ rules:
 - apiGroups:
   - authentication.liqo.io
   resources:
-  - tenants/status
+  - tenants
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - update
 - apiGroups:
   - ipam.liqo.io
   resources:

@@ -45,8 +45,8 @@ do
    ${KUBECTL} get no -o wide --show-labels
    echo "Liqo local status"
    echo "|------------------------------------------------------------|"
-   ${LIQOCTL} status --verbose
+   ${LIQOCTL} info --verbose
    echo "Liqo peerings statuses"
    echo "|------------------------------------------------------------|"
-   ${LIQOCTL} status peer --verbose
+   ${LIQOCTL} info peer --verbose
 done;
