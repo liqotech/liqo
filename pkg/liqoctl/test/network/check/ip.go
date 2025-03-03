@@ -57,7 +57,7 @@ func RunChecksPodToExternalRemappedIP(ctx context.Context, cl *client.Client,
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
-			return successCountTot, errorCountTot, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return successCountTot, errorCountTot, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 	}
 
@@ -81,7 +81,7 @@ func ForgeIPTargets(ctx context.Context, cl *client.Client) (Targets, error) {
 	for k := range cl.Providers {
 		targets[k], err = forgeIPTarget(ctx, cl.Providers[k], localIPRemapped, k)
 		if err != nil {
-			return nil, fmt.Errorf("failed to forge producer %q IP target: %w", k, err)
+			return nil, fmt.Errorf("failed to forge provider %q IP target: %w", k, err)
 		}
 	}
 

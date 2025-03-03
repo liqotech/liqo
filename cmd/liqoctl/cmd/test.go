@@ -89,7 +89,7 @@ func newTestNetworkCommand(ctx context.Context, topts *test.Options) *cobra.Comm
 	runtime.Must(cmd.RegisterFlagCompletionFunc(
 		string(flags.FlagNamesNodeportNodes), completion.Enumeration(flags.NodePortNodesValues),
 	))
-	runtime.Must(cmd.MarkFlagRequired(string(flags.FlagNamesProducersKubeconfigs)))
+	runtime.Must(cmd.MarkFlagRequired(string(flags.FlagNamesProvidersKubeconfigs)))
 
 	return cmd
 }

@@ -50,12 +50,12 @@ func CreatePolicy(ctx context.Context, cl *client.Client) error {
 		policy := ForgeKyvernoPodAntiaffinityPolicy(k, false)
 		if _, err := cl.ProvidersDynamic[k].Resource(KyvernoPolicyGroupVersionResource).
 			Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("producer %q failed to create policy: %w", k, err)
+			return fmt.Errorf("provider %q failed to create policy: %w", k, err)
 		}
 		policy = ForgeKyvernoPodAntiaffinityPolicy(k, true)
 		if _, err := cl.ProvidersDynamic[k].Resource(KyvernoPolicyGroupVersionResource).
 			Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("producer %q failed to create policy: %w", k, err)
+			return fmt.Errorf("provider %q failed to create policy: %w", k, err)
 		}
 	}
 	return nil

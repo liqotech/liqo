@@ -70,7 +70,7 @@ func RunCheckPodToClusterIPService(ctx context.Context, cl *client.Client, cfg c
 	}
 
 	for k := range cl.Providers {
-		// The test is repeated twice for each producer and consumer pods.
+		// The test is repeated twice for each provider and consumer pods.
 		// This is to ensure that all pods have been contacted from each other pods through the service.
 		for i := 0; i < int(totreplicas*2); i++ {
 			successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k], cfg[k],
@@ -78,7 +78,7 @@ func RunCheckPodToClusterIPService(ctx context.Context, cl *client.Client, cfg c
 			successCountTot += successCount
 			errorCountTot += errorCount
 			if err != nil {
-				return successCountTot, errorCountTot, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+				return successCountTot, errorCountTot, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 			}
 		}
 	}
@@ -142,7 +142,7 @@ func RunsCheckExternalToNodePortService(ctx context.Context, cl *client.Client, 
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
-			return successCount, errorCount, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return successCount, errorCount, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 	}
 
@@ -211,7 +211,7 @@ func RunsCheckExternalToLoadBalancerService(ctx context.Context, cl *client.Clie
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
-			return successCount, errorCount, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return successCount, errorCount, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 	}
 
@@ -233,7 +233,7 @@ func RunsCheckPodToNodePortService(ctx context.Context, cl *client.Client, cfg c
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
-			return successCount, errorCount, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return successCount, errorCount, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 	}
 
