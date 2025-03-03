@@ -31,9 +31,9 @@ type Client struct {
 	Consumer        client.Client
 	ConsumerName    string
 	ConsumerDynamic *dynamic.DynamicClient
-	// Providers key is the name of the producer kubeconfig file.
+	// Providers key is the name of the provider kubeconfig file.
 	Providers map[string]client.Client
-	// ProvidersDynamic key is the name of the producer kubeconfig file.
+	// ProvidersDynamic key is the name of the provider kubeconfig file.
 	ProvidersDynamic map[string]*dynamic.DynamicClient
 }
 

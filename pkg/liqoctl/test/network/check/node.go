@@ -44,7 +44,7 @@ func RunChecksNodeToPod(ctx context.Context, cl *client.Client, cfg client.Confi
 		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k],
 			cfg[k], opts, k, targets[k], true, ExecCurl)
 		if err != nil {
-			return 0, 0, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return 0, 0, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 		successCountTot += successCount
 		errorCountTot += errorCount

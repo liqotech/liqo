@@ -43,7 +43,7 @@ func RunChecksPodToExternal(ctx context.Context, cl *client.Client,
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
-			return successCountTot, errorCountTot, fmt.Errorf("producer %q failed to run checks: %w", k, err)
+			return successCountTot, errorCountTot, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
 	}
 

@@ -27,7 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
 )
 
-// Targets ia a map where the key is the name of the producer/consumer
+// Targets ia a map where the key is the name of the provider/consumer
 // and the values are the endpoints from their point of view.
 type Targets map[string][]string
 
@@ -67,7 +67,7 @@ func ForgePodTargetForProvider(ctx context.Context, cl *client.Client, name stri
 		if len(eps.Items) != 2 {
 			return fmt.Errorf("%q expected 2 endpoint slice, got %d", name, len(eps.Items))
 		}
-		return fmt.Errorf("error waiting for producer %q endpoint slice: %w", name, err)
+		return fmt.Errorf("error waiting for provider %q endpoint slice: %w", name, err)
 	}
 
 	if len(eps.Items[0].Endpoints)+len(eps.Items[1].Endpoints) != int(totalReplicas) {
