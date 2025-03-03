@@ -21,6 +21,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces/finalizers
+  - nodes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
   - nodes
   verbs:
   - get
@@ -61,6 +68,8 @@ rules:
   resources:
   - identities/finalizers
   - renews/finalizers
+  - resourceslices/finalizers
+  - tenants/finalizers
   verbs:
   - update
 - apiGroups:
@@ -192,6 +201,20 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - configurations/finalizers
+  - gatewayclients/finalizers
+  - gatewayservers/finalizers
+  - genevetunnels/finalizers
+  - internalfabrics/finalizers
+  - internalnodes/finalizers
+  - routeconfigurations/finalizers
+  - wggatewayclients/finalizers
+  - wggatewayservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - configurations/status
   verbs:
   - get
@@ -263,6 +286,12 @@ rules:
 - apiGroups:
   - offloading.liqo.io
   resources:
+  - quotas/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
   - shadowpods
   verbs:
   - delete
@@ -284,6 +313,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings/finalizers
+  - clusterroles/finalizers
+  - rolebindings/finalizers
+  verbs:
+  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

@@ -1,4 +1,4 @@
-{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking") .) -}}
+{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking" "version" .Values.networking.fabric.image.version ) .) -}}
 
 {{- if .Values.networking.enabled }}
 
@@ -31,5 +31,15 @@ metadata:
   labels:
     {{- include "liqo.labels" $fabricConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $fabricConfig))) }}
+{{- if .Values.openshiftConfig.enabled }}
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - {{ include "liqo.prefixedName" $fabricConfig }}
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+{{- end }}
 
 {{- end }}

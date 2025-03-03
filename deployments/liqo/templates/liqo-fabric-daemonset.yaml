@@ -31,6 +31,8 @@ spec:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
         - effect: NoSchedule
+          key: node-role.kubernetes.io/infra
+        - effect: NoSchedule
           key: node-role.kubernetes.io/control-plane
         {{- if .Values.networking.fabric.tolerations }}
         {{- toYaml .Values.networking.fabric.tolerations | nindent 8 }}

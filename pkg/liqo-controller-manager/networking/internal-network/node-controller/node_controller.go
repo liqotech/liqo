@@ -58,6 +58,7 @@ func NewNodeReconciler(cl client.Client, s *runtime.Scheme, liqoNamespace string
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
 
 // Reconcile manage Node lifecycle.

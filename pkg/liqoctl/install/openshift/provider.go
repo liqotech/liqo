@@ -73,6 +73,13 @@ func (o *Options) Values() map[string]interface{} {
 		"openshiftConfig": map[string]interface{}{
 			"enabled": true,
 		},
+		"networking": map[string]interface{}{
+			"gatewayTemplates": map[string]interface{}{
+				"wireguard": map[string]interface{}{
+					"implementation": "userspace",
+				},
+			},
+		},
 	}
 }
 

@@ -1,0 +1,44 @@
+{{- if and .Values.networking.enabled .Values.openshiftConfig.enabled }}
+
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: liqo-gateway
+  labels:
+    {{- include "liqo.labels" . | nindent 4 }}
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: true
+allowedCapabilities:
+- NET_ADMIN
+- NET_RAW
+defaultAddCapabilities: []
+fsGroup:
+  type: RunAsAny
+groups: []
+priority: 10
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+users:
+{{- range .Values.openshiftConfig.gatewayServiceAccounts }}
+- system:serviceaccount:{{ $.Release.Namespace }}:{{ . }}
+{{- end }}
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+
+{{- end }}
