@@ -22,8 +22,8 @@ import (
 type FlagNames string
 
 const (
-	// FlagNamesProducersKubeconfigs is the flag name for the kubeconfigs of the remote clusters.
-	FlagNamesProducersKubeconfigs FlagNames = "remote-kubeconfigs"
+	// FlagNamesProvidersKubeconfigs is the flag name for the kubeconfigs of the remote clusters.
+	FlagNamesProvidersKubeconfigs FlagNames = "remote-kubeconfigs"
 	// FlagNamesInfo is the flag name for the information output.
 	FlagNamesInfo FlagNames = "info"
 	// FlagNamesRemoveNamespace is the flag name for the namespace removal.
@@ -44,7 +44,8 @@ const (
 
 // AddFlags adds the flags used by the network tests to the given flag set.
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
-	fs.StringSliceVarP(&o.RemoteKubeconfigs, string(FlagNamesProducersKubeconfigs), "p", []string{}, "A list of kubeconfigs for remote provider clusters")
+	fs.StringSliceVarP(&o.RemoteKubeconfigs, string(FlagNamesProvidersKubeconfigs), "p", []string{},
+		"A list of kubeconfigs for remote provider clusters")
 	fs.BoolVar(&o.RemoveNamespace, string(FlagNamesRemoveNamespace), false, "Remove namespace after the test")
 	fs.BoolVar(&o.Info, string(FlagNamesInfo), false, "Print information about the network configurations of the clusters")
 	fs.BoolVar(&o.NodePortExt, string(FlagNamesNodeportExternal), false, "Enable curl from external to nodeport service")

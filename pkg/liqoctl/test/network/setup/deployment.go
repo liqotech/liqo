@@ -45,11 +45,11 @@ func CreateAllDeployments(ctx context.Context, cl *client.Client) (totreplicas i
 	for k := range cl.Providers {
 		replicas, err := getReplicas(ctx, cl.Providers[k])
 		if err != nil {
-			return 0, fmt.Errorf("producer %q error getting replicas: %w", k, err)
+			return 0, fmt.Errorf("provider %q error getting replicas: %w", k, err)
 		}
 		totreplicas += replicas
 		if err := CreateDeployment(ctx, cl.Consumer, replicas, k, false); err != nil {
-			return 0, fmt.Errorf("producer %q error creating deployment: %w", k, err)
+			return 0, fmt.Errorf("provider %q error creating deployment: %w", k, err)
 		}
 		if err := CreateDeployment(ctx, cl.Consumer, replicas, k, true); err != nil {
 			return 0, fmt.Errorf("consumer error creating deployment: %w", err)
@@ -64,10 +64,10 @@ func CreateAllDeployments(ctx context.Context, cl *client.Client) (totreplicas i
 	}
 	for k := range cl.Providers {
 		if err := WaitDeploymentReady(ctx, cl.Consumer, k, false); err != nil {
-			return 0, fmt.Errorf("producer %q error waiting for deployments to be ready: %w", k, err)
+			return 0, fmt.Errorf("provider %q error waiting for deployments to be ready: %w", k, err)
 		}
 		if err := WaitDeploymentReady(ctx, cl.Consumer, k, true); err != nil {
-			return 0, fmt.Errorf("producer %q error waiting for deployments to be ready: %w", k, err)
+			return 0, fmt.Errorf("provider %q error waiting for deployments to be ready: %w", k, err)
 		}
 	}
 	return totreplicas, nil
