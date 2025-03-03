@@ -78,8 +78,10 @@ func NewClientReconciler(cl client.Client, dynClient dynamic.Interface,
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclients,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclients/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclients/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclienttemplates,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage GatewayClient lifecycle.

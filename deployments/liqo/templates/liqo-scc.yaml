@@ -1,0 +1,43 @@
+{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking" "version" .Values.networking.fabric.image.version ) .) -}}
+
+{{- if and .Values.openshiftConfig.enabled .Values.networking.enabled }}
+
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: {{ include "liqo.prefixedName" $fabricConfig }}
+  labels:
+    {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: true
+allowHostPID: false
+allowHostPorts: true
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: true
+allowedCapabilities:
+- NET_ADMIN
+- NET_RAW
+defaultAddCapabilities: []
+fsGroup:
+  type: RunAsAny
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+- '*'
+supplementalGroups:
+  type: RunAsAny
+users:
+- system:serviceaccount:{{ .Release.Namespace }}:{{ include "liqo.prefixedName" $fabricConfig }}
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+
+{{- end }}

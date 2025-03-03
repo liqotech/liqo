@@ -47,9 +47,13 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme) *InternalF
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes/finalizers,verbs=update
 
 // Reconcile manage InternalFabric lifecycle.
 func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {

@@ -64,7 +64,9 @@ func NewQuotaCreatorReconciler(
 
 // cluster-role
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;list;watch
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices/finalizers,verbs=update
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=quotas,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=quotas/finalizers,verbs=update
 
 // Reconcile manage Quotas resources.
 func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

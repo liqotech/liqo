@@ -680,3 +680,4 @@ openshiftConfig:
   # Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded.
   virtualKubeletSCCs:
   - anyuid
+  - privileged
