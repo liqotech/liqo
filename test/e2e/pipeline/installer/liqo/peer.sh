@@ -38,10 +38,15 @@ do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  echo "Generating kubeconfig for consumer cluster ${i}"
-  "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" > "${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+  if [[ "${INFRA}" == "eks" ]]; then
+    # Do not generate peer-user on EKS since it is not supported
+    PROVIDER_KUBECONFIG=$PROVIDER_KUBECONFIG_ADMIN
+  else
+    echo "Generating kubeconfig for consumer cluster 1 on provider cluster ${i}"
+    "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" > "${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+    PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+  fi
 
-  PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
   ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
 
   if [[ "${INFRA}" == "kubeadm" ]]; then
@@ -66,5 +71,5 @@ do
 
   # Sleep a bit, to avoid generating a race condition with the
   # authentication process triggered by the incoming peering.
-  sleep 1
+  sleep 3
 done

@@ -77,8 +77,8 @@ The Liqo Gateway of the first cluster will act as a client, while the one in the
 ```{admonition} Note
 You can see further configuration options with `liqoctl network connect --help`.
 
-For instance, in the previous command we have used the `--server-service-type NodePort` option to expose the service associated to the Liqo Gateway server as a NodePort.
-Alternatively, you can use the `--server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer (if supported in your Kubernetes cluster).
+For instance, in the previous command we have used the `--gw-server-service-type NodePort` option to expose the service associated to the Liqo Gateway server as a NodePort.
+Alternatively, you can use the `--gw-server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer (if supported in your Kubernetes cluster).
 ```
 
 In the first cluster (acting as gateway client), you can find the following resources:

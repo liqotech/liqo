@@ -19,7 +19,6 @@
 # AWS_CLI               -> the path where aws-cli is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
-# CNI                   -> the CNI plugin used
 
 set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
@@ -35,7 +34,7 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
-OS_IMAGE=${OS_IMAGE:-"ubuntu-2204"}
+OS_IMAGE=${OS_IMAGE:-"Ubuntu2204"}
 
 # shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
@@ -45,6 +44,10 @@ CLUSTER_NAME=cluster
 
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
+
+# Strip the initial 'v' character and the patch from the k8s version 
+version=${K8S_VERSION#"v"}
+version=$(echo "${version}" | cut -d. -f1,2)
 
 PIDS=()
 
@@ -58,6 +61,7 @@ do
     "${EKSCTL}" create cluster \
         --name "${CLUSTER_NAME}" \
         --region "eu-central-1" \
+        --version "${version}" \
         --instance-types c4.large,c5.large \
         --nodes 2 \
         --managed \

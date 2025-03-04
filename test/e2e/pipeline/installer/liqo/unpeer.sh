@@ -50,10 +50,16 @@ for i in $(seq 2 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${CONSUMER_KUBECONFIG}"
   export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
-
-  "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
-  "${LIQOCTL}" delete peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}"
+  
+  if [[ "${INFRA}" == "eks" ]]; then
+    # Do not use peer-user on EKS since it is not supported
+    PROVIDER_KUBECONFIG=$PROVIDER_KUBECONFIG_ADMIN
+    "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
+  else
+    PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+    "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
+    "${LIQOCTL}" delete peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}"
+  fi
 done;
 
 # check that the peering is correctly removed
