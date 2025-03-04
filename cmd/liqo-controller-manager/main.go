@@ -118,7 +118,9 @@ func main() {
 	foreignClusterPingTimeout := pflag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
 	defaultLimitsEnforcement := pflag.String("default-limits-enforcement", string(offloadingv1beta1.NoLimitsEnforcement),
-		"The default limits enforcement policy for the offloading module")
+		"Defines how strict is the enforcement of the quota offered by the remote cluster. Possible values are: "+
+			string(offloadingv1beta1.NoLimitsEnforcement)+", "+string(offloadingv1beta1.SoftLimitsEnforcement)+", "+
+			string(offloadingv1beta1.HardLimitsEnforcement))
 
 	// NETWORKING MODULE
 	ipamServer := pflag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")

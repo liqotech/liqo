@@ -331,15 +331,16 @@ controllerManager:
   config:
     # -- It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits).
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
-    # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
+    # It makes sure that the sum of the requests of the offloaded pods never exceeds the quota offered by the remote cluster.
+    # The quota can be still exceeded if no limits and requests are defined in the offloaded pods or if the limits are larger than the
+    # requests. For a stricter enforcement, the defaultLimitsEnforcement can be set to Hard.
     enableResourceEnforcement: true
-    # -- It enforces offerer-side that offloaded pods do not exceed offered limits.
-    # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
-    # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
+    # -- Defines how strict is the enforcement of the quota offered by the remote cluster.
+    # enableResourceEnforcement must be enabled to use this feature.
     # Possible values are: None, Soft, Hard.
-    # None: no enforcement is applied.
-    # Soft: request <= limit.
-    # Hard: request == limit.
+    # None: the offloaded pods might not have the resource `requests` or `limits`.
+    # Soft: it forces the offloaded pods to have `requests` set. If the pods go over the requests, the total used resources might go over the quota.
+    # Hard: it forces the offloaded pods to have `limits` and `requests` set, with `requests` == `limits`. This is the safest mode as the consumer cluster cannot go over the quota.
     defaultLimitsEnforcement: None
     # -- Ensure offloaded pods running on a failed node are evicted and rescheduled on a healthy node, preventing them to remain in a terminating state indefinitely.
     # This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster.

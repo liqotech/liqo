@@ -23,9 +23,7 @@ align: center
 Automatic network configuration
 ```
 
-The `unpeer` process will automatically remove the Liqo Gateway from the tenant namespace, in both clusters.
-
-Note that in the automatic process we have a sort of assumption that the _provider cluster_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled when using a manual peering process.
+By default, with the automatic process the _provider cluster_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled using the `--gw-server-gateway-location` parameter with the `liqoctl peer` command or when using a manual peering process.
 
 Finally, it is worth remembering that the network configuration is applied independently per each peering; for instance, a first cluster A can act as gateway client toward a second cluster B, but it can act as gateway server with respect to the peering with cluster C.
 
@@ -73,9 +71,6 @@ You should see an output like the following:
  INFO   (remote) Connection is established
 ```
 
-<<<<<<< HEAD
-If the command was successful you will be able to see a new connection resource with status `Connected`:
-=======
 This command deploys a Liqo Gateway in the tenant namespace of each cluster and sets up the connection between them.
 The Liqo Gateway of the first cluster will act as a client, while the one in the second cluster will act as a server.
 
@@ -116,7 +111,6 @@ kubectl get gatewayservers.networking.liqo.io -A
 NAMESPACE          NAME        TEMPLATE NAME      IP           PORT    AGE
 liqo-tenant-cl01   cl01        wireguard-server   172.19.0.8   32009   69s
 ```
->>>>>>> 05c1030e (docs: polishing docs for manual authentication)
 
 ```bash
 kubectl get connections.networking.liqo.io -A

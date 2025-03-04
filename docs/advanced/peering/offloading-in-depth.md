@@ -3,8 +3,8 @@
 ## Overview
 
 ```{warning}
-The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address the more complex cases.
-For the major part of the cases the `liqoctl peer` is enough, so [stick with it](/usage/peer) if you do not have any specific needs.
+The aim of the following section is to give an idea of how Liqo works under the hood and to provide the instruments to address more complex scenarios.
+The `liqoctl peer` is enough for the most part of the cases, so [stick with it](/usage/peer) if you do not have any specific needs.
 ```
 
 This document will go over the process of acquiring resources and making them available as a `Node` in the consumer cluster.
@@ -14,7 +14,7 @@ You can add a `VirtualNode` to a consumer cluster in two different ways:
 1. By creating a `ResourceSlice` in the tenant namespace in the consumer cluster.
 2. By creating a `VirtualNode` in the consumer cluster.
 
-Note that the `ResourceSlice` method is the **preferred way** to add a `VirtualNode` to a consumer cluster, but it requires the *Authentication module* to be enabled (that is enabled by default when using `liqoctl peer`, `liqoctl authenticate` or the [manual configuration](/advanced/peering/inter-cluster-authentication)).
+Note that the `ResourceSlice` method is the **preferred way** to add a `VirtualNode` to a consumer cluster, but it requires the *Authentication module* to be enabled (which is enabled by default when using `liqoctl peer`, `liqoctl authenticate`, or the [manual configuration](/advanced/peering/inter-cluster-authentication)).
 In the following steps, when we are using `ResourceSlices`, we will assume that the *Authentication module* is enabled and the authentication between the clusters is established, either with [`liqoctl peer`](/usage/peer) or with the [manual configuration](/advanced/peering/inter-cluster-authentication).
 
 ## Create ResourceSlice
@@ -62,7 +62,7 @@ You can specify the resources you want to acquire by adding:
 * `--memory` to specify the amount of memory.
 * `--pods` to specify the number of pods.
 
-To add other resources like `ephemeral-storage`, `gpu` or any other custom resources, you can use the `-o yaml` flag for the `liqoctl create resourceslice` command and edit the `ResourceSlice` spec manifest before applying it.
+To add other resources like `ephemeral-storage`, `gpu`, or any other custom resources, you can use the `-o yaml` flag for the `liqoctl create resourceslice` command and edit the `ResourceSlice` spec manifest before applying it.
 
 ```{code-block} bash
 :caption: "Cluster consumer"
@@ -114,7 +114,17 @@ mypool                          Ready    agent           67s   v1.27.4
 
 ### Custom Resource Allocation
 
-To customize the behavior of resource sharing, you can specify a custom Resource Slice class. This can be done either in the YAML specification or by using the `--class` flag with `liqoctl`:
+The amount of resources shared by the provider cluster is managed by the _ResourceSlice class controller_, which decides whether to accept or deny a ResourceSlice based on a set of criteria and the available resources in the cluster.
+
+The default _ResourceSlice class controller_ is quite simple, as it accepts any incoming ResourceSlice request from the consumer.
+Consequently, the provider cluster might grant more resources than it currently has.
+While this might seem problematic, it can be **useful in scenarios where the cluster has an autoscaler that dynamically acquires resources** as needed.
+
+To support more complex scenarios and specific use cases, Liqo allows the definition of _custom ResourceSlice classes_.
+These classes enable the implementation of **custom logic to determine whether to accept or reject a ResourceSlice** (e.g., based on a tenant's resource quota) and how much resources the provider cluster can share.
+**This logic should be implemented in a _custom ResourceSlice class controller_**, whose template is available [in this repository](https://github.com/liqotech/resource-slice-class-controller-template).
+
+The ResourceSlice class can be specified either in the YAML manifest or by using the `--class` flag with `liqoctl`:
 
 `````{tab-set}
 
@@ -136,17 +146,11 @@ spec:
   providerClusterID: cool-firefly
 ```
 ````
-
 `````
 
-The provider cluster can handle this custom class with a dedicated controller.
-Liqo provides a template repository for implementing such controllers.
-
-When using a custom class:
-
-1. Specify the class in the `ResourceSlice` spec.
-2. The provider's custom controller should fill the resources in the status and set the condition regarding resources.
-3. The `VirtualNode` and `Quota` will be created according to the resources specified by the custom controller.
+Once a custom class is defined in the `ResourceSlice` spec, the custom ResourceSlice controller will be responsible for accepting or denying the ResourceSlices and updating their status with the amount of granted resources.
+The custom controller might deny the request, fully accept it, or partially accept it by providing only a portion of the requested resources.
+The `VirtualNode` in the consumer cluster and the `Quota` in the provider cluster will be created based on the resources granted by the custom controller.
 
 This approach allows for more flexible and dynamic resource allocation based on specific policies or requirements defined by the provider cluster.
 
@@ -300,7 +304,7 @@ type: Opaque
 
 ### Check shared resources and virtual nodes
 
-Via `liqoctl` it is possible to check the amount of shared resources and the virtual nodes configured for a specific peerings looking at [the peering status](../../usage/peer.md#check-status-of-peerings).
+Via `liqoctl` it is possible to check the amount of shared resources and the virtual nodes configured for a specific peering by looking at [the peering status](../../usage/peer.md#check-status-of-peerings).
 
 ### Delete VirtualNode
 
@@ -313,19 +317,34 @@ kubectl delete virtualnode mynode -n liqo-tenant-cool-firefly
 
 ## Multiple VirtualNodes
 
-You can create multiple `VirtualNodes` associated with the same provider cluster.
-This can be done in two ways:
+In some cases, it might be beneficial to have multiple `VirtualNodes` pointing to the same provider cluster.
+For example, this can be useful to tune the Kubernetes scheduler.
+For instance, if a `VirtualNode` is larger than other nodes in the cluster, the scheduler tends to place the majority of the pods on that node.
 
-1. By creating multiple `ResourceSlices` in the consumer cluster targeting the same provider cluster.
-2. By creating multiple `VirtualNodes` associated with the same `ResourceSlice`.
+Additionally, you might want to divide resources into subgroups.
+For example, if the provider cluster shares 50 CPUs through a `ResourceSlice`, but 40 of them are x86 and the remaining 10 are ARM, these resources cannot be used interchangeably, given their different nature.
+In such a scenario, you should split them into two Liqo virtual nodes: one exposing the 10 ARM CPUs and the other exposing the remaining 40 x86 CPUs.
 
-The first option is recommended since the resource enforcement is more straightforward to manage, as the `VirtualNode` can use the resources assigned to the `ResourceSlice`.
-If you want more resources, you can simply create another `ResourceSlice`.
+There are two strategies to create `VirtualNodes` associated with the same provider cluster:
 
-The second option is still possible for maximum flexibility, but requires the user to allocate `VirtualNodes` resources more carefully, considering that the sum of the resources used by the `VirtualNodes` cannot exceed what is given to the shared `ResourceSlice` (if resource enforcement is enabled).
+1. By **creating multiple `ResourceSlices`** in the consumer cluster targeting the same provider cluster: this is the recommended strategy, as resource enforcement is more straightforward to manage. For each `ResourceSlice` that grants resources on the provider cluster, there is a single `VirtualNode` exposing them. If you need more resources, you can simply create another `ResourceSlice`.
+2. By **creating multiple `VirtualNodes` associated with the same `ResourceSlice`**: this approach offers maximum flexibility but requires careful resource allocation. Multiple `VirtualNodes` will share the resources granted by the same `ResourceSlice`, and the total resources exposed by these `VirtualNodes` cannot exceed the resources granted by `ResourceSlice` (if resource enforcement is enabled).
 
-A provider cluster can allocate more resources than the ones it currently has.
-The default enforcement (which can be disabled) only checks that the consumer does not use more resources than the ones negotiated in the `ResourceSlice`.
-This is done to allow use cases where the provider cluster has an autoscaler so it can expand dynamically its resources.
+## Resource Enforcement
 
-See [VirtualNode customization](/advanced/virtualnode-customizations) for more information on how to customize the `VirtualNode` resources.
+To ensure that the pods scheduled on a Liqo virtual node do not exceed the resources granted by the ResourceSlice, pods should have resource `limits` set. This allows the consumer cluster scheduler to be aware of how many resources have already been allocated, and it can select another node for scheduling.
+
+By default, Liqo enables a server-side check that ensures the requests of the pod do not exceed the quota (`controllerManager.config.enableResourceEnforcement` option enabled).
+However, this is not a guarantee that the consumer is not using more than expected, as if limits are higher than requests or if the user does not set limits and requests at all, a consumer cluster can use more than the quota.
+To define how strict is the server-side resources enforcement, ensuring that the consumer cluster never exceeds the quota, it is possible to act on the `controllerManager.config.defaultLimitsEnforcement` option, which can assume the following values:
+
+* **None** (default): the offloaded pods might not have the resource `requests` or `limits`. Which involves that the consumer cluster might use more than the resources negotiated via the `ResourceSlice`.
+* **Soft**: it forces the offloaded pods to have the `requests` set, which implies that pre-allocated resources will never go over the quota, but if the pods go over the requests, the total used resources might go over the quota.
+* **Hard**: it forces the offloaded pods to have both `limits` and `requests` set, with `limits` equal to the `requests`. **This is the safest mode** as the consumer cluster cannot go over the quota negotiated via the `ResourceSlice`.
+
+These options [need to be set at installation time](../../installation/install.md#customization-options), by defining them in the `values.yaml` or providing them via the `--set` argument to `helm install` or `liqoctl install`.
+For example, to set the `defaultLimitsEnforcement` to `Hard`:
+
+```bash
+liqoctl install [...ARGS] --set controllerManager.config.defaultLimitsEnforcement=Hard
+```

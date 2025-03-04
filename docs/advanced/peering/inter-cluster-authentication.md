@@ -86,7 +86,7 @@ For this feature to work, the Liqo **networking module** must be enabled.
 
 `liqoctl unauthenticate` allows to undo the changes applied by the `authenticate` command. Also in this case, the user should be able to access both the involved clusters.
 
-For example, given the previous case, if the user would like to undo the authentication between consumer and provider custers (hence, clearing all the CRs associated with this process), the following command can be used:
+For example, given the previous case, if the user would like to undo the authentication between consumer and provider clusters (hence, clearing all the CRs associated with this process), the following command can be used:
 
 ```{code-block} bash
 :caption: "Cluster consumer"
@@ -221,14 +221,14 @@ Check the [Kubernetes API Server Proxy](/advanced/k8s-api-server-proxy.md) page.
 
 ### Creation of the Identity resource (provider cluster)
 
-At this point, **on the provider cluster**, you can apply the `Tenant` resource previously generated on the consumer cluster.
+At this point, **on the provider cluster**, you can apply the `Tenant` resource previously generated on the consumer cluster in the tenant namespace (`liqo-tenant-cl-consumer` in this case).
 
 ```{code-block} bash
 :caption: "Cluster provider"
-kubectl apply -f $TENANT_RESOURCE_YAML_PATH
+kubectl apply -f $TENANT_RESOURCE_YAML_PATH -n liqo-tenant-cl-consumer
 ```
 
-Once the resource is applied, the CSR is signed by the cluster provider:
+Once the resource is applied, the CSR is signed by the provider cluster:
 
 ```bash
 $ kubectl get csr
@@ -236,7 +236,8 @@ NAME                  AGE     SIGNERNAME                            REQUESTOR   
 liqo-identity-k47v5   2m59s   kubernetes.io/kube-apiserver-client   system:serviceaccount:liqo:liqo-controller-manager   <none>              Approved,Issued
 ```
 
-Once signed, we have the certificate to be used by the consumer cluster to authenticate to the provider's K8S API server. Hence, we can generate the `Identity` resource to be applied on the consumer:
+Once signed, we have the certificate to be used by the consumer cluster to authenticate to the provider's K8S API server.
+Hence, we can generate the `Identity` resource to be applied on the consumer:
 
 ```{code-block} bash
 :caption: "Cluster provider"
@@ -264,11 +265,11 @@ spec:
 status: {}
 ```
 
-This Identity resource can be applied **on the consumer cluster**, making sure that the resource is created in the tenant namespace (`liqo-tenant-cl-consumer` in this case):
+This Identity resource can be applied **on the consumer cluster**, making sure that the resource is created in the tenant namespace (`liqo-tenant-cl-provider` in this case):
 
 ```{code-block} bash
 :caption: "Cluster consumer"
-kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH -n liqo-tenant-cl-consumer
+kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH -n liqo-tenant-cl-provider
 ```
 
 Once the Identity resource is correctly applied, the clusters are able to automatically negotiate the resources for the [offloading](/advanced/peering/offloading-in-depth).
@@ -280,27 +281,27 @@ We summarize here the steps that need to be performed by the administrators of e
 1. **Provider cluster**: creates the nonce to be provided to the **consumer cluster** administrator:
 
    ```bash
-   liqoctl create nonce --remote-cluster-id $CLUSTER_CONSUMER_ID
-   liqoctl get nonce --remote-cluster-id $CLUSTER_CONSUMER_ID > nonce.txt
+   liqoctl create nonce --remote-cluster-id $CONSUMER_CLUSTER_ID
+   liqoctl get nonce --remote-cluster-id $CONSUMER_CLUSTER_ID > nonce.txt
    ```
 
 2. **Consumer cluster**: generates the `Tenant` resource to be applied by the **provider cluster**:
 
    ```bash
-   liqoctl generate tenant --remote-cluster-id $CLUSTER_PROVIDER_ID --nonce $(cat nonce.txt) > tenant.yaml
+   liqoctl generate tenant --remote-cluster-id $PROVIDER_CLUSTER_ID --nonce $(cat nonce.txt) > tenant.yaml
    ```
 
 3. **Provider cluster**: applies `tenant.yaml` and generates the `Identity` resource to be applied by the consumer:
 
    ```bash
-   kubectl apply -f tenant.yaml
-   liqoctl generate identity --remote-cluster-id $CLUSTER_CONSUMER_ID > identity.yaml
+   kubectl apply -f tenant.yaml -n $TENANT_NAMESPACE_FOR_PEERING_WITH_CONSUMER
+   liqoctl generate identity --remote-cluster-id $CONSUMER_CLUSTER_ID > identity.yaml
    ```
 
 4. **Consumer cluster** applies `identity.yaml` in the tenant namespace:
 
    ```bash
-   kubectl apply -f identity.yaml -n $TENANT_NAMESPACE
+   kubectl apply -f identity.yaml -n $TENANT_NAMESPACE_FOR_PEERING_WITH_PROVIDER
    ```
 
 You can see whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).
