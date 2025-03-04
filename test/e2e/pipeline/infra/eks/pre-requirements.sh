@@ -54,9 +54,9 @@ then
         return 1
     fi
     tar -xzf "eksctl_$PLATFORM.tar.gz" && rm "eksctl_$PLATFORM.tar.gz"
+    chmod +x eksctl
     mv eksctl "${EKSCTL}"
 fi
-chmod +x "${EKSCTL}"
 echo "eksctl version:"
 "${EKSCTL}" version
 
@@ -79,7 +79,7 @@ then
     unzip awscli-exe-linux-${AWS_ARCH}.zip
     ./aws/install -i "${BINDIR}/aws-tmp" -b "${BINDIR}"
     rm -rf aws awscli-exe-linux-${AWS_ARCH}.zip
+    chmod +x "${AWS_CLI}"
 fi
-chmod +x "${AWS_CLI}"
 echo "aws-cli version:"
 "${AWS_CLI}" --version

@@ -35,7 +35,7 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/../../utils.sh"
 
 # shellcheck disable=SC1091
-# shellcheck source=../gke/const.sh
+# shellcheck source=../../infra/gke/const.sh
 source "${SCRIPT_DIR}/../../infra/gke/const.sh"
 
 setup_arch_and_os
@@ -90,11 +90,17 @@ do
     COMMON_ARGS=("${COMMON_ARGS[@]}" --eks-cluster-region="eu-central-1" --eks-cluster-name="${CLUSTER_NAME}")
     # do not fail if variables are not set
     set +u
-    if [[ "${LIQO_AWS_USERNAME}" != "" ]]; then
-      COMMON_ARGS=("${COMMON_ARGS[@]}" --user-name "${LIQO_AWS_USERNAME}")
+    if [[ "${AWS_LIQOCTL_USERNAME}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --user-name "${AWS_LIQOCTL_USERNAME}")
     fi
-    if [[ "${LIQO_AWS_POLICY_NAME}" != "" ]]; then
-      COMMON_ARGS=("${COMMON_ARGS[@]}" --policy-name "${LIQO_AWS_POLICY_NAME}")
+    if [[ "${AWS_LIQOCTL_POLICY_NAME}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --policy-name "${AWS_LIQOCTL_POLICY_NAME}")
+    fi
+    if [[ "${AWS_LIQOCTL_ACCESS_KEY_ID}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --access-key-id "${AWS_LIQOCTL_ACCESS_KEY_ID}")
+    fi
+    if [[ "${AWS_LIQOCTL_SECRET_ACCESS_KEY}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --secret-access-key "${AWS_LIQOCTL_SECRET_ACCESS_KEY}")
     fi
     set -u
   fi

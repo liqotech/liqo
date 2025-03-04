@@ -69,6 +69,7 @@ func (o *Options) ensureUser(iamSvc *iam.IAM) error {
 		return nil
 	}
 
+	o.Printer.Info.Printfln("Creating IAM user %v", o.iamUser.userName)
 	createUserRequest := &iam.CreateUserInput{
 		UserName: aws.String(o.iamUser.userName),
 	}
@@ -89,6 +90,7 @@ func (o *Options) ensureUser(iamSvc *iam.IAM) error {
 		UserName: aws.String(o.iamUser.userName),
 	}
 
+	o.Printer.Info.Printfln("Creating IAM access key for user %v", o.iamUser.userName)
 	createAccessKeyResult, err := iamSvc.CreateAccessKey(createAccessKeyRequest)
 	if err != nil {
 		return err
