@@ -32,7 +32,7 @@ The setup script named them **london** and **newyork**.
 Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_NEWYORK" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_NEWYORK" --gw-server-service-type NodePort
 ```
 
 When the above command returns successfully, you can check the peering status by running:

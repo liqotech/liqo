@@ -39,8 +39,8 @@ The setup script named them **europe-cloud**, **europe-rome-edge** and **europe-
 Now, you can establish new Liqo *peerings* from *origin* to *destination* clusters:
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_ROME_EDGE" --server-service-type NodePort
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_MILAN_EDGE" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_ROME_EDGE" --gw-server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_MILAN_EDGE" --gw-server-service-type NodePort
 ```
 
 When the above commands return successfully, you can check the peering status by running:

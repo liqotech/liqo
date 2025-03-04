@@ -51,7 +51,7 @@ This will allow Liqo to [offload workloads and reflect services](/features/offlo
 To proceed, first we need to peer the *gslb-eu* cluster with *gslb-us*:
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_US" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_US" --gw-server-service-type NodePort
 ```
 
 ```{admonition} Note

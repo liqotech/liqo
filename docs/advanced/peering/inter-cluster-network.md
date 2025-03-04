@@ -39,7 +39,7 @@ To establish a connection between two clusters, you can run the following comman
 liqoctl network connect \
   --kubeconfig $CLUSTER_1_KUBECONFIG_PATH \
   --remote-kubeconfig $CLUSTER_2_KUBECONFIG_PATH \
-  --server-service-type NodePort \
+  --gw-server-service-type NodePort \
   --wait
 ```
 
@@ -130,8 +130,8 @@ The command above applied the following changes to the clusters:
 ```{admonition} Note
 You can see further configuration options with `liqoctl network connect --help`.
 
-For instance, in the previous command we have used the `--server-service-type NodePort` option to expose the Liqo Gateway service as a NodePort service.
-Alternatively, you can use the `--server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer service (if supported by your cloud provider).
+For instance, in the previous command we have used the `--gw-server-service-type NodePort` option to expose the Liqo Gateway service as a NodePort service.
+Alternatively, you can use the `--gw-server-service-type LoadBalancer` option to expose the Liqo Gateway service as a LoadBalancer service (if supported by your cloud provider).
 ```
 
 In **cluster 1**, which, in this case, **hosts the client gateway**, you will find the following resources:
@@ -251,10 +251,10 @@ INFO   (remote) Network configuration correctly deleted
 
 You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command with respect to the server side:
 
-* `--server-service-type` (default `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
-* `--server-port` (default `51840`): the UDP port used by the Gateway service.
-* `--node-port` (default `0`): set it to force the NodePort binding to a specific port. If set to `0`, the system will allocate a port automatically.
-* `--load-balancer-ip` (default `""`): set it to force the LoadBalancer service to bind to a specific IP address. If set to `""`, the system will allocate an IP address automatically.
+* `--gw-server-service-type` (default `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
+* `--gw-server-service-port` (default `51840`): Port of the Gateway Server service.
+* `--gw-server-service-nodeport` (default `""`): force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort.
+* `--gw-server-service-loadbalancerip` (default `""`): force LoadBalancer IP of the Gateway Server service. Leave empty to use the one provided by the LoadBalancer provider.
 * `--mtu` (default `1340`): the MTU of the Gateway interface. Note that the MTU must be the same on both sides.
 
 Use the `liqoctl network connect --help` command to see all the available options.

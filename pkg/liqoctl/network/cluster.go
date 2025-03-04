@@ -326,7 +326,7 @@ func (c *Cluster) checkTemplateServerServiceNodePort(template *unstructured.Unst
 		// If the field is missing, it might be optional (represented by leading ?). If not, raise an error
 		if _, errOptional := maps.GetNestedField(port, "?nodePort"); errOptional != nil {
 			return fmt.Errorf("unable to get spec.template.spec.service.spec.ports[0].nodePort int the server template, " +
-				"since you specified the flag \"--server-service-nodeport\" you need to add the \"nodePort\" field in the template")
+				"since you specified the flag \"--gw-server-service-nodeport\" you need to add the \"nodePort\" field in the template")
 		}
 	}
 
@@ -343,7 +343,7 @@ func (c *Cluster) checkTemplateServerServiceLoadBalancer(template *unstructured.
 		// If the field is missing, it might be optional (represented by leading ?). If not, raise an error
 		if _, errOptional := maps.GetNestedField(template.Object, fmt.Sprintf("%s.?loadBalancerIP", servicePath)); errOptional != nil {
 			return fmt.Errorf("unable to get %s of the server template, "+
-				"since you specified the flag \"--server-service-loadbalancerip\" you need to add the \"loadBalancerIP\" field in the template", servicePath)
+				"since you specified the flag \"--gw-server-service-loadbalancerip\" you need to add the \"loadBalancerIP\" field in the template", servicePath)
 		}
 	}
 	return nil
