@@ -44,7 +44,7 @@ type FilterRule struct {
 	// Name is the name of the rule.
 	Name *string `json:"name,omitempty"`
 	// Counter is the counter to be used for the action.
-	Counter *bool `json:"counter,omitempty"`
+	Counter bool `json:"counter,omitempty"`
 	// Match is the match to be applied to the rule.
 	// They can be multiple and they are applied with an AND operator.
 	Match []Match `json:"match"`

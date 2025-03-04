@@ -204,6 +204,10 @@ spec:
                                   name:
                                     description: Name is the name of the rule.
                                     type: string
+                                  teststring:
+                                    description: Counter is the counter to be used
+                                      for the action.
+                                    type: string
                                   value:
                                     description: Value is the value to be used for
                                       the action.

@@ -71,11 +71,6 @@ func (in *FilterRule) DeepCopyInto(out *FilterRule) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Counter != nil {
-		in, out := &in.Counter, &out.Counter
-		*out = new(bool)
-		**out = **in
-	}
 	if in.Match != nil {
 		in, out := &in.Match, &out.Match
 		*out = make([]Match, len(*in))

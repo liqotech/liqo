@@ -131,10 +131,10 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 	default:
 	}
 
-	if fr.Counter != nil && *fr.Counter {
+	if fr.Counter {
 		applyCounter(rule)
 	}
-	klog.Info("Rule forged with Counter?: ", fr.Counter)
+	klog.Info("Rule forged with Counter TEST ?: ", fr.Counter)
 
 	return rule, nil
 }
