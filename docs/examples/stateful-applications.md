@@ -34,7 +34,7 @@ We suggest exporting the kubeconfig of the first cluster as default (i.e., `KUBE
 Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_LYON" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_LYON" --gw-server-service-type NodePort
 ```
 
 When the above command returns successfully, you can check the peering status by running:

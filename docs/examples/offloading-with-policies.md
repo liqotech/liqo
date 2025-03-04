@@ -42,8 +42,8 @@ In this way, you can easily identify the clusters through their characterizing l
 Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_FLORENCE" --server-service-type NodePort
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_NAPLES" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_FLORENCE" --gw-server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_NAPLES" --gw-server-service-type NodePort
 ```
 
 When the above commands return successfully, you can check the peering status by running:

@@ -45,11 +45,11 @@ do
   ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
 
   if [[ "${INFRA}" == "kubeadm" ]]; then
-    ARGS=("${ARGS[@]}" --server-service-type NodePort)
+    ARGS=("${ARGS[@]}" --gw-server-service-type NodePort)
   elif [[ "${INFRA}" == "kind" ]]; then
-    ARGS=("${ARGS[@]}" --server-service-type NodePort)
+    ARGS=("${ARGS[@]}" --gw-server-service-type NodePort)
   elif [[ "${INFRA}" == "k3s" ]]; then
-    ARGS=("${ARGS[@]}" --server-service-type NodePort)
+    ARGS=("${ARGS[@]}" --gw-server-service-type NodePort)
   fi
 
   echo "Environment variables:"

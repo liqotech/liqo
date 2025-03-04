@@ -151,10 +151,10 @@ In this example, we will leverage the *liqoctl peer* command to peer the two clu
 This approach requires the user to have access to the `kubeconfig` of both clusters.
 
 Let's issue the peering command from the consumer cluster, which is Rome in this case.
-The `--remote-kubeconfig` flag is used to specify the `kubeconfig` of the remote provider cluster, which is Milan in this case. Moreover, as no load balancer is configured in the clusters, we will set `--server-service-type` to `NodePort` to use a port of the nodes of the clusters to expose the Liqo gateway.
+The `--remote-kubeconfig` flag is used to specify the `kubeconfig` of the remote provider cluster, which is Milan in this case. Moreover, as no load balancer is configured in the clusters, we will set `--gw-server-service-type` to `NodePort` to use a port of the nodes of the clusters to expose the Liqo gateway.
 
 ```bash
-liqoctl peer --remote-kubeconfig "$KUBECONFIG_MILAN" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_MILAN" --gw-server-service-type NodePort
 ```
 
 The peering should be completed successfully after a few seconds (if the Docker images are already cached in the involved clusters) or minutes (when the Docker images have to be downloaded).

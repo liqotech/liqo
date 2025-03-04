@@ -50,7 +50,7 @@ the following operations:
 
 Examples:
   $ {{ .Executable }} peer --remote-kubeconfig <provider>
-  $ {{ .Executable }} peer --remote-kubeconfig <provider> --server-service-type NodePort
+  $ {{ .Executable }} peer --remote-kubeconfig <provider> --gw-server-service-type NodePort
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --cpu 2 --memory 4Gi --pods 10
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --create-resource-slice false
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --create-virtual-node false
@@ -91,32 +91,32 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	// Networking flags
 	cmd.Flags().BoolVar(&options.NetworkingDisabled, "networking-disabled", false, "Disable networking between the two clusters")
-	cmd.Flags().Var(options.ServerServiceLocation, "server-service-location",
+	cmd.Flags().Var(options.ServerServiceLocation, "gw-server-service-location",
 		fmt.Sprintf("Location of the service to expose the Gateway Server (%q or %q). Default: %q",
 			liqov1beta1.ConsumerRole, liqov1beta1.ProviderRole, nwforge.DefaultGwServerLocation))
-	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server service. Default: %q."+
+	cmd.Flags().Var(options.ServerServiceType, "gw-server-service-type",
+		fmt.Sprintf("Service type of the Gateway Server service. Default: %s."+
 			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
 			nwforge.DefaultGwServerServiceType))
-	cmd.Flags().Int32Var(&options.ServerServicePort, "server-service-port", nwforge.DefaultGwServerPort,
+	cmd.Flags().Int32Var(&options.ServerServicePort, "gw-server-service-port", nwforge.DefaultGwServerPort,
 		fmt.Sprintf("Port of the Gateway Server service. Default: %d", nwforge.DefaultGwServerPort))
-	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "server-service-nodeport", 0,
+	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "gw-server-service-nodeport", 0,
 		"Force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort")
-	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
+	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "gw-server-service-loadbalancerip", "",
 		"IP of the LoadBalancer for the Gateway Server service")
-	cmd.Flags().StringVar(&options.ClientConnectAddress, "client-address", "",
+	cmd.Flags().StringVar(&options.ClientConnectAddress, "gw-client-address", "",
 		"Define the address used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
-	cmd.Flags().Int32Var(&options.ClientConnectPort, "client-port", 0,
+	cmd.Flags().Int32Var(&options.ClientConnectPort, "gw-client-port", 0,
 		"Define the port used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,
 		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", nwforge.DefaultMTU))
 
-	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-location", completion.Enumeration(options.ServerServiceLocation.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
+	runtime.Must(cmd.RegisterFlagCompletionFunc("gw-server-service-location", completion.Enumeration(options.ServerServiceLocation.Allowed)))
+	runtime.Must(cmd.RegisterFlagCompletionFunc("gw-server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
 
 	// Authentication flags
 	cmd.Flags().BoolVar(&options.CreateResourceSlice, "create-resource-slice", true, "Create a ResourceSlice for the peering")

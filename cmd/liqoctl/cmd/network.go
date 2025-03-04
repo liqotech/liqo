@@ -121,37 +121,37 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	}
 
 	// Server flags
-	cmd.Flags().StringVar(&options.ServerGatewayType, "server-type", forge.DefaultGwServerType,
+	cmd.Flags().StringVar(&options.ServerGatewayType, "gw-server-type", forge.DefaultGwServerType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
-	cmd.Flags().StringVar(&options.ServerTemplateName, "server-template-name", forge.DefaultGwServerTemplateName,
+	cmd.Flags().StringVar(&options.ServerTemplateName, "gw-server-template-name", forge.DefaultGwServerTemplateName,
 		"Name of the Gateway Server template")
-	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", "",
+	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "gw-server-template-namespace", "",
 		"Namespace of the Gateway Server template")
-	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
+	cmd.Flags().Var(options.ServerServiceType, "gw-server-service-type",
 		fmt.Sprintf("Service type of the Gateway Server service. Default: %s."+
 			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
 			forge.DefaultGwServerServiceType))
-	cmd.Flags().Int32Var(&options.ServerServicePort, "server-service-port", forge.DefaultGwServerPort,
+	cmd.Flags().Int32Var(&options.ServerServicePort, "gw-server-service-port", forge.DefaultGwServerPort,
 		fmt.Sprintf("Port of the Gateway Server service. Default: %d", forge.DefaultGwServerPort))
-	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "server-service-nodeport", 0,
+	cmd.Flags().Int32Var(&options.ServerServiceNodePort, "gw-server-service-nodeport", 0,
 		"Force the NodePort of the Gateway Server service. Leave empty to let Kubernetes allocate a random NodePort")
-	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "server-service-loadbalancerip", "",
+	cmd.Flags().StringVar(&options.ServerServiceLoadBalancerIP, "gw-server-service-loadbalancerip", "",
 		"Force LoadBalancer IP of the Gateway Server service. Leave empty to use the one provided by the LoadBalancer provider")
 
 	// Client flags
-	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", forge.DefaultGwClientType,
+	cmd.Flags().StringVar(&options.ClientGatewayType, "gw-client-type", forge.DefaultGwClientType,
 		"Type of Gateway Client. Leave empty to use default Liqo implementation of WireGuard")
-	cmd.Flags().StringVar(&options.ClientConnectAddress, "client-address", "",
+	cmd.Flags().StringVar(&options.ClientConnectAddress, "gw-client-address", "",
 		"Define the address used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
-	cmd.Flags().Int32Var(&options.ClientConnectPort, "client-port", 0,
+	cmd.Flags().Int32Var(&options.ClientConnectPort, "gw-client-port", 0,
 		"Define the port used by the gateway client to connect to the gateway server. "+
 			"This value overrides the one automatically retrieved by Liqo and it is useful when the server is "+
 			"not directly reachable (e.g. the server is behind a NAT)")
-	cmd.Flags().StringVar(&options.ClientTemplateName, "client-template-name", forge.DefaultGwClientTemplateName,
+	cmd.Flags().StringVar(&options.ClientTemplateName, "gw-client-template-name", forge.DefaultGwClientTemplateName,
 		"Name of the Gateway Client template")
-	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", "",
+	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "gw-client-template-namespace", "",
 		"Namespace of the Gateway Client template")
 
 	// Common flags
@@ -159,7 +159,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", forge.DefaultMTU))
 	cmd.Flags().BoolVar(&options.DisableSharingKeys, "disable-sharing-keys", false, "Disable the sharing of public keys between the two clusters")
 
-	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
+	runtime.Must(cmd.RegisterFlagCompletionFunc("gw-server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
 
 	return cmd
 }
