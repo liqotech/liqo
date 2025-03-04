@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 const (
@@ -78,7 +79,14 @@ func EventFailedDeletionMsg(err error) string {
 
 // EventReflectionDisabledMsg returns the message for the event when reflection is disabled for the given namespace.
 func EventReflectionDisabledMsg(namespace string) string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q", RemoteCluster, namespace)
+	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q. "+
+		"If this is a DaemonSet scheduling pods in all the nodes across the cluster, "+
+		"you might want to prevent scheduling on Liqo Virtual Nodes. "+
+		"You can configure the rules under `spec.template.spec.affinity.nodeAffinity` so that the pods "+
+		"are not scheduled on Nodes having the label %s=%s. "+
+		"For further info check the documentation.",
+		RemoteCluster, namespace, consts.TypeLabel, consts.TypeNode,
+	)
 }
 
 // EventReflectionDisabledErrorMsg returns the message for the event when reflection is disabled for the given namespace, and an error occurs.
