@@ -209,6 +209,52 @@ liqoctl info peer -o json
 liqoctl info peer cl01 --get authentication.resourceslices
 ```
 
+## Defining the amount of resources to share
+
+By default, the `liqoctl peer` command requests the provider a default amount of resources, defined at installation time, which are:
+
+- cpu: "4"
+- memory: "8Gi"
+- pods: "110"
+- ephemeral-storage: "20Gi"
+
+```{admonition} Tip
+These defaults [can be changed](../installation/install.md#customization-options) by customizing the value of the `offloading.defaultNodeResources` option.
+```
+
+To define different values for a specific peering, you can provide the `--cpu`, `--memory`, and `--pods` arguments to the `liqoctl peer` command:
+
+```bash
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
+  --cpu=2 \
+  --memory=2Gi
+```
+
+```{warning}
+To make sure the consumer cluster does not exceed the quota of shared resources, the offloaded pods need to be created with the resources `limits` set.
+
+Check the [resource enforcement section](../advanced/peering/offloading-in-depth.md#resource-enforcement) to know more about how to configure Liqo to enforce the quota of resources that the provider has granted to the consumer cluster.
+```
+
+### Defining custom resources
+
+If you would ask for resources other than CPUs and memory, such as GPUs, you will need to create the peering connection without requesting resources, which can be done by providing the `--create-resource-slice=false` option:
+
+```bash
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
+  --create-resource-slice=false
+```
+
+The command above creates a peering connection, but **the provider cluster is currently not sharing resources**.
+
+**To request resources** from a provider cluster, **you will need to create a `ResourceSlice`**, where you specify the amount of resources you would like the provider to share with the consumer, including your custom resources.
+
+You can check [here to learn how to create a `ResourceSlice`](../advanced/peering/offloading-in-depth.md#create-resourceslice).
+
 ## Bidirectional peering
 
 Once the peering from the *consumer* to the *provider* has been established, the reverse direction (i.e., leading to a bidirectional peering) can be enabled through the same procedure.
