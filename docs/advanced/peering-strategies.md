@@ -23,7 +23,7 @@ However, it **requires** to have **access to both clusters Kubernetes API Server
 
 This method is ideal for a **more complex setup** where you want to establish a peering between two clusters and you need to configure each liqo module in a specific way.
 
-Refer to the [manual peering](/advanced/manual-peering) section for more information.
+Refer to the [advanced peering](/advanced/manual-peering) section for more information.
 
 ## Manual on single cluster
 
@@ -34,4 +34,4 @@ You will learn how to create the **Kubernetes Resources** used by Liqo to setup 
 
 It does not require to have access to **both clusters Kubernetes API Server at the same time**.
 
-Refer to the [manual peering](/advanced/manual-peering) section for more information.
+Refer to the [advanced peering](/advanced/manual-peering) section for more information.

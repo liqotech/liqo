@@ -23,7 +23,7 @@ align: center
 Automatic network configuration
 ```
 
-By default, with the automatic process the _provider cluster_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled using the `--gw-server-gateway-location` parameter with the `liqoctl peer` command or when using a manual peering process.
+By default, with the automatic process the _provider cluster_ is also acting as _gateway server_ from the networking point of view; this is not strictly needed, and the roles from the networking (i.e., gateway _server_ and _client_) and offloading (i.e., cluster _provider_ and _consumer_) can actually be decoupled using the `--gw-server-gateway-location` parameter with the `liqoctl peer` command or when using a advanced peering process.
 
 Finally, it is worth remembering that the network configuration is applied independently per each peering; for instance, a first cluster A can act as gateway client toward a second cluster B, but it can act as gateway server with respect to the peering with cluster C.
 
