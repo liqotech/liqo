@@ -17,7 +17,7 @@ This problem can be solved by swapping the roles of the gateways, hence configur
 To do so, you have two options:
 
 - run the `liqoctl peer` command with the `--server-service-location=Consumer` flag
-- perform a [manual peering](./manual-peering.md), setting the inter-cluster network up separately
+- perform a [advanced peering](./manual-peering.md), setting the inter-cluster network up separately
 
 ![The gateway server has been on the consumer side](../_static/images/advanced/nat/consumer-nat.svg)
 

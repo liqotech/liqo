@@ -1,4 +1,4 @@
-# Custom peering
+# Advanced peering
 
 In the [peer two clusters](../usage/peer.md) section of this documentation, we used the `liqoctl peer` command, which automatically configures all the Liqo modules (namely _networking_, _authentication_, and _offloading_) to create a peering between two clusters.
 However, there are some cases in which the automatic process is not appropriate, and the user would like to customize advanced parameters, overcome specific network constraints, and more, hence a more granular tuning for the peering process is needed.

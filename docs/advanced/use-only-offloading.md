@@ -60,7 +60,7 @@ liqoctl --kubeconfig=$CONSUMER_KUBECONFIG_PATH peer \
 
 The `--disable-networking` flag will prevent Liqo from configuring the networking between the clusters for that specific peering. While the resource reflection and offloading is still possible.
 
-Alternatively, if you are using the [Manual Peering](/advanced/manual-peering) method, you can disable the networking module simply by skipping the Inter-cluster Network Connectivity step.
+Alternatively, if you are using the [Advanced Peering](/advanced/manual-peering) method, you can disable the networking module simply by skipping the Inter-cluster Network Connectivity step.
 
 In that scenario, the Pod IPs will still be reflected in the remote cluster, but they will not be remapped. You can still connect to the remote pods using an external network tool.
 
