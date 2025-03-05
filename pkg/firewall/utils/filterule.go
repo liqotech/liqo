@@ -114,6 +114,11 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		}
 	}
 
+	if fr.Counter {
+		applyCounter(rule)
+	}
+	klog.Info("Rule forged with Counter TEST ?: ", fr.Counter)
+
 	switch fr.Action {
 	case firewallv1beta1.ActionCtMark:
 		err := applyCtMarkAction(fr.Value, rule)
@@ -130,11 +135,6 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		applyRejectAction(rule)
 	default:
 	}
-
-	if fr.Counter {
-		applyCounter(rule)
-	}
-	klog.Info("Rule forged with Counter TEST ?: ", fr.Counter)
 
 	return rule, nil
 }

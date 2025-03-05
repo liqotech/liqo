@@ -34,7 +34,7 @@ const (
 	ActionDrop FilterAction = "drop"
 
 	// ActionReject is the action to be applied to the rule.
-	// ActionReject reject the packet with response
+	// ActionReject reject the packet with response.
 	ActionReject FilterAction = "reject"
 )
 

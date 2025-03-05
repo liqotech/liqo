@@ -92,7 +92,7 @@ func GetPortValueType(value *string) (PortValueType, error) {
 	return PortValueTypeVoid, fmt.Errorf("invalid match value PORT %s", *value)
 }
 
-// support function, should be moved to pkg/utils
+// TODO: support function, should be moved to pkg/utils.
 func getIPValueParseRange(s string) (IPValueType, error) {
 	var rangeRegex = regexp.MustCompile(`^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*-\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$`)
 	matches := rangeRegex.FindStringSubmatch(s)
