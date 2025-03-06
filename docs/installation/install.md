@@ -49,9 +49,17 @@ Alternatively, you can manually specify a desired id with the `--cluster-id` fla
 
 ````{tab-item} AKS
 
+```{warning}
+Liqo does NOT support:
+
+* Cross-cluster API server interaction
+* NodePort exposition **only on Azure CNI (Legacy)**
+* External IP remapping **only on Azure CNI Overlay and Kubenet**
+```
+
 **Supported CNIs**
 
-Liqo supports AKS clusters using the following CNIs: [Azure AKS - Kubenet](https://learn.microsoft.com/en-us/azure/aks/configure-kubenet) and [Azure AKS - Azure CNI](https://learn.microsoft.com/en-us/azure/aks/configure-azure-cni).
+Liqo supports AKS clusters using the following CNIs: [Azure AKS - Kubenet](https://learn.microsoft.com/en-us/azure/aks/configure-kubenet), [Azure AKS - Azure CNI Overlay](https://learn.microsoft.com/en-us/azure/aks/azure-cni-overlay?tabs=kubectl) and [Azure AKS - Azure CNI (Legacy)](https://learn.microsoft.com/en-us/azure/aks/configure-azure-cni).
 
 **Configuration**
 
@@ -103,6 +111,13 @@ correct Resource Group name where the Virtual Network Resource is located.
 ````
 
 ````{tab-item} EKS
+
+```{warning}
+Liqo does NOT support:
+
+* Cross-cluster API server interaction
+* External IP remapping
+```
 
 ```{admonition} Note
 If you are planning to use an EKS cluster as [network server](/advanced/peering/inter-cluster-network), you need to install the [AWS Load Balancer V2 Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.8/) on the EKS cluster.
@@ -193,17 +208,18 @@ Alternatively, you can manually set a different id with the `--cluster-id` *liqo
 
 ````{tab-item} GKE
 
-**Supported CNIs**
-
-Liqo supports GKE clusters using the default CNI: [Google GKE - VPC-Native](https://cloud.google.com/kubernetes-engine/docs/how-to/alias-ips).
-
 ```{warning}
 Liqo does NOT support:
 
 * GKE Autopilot Clusters
-* Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag.
-* Accessing offloaded pods from NodePort/LoadBalancer services [**only on Dataplane V2**].
+* Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag
+* NodePort exposition **only on Dataplane V2**
+* LoadBalancer exposition **only on Dataplane V2**
 ```
+
+**Supported CNIs**
+
+Liqo supports GKE clusters using [Dataplane V1](https://cloud.google.com/kubernetes-engine/docs/concepts/network-overview) and [Dataplane V2](https://cloud.google.com/kubernetes-engine/docs/concepts/dataplane-v2).
 
 **Configuration**
 
@@ -298,15 +314,15 @@ Alternatively, you can manually set a different id with the `--cluster-id` *liqo
 
 ````{tab-item} K3s
 
-```{admonition} Note
-By default, the K3s installer stores the kubeconfig to access your cluster in the non-standard path `/etc/rancher/k3s/k3s.yaml`.
-Make sure to properly refer to it when using *liqoctl* (e.g., setting the `KUBECONFIG` variable), and that the current user has permissions to read it.
-```
-
 ```{warning}
 - Due to an issue with K3s certificates, the `kubectl exec' command doesn't work properly when used on a pod scheduled on a virtual node.
 - Due to an issue with the [nftables golang library](https://github.com/google/nftables) and the pod running in *host network* in K3s, the firewall monitoring feature is disabled by default.
 This means that the firewall rules on the node will not be monitored and enforced by Liqo. If these rules are deleted or changed, Liqo won't restore them.
+```
+
+```{admonition} Note
+By default, the K3s installer stores the kubeconfig to access your cluster in the non-standard path `/etc/rancher/k3s/k3s.yaml`.
+Make sure to properly refer to it when using *liqoctl* (e.g., setting the `KUBECONFIG` variable), and that the current user has permissions to read it.
 ```
 
 **Installation**
