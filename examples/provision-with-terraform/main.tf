@@ -62,7 +62,7 @@ resource "kind_cluster" "rome" {
     api_version = "kind.x-k8s.io/v1alpha4"
     networking {
 
-      service_subnet = "10.90.0.0/12"
+      service_subnet = "10.60.0.0/16"
       pod_subnet     = "10.200.0.0/16"
     }
     node {
@@ -85,7 +85,7 @@ resource "kind_cluster" "milan" {
     api_version = "kind.x-k8s.io/v1alpha4"
     networking {
 
-      service_subnet = "10.90.0.0/12"
+      service_subnet = "10.60.0.0/16"
       pod_subnet     = "10.200.0.0/16"
     }
     node {
@@ -132,7 +132,7 @@ resource "helm_release" "install_liqo_rome" {
   }
   set {
     name  = "networkManager.config.serviceCIDR"
-    value = "10.90.0.0/12"
+    value = "10.60.0.0/16"
   }
   set {
     name  = "networkManager.config.podCIDR"
@@ -173,7 +173,7 @@ resource "helm_release" "install_liqo_milan" {
   }
   set {
     name  = "networkManager.config.serviceCIDR"
-    value = "10.90.0.0/12"
+    value = "10.60.0.0/16"
   }
   set {
     name  = "networkManager.config.podCIDR"
