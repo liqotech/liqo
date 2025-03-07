@@ -61,7 +61,7 @@ function get_cluster_labels() {
 LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
 
 export SERVICE_CIDR=10.100.0.0/16
-export POD_CIDR=10.0.0.0/16
+export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 export HA_REPLICAS=2
 

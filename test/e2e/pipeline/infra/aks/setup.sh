@@ -111,7 +111,7 @@ do
     POD_CIDR=""
     if [[ ${CNI} != "azure-flat" ]]; then
         if [[ ${POD_CIDR_OVERLAPPING} == "true" ]]; then
-            POD_CIDR="10.50.0.0/16"
+            POD_CIDR="10.200.0.0/16"
         else
             POD_CIDR="10.$((i * 10)).0.0/16"
         fi
