@@ -47,7 +47,7 @@ function gke_create_cluster() {
 
     pod_cidr=10.${index}.0.0/16
     if [[ ${POD_CIDR_OVERLAPPING} == "true" ]]; then
-        pod_cidr=10.0.0.0/16
+        pod_cidr=10.200.0.0/16
     fi
         
     "${GCLOUD}" container --project "${GCLOUD_PROJECT_ID}" clusters create "${cluster_id}" --zone "${cluster_zone}" \
