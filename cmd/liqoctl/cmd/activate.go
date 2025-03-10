@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlActivateTenantLongHelp = `Activate a tenant cluster.
@@ -56,7 +57,7 @@ func newActivateTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 	var cmd = &cobra.Command{
 		Use:               "tenant",
 		Short:             "Activate a tenant cluster",
-		Long:              WithTemplate(liqoctlActivateTenantLongHelp),
+		Long:              utils.DescWithTemplate(liqoctlActivateTenantLongHelp, liqoctl),
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 

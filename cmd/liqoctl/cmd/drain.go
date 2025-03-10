@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/drain"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlDrainTenantLongHelp = `Drain a tenant cluster.
@@ -56,7 +57,7 @@ func newDrainTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Comma
 	var cmd = &cobra.Command{
 		Use:               "tenant",
 		Short:             "Drain a tenant cluster",
-		Long:              WithTemplate(liqoctlDrainTenantLongHelp),
+		Long:              utils.DescWithTemplate(liqoctlDrainTenantLongHelp, liqoctl),
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 

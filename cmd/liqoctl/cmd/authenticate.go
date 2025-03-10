@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlAuthenticateLongHelp = `Authenticate with a provider cluster.
@@ -31,7 +32,7 @@ const liqoctlAuthenticateLongHelp = `Authenticate with a provider cluster.
 This command allows a consumer cluster to communicate with a remote provider cluster
 to obtain slices of resources from. At the end of the process, the consumer cluster will
 be able to replicate ResourceSlices resources to the provider cluster, and to receive
-an associated Identity to consume the provided resources. 
+an associated Identity to consume the provided resources.
 
 Examples:
   $ {{ .Executable }} authenticate --remote-kubeconfig <provider>
@@ -46,7 +47,7 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Use:     "authenticate",
 		Aliases: []string{"auth"},
 		Short:   "Authenticate with a provider cluster",
-		Long:    WithTemplate(liqoctlAuthenticateLongHelp),
+		Long:    utils.DescWithTemplate(liqoctlAuthenticateLongHelp, liqoctl),
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
