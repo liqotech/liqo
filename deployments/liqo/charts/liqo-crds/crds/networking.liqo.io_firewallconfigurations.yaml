@@ -103,7 +103,14 @@ spec:
                                     enum:
                                     - ctmark
                                     - metamarkfromctmark
+                                    - accept
+                                    - drop
+                                    - reject
                                     type: string
+                                  counter:
+                                    description: Counter is the counter to be used
+                                      for the action.
+                                    type: boolean
                                   match:
                                     description: |-
                                       Match is the match to be applied to the rule.
@@ -196,6 +203,10 @@ spec:
                                     type: array
                                   name:
                                     description: Name is the name of the rule.
+                                    type: string
+                                  teststring:
+                                    description: Counter is the counter to be used
+                                      for the action.
                                     type: string
                                   value:
                                     description: Value is the value to be used for
