@@ -25,6 +25,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/cordon"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlCordonTenantLongHelp = `Cordon a tenant cluster.
@@ -55,8 +56,8 @@ func newCordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newCordonTenantCommand(ctx, f))
-	cmd.AddCommand(newCordonResourceSliceCommand(ctx, f))
+	utils.AddCommand(cmd, newCordonTenantCommand(ctx, f))
+	utils.AddCommand(cmd, newCordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -69,7 +70,7 @@ func newCordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Use:               "tenant",
 		Aliases:           []string{"tenants"},
 		Short:             "Cordon a tenant cluster",
-		Long:              WithTemplate(liqoctlCordonTenantLongHelp),
+		Long:              liqoctlCordonTenantLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
@@ -98,7 +99,7 @@ func newCordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *cob
 		Use:               "resourceslice",
 		Aliases:           []string{"resourceslices", "rs"},
 		Short:             "Cordon a ResourceSlice",
-		Long:              WithTemplate(liqoctlCordonResourceSliceLongHelp),
+		Long:              liqoctlCordonResourceSliceLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
 

@@ -63,7 +63,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "peer",
 		Short: "Enable a peering towards a remote cluster",
-		Long:  WithTemplate(liqoctlPeerLongHelp),
+		Long:  liqoctlPeerLongHelp,
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

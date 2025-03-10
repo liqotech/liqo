@@ -39,7 +39,7 @@ func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the liqo CLI version and the deployed Liqo version",
-		Long:  WithTemplate(liqoctlVersionLongHelp),
+		Long:  liqoctlVersionLongHelp,
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {

@@ -52,7 +52,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unpeer",
 		Short: "Disable a peering towards a remote provider cluster",
-		Long:  WithTemplate(liqoctlUnpeerLongHelp),
+		Long:  liqoctlUnpeerLongHelp,
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

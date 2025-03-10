@@ -21,6 +21,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 // NewGenerateCommand returns the cobra command for the generate subcommand.
@@ -44,7 +45,9 @@ func NewGenerateCommand(ctx context.Context, liqoResources []rest.APIProvider, f
 
 		apiOptions := api.APIOptions()
 		if apiOptions.EnableGenerate {
-			cmd.AddCommand(api.Generate(ctx, options))
+			cmd.AddCommand(
+				utils.PatchCommandWithTemplate(api.Generate(ctx, options)),
+			)
 		}
 	}
 

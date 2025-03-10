@@ -46,7 +46,7 @@ func newUnauthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Use:     "unauthenticate",
 		Aliases: []string{"unauth"},
 		Short:   "Unauthenticate a pair of consumer and provider clusters",
-		Long:    WithTemplate(liqoctlUnauthenticateLongHelp),
+		Long:    liqoctlUnauthenticateLongHelp,
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

@@ -23,6 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/move"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	liqoctlutils "github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -58,7 +59,7 @@ func newMoveCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newMoveVolumeCommand(ctx, f))
+	liqoctlutils.AddCommand(cmd, newMoveVolumeCommand(ctx, f))
 	return cmd
 }
 
@@ -71,7 +72,7 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 		Use:     "volume",
 		Aliases: []string{"pvc"},
 		Short:   "Move a Liqo-managed PVC to a different node (i.e., cluster)",
-		Long:    WithTemplate(liqoctlMoveVolumeLongHelp),
+		Long:    liqoctlMoveVolumeLongHelp,
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.PVCs(ctx, f, 1),

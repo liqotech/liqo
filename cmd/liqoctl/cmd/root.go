@@ -15,17 +15,12 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"html/template"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
@@ -44,6 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -64,13 +60,7 @@ var liqoResources = []rest.APIProvider{
 }
 
 func init() {
-	liqoctl = os.Args[0]
-
-	// Account for the case it is used as a kubectl plugin.
-	if strings.HasPrefix(filepath.Base(liqoctl), "kubectl-") {
-		liqoctl = strings.ReplaceAll(filepath.Base(liqoctl), "-", " ")
-		liqoctl = strings.ReplaceAll(liqoctl, "_", "-")
-	}
+	liqoctl = utils.GetCommandName()
 }
 
 // liqoctlLongHelp contains the long help message for root Liqoctl command.
@@ -94,7 +84,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          liqoctl,
 		Short:        "A CLI tool to install and manage Liqo",
-		Long:         WithTemplate(liqoctlLongHelp),
+		Long:         utils.DescWithTemplate(liqoctlLongHelp, liqoctl),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // Do not show the usage message in case of errors.
 
@@ -128,39 +118,30 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.PersistentFlags().StringToStringVar(&f.GlobalAnnotations, "global-annotations", nil,
 		"Global annotations to be added to all created resources (key=value)")
 
-	cmd.AddCommand(newInstallCommand(ctx, f))
-	cmd.AddCommand(newUninstallCommand(ctx, f))
-	cmd.AddCommand(newPeerCommand(ctx, f))
-	cmd.AddCommand(newUnpeerCommand(ctx, f))
-	cmd.AddCommand(newNetworkCommand(ctx, f))
-	cmd.AddCommand(newAuthenticateCommand(ctx, f))
-	cmd.AddCommand(newUnauthenticateCommand(ctx, f))
-	cmd.AddCommand(newOffloadCommand(ctx, f))
-	cmd.AddCommand(newUnoffloadCommand(ctx, f))
-	cmd.AddCommand(newMoveCommand(ctx, f))
-	cmd.AddCommand(newVersionCommand(ctx, f))
-	cmd.AddCommand(newDocsCommand(ctx))
-	cmd.AddCommand(newActivateCommand(ctx, f))
-	cmd.AddCommand(newCordonCommand(ctx, f))
-	cmd.AddCommand(newUncordonCommand(ctx, f))
-	cmd.AddCommand(newDrainCommand(ctx, f))
-	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
-	cmd.AddCommand(generate.NewGenerateCommand(ctx, liqoResources, f))
-	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
-	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
-	cmd.AddCommand(newInfoCommand(ctx, f))
-	cmd.AddCommand(newTestCommand(ctx, f))
+	utils.AddCommand(cmd, newInstallCommand(ctx, f))
+	utils.AddCommand(cmd, newUninstallCommand(ctx, f))
+	utils.AddCommand(cmd, newPeerCommand(ctx, f))
+	utils.AddCommand(cmd, newUnpeerCommand(ctx, f))
+	utils.AddCommand(cmd, newNetworkCommand(ctx, f))
+	utils.AddCommand(cmd, newAuthenticateCommand(ctx, f))
+	utils.AddCommand(cmd, newUnauthenticateCommand(ctx, f))
+	utils.AddCommand(cmd, newOffloadCommand(ctx, f))
+	utils.AddCommand(cmd, newUnoffloadCommand(ctx, f))
+	utils.AddCommand(cmd, newMoveCommand(ctx, f))
+	utils.AddCommand(cmd, newVersionCommand(ctx, f))
+	utils.AddCommand(cmd, newDocsCommand(ctx))
+	utils.AddCommand(cmd, newActivateCommand(ctx, f))
+	utils.AddCommand(cmd, newCordonCommand(ctx, f))
+	utils.AddCommand(cmd, newUncordonCommand(ctx, f))
+	utils.AddCommand(cmd, newDrainCommand(ctx, f))
+	utils.AddCommand(cmd, create.NewCreateCommand(ctx, liqoResources, f))
+	utils.AddCommand(cmd, generate.NewGenerateCommand(ctx, liqoResources, f))
+	utils.AddCommand(cmd, get.NewGetCommand(ctx, liqoResources, f))
+	utils.AddCommand(cmd, delete.NewDeleteCommand(ctx, liqoResources, f))
+	utils.AddCommand(cmd, newInfoCommand(ctx, f))
+	utils.AddCommand(cmd, newTestCommand(ctx, f))
 
 	return cmd
-}
-
-// WithTemplate returns a string that has the liqoctl name templated out with the
-// current executable name. WithTemplate templates on the '{{ .Executable }}' variable.
-func WithTemplate(str string) string {
-	tmpl := template.Must(template.New("liqoctl").Parse(str))
-	var buf bytes.Buffer
-	util.CheckErr(tmpl.Execute(&buf, struct{ Executable string }{liqoctl}))
-	return buf.String()
 }
 
 // singleClusterPersistentPreRun initializes the local factory.

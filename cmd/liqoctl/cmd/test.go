@@ -26,6 +26,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/test"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlTestNetworkLongHelp = `Launch network E2E tests.
@@ -59,7 +60,7 @@ func newTestCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newTestNetworkCommand(ctx, options))
+	utils.AddCommand(cmd, newTestNetworkCommand(ctx, options))
 
 	options.AddFlags(cmd.PersistentFlags())
 
@@ -74,7 +75,7 @@ func newTestNetworkCommand(ctx context.Context, topts *test.Options) *cobra.Comm
 		Use:     "network",
 		Aliases: []string{"net"},
 		Short:   "Launch E2E tests for the network",
-		Long:    WithTemplate(liqoctlTestNetworkLongHelp),
+		Long:    liqoctlTestNetworkLongHelp,
 		Args:    cobra.NoArgs,
 		Run: func(_ *cobra.Command, _ []string) {
 			ctx, cancel := context.WithTimeout(ctx, topts.Timeout)

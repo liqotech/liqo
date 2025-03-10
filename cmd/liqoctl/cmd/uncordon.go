@@ -25,11 +25,12 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/uncordon"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlUncordonTenantLongHelp = `Uncordon a tenant cluster.
 
-This command allows to uncordon a tenant cluster, allowing it to receive and accept new resources. 
+This command allows to uncordon a tenant cluster, allowing it to receive and accept new resources.
 Resources provided by existing ResourceSlices can be accepted again.
 
 Examples:
@@ -54,8 +55,8 @@ func newUncordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newUncordonTenantCommand(ctx, f))
-	cmd.AddCommand(newUncordonResourceSliceCommand(ctx, f))
+	utils.AddCommand(cmd, newUncordonTenantCommand(ctx, f))
+	utils.AddCommand(cmd, newUncordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -68,7 +69,7 @@ func newUncordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Use:               "tenant",
 		Aliases:           []string{"tenants"},
 		Short:             "Uncordon a tenant cluster",
-		Long:              WithTemplate(liqoctlUncordonTenantLongHelp),
+		Long:              liqoctlUncordonTenantLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
@@ -92,7 +93,7 @@ func newUncordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *c
 		Use:               "resourceslice",
 		Aliases:           []string{"resourceslices", "rs"},
 		Short:             "Uncordon a ResourceSlice",
-		Long:              WithTemplate(liqoctlUncordonResourceSliceLongHelp),
+		Long:              liqoctlUncordonResourceSliceLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
 
