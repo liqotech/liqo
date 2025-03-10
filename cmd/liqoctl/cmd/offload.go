@@ -25,6 +25,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/offload"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -99,7 +100,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		Use:     "namespace name",
 		Aliases: []string{"ns"},
 		Short:   "Offload a namespace to remote clusters",
-		Long:    WithTemplate(liqoctlOffloadNamespaceLongHelp),
+		Long:    utils.DescWithTemplate(liqoctlOffloadNamespaceLongHelp, liqoctl),
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Namespaces(ctx, f, 1),
