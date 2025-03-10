@@ -17,8 +17,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -62,13 +60,7 @@ var liqoResources = []rest.APIProvider{
 }
 
 func init() {
-	liqoctl = os.Args[0]
-
-	// Account for the case it is used as a kubectl plugin.
-	if strings.HasPrefix(filepath.Base(liqoctl), "kubectl-") {
-		liqoctl = strings.ReplaceAll(filepath.Base(liqoctl), "-", " ")
-		liqoctl = strings.ReplaceAll(liqoctl, "_", "-")
-	}
+	liqoctl = utils.GetCommandName()
 }
 
 // liqoctlLongHelp contains the long help message for root Liqoctl command.
