@@ -28,6 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peer"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlPeerLongHelp = `Enable a peering towards a remote provider cluster.
@@ -63,7 +64,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "peer",
 		Short: "Enable a peering towards a remote cluster",
-		Long:  WithTemplate(liqoctlPeerLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlPeerLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

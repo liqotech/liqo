@@ -27,6 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/network"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlNetworkLongHelp = `Manage liqo networking.`
@@ -52,7 +53,7 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "network",
 		Short: "Manage liqo networking",
-		Long:  WithTemplate(liqoctlNetworkLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlNetworkLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
@@ -93,7 +94,7 @@ func newNetworkResetCommand(ctx context.Context, options *network.Options) *cobr
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Tear down liqo networking between two clusters (disconnect and remove network configurations)",
-		Long:  WithTemplate(liqoctlNetworkResetLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlNetworkResetLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {
@@ -112,7 +113,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	cmd := &cobra.Command{
 		Use:   "connect",
 		Short: "Connect two clusters using liqo networking",
-		Long:  WithTemplate(liqoctlNetworConnectLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlNetworConnectLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {
@@ -168,7 +169,7 @@ func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) 
 	cmd := &cobra.Command{
 		Use:   "disconnect",
 		Short: "Disconnect two clusters keeping the network configuration",
-		Long:  WithTemplate(liqoctlNetworkDisconnectLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlNetworkDisconnectLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {

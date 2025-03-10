@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/version"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
@@ -104,7 +105,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Use:     "install",
 		Aliases: []string{"upgrade"},
 		Short:   "Install/upgrade Liqo in the selected cluster",
-		Long:    WithTemplate(liqoctlInstallLongHelp),
+		Long:    utils.DescWithTemplate(liqoctlInstallLongHelp, liqoctl),
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
@@ -199,7 +200,7 @@ func newInstallProviderCommand(ctx context.Context, commonOpts *install.CommonOp
 	cmd := &cobra.Command{
 		Use:   provider.Name(),
 		Short: fmt.Sprintf("Install Liqo in the selected %s cluster", provider.Name()),
-		Long:  WithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples())),
+		Long:  utils.DescWithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples()), liqoctl),
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {

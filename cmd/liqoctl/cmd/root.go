@@ -15,17 +15,14 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
@@ -44,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -94,7 +92,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          liqoctl,
 		Short:        "A CLI tool to install and manage Liqo",
-		Long:         WithTemplate(liqoctlLongHelp),
+		Long:         utils.DescWithTemplate(liqoctlLongHelp, liqoctl),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // Do not show the usage message in case of errors.
 
@@ -152,15 +150,6 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newTestCommand(ctx, f))
 
 	return cmd
-}
-
-// WithTemplate returns a string that has the liqoctl name templated out with the
-// current executable name. WithTemplate templates on the '{{ .Executable }}' variable.
-func WithTemplate(str string) string {
-	tmpl := template.Must(template.New("liqoctl").Parse(str))
-	var buf bytes.Buffer
-	util.CheckErr(tmpl.Execute(&buf, struct{ Executable string }{liqoctl}))
-	return buf.String()
 }
 
 // singleClusterPersistentPreRun initializes the local factory.

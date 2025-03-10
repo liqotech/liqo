@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/unoffload"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlUnoffloadNamespaceLongHelp = `Unoffload a namespace from remote clusters.
@@ -54,7 +55,7 @@ func newUnoffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobr
 		Use:     "namespace name",
 		Aliases: []string{"ns"},
 		Short:   "Unoffload a namespace from remote clusters",
-		Long:    WithTemplate(liqoctlUnoffloadNamespaceLongHelp),
+		Long:    utils.DescWithTemplate(liqoctlUnoffloadNamespaceLongHelp, liqoctl),
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.OffloadedNamespaces(ctx, f, 1),

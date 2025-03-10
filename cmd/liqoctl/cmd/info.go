@@ -27,6 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/info/localstatus"
 	"github.com/liqotech/liqo/pkg/liqoctl/info/peer"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -100,7 +101,7 @@ func newPeerInfoCommand(ctx context.Context, f *factory.Factory, options *info.O
 	cmd := &cobra.Command{
 		Use:               "peer",
 		Short:             "Show additional info about peered clusters",
-		Long:              WithTemplate(liqoctlInfoPeerLongHelp),
+		Long:              utils.DescWithTemplate(liqoctlInfoPeerLongHelp, liqoctl),
 		ValidArgsFunction: completion.ClusterIDs(ctx, f, completion.NoLimit),
 
 		PreRun: func(_ *cobra.Command, _ []string) {
@@ -128,7 +129,7 @@ func newInfoCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	maincmd := &cobra.Command{
 		Use:   "info",
 		Short: "Show info about the current Liqo instance",
-		Long:  WithTemplate(liqoctlInfoLongHelp),
+		Long:  utils.DescWithTemplate(liqoctlInfoLongHelp, liqoctl),
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {
