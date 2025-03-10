@@ -105,7 +105,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Use:     "install",
 		Aliases: []string{"upgrade"},
 		Short:   "Install/upgrade Liqo in the selected cluster",
-		Long:    utils.DescWithTemplate(liqoctlInstallLongHelp, liqoctl),
+		Long:    liqoctlInstallLongHelp,
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
@@ -181,13 +181,13 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	base.RegisterFlags(cmd)
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, aks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, eks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, gke.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, k3s.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, kind.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, kubeadm.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, openshift.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, aks.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, eks.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, gke.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, k3s.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, kind.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, kubeadm.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, openshift.New))
 
 	return cmd
 }
@@ -200,7 +200,7 @@ func newInstallProviderCommand(ctx context.Context, commonOpts *install.CommonOp
 	cmd := &cobra.Command{
 		Use:   provider.Name(),
 		Short: fmt.Sprintf("Install Liqo in the selected %s cluster", provider.Name()),
-		Long:  utils.DescWithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples()), liqoctl),
+		Long:  fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples()),
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {

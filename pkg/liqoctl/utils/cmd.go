@@ -26,15 +26,15 @@ import (
 	"k8s.io/kubectl/pkg/cmd/util"
 )
 
-var _commandName string
+var commandName string
 
 func init() {
-	_commandName = getCommandName()
+	commandName = getCommandName()
 }
 
 // GetCommandName gets the command name to be used in the help message.
 func GetCommandName() string {
-	return _commandName
+	return commandName
 }
 
 // DescWithTemplate returns a string that has the liqoctl name templated out with the
@@ -44,6 +44,12 @@ func DescWithTemplate(str, executable string) string {
 	var buf bytes.Buffer
 	util.CheckErr(tmpl.Execute(&buf, struct{ Executable string }{executable}))
 	return buf.String()
+}
+
+// AddCommand wraps the cobra AddCommand function, it adds a subcommand to a command and patches the description
+// with the current executable name.
+func AddCommand(cmd, subCmd *cobra.Command) {
+	cmd.AddCommand(PatchCommandWithTemplate(subCmd))
 }
 
 // PatchCommandWithTemplate patches the command description with the current executable name.

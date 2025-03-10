@@ -44,9 +44,7 @@ func NewGetCommand(ctx context.Context, liqoResources []rest.APIProvider, f *fac
 
 		apiOptions := api.APIOptions()
 		if apiOptions.EnableGet {
-			cmd.AddCommand(
-				utils.PatchCommandWithTemplate(api.Get(ctx, options)),
-			)
+			utils.AddCommand(cmd, api.Get(ctx, options))
 		}
 	}
 

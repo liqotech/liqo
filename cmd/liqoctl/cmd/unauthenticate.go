@@ -24,7 +24,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/unauthenticate"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlUnauthenticateLongHelp = `Unauthenticate a pair of consumer and provider clusters.
@@ -47,7 +46,7 @@ func newUnauthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Use:     "unauthenticate",
 		Aliases: []string{"unauth"},
 		Short:   "Unauthenticate a pair of consumer and provider clusters",
-		Long:    utils.DescWithTemplate(liqoctlUnauthenticateLongHelp, liqoctl),
+		Long:    liqoctlUnauthenticateLongHelp,
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

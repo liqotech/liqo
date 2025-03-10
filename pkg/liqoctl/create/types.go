@@ -45,9 +45,7 @@ func NewCreateCommand(ctx context.Context, liqoResources []rest.APIProvider, f *
 
 		apiOptions := api.APIOptions()
 		if apiOptions.EnableCreate {
-			cmd.AddCommand(
-				utils.PatchCommandWithTemplate(api.Create(ctx, options)),
-			)
+			utils.AddCommand(cmd, api.Create(ctx, options))
 		}
 	}
 

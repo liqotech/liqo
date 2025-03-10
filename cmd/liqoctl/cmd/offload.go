@@ -72,7 +72,7 @@ func newOffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newOffloadNamespaceCommand(ctx, f))
+	utils.AddCommand(cmd, newOffloadNamespaceCommand(ctx, f))
 	return cmd
 }
 
@@ -100,7 +100,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		Use:     "namespace name",
 		Aliases: []string{"ns"},
 		Short:   "Offload a namespace to remote clusters",
-		Long:    utils.DescWithTemplate(liqoctlOffloadNamespaceLongHelp, liqoctl),
+		Long:    liqoctlOffloadNamespaceLongHelp,
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Namespaces(ctx, f, 1),

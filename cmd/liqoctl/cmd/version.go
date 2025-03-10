@@ -22,7 +22,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/version"
 )
 
@@ -40,7 +39,7 @@ func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the liqo CLI version and the deployed Liqo version",
-		Long:  utils.DescWithTemplate(liqoctlVersionLongHelp, liqoctl),
+		Long:  liqoctlVersionLongHelp,
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {

@@ -45,7 +45,7 @@ func newActivateCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newActivateTenantCommand(ctx, f))
+	utils.AddCommand(cmd, newActivateTenantCommand(ctx, f))
 
 	return cmd
 }
@@ -57,7 +57,7 @@ func newActivateTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 	var cmd = &cobra.Command{
 		Use:               "tenant",
 		Short:             "Activate a tenant cluster",
-		Long:              utils.DescWithTemplate(liqoctlActivateTenantLongHelp, liqoctl),
+		Long:              liqoctlActivateTenantLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 

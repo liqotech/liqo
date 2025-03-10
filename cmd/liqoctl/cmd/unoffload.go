@@ -45,7 +45,7 @@ func newUnoffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newUnoffloadNamespaceCommand(ctx, f))
+	utils.AddCommand(cmd, newUnoffloadNamespaceCommand(ctx, f))
 	return cmd
 }
 
@@ -55,7 +55,7 @@ func newUnoffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobr
 		Use:     "namespace name",
 		Aliases: []string{"ns"},
 		Short:   "Unoffload a namespace from remote clusters",
-		Long:    utils.DescWithTemplate(liqoctlUnoffloadNamespaceLongHelp, liqoctl),
+		Long:    liqoctlUnoffloadNamespaceLongHelp,
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.OffloadedNamespaces(ctx, f, 1),
