@@ -24,7 +24,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/unpeer"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlUnpeerLongHelp = `Disable a peering towards a remote provider cluster.
@@ -53,7 +52,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unpeer",
 		Short: "Disable a peering towards a remote provider cluster",
-		Long:  utils.DescWithTemplate(liqoctlUnpeerLongHelp, liqoctl),
+		Long:  liqoctlUnpeerLongHelp,
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

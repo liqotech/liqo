@@ -44,9 +44,7 @@ func NewDeleteCommand(ctx context.Context, liqoResources []rest.APIProvider, f *
 
 		apiOptions := api.APIOptions()
 		if apiOptions.EnableDelete {
-			cmd.AddCommand(
-				utils.PatchCommandWithTemplate(api.Delete(ctx, options)),
-			)
+			utils.AddCommand(cmd, api.Delete(ctx, options))
 		}
 	}
 
