@@ -24,7 +24,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlAuthenticateLongHelp = `Authenticate with a provider cluster.
@@ -47,7 +46,7 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Use:     "authenticate",
 		Aliases: []string{"auth"},
 		Short:   "Authenticate with a provider cluster",
-		Long:    utils.DescWithTemplate(liqoctlAuthenticateLongHelp, liqoctl),
+		Long:    liqoctlAuthenticateLongHelp,
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

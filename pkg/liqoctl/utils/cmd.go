@@ -46,6 +46,12 @@ func DescWithTemplate(str, executable string) string {
 	return buf.String()
 }
 
+// AddCommand wraps the cobra AddCommand function, it adds a subcommand to a command and patches the description
+// with the current executable name.
+func AddCommand(cmd, subCmd *cobra.Command) {
+	cmd.AddCommand(PatchCommandWithTemplate(subCmd))
+}
+
 // PatchCommandWithTemplate patches the command description with the current executable name.
 func PatchCommandWithTemplate(cmd *cobra.Command) *cobra.Command {
 	cmd.Short = DescWithTemplate(cmd.Short, GetCommandName())

@@ -22,15 +22,14 @@ import (
 	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/docs"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 func newDocsCommand(ctx context.Context) *cobra.Command {
 	options := docs.Options{}
 	cmd := &cobra.Command{
 		Use:   "docs",
-		Short: utils.DescWithTemplate("Generate {{ .Executable }} documentation", liqoctl),
-		Long:  utils.DescWithTemplate("Generate {{ .Executable }} documentation", liqoctl),
+		Short: "Generate {{ .Executable }} documentation",
+		Long:  "Generate {{ .Executable }} documentation",
 		Args:  cobra.NoArgs,
 
 		Run: func(cmd *cobra.Command, _ []string) {

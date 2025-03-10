@@ -101,7 +101,7 @@ func newPeerInfoCommand(ctx context.Context, f *factory.Factory, options *info.O
 	cmd := &cobra.Command{
 		Use:               "peer",
 		Short:             "Show additional info about peered clusters",
-		Long:              utils.DescWithTemplate(liqoctlInfoPeerLongHelp, liqoctl),
+		Long:              liqoctlInfoPeerLongHelp,
 		ValidArgsFunction: completion.ClusterIDs(ctx, f, completion.NoLimit),
 
 		PreRun: func(_ *cobra.Command, _ []string) {
@@ -129,7 +129,7 @@ func newInfoCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	maincmd := &cobra.Command{
 		Use:   "info",
 		Short: "Show info about the current Liqo instance",
-		Long:  utils.DescWithTemplate(liqoctlInfoLongHelp, liqoctl),
+		Long:  liqoctlInfoLongHelp,
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {
@@ -159,7 +159,7 @@ func newInfoCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	f.Printer.CheckErr(maincmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 	f.Printer.CheckErr(maincmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 
-	maincmd.AddCommand(newPeerInfoCommand(ctx, f, options))
+	utils.AddCommand(maincmd, newPeerInfoCommand(ctx, f, options))
 
 	return maincmd
 }

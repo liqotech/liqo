@@ -56,8 +56,8 @@ func newCordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newCordonTenantCommand(ctx, f))
-	cmd.AddCommand(newCordonResourceSliceCommand(ctx, f))
+	utils.AddCommand(cmd, newCordonTenantCommand(ctx, f))
+	utils.AddCommand(cmd, newCordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -70,7 +70,7 @@ func newCordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Use:               "tenant",
 		Aliases:           []string{"tenants"},
 		Short:             "Cordon a tenant cluster",
-		Long:              utils.DescWithTemplate(liqoctlCordonTenantLongHelp, liqoctl),
+		Long:              liqoctlCordonTenantLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
@@ -99,7 +99,7 @@ func newCordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *cob
 		Use:               "resourceslice",
 		Aliases:           []string{"resourceslices", "rs"},
 		Short:             "Cordon a ResourceSlice",
-		Long:              utils.DescWithTemplate(liqoctlCordonResourceSliceLongHelp, liqoctl),
+		Long:              liqoctlCordonResourceSliceLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
 

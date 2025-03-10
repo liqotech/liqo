@@ -24,7 +24,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/uninstall"
-	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 const liqoctlUninstallLongHelp = `Uninstall Liqo from the selected cluster.
@@ -48,7 +47,7 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Uninstall Liqo from the selected cluster",
-		Long:  utils.DescWithTemplate(liqoctlUninstallLongHelp, liqoctl),
+		Long:  liqoctlUninstallLongHelp,
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {

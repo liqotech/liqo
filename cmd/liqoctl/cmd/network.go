@@ -53,7 +53,7 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "network",
 		Short: "Manage liqo networking",
-		Long:  utils.DescWithTemplate(liqoctlNetworkLongHelp, liqoctl),
+		Long:  liqoctlNetworkLongHelp,
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
@@ -83,9 +83,9 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options.LocalFactory.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-liqo-namespace",
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
-	cmd.AddCommand(newNetworkResetCommand(ctx, options))
-	cmd.AddCommand(newNetworkConnectCommand(ctx, options))
-	cmd.AddCommand(newNetworkDisconnectCommand(ctx, options))
+	utils.AddCommand(cmd, newNetworkResetCommand(ctx, options))
+	utils.AddCommand(cmd, newNetworkConnectCommand(ctx, options))
+	utils.AddCommand(cmd, newNetworkDisconnectCommand(ctx, options))
 
 	return cmd
 }
@@ -94,7 +94,7 @@ func newNetworkResetCommand(ctx context.Context, options *network.Options) *cobr
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Tear down liqo networking between two clusters (disconnect and remove network configurations)",
-		Long:  utils.DescWithTemplate(liqoctlNetworkResetLongHelp, liqoctl),
+		Long:  liqoctlNetworkResetLongHelp,
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {
@@ -113,7 +113,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	cmd := &cobra.Command{
 		Use:   "connect",
 		Short: "Connect two clusters using liqo networking",
-		Long:  utils.DescWithTemplate(liqoctlNetworConnectLongHelp, liqoctl),
+		Long:  liqoctlNetworConnectLongHelp,
 		Args:  cobra.NoArgs,
 
 		Run: func(_ *cobra.Command, _ []string) {
@@ -169,7 +169,7 @@ func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) 
 	cmd := &cobra.Command{
 		Use:   "disconnect",
 		Short: "Disconnect two clusters keeping the network configuration",
-		Long:  utils.DescWithTemplate(liqoctlNetworkDisconnectLongHelp, liqoctl),
+		Long:  liqoctlNetworkDisconnectLongHelp,
 		Args:  cobra.NoArgs,
 
 		PreRun: func(_ *cobra.Command, _ []string) {

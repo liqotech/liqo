@@ -55,8 +55,8 @@ func newUncordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 		Args:  cobra.NoArgs,
 	}
 
-	cmd.AddCommand(newUncordonTenantCommand(ctx, f))
-	cmd.AddCommand(newUncordonResourceSliceCommand(ctx, f))
+	utils.AddCommand(cmd, newUncordonTenantCommand(ctx, f))
+	utils.AddCommand(cmd, newUncordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -69,7 +69,7 @@ func newUncordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Use:               "tenant",
 		Aliases:           []string{"tenants"},
 		Short:             "Uncordon a tenant cluster",
-		Long:              utils.DescWithTemplate(liqoctlUncordonTenantLongHelp, liqoctl),
+		Long:              liqoctlUncordonTenantLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
@@ -93,7 +93,7 @@ func newUncordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *c
 		Use:               "resourceslice",
 		Aliases:           []string{"resourceslices", "rs"},
 		Short:             "Uncordon a ResourceSlice",
-		Long:              utils.DescWithTemplate(liqoctlUncordonResourceSliceLongHelp, liqoctl),
+		Long:              liqoctlUncordonResourceSliceLongHelp,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
 
