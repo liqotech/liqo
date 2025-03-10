@@ -21,6 +21,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 // NewDeleteCommand returns the cobra command for the delete subcommand.
@@ -43,7 +44,9 @@ func NewDeleteCommand(ctx context.Context, liqoResources []rest.APIProvider, f *
 
 		apiOptions := api.APIOptions()
 		if apiOptions.EnableDelete {
-			cmd.AddCommand(api.Delete(ctx, options))
+			cmd.AddCommand(
+				utils.PatchCommandWithTemplate(api.Delete(ctx, options)),
+			)
 		}
 	}
 
