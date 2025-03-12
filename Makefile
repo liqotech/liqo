@@ -16,7 +16,7 @@ endif
 generate: generate-controller generate-groups rbacs manifests fmt
 
 #generate helm documentation
-docs: helm-docs
+docs: helm-docs ctldocs
 	$(HELM_DOCS) -t deployments/liqo/README.gotmpl -i deployments/liqo/.helmdocsignore -c deployments/liqo
 
 #run all tests
@@ -211,6 +211,10 @@ HELM_DOCS=$(GOBIN)/helm-docs
 else
 HELM_DOCS=$(shell which helm-docs)
 endif
+
+# Generate the liqoctl documentation in docs/usage/liqoctl
+ctldocs:
+	go run ./hack/liqoctl-docs-generator/cmd/main.go -o ./docs/usage/liqoctl
 
 # Set the steps for the e2e tests
 E2E_TARGETS = e2e-dir \

@@ -40,7 +40,9 @@ to be scheduled on the cluster where the associated storage pools are available.
 This command allows to *move* a volume created in a given cluster to a different
 cluster, ensuring mounting pods will then be attracted in that location. This
 process leverages Restic to backup the source data and restore it into a volume
-in the target cluster. Warning: only PVCs not currently mounted by any pod can
+in the target cluster.
+
+Warning: only PVCs not currently mounted by any pod can
 be moved to a different cluster.
 
 Examples:
