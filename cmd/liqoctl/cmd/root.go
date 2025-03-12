@@ -129,7 +129,6 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	utils.AddCommand(cmd, newUnoffloadCommand(ctx, f))
 	utils.AddCommand(cmd, newMoveCommand(ctx, f))
 	utils.AddCommand(cmd, newVersionCommand(ctx, f))
-	utils.AddCommand(cmd, newDocsCommand(ctx))
 	utils.AddCommand(cmd, newActivateCommand(ctx, f))
 	utils.AddCommand(cmd, newCordonCommand(ctx, f))
 	utils.AddCommand(cmd, newUncordonCommand(ctx, f))
