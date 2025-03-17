@@ -77,7 +77,7 @@ func GetPortValueType(value *string) (PortValueType, error) {
 	}
 
 	// Check if the value is a port.
-	if _, err := strconv.Atoi(*value); err != nil {
+	if _, err := strconv.Atoi(*value); err == nil {
 		return PortValueTypePort, nil
 	}
 
