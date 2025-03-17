@@ -63,6 +63,7 @@ linkcheck_ignore = [
     'https://medium.com/', # often rate-limited
     'https://github.com/kubernetes/enhancements/tree/master/keps/sig-multicluster/1645-multi-cluster-services-api#service-types',
     'https://ieeexplore.ieee.org',
+    'https://dl.acm.org', # often 403
 ]
 
 
