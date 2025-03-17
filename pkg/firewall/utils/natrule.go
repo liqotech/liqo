@@ -112,7 +112,7 @@ func forgeNatRule(nr *firewallv1beta1.NatRule, chain *nftables.Chain) (*nftables
 }
 
 func applyNatRule(nr *firewallv1beta1.NatRule, rule *nftables.Rule) error {
-	ipType, err := firewallv1beta1.GetIPValueType(nr.To)
+	ipType, err := GetIPValueType(nr.To)
 	if err != nil {
 		return err
 	}

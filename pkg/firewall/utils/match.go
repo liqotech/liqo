@@ -62,7 +62,7 @@ func applyMatch(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 }
 
 func applyMatchIP(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchIPValueType, err := firewallv1beta1.GetIPValueType(&m.IP.Value)
+	matchIPValueType, err := GetIPValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp)
 }
 
 func applyMatchPort(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchPortValueType, err := firewallv1beta1.GetPortValueType(&m.IP.Value)
+	matchPortValueType, err := GetPortValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
