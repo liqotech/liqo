@@ -43,45 +43,30 @@ import (
 //
 //nolint:revive // We usually the name of the reconciled resource in the controller name.
 type FirewallConfigurationReconciler struct {
-	PodName       string
+	Name          string
 	NftConnection *nftables.Conn
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	// Labels used to filter the reconciled resources.
 	LabelsSets []labels.Set
-	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
-	EnableFinalizer bool
 }
 
-// newFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
-func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
+// NewFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
+func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, name string,
+	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
 	}
 	return &FirewallConfigurationReconciler{
-		PodName:         podname,
-		NftConnection:   nftConnection,
-		Client:          cl,
-		Scheme:          s,
-		EventsRecorder:  er,
-		LabelsSets:      labelsSets,
-		EnableFinalizer: enableFinalizer,
+		Name:           name,
+		NftConnection:  nftConnection,
+		Client:         cl,
+		Scheme:         s,
+		EventsRecorder: er,
+		LabelsSets:     labelsSets,
 	}, nil
-}
-
-// NewFirewallConfigurationReconcilerWithFinalizer returns a new FirewallConfigurationReconciler that uses finalizer.
-func NewFirewallConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, podname, er, labelsSets, true)
-}
-
-// NewFirewallConfigurationReconcilerWithoutFinalizer returns a new FirewallConfigurationReconciler that doesn't use finalizer.
-func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, podname, er, labelsSets, false)
 }
 
 // cluster-role
@@ -105,26 +90,26 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
 
 	defer func() {
-		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, r.PodName, err)
+		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, r.Name, err)
 	}()
 
 	// Manage Finalizers and Table deletion.
 	// In nftables, table deletion automatically delete contained chains and rules.
 
-	if fwcfg.DeletionTimestamp.IsZero() && r.EnableFinalizer {
+	if fwcfg.DeletionTimestamp.IsZero() {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
-			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
+			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg, r.Name); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
 		}
-	} else if r.EnableFinalizer {
-		if ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
+	} else {
+		if ctrlutil.ContainsFinalizer(fwcfg, forgeFinalizer(r.Name)) {
 			delTable(r.NftConnection, &fwcfg.Spec.Table)
 			if err = r.NftConnection.Flush(); err != nil {
 				return ctrl.Result{}, err
 			}
-			if err = r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg); err != nil {
+			if err = r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg, r.Name); err != nil {
 				return ctrl.Result{}, err
 			}
 			klog.V(2).Infof("FirewallConfiguration %s deleted", req.String())
@@ -193,17 +178,17 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
-func getConditionRef(fwcfg *networkingv1beta1.FirewallConfiguration, podname string) *networkingv1beta1.FirewallConfigurationStatusCondition {
+func getConditionRef(fwcfg *networkingv1beta1.FirewallConfiguration, name string) *networkingv1beta1.FirewallConfigurationStatusCondition {
 	var conditionRef *networkingv1beta1.FirewallConfigurationStatusCondition
 	for i := range fwcfg.Status.Conditions {
-		if fwcfg.Status.Conditions[i].Host == podname {
+		if fwcfg.Status.Conditions[i].Host == name {
 			conditionRef = &fwcfg.Status.Conditions[i]
 			break
 		}
 	}
 	if conditionRef == nil {
 		conditionRef = &networkingv1beta1.FirewallConfigurationStatusCondition{
-			Host: podname,
+			Host: name,
 		}
 		fwcfg.Status.Conditions = append(fwcfg.Status.Conditions, *conditionRef)
 	}
@@ -212,9 +197,9 @@ func getConditionRef(fwcfg *networkingv1beta1.FirewallConfiguration, podname str
 
 // UpdateStatus updates the status of the given FirewallConfiguration.
 func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	fwcfg *networkingv1beta1.FirewallConfiguration, podname string, err error) error {
-	conditionRef := getConditionRef(fwcfg, podname)
-	conditionRef.Host = podname
+	fwcfg *networkingv1beta1.FirewallConfiguration, name string, err error) error {
+	conditionRef := getConditionRef(fwcfg, name)
+	conditionRef.Host = name
 	conditionRef.Type = networkingv1beta1.FirewallConfigurationStatusConditionTypeApplied
 
 	oldStatus := conditionRef.Status
