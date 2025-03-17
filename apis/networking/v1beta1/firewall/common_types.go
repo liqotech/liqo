@@ -14,14 +14,6 @@
 
 package firewall
 
-import (
-	"fmt"
-	"net"
-	"strconv"
-
-	"github.com/liqotech/liqo/pkg/utils/network/port"
-)
-
 // IPValueType is the type of the match value.
 type IPValueType string
 
@@ -45,41 +37,3 @@ const (
 	// PortValueTypeVoid is a void match value.
 	PortValueTypeVoid PortValueType = "void"
 )
-
-// GetIPValueType parses the match value and returns the type of the value.
-func GetIPValueType(value *string) (IPValueType, error) {
-	if value == nil {
-		return IPValueTypeVoid, nil
-	}
-
-	// Check if the value is a pool subnet.
-	if _, _, err := net.ParseCIDR(*value); err == nil {
-		return IPValueTypeSubnet, nil
-	}
-
-	// Check if the value is an IP.
-	if net.ParseIP(*value) != nil {
-		return IPValueTypeIP, nil
-	}
-
-	return IPValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
-}
-
-// GetPortValueType parses the match value and returns the type of the value.
-func GetPortValueType(value *string) (PortValueType, error) {
-	if value == nil {
-		return PortValueTypeVoid, nil
-	}
-
-	// Check if the value is a port range.
-	if _, _, err := port.ParsePortRange(*value); err == nil {
-		return PortValueTypeRange, nil
-	}
-
-	// Check if the value is a port.
-	if _, err := strconv.Atoi(*value); err != nil {
-		return PortValueTypePort, nil
-	}
-
-	return PortValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
-}
