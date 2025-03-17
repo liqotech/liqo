@@ -260,7 +260,7 @@ This section shows how to configure the authentication between the clusters, all
 When authentication is manually configured, **the user is in charge of providing the credentials with the permission required** by the consumer cluster to operate.
 
 If your are not familiar with how authentication works in Kubernetes you can check [this documentation page](https://kubernetes.io/docs/reference/access-authn-authz/authentication/).
-You can also check [here to know how to issue a certificate for a user](https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#normal-user).
+You can also check [here to know how to issue a certificate for a user](https://kubernetes.io/docs/tasks/tls/certificate-issue-client-csr/).
 
 ```{warning}
 Note that with EKS authentication via client certificate [is not directly supported](https://aws.amazon.com/blogs/containers/managing-access-to-amazon-elastic-kubernetes-service-clusters-with-x-509-certificates/).
