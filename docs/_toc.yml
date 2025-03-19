@@ -35,6 +35,9 @@ subtrees:
       - file: usage/stateful-applications.md
       - file: usage/prometheus-metrics.md
       - file: usage/service-continuity.md
+      - file: usage/liqoctl-commands.md
+        entries:
+          - glob: usage/liqoctl/*
 
   - caption: Advanced usage
     entries:

@@ -31,4 +31,4 @@ autoserve: install
 	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) --port 8081 $(O)
 
 lint:
-	markdownlint lint -c ../.markdownlint.yml **/*.md
+	markdownlint lint -c ../.markdownlint.yml -i usage/liqoctl **/*.md

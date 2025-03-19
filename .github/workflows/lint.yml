@@ -95,7 +95,7 @@ jobs:
       with:
         config: '.markdownlint.yml'
         args: '**/*.md'
-        ignore: .github/ISSUE_TEMPLATE/*.md
+        ignore: ".github/ISSUE_TEMPLATE/*.md docs/usage/liqoctl/*.md"
 
   doclint:
     name: Lint documentation files
@@ -123,7 +123,7 @@ jobs:
       working-directory: ./docs
       run: |
         make linkcheck
-        
+
   helmlint:
     name: Lint helm chart
     runs-on: ubuntu-latest
