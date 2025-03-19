@@ -2,23 +2,7 @@
 
 This section contains the answers to the most frequently asked questions by the community (Slack, GitHub, etc.).
 
-## Table of contents
-
-* [General](FAQGeneralSection)
-  * [Cluster limits](FAQClusterLimits)
-  * [Why DaemonSets pods (e.g., Kube-Proxy, CNI pods) scheduled on Virtual Nodes are in OffloadingBackOff?](FAQDaemonsetBackOff)
-* [Installation](FAQInstallationSection)
-  * [Upgrade the Liqo version installed on a cluster](FAQUpgradeLiqo)
-  * [How to install Liqo on DigitalOcean](FAQInstallLiqoDO)
-* [Peering](FAQPeeringSection)
-  * [How to force unpeer a cluster?](FAQForceUnpeer)
-  * [Is it possible to peer clusters using an ingress?](FAQPeerOverIngress)
-
-(FAQGeneralSection)=
-
 ## General
-
-(FAQClusterLimits)=
 
 ### Cluster limits
 
@@ -29,8 +13,6 @@ Some limitations of K8s, though, do not apply.
 For instance, the limitation of 110 pods per node is not enforced on Liqo virtual nodes, as they abstract an entire remote cluster and not a single node.
 The same consideration applies to the maximum number of nodes (5000) since all the remote nodes are hidden by a single virtual node.
 You can find additional information [here](https://github.com/liqotech/liqo/issues/1863).
-
-(FAQDaemonsetBackOff)=
 
 ### Why DaemonSets pods (e.g., Kube-Proxy, CNI pods) scheduled on virtual nodes are in OffloadingBackOff?
 
@@ -54,11 +36,7 @@ nodeAffinity:
 
 This ensures that a pod is **not** created on any nodes with the `liqo.io/type` label.
 
-(FAQInstallationSection)=
-
 ## Installation
-
-(FAQUpgradeLiqo)=
 
 ### Upgrade the Liqo version installed on a cluster
 
@@ -66,19 +44,13 @@ Unfortunately, this feature is not currently fully supported.
 At the moment, upgrading through `liqoctl install` or `helm update` will update manifests and Docker images (excluding the *virtual-kubelet* one as it is created dynamically by the *controller-manager*), but it will not update any CRD-related changes (see this [issue](https://github.com/liqotech/liqo/issues/1831) for further details).
 The easiest way is to unpeer all existing clusters and then uninstall and reinstall Liqo on all clusters (make sure to have the same Liqo version on all peered clusters).
 
-(FAQInstallLiqoDO)=
-
 ### How to install Liqo on DigitalOcean
 
 The installation of Liqo on a Digital Ocean's cluster does not work out of the box.
 The problem is related to the `liqo-gateway` service and DigitalOcean load balancer health check (which does not support a health check based on UDP).
 This [issue](https://github.com/liqotech/liqo/issues/1668) presents a step-by-step solution to overcome this problem.
 
-(FAQPeeringSection)=
-
 ## Peering
-
-(FAQForceUnpeer)=
 
 ### How to force unpeer a cluster?
 
@@ -98,8 +70,6 @@ This is a not recommended solution, use this only as a last resort if no other v
 Future upgrades will make it easier to unpeer a cluster or uninstall Liqo.
 ```
 
-(FAQPeerOverIngress)=
-
 ### Is it possible to peer clusters using an ingress?
 
 It is possible to use an ingress to expose the `liqo-auth` service instead of a NodePort/LoadBalancer using Helm values.
@@ -108,3 +78,179 @@ Make sure to set `auth.ingress.enable` to `true` and configure the rest of the v
 ```{admonition} Note
 The `liqo-gateway` service can't be exposed through a common ingress (proxies like nginx which works with HTTP only) because it uses UDP.
 ```
+
+## Network
+
+### Debug gateway-to-gateway communication issues
+
+Follow these steps only if you are receiving an **error** in the **connection** resources.
+Run the following command to check the status of the connections:
+
+```bash
+kubectl get connection -A
+```
+
+#### Check the UDP service
+
+Liqo exposes the **gateway server** using a UDP service.
+
+In the majority of the cases, the issue is related to the missing support for UDP services on a cloud provider or in your on-premise environment.
+
+You can manually test if your UDP **LoadBalancers** or **NodePort** services are working correctly by creating a dummy UDP echo server:
+
+```yaml
+# echo-server.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-server
+  template:
+    metadata:
+      labels:
+        app: echo-server
+    spec:
+      containers:
+      - name: echo-server
+        image: ghcr.io/liqotech/udpecho
+        ports:
+        - containerPort: 5000
+          protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-server-lb
+spec:
+  selector:
+    app: echo-server
+  type: LoadBalancer
+  ports:
+  - protocol: UDP
+    port: 5000
+    targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-server-np
+spec:
+  selector:
+    app: echo-server
+  type: NodePort
+  ports:
+  - protocol: UDP
+    port: 5000
+    targetPort: 5000
+```
+
+Save this file and apply the manifests to create the echo server and expose it:
+
+```bash
+kubectl apply -f echo-server.yaml
+```
+
+Now you can test the UDP service exposed by the echo server using the following command:
+
+```bash
+nc -u <IP> <PORT>
+```
+
+In case you want to test a **LoadBalancer** service, replace `<IP>` and `<PORT>` with the values of the `echo-server-lb` service. Otherwise, if you are testing the **NodePort** connectivity, replace `<IP>` with the IP of one of your nodes and `<PORT>` with the NodePort value of the `echo-server-np` service.
+
+After you have run the command, you can type a message and press `Enter`. If you see the message echoed back in upper case, the UDP service is working correctly.
+
+### Debug pod-to-pod communication issues
+
+These steps are intended to be used to get information about network issues between **two clusters**, to share with maintainers when asking for help.
+
+Before starting check the **connection** resources on your clusters using ```kubectl get connection -A```.
+If you get an error in their status, refer to the [Debug gateway-to-gateway communication issues](./faq.md#debug-gateway-to-gateway-communication-issues) section.
+
+```{warning}
+It's strongly recommended to use 2 clusters with different **pod CIDRs** for debugging. 
+```
+
+#### Deploy debug pods
+
+Create 2 namespaces, one in each cluster, and deploy a debug pod in each namespace.
+You don't need to offload them.
+
+```bash
+# Run these commands on both clusters
+kubectl create ns liqo-debug
+kubectl create deployment nginx --image=nginx -n liqo-debug
+```
+
+#### Enter in the debug pod
+
+Run an interactive shell in the debug pod to test the connectivity between the 2 clusters.
+
+```bash
+# Run these commands on both clusters
+kubectl exec -it deployments/nginx -n liqo-debug -- /bin/bash
+```
+
+Now install the required tools to test the connectivity.
+
+```bash
+apt update
+apt install iputils-ping -y 
+```
+
+#### Get the remote pod IP
+
+We need to obtain the IPs we need to ping to test the connectivity.
+
+If you are using 2 different pod CIDRs, you can use the original pod IPs.
+
+```bash
+kubectl get pods -n liqo-debug -o wide
+```
+
+If you are using the same pod CIDR, you need to **remap** the IPs of the pods.
+
+If you have 2 clusters called `cluster A` and `cluster B`, to remap the pod IP on `cluster B` you need to:
+get the **configuration** resource on `cluster A` related to `cluster B`:
+
+```bash
+kubectl get configuration -A
+```
+
+Now take the **REMAPPED POD CIDR** value, keep the **network** part of the CIDR and replace the **host** part with the one of the pod you want to reach on `cluster B`.
+
+If you want a more detailed explanation, you can find an example of remapping [here](../advanced/external-ip-remapping.md).
+
+#### Sniff the traffic inside the gateway
+
+In your tenant namespace, you can find a pod called `gw-<CLUSTER_ID>`. This pod routes the traffic between the clusters.
+
+In order to check if the traffic is correctly routed, you can sniff the traffic inside the gateway pod.
+
+Let's start opening a shell in a gateway pod.
+
+```bash
+kubectl exec -it gw-<CLUSTER_ID> -n liqo-gateway -- /bin/bash
+```
+
+Now you can use `tcpdump` to sniff the traffic.
+
+```bash
+tcpdump -tnl -i any icmp
+```
+
+#### Test the connectivity
+
+Now you can test the connectivity between the 2 pods.
+
+Run the following command in the shell of one of the two debug pods targeting the IP of the other debug pod.
+
+```bash
+ping -c1 <REMOTE_POD_IP>
+```
+
+Now check the packets in the gateway pod, and share the output with the maintainers.
