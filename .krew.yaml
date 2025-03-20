@@ -4,7 +4,7 @@ metadata:
   name: liqo
 spec:
   version: {{ .TagName }}
-  homepage: https://github.com/liqotech/liqo
+  homepage: https://github.com/castai/liqo
   shortDescription: Install and manage Liqo on your clusters
   description: |
     Liqo is a platform to enable dynamic and decentralized resource sharing across
@@ -20,29 +20,29 @@ spec:
       matchLabels:
         os: darwin
         arch: amd64
-    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-amd64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/castai/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-amd64.tar.gz" .TagName }}
     bin: liqoctl
   - selector:
       matchLabels:
         os: darwin
         arch: arm64
-    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-arm64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/castai/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-arm64.tar.gz" .TagName }}
     bin: liqoctl
   - selector:
       matchLabels:
         os: linux
         arch: amd64
-    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-linux-amd64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/castai/liqo/releases/download/{{ .TagName }}/liqoctl-linux-amd64.tar.gz" .TagName }}
     bin: liqoctl
   - selector:
       matchLabels:
         os: linux
         arch: arm64
-    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-linux-arm64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/castai/liqo/releases/download/{{ .TagName }}/liqoctl-linux-arm64.tar.gz" .TagName }}
     bin: liqoctl
   - selector:
       matchLabels:
         os: windows
         arch: amd64
-    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-windows-amd64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/castai/liqo/releases/download/{{ .TagName }}/liqoctl-windows-amd64.tar.gz" .TagName }}
     bin: liqoctl
