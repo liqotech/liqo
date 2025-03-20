@@ -21,32 +21,32 @@ jobs:
       architectures: ${{ steps.configure.outputs.architectures }}
       pr-number: ${{ steps.configure.outputs.pr-number }}
     steps:
-      - name: Get the version
-        id: get_version
-        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
-        if: startsWith(github.ref, 'refs/tags/v')
-      - name: Configure
-        id: configure
-        run: |
-          # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
-          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-            echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref_name }}" == "master" ]; then
-            echo "master=true" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
+    - name: Get the version
+      id: get_version
+      run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+      if: startsWith(github.ref, 'refs/tags/v')
+    - name: Configure
+      id: configure
+      run: |
+        # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
+        elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.ref_name }}" == "master" ]; then
+          echo "master=true" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+        fi
 
           # The suffix to append to the repository name if not triggered by a push for a release
           ([[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
@@ -332,7 +332,7 @@ jobs:
         id: last-release
         with:
           repository: ${{ github.repository }}
-          excludes: prerelease, draft
+          excludes: draft
 
       - name: Configure Git
         run: |
@@ -382,16 +382,15 @@ jobs:
         with:
           path: ./liqoctl/
 
-      # we need to upload only helm artifacts first, to make the index updater to work
+               # we need to upload only helm artifacts first, to make the index updater to work
       - uses: ncipollo/release-action@v1
         with:
           artifacts: ".cr-release-packages/*"
           generateReleaseNotes: true
-          token: ${{ secrets.CI_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
-          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
 
       - name: Update Helm index
         run: |
@@ -411,11 +410,7 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "./liqoctl/**/*"
-          token: ${{ secrets.CI_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
-          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
-
-      - name: Update new version in krew-index
-        uses: rajatjindal/krew-release-bot@v0.0.47

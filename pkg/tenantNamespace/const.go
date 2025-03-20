@@ -16,7 +16,7 @@ package tenantnamespace
 
 const (
 	// NamePrefix is the prefix of all tenant namespace names.
-	NamePrefix = "liqo-tenant"
+	NamePrefix = "omni"
 
 	roleBindingRoot = "liqo-binding"
 )
