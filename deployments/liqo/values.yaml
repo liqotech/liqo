@@ -78,19 +78,19 @@ networking:
       gateway:
         image:
           # -- Image repository for the gateway container.
-          name: "ghcr.io/liqotech/gateway"
+          name: "ghcr.io/castai/gateway"
           # -- Custom version for the gateway image. If not specified, the global tag is used.
           version: ""
       wireguard:
         image:
           # -- Image repository for the wireguard container.
-          name: "ghcr.io/liqotech/gateway/wireguard"
+          name: "ghcr.io/castai/gateway/wireguard"
           # -- Custom version for the wireguard image. If not specified, the global tag is used.
           version: ""
       geneve:
         image:
           # -- Image repository for the geneve container.
-          name: "ghcr.io/liqotech/gateway/geneve"
+          name: "ghcr.io/castai/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
   fabric:
@@ -109,7 +109,7 @@ networking:
       priorityClassName: ""
     image:
       # -- Image repository for the fabric pod.
-      name: "ghcr.io/liqotech/fabric"
+      name: "ghcr.io/castai/fabric"
       # -- Custom version for the fabric image. If not specified, the global tag is used.
       version: ""
     # -- Extra tolerations for the fabric daemonset.
@@ -205,13 +205,13 @@ offloading:
       enabled: true
       # -- Labels for the node selector.
       labels:
-        liqo.io/type: virtual-node
+        omni.cast.ai/type: virtual-node
     # -- Tolerations for the runtime class.
     tolerations:
       enabled: true
       # -- Tolerations for the tolerations.
       tolerations:
-      - key: virtual-node.liqo.io/not-allowed
+      - key: virtual-node.omni.cast.ai/not-allowed
         operator: Exists
         effect: NoExecute
   reflection:
@@ -329,7 +329,7 @@ controllerManager:
     priorityClassName: ""
   image:
     # -- Image repository for the controller-manager pod.
-    name: "ghcr.io/liqotech/liqo-controller-manager"
+    name: "ghcr.io/castai/liqo-controller-manager"
     # -- Custom version for the controller-manager image. If not specified, the global tag is used.
     version: ""
   config:
@@ -388,7 +388,7 @@ webhook:
     priorityClassName: ""
   image:
     # -- Image repository for the webhook pod.
-    name: "ghcr.io/liqotech/webhook"
+    name: "ghcr.io/castai/webhook"
     # -- Custom version for the webhook image. If not specified, the global tag is used.
     version: ""
   metrics:
@@ -427,7 +427,7 @@ ipam:
   internal:
     image:
       # -- Image repository for the IPAM pod.
-      name: "ghcr.io/liqotech/ipam"
+      name: "ghcr.io/castai/ipam"
       # -- Custom version for the IPAM image. If not specified, the global tag is used.
       version: ""
     # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
@@ -507,7 +507,7 @@ crdReplicator:
       labels: {}
   image:
     # -- Image repository for the crdReplicator pod.
-    name: "ghcr.io/liqotech/crd-replicator"
+    name: "ghcr.io/castai/crd-replicator"
     # -- Custom version for the crdReplicator image. If not specified, the global tag is used.
     version: ""
 
@@ -546,13 +546,13 @@ metricAgent:
     priorityClassName: ""
   image:
     # -- Image repository for the metricAgent pod.
-    name: "ghcr.io/liqotech/metric-agent"
+    name: "ghcr.io/castai/metric-agent"
     # -- Custom version for the metricAgent image. If not specified, the global tag is used.
     version: ""
   initContainer:
     image:
       # --Image repository for the init container of the metricAgent pod.
-      name: "ghcr.io/liqotech/cert-creator"
+      name: "ghcr.io/castai/cert-creator"
       # -- Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used.
       version: ""
 
@@ -572,7 +572,7 @@ telemetry:
       requests: {}
   image:
     # -- Image repository for the telemetry pod.
-    name: "ghcr.io/liqotech/telemetry"
+    name: "ghcr.io/castai/telemetry"
     # -- Custom version for the telemetry image. If not specified, the global tag is used.
     version: ""
   config:
@@ -585,7 +585,7 @@ virtualKubelet:
   replicas: 1
   image:
     # -- Image repository for the virtual kubelet pod.
-    name: "ghcr.io/liqotech/virtual-kubelet"
+    name: "ghcr.io/castai/virtual-kubelet"
     # -- Custom version for the virtual kubelet image. If not specified, the global tag is used.
     version: ""
   # Additional values that are added to virtual kubelet deployments and pods.
@@ -633,7 +633,7 @@ uninstaller:
       requests: {}
   image:
     # -- Image repository for the uninstaller pod.
-    name: "ghcr.io/liqotech/uninstaller"
+    name: "ghcr.io/castai/uninstaller"
     # -- Custom version for the uninstaller image. If not specified, the global tag is used.
     version: ""
 
@@ -659,7 +659,7 @@ proxy:
     priorityClassName: ""
   image:
     # -- Image repository for the proxy pod.
-    name: "ghcr.io/liqotech/proxy"
+    name: "ghcr.io/castai/proxy"
     # -- Custom version for the proxy image. If not specified, the global tag is used.
     version: ""
   service:

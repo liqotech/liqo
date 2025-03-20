@@ -277,7 +277,7 @@ jobs:
         id: last-release
         with:
           repository: ${{ github.repository }}
-          excludes: prerelease, draft
+          excludes: draft
 
       - name: Configure Git
         run: |
@@ -312,16 +312,15 @@ jobs:
         with:
          path: ./liqoctl/
 
-      # we need to upload only helm artifacts first, to make the index updater to work
+               # we need to upload only helm artifacts first, to make the index updater to work
       - uses: ncipollo/release-action@v1
         with:
           artifacts: ".cr-release-packages/*"
           generateReleaseNotes: true
-          token: ${{ secrets.CI_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
-          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
 
       - name: Update Helm index
         run: |
@@ -341,11 +340,7 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "./liqoctl/**/*"
-          token: ${{ secrets.CI_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
-          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
-
-      - name: Update new version in krew-index
-        uses: rajatjindal/krew-release-bot@v0.0.47

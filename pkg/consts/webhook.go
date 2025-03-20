@@ -17,10 +17,10 @@ package consts
 const (
 	// VirtualNodeTolerationKey all Pods that have to be scheduled on virtual nodes must have this toleration
 	// to Liqo taint.
-	VirtualNodeTolerationKey = "virtual-node.liqo.io/not-allowed"
+	VirtualNodeTolerationKey = "virtual-node.omni.cast.ai/not-allowed"
 
 	// WebHookLabel used to mark the resouces related to the Liqo webhooks.
-	WebHookLabel = "liqo.io/webhook"
+	WebHookLabel = "omni.cast.ai/webhook"
 
 	// WebHookLabelValue is the value of the label used to identify Liqo webhooks.
 	WebHookLabelValue = "true"
