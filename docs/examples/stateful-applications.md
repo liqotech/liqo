@@ -107,7 +107,7 @@ When the database is up and running, check that it is operating as expected exec
 ```bash
 kubectl run db-mariadb-galera-client --rm --tty -i \
     --restart='Never' --namespace default \
-    --image docker.io/bitnami/mariadb-galera:10.6.7-debian-10-r56 \
+    --image docker.io/bitnami/mariadb-galera:11.4.5-debian-12-r6 \
     --command \
     -- mysql -h db-mariadb-galera.liqo-demo -uuser -ppassword my_database
 ```
