@@ -83,7 +83,7 @@ To get involved with the Liqo community, join the [Slack workspace](https://liqo
 
 |:bell: Community Meeting|
 |------------------|
-|Liqo holds community meetings to discuss directions and options with the community. Please refer to the Liqo Slack workspace to see the date/time of the next meeting.|
+|Liqo holds community meetings to discuss directions and options with the community. Please refer to the Liqo Slack workspace to see the date/time of the next meeting, or check the dedicated page on the [Liqo community repository](https://github.com/liqotech/liqo-community/tree/main/meetings).|
 
 ## License
 

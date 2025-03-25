@@ -34,8 +34,10 @@ Minutes of the maintainer meetings are available [here](https://github.com/liqot
 ## Community How-To and Meetings
 
 The Liqo community meets periodically to present ongoing and future activities related to the project, to discuss new features, to collect feedbacks from the growing community, and more.
-For more informations:
 
-* [Document] [COMMUNITY-HOW-TO.md] summarizing how to contribute to the community (e.g., proposing new features), how to interact with the community.
+For more information:
+
+* [Dedicated repository](https://github.com/liqotech/liqo-community/) for the Liqo community, with community event details, presentations, etc.
+* [Document](https://github.com/liqotech/liqo-community/blob/main/COMMUNITY-HOW-TO.md) summarizing how to contribute to the community (e.g., proposing new features), how to interact with the community.
 * [Upcoming community meetings](https://github.com/liqotech/liqo-community/blob/main/meetings/README.md)
 * [Minutes](https://github.com/liqotech/liqo-community/tree/main/meetings/minutes) of the past community meetings.
