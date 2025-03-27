@@ -103,6 +103,12 @@ liqo-tenant-cl02   gw-cl02         Client   Connected   76s
 
 In the second cluster (acting as gateway server) you can find the following resources:
 
+```{admonition} Note
+If the status return **Error** check the FAQ section [Debug gateway-to-gateway communication issues](../../faq/faq.md#FAQDebugGatewayToGateway) to get an hint on how to solve the issue.
+```
+
+```bash
+
 ```bash
 kubectl get gatewayservers.networking.liqo.io -A
 ```
