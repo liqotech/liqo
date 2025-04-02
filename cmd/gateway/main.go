@@ -219,6 +219,7 @@ func run(cmd *cobra.Command, _ []string) error {
 			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
 		},
 	)
+	klog.Infof("REMOTE CLUSTER ID %s", connoptions.GwOptions.RemoteClusterID)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
 	}
