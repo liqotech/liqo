@@ -88,3 +88,12 @@ func ForgeFirewallInternalTargetLabels() map[string]string {
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryFabricTargetValue,
 	}
 }
+
+// ForgeFirewallTargetAll returns the labels used by the firewallconfiguration controller
+// to reconcile all resources related to gateways.
+func ForgeFirewallTargetAll() map[string]interface{} {
+	return map[string]interface{}{
+		firewall.FirewallCategoryTargetKey: FirewallCategoryGwTargetValue,
+		firewall.FirewallAll:               true,
+	}
+}
