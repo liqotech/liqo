@@ -21,10 +21,10 @@ jobs:
           cache: false
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6.5.0
+        uses: golangci/golangci-lint-action@v7
         with:
           only-new-issues: true
-          version: v1.64.5
+          version: latest
           args: --timeout=900s
 
   gomodtidy:
