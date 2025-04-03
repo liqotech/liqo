@@ -1,159 +1,141 @@
-run:
-  timeout: 10m
-
-linters-settings:
-  exhaustive:
-    check-generated: false
-    default-signifies-exhaustive: true
-
-  goheader:
-    values:
-      const:
-        AUTHORS: The Liqo Authors
-    template: |-
-      Copyright 2019-{{ YEAR }} {{ AUTHORS }}
-
-      Licensed under the Apache License, Version 2.0 (the "License");
-      you may not use this file except in compliance with the License.
-      You may obtain a copy of the License at
-
-           http://www.apache.org/licenses/LICENSE-2.0
-
-      Unless required by applicable law or agreed to in writing, software
-      distributed under the License is distributed on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-      See the License for the specific language governing permissions and
-      limitations under the License.
-
-  lll:
-    line-length: 150
-  gomodguard:
-    blocked:
-      modules:
-        - github.com/go-logr/logr:
-            recommendations:
-              - k8s.io/klog/v2
-  gci:
-    sections:
-    - standard                          # Captures all standard packages if they do not match another section.
-    - default                           # Contains all imports that could not be matched to another section type.
-    - prefix(github.com/liqotech/liqo)  # Groups all imports with the specified Prefix.
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      # Conflicts with govet check-shadowing
-      - sloppyReassign
-  goimports:
-    local-prefixes: github.com/liqotech/liqo
-  govet:
-    enable:
-      - shadow
-      - nilness
-      - nilfunc
-  misspell:
-    locale: US
-  nolintlint:
-    allow-unused: false # report any unused nolint directives
-    require-explanation: true # require an explanation for nolint directives
-    require-specific: true # require nolint directives to be specific about which linter is being skipped
-  dupl:
-    threshold: 300
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bodyclose
     - copyloopvar
-  # - depguard
     - dogsled
     - dupl
     - errcheck
     - errorlint
     - exhaustive
-  # - funlen
-  # - gochecknoglobals
-  # - gochecknoinits
-  # - gocognit
-    - gci
     - goconst
     - gocritic
     - gocyclo
     - godot
-  # - godox
-  # - goerr113
-    - gofmt
     - goheader
-    - goimports
     - gomodguard
-  # - gomnd
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
-  # - maligned
     - misspell
     - nakedret
-  # - nestif
     - noctx
     - nolintlint
-  # - prealloc
     - revive
     - rowserrcheck
     - staticcheck
-    - stylecheck
-  # - testpackage
-    - typecheck
     - unconvert
     - unparam
     - unused
     - whitespace
-  # - wsl
+  settings:
+    dupl:
+      threshold: 300
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocritic:
+      disabled-checks:
+        - sloppyReassign
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    goheader:
+      values:
+        const:
+          AUTHORS: The Liqo Authors
+      template: |-
+        Copyright 2019-{{ YEAR }} {{ AUTHORS }}
 
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+             http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/go-logr/logr:
+              recommendations:
+                - k8s.io/klog/v2
+    govet:
+      enable:
+        - shadow
+        - nilness
+        - nilfunc
+    lll:
+      line-length: 150
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - govet
+        text: declaration of "(err|ctx)" shadows declaration at
+      - linters:
+          - gosec
+        # Disable the check to test that HTTP clients are not using an insecure TLS connection.
+        # We need it to contact the remote authentication services exposing a self-signed certificate
+        text: TLS InsecureSkipVerify set true.
+      - linters:
+          - errorlint
+        # Disable the check to test errors type assertion on switches.
+        text: type switch on error will fail on wrapped errors. Use errors.As to check for specific errors
+      - linters:
+          - revive
+          - whitespace
+        path: _test\.go
+      - path: (.+)\.go$
+        # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+    paths:
+      - zz_generated.*.go
+      - pkg/client
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  #fix: true
-
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  # Disable the default exclude patterns (as they disable the mandatory comments)
-  exclude-use-default: false
-  exclude:
-    # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
-    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-
-  exclude-rules:
-    - linters:
-        - govet
-      text: 'declaration of "(err|ctx)" shadows declaration at'
-    - linters:
-        - gosec
-      # Disable the check to test that HTTP clients are not using an insecure TLS connection.
-      # We need it to contact the remote authentication services exposing a self-signed certificate
-      text: TLS InsecureSkipVerify set true.
-    - linters:
-        - errorlint
-      # Disable the check to test errors type assertion on switches.
-      text: type switch on error will fail on wrapped errors. Use errors.As to check for specific errors
-
-    # Exclude the following linters from running on tests files.
-    - path: _test\.go
-      linters:
-        - whitespace
-        - revive  # it does not allow dot imports (e.g. . "github.com/onsi/ginkgo")
-
-  exclude-files:
-    - "zz_generated.*.go"
-  
-  exclude-dirs:
-    - "pkg/client"
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+        sections:
+        - standard                          # Captures all standard packages if they do not match another section.
+        - default                           # Contains all imports that could not be matched to another section type.
+        - prefix(github.com/liqotech/liqo)  # Groups all imports with the specified Prefix.
+    goimports:
+      local-prefixes:
+        - github.com/liqotech/liqo
+  exclusions:
+    generated: lax
+    paths:
+      - zz_generated.*.go
+      - pkg/client
+      - third_party$
+      - builtin$
+      - examples$
