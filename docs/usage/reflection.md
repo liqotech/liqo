@@ -6,7 +6,7 @@ Briefly, the set of supported resources includes (by category):
 
 * [**Workload**](UsageReflectionPods): *Pods*
 * [**Exposition**](UsageReflectionExposition): *Services*, *EndpointSlices*, *Ingresses*
-* [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PresistentVolumes*
+* [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PersistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
 
