@@ -6,7 +6,7 @@ Briefly, the set of supported resources includes (by category):
 
 * [**Workload**](UsageReflectionPods): *Pods*
 * [**Exposition**](UsageReflectionExposition): *Services*, *EndpointSlices*, *Ingresses*
-* [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PresistentVolumes*
+* [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PersistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
 
@@ -202,7 +202,7 @@ The **RuntimeClass** (`.spec.runtimeClassName` field) is reflected from the loca
 If you are using the [Liqo RuntimeClass](../usage/namespace-offloading.md#runtimeclass), you cannot specify the RuntimeClass name as the field is already used.
 To overcome this problem, you can annotate the pod with `liqo.io/remote-runtime-class-name: <MY_RUNTIMECLASS_NAME>`.
 
-It is also possible to enforce a remote RuntimeClass to all pods scheduled on a virtual node, by specifying it in the *OffladingPatch* of the virtualnode (`.spec.offloadingPatch.runtimeClassName`).
+It is also possible to enforce a remote RuntimeClass to all pods scheduled on a virtual node, by specifying it in the *OffloadingPatch* of the virtualnode (`.spec.offloadingPatch.runtimeClassName`).
 If you are using liqoctl to create the virtual node, you can leverage the `--runtime-class-name` flag.  
 
 If these options are used in combination, the following priority (from higher to lower priority) will be used to determine the remote RuntimeClass:
