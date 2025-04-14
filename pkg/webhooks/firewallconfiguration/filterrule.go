@@ -16,6 +16,7 @@ package firewallconfiguration
 
 import (
 	"fmt"
+	"net"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	commonUtils "github.com/liqotech/liqo/pkg/firewall/utils"
@@ -32,55 +33,98 @@ func checkFilterRulesInChain(chain *firewallapi.Chain) error {
 }
 
 func checkFilterRule(filterRule *firewallapi.FilterRule) error {
-	for _, matchIP := range filterRule.Match{
-		if err := checkFilterRuleActions(filterRule); err != nil {
-			return err;
-		}
-		if err := checkFilterRuleIPValue(filterRule, &matchIP); err != nil {
-			return err
-		}
-		if err := checkFilterRulePosition(filterRule, &matchIP); err != nil {
-			return err
+	for _, match := range filterRule.Match{
+		if match.IP != nil {
+			if err := checkFilterRuleActions(&filterRule.Action); err != nil {
+				return fmt.Errorf("filterrule %s err: %s", *filterRule.Name, err)
+			}
+			if err := checkFilterRuleIPValue(match.IP); err != nil {
+				return fmt.Errorf("filterrule %s err: %s", *filterRule.Name, err)
+			}
+			if err := checkFilterRulePosition(&match.IP.Position); err != nil {
+				return fmt.Errorf("filterrule %s err: %s", *filterRule.Name, err)
+			}
+			if err := checkFilterRuleOperation(&match.Op); err != nil {
+				return fmt.Errorf("filterrule %s err: %s", *filterRule.Name, err)
+			}
 		}
 	}
 
 	return nil
 }
 
-func checkFilterRuleActions(filterRule *firewallapi.FilterRule) error{
-	switch filterRule.Action {
+func checkFilterRuleActions(action *firewallapi.FilterAction) error{
+	switch *action {
 	case firewallapi.ActionAccept, firewallapi.ActionDrop, firewallapi.ActionReject:
 		return nil
 	default:
-		return fmt.Errorf("filterrule %s has an invalid action", *filterRule.Name)
+		return fmt.Errorf("Invalid action %s", action)
 	}
 }
 
-func checkFilterRuleIPValue(filterRule *firewallapi.FilterRule, m *firewallapi.Match) error {
-	if m.IP == nil {
-		return fmt.Errorf("filterrule %s has no IP match value", *filterRule.Name)
+func checkFilterRuleIPValue(mIP *firewallapi.MatchIP) error {
+	IPValueType, err := commonUtils.GetIPValueType(&mIP.Value)
+	if err != nil {
+		return err
 	}
-	if m.IP.Value == "" {
-		return fmt.Errorf("filterrule %s has no value in IP match", *filterRule.Name)
-	}else{
-		_, err := commonUtils.GetIPValueTypeRange(m.IP.Value)
+	if IPValueType == firewallapi.IPValueTypeRange {
+		if err := checkGranularRangeIP(mIP); err != nil {
+			return err
+		}
+	}
+	if IPValueType == firewallapi.IPValueTypeSubnet {
+		_, _, err := net.ParseCIDR(mIP.Value)
 		if err != nil {
-			return fmt.Errorf("%s", err)
+			return err
+		}
+	}
+	if IPValueType == firewallapi.IPValueTypeIP {
+		if net.ParseIP(mIP.Value) == nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func checkFilterRulePosition(filterRule *firewallapi.FilterRule, m *firewallapi.Match) error {
-	switch m.IP.Position {
+func checkFilterRulePosition(position *firewallapi.MatchPosition) error {
+	switch *position {
 	case firewallapi.MatchPositionSrc:
 		return nil
 	case firewallapi.MatchPositionDst:
 		return nil
 	}
-	return fmt.Errorf("invalid match IP position %s for filterRule: %s", m.IP.Position, *filterRule.Name)
+	return fmt.Errorf("invalid match IP position %s", position)
 }
 
+func checkFilterRuleOperation(op *firewallapi.MatchOperation) error {
+	switch *op {
+	case firewallapi.MatchOperationEq:
+		return nil
+	case firewallapi.MatchOperationNeq:
+		return nil
+	}
+	return fmt.Errorf("invalid match IP operation %s", op)
+}
 
+func checkGranularRangeIP(mIP *firewallapi.MatchIP) error {
+	_, err := commonUtils.GetIPValueTypeRange(mIP.Value)
+	if err != nil {
+		return err
+	}
+	
+	// cannot return error since is also called inside GetIPValueTypeRange
+	addr1, addr2, _ := commonUtils.GetIPValueRange(mIP.Value)
+	mask := net.CIDRMask(24, 32)
+	network := addr1.Mask(mask)
 
+	subnet := net.IPNet{
+		IP:   network,
+		Mask: mask,
+	}
 
+	// check if the two IPs are in the same /24 subnet
+	if !subnet.Contains(addr2) {
+		return fmt.Errorf("IP range %s - %s spans different /24 subnets", addr1, addr2)
+	}
+	return nil
+}

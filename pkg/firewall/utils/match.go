@@ -256,7 +256,7 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 		return err
 	}
 
-	startIP, endIP, err := getIPValueRange(m.IP.Value)
+	startIP, endIP, err := GetIPValueRange(m.IP.Value)
 	if err != nil || startIP == nil || endIP == nil {
 		return err
 	}

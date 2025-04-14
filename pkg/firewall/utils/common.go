@@ -50,7 +50,7 @@ func GetIPValueType(value *string) (firewallv1beta1.IPValueType, error) {
 
 // GetIPValueTypeRange parses the match value and returns the type of the value.
 func GetIPValueTypeRange(s string) (firewallv1beta1.IPValueType, error) {
-	_, _, err := getIPValueRange(s)
+	_, _, err := GetIPValueRange(s)
 	if err == nil {
 		return firewallv1beta1.IPValueTypeRange, nil
 	}
@@ -59,7 +59,7 @@ func GetIPValueTypeRange(s string) (firewallv1beta1.IPValueType, error) {
 }
 
 // GetIPValueRange parses the match value and returns the range of IPs.
-func getIPValueRange(s string) (address1, address2 net.IP, err error) {
+func GetIPValueRange(s string) (address1, address2 net.IP, err error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
 		return nil, nil, fmt.Errorf("invalid format: %s", s)
