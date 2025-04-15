@@ -213,11 +213,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{
+			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			gateway.ForgeFirewallInternalTargetLabels(),
 			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
 		},
 	)
+	klog.Infof("REMOTE CLUSTER ID %s", connoptions.GwOptions.RemoteClusterID)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
 	}

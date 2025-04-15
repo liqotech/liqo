@@ -59,3 +59,9 @@ func ForgeRouteTargetLabels() map[string]string {
 		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
 	}
 }
+
+/* func ForgeFirewallTargetLabelsShadowPod() map[string]string{
+	return map[string]string {
+
+	}
+} */
