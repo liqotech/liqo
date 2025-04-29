@@ -39,6 +39,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
       - image: {{ .Values.controllerManager.image.name }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}

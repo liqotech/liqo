@@ -41,6 +41,10 @@ spec:
   annotationsNotReflected:
     {{- toYaml .Values.offloading.reflection.skip.annotations | nindent 4 }}
   {{- end }}
+  {{- if .Values.pullPolicy }}
+  pullPolicy: {{ .Values.pullPolicy }}
+  {{- end }}
+  {{- include "liqo.imagePullSecrets" . | nindent 2 }}
   reflectorsConfig:
     pod: 
       workers: {{ .Values.offloading.reflection.pod.workers }}

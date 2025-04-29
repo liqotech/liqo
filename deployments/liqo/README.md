@@ -49,6 +49,7 @@
 | discovery.config.clusterID | string | `""` | Specify an unique ID for your cluster. This ID is used to identify your cluster in the peering process. |
 | discovery.config.clusterLabels | object | `{}` | A set of labels that characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
+| imagePullSecrets | list | `[]` | Image pull secrets for all Liqo containers |
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
 | ipam.externalCIDR | string | `"10.70.0.0/16"` | The subnet used for the external CIDR. |
@@ -164,7 +165,7 @@
 | proxy.replicas | int | `1` | Set the number of replicas for the proxy deployments |
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
-| pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
+| pullPolicy | string | `"IfNotPresent"` | Image pull policy for all Liqo containers |
 | requirements.kernel.enabled | bool | `true` | Enable/Disable the kernel requirements check. |
 | storage.enabled | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | Name of the real storage class to use in the local cluster. |

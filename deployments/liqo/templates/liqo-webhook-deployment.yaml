@@ -38,6 +38,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
       - image: {{ .Values.webhook.image.name }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}

@@ -38,6 +38,7 @@ spec:
         {{- toYaml .Values.networking.fabric.tolerations | nindent 8 }}
         {{- end }}
       serviceAccountName: {{ include "liqo.prefixedName" $fabricConfig }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
         - image: {{ .Values.networking.fabric.image.name }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}

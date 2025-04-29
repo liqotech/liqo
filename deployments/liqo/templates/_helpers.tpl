@@ -240,3 +240,13 @@ Get the Container security context
 {{- define "liqo.containerSecurityContext" -}}
 allowPrivilegeEscalation: false
 {{- end -}}
+
+{{/*
+Get the image pull secrets
+*/}}
+{{- define "liqo.imagePullSecrets" -}}
+{{- if .Values.imagePullSecrets }}
+imagePullSecrets:
+{{- toYaml .Values.imagePullSecrets | nindent 0 }}
+{{- end -}}
+{{- end -}}
