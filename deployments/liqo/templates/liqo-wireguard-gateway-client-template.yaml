@@ -37,6 +37,7 @@ spec:
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
+              {{- include "liqo.imagePullSecrets" . | nindent 14 }}
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}

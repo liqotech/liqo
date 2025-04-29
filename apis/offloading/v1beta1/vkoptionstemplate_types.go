@@ -21,21 +21,23 @@ import (
 
 // VkOptionsTemplateSpec defines the desired state of VkOptionsTemplate.
 type VkOptionsTemplateSpec struct {
-	CreateNode              bool                        `json:"createNode"`
-	DisableNetworkCheck     bool                        `json:"disableNetworkCheck"`
-	ContainerImage          string                      `json:"containerImage"`
-	MetricsEnabled          bool                        `json:"metricsEnabled"`
-	MetricsAddress          string                      `json:"metricsAddress,omitempty"`
-	LabelsNotReflected      []string                    `json:"labelsNotReflected,omitempty"`
-	AnnotationsNotReflected []string                    `json:"annotationsNotReflected,omitempty"`
-	ReflectorsConfig        map[string]ReflectorConfig  `json:"reflectorsConfig,omitempty"`
-	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
-	ExtraArgs               []string                    `json:"extraArgs,omitempty"`
-	ExtraAnnotations        map[string]string           `json:"extraAnnotations,omitempty"`
-	ExtraLabels             map[string]string           `json:"extraLabels,omitempty"`
-	NodeExtraAnnotations    map[string]string           `json:"nodeExtraAnnotations,omitempty"`
-	NodeExtraLabels         map[string]string           `json:"nodeExtraLabels,omitempty"`
-	Replicas                *int32                      `json:"replicas,omitempty"`
+	CreateNode              bool                          `json:"createNode"`
+	DisableNetworkCheck     bool                          `json:"disableNetworkCheck"`
+	ContainerImage          string                        `json:"containerImage"`
+	MetricsEnabled          bool                          `json:"metricsEnabled"`
+	MetricsAddress          string                        `json:"metricsAddress,omitempty"`
+	LabelsNotReflected      []string                      `json:"labelsNotReflected,omitempty"`
+	AnnotationsNotReflected []string                      `json:"annotationsNotReflected,omitempty"`
+	ReflectorsConfig        map[string]ReflectorConfig    `json:"reflectorsConfig,omitempty"`
+	Resources               corev1.ResourceRequirements   `json:"resources,omitempty"`
+	ExtraArgs               []string                      `json:"extraArgs,omitempty"`
+	ExtraAnnotations        map[string]string             `json:"extraAnnotations,omitempty"`
+	ExtraLabels             map[string]string             `json:"extraLabels,omitempty"`
+	NodeExtraAnnotations    map[string]string             `json:"nodeExtraAnnotations,omitempty"`
+	NodeExtraLabels         map[string]string             `json:"nodeExtraLabels,omitempty"`
+	Replicas                *int32                        `json:"replicas,omitempty"`
+	ImagePullSecrets        []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	PullPolicy              corev1.PullPolicy             `json:"pullPolicy,omitempty"`
 }
 
 // ReflectorConfig contains configuration parameters of the reflector.

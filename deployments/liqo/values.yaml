@@ -10,6 +10,13 @@ nameOverride: ""
 # -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
 fullnameOverride: ""
 
+# -- Image pull policy for all Liqo containers
+pullPolicy: IfNotPresent
+
+# -- Image pull secrets for all Liqo containers
+imagePullSecrets: []
+# - name: regcred
+
 metrics:
   # -- Enable/Disable the metrics server in every liqo component.
   enabled: false
@@ -288,9 +295,6 @@ storage:
   realStorageClassName: ""
   # -- Namespace where liqo will deploy specific PVCs. Internal parameter, do not change.
   storageNamespace: liqo-storage
-
-# -- The pullPolicy for liqo pods.
-pullPolicy: "IfNotPresent"
 
 common:
   # -- NodeSelector for all liqo pods, excluding virtual kubelet.

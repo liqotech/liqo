@@ -133,13 +133,19 @@ func forgeVKContainers(
 		})
 	}
 
+	pullPolicy := v1.PullIfNotPresent
+	if opts.Spec.PullPolicy != "" {
+		pullPolicy = opts.Spec.PullPolicy
+	}
+
 	return []v1.Container{
 		{
-			Name:      vk.ContainerName,
-			Resources: opts.Spec.Resources,
-			Image:     opts.Spec.ContainerImage,
-			Command:   command,
-			Args:      args,
+			Name:            vk.ContainerName,
+			Resources:       opts.Spec.Resources,
+			Image:           opts.Spec.ContainerImage,
+			ImagePullPolicy: pullPolicy,
+			Command:         command,
+			Args:            args,
 			Env: []v1.EnvVar{
 				{
 					Name:      "POD_IP",
@@ -172,6 +178,7 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, local
 			virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses, virtualNode.Spec.LoadBalancerClasses,
 			opts),
 		ServiceAccountName: virtualNode.Name,
+		ImagePullSecrets:   opts.Spec.ImagePullSecrets,
 	}
 }
 

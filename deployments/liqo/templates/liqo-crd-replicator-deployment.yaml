@@ -26,6 +26,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
         - image: {{ .Values.crdReplicator.image.name }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}

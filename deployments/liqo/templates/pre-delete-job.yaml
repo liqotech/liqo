@@ -26,6 +26,7 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       restartPolicy: Never
       serviceAccountName: {{ include "liqo.prefixedName" $predelete}}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: pre-delete-job
         image: {{ .Values.uninstaller.image.name }}{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}

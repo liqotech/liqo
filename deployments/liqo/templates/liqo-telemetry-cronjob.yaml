@@ -34,6 +34,7 @@ spec:
           securityContext:
           {{- include "liqo.podSecurityContext" . | nindent 12 }}
           serviceAccountName: {{ include "liqo.prefixedName" $telemetryCronConfig }}
+          {{- include "liqo.imagePullSecrets" . | nindent 10 }}
           restartPolicy: Never
           containers:
           - image: {{ .Values.telemetry.image.name }}{{ include "liqo.suffix" $telemetryCronConfig }}:{{ include "liqo.version" $telemetryCronConfig }}

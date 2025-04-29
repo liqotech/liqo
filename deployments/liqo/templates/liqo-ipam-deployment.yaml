@@ -29,6 +29,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ipamConfig }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
         - image: {{ .Values.ipam.internal.image.name }}{{ include "liqo.suffix" $ipamConfig }}:{{ include "liqo.version" $ipamConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
