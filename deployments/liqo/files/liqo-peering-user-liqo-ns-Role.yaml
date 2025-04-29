@@ -10,6 +10,12 @@ rules:
 - apiGroups:
   - ipam.liqo.io
   resources:
+  - ips
+  verbs:
+  - get
+- apiGroups:
+  - ipam.liqo.io
+  resources:
   - networks
   verbs:
   - get
