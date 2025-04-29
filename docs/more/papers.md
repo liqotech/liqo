@@ -9,4 +9,4 @@ On this page, we list some academic papers that talk about Liqo.
 * [An intent-based solution for network isolation in Kubernetes](https://ieeexplore.ieee.org/abstract/document/10588939)
 * [Is the Computing Continuum Already Here?](https://arxiv.org/abs/2309.09822)
 
-If you are interested in more papers search Liqo on [Google Scholar](https://scholar.google.com/scholar?hl=it&as_sdt=0%2C5&q=%22liqo%22+kubernetes&btnG=).
+If you are interested in more papers search Liqo on [Google Scholar](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=%22liqo%22+kubernetes&oq=).
