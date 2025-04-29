@@ -18,4 +18,5 @@ package liqons
 
 // +kubebuilder:rbac:groups=core,resources=configmaps,namespace="do-not-care",verbs=get;list;watch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,namespace="do-not-care",verbs=get;list
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,namespace="do-not-care",verbs=get
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayservertemplates;wggatewayclienttemplates,namespace="do-not-care",verbs=get;list
