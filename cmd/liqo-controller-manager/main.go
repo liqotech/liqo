@@ -261,6 +261,11 @@ func main() {
 
 	// NETWORKING MODULE
 	if *networkingEnabled {
+		if err := ipam.CheckAndSanitizeIPs(ctx, uncachedClient); err != nil {
+			klog.Errorf("Unable to check and sanitize IPs: %v", err)
+			os.Exit(1)
+		}
+
 		// Connect to the IPAM server if specified.
 		var ipamClient ipam.IPAMClient
 		if *ipamServer != "" {

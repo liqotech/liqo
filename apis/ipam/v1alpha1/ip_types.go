@@ -66,10 +66,8 @@ type IPSpec struct {
 // IPStatus defines remapped IPs.
 type IPStatus struct {
 	// IP is the remapped IP.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
 	IP networkingv1beta1.IP `json:"ip,omitempty"`
 	// CIDR is the network CIDR where the IP is allocated.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="CIDR field is immutable"
 	CIDR networkingv1beta1.CIDR `json:"cidr,omitempty"`
 }
 

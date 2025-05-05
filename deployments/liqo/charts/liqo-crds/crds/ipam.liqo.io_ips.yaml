@@ -490,16 +490,10 @@ spec:
                 description: CIDR is the network CIDR where the IP is allocated.
                 format: cidr
                 type: string
-                x-kubernetes-validations:
-                - message: CIDR field is immutable
-                  rule: self == oldSelf
               ip:
                 description: IP is the remapped IP.
                 format: ipv4
                 type: string
-                x-kubernetes-validations:
-                - message: IP field is immutable
-                  rule: self == oldSelf
             type: object
         required:
         - spec
