@@ -74,7 +74,11 @@ func (lipam *LiqoIPAM) initializeIPs(ctx context.Context) error {
 	// Initialize the IPs.
 	for ip, net := range ips {
 		if err := lipam.ipAcquireWithAddr(ip, net); err != nil {
-			klog.Errorf("Failed to reserve IP %q (network %q): %v", ip.String(), net.String(), err)
+			klog.Errorf("Failed to reserve IP %q (network %q): %v",
+				ip.String(), net.String(), err)
+			klog.Errorf("The IP resource %q might be part of an old installation. "+
+				"Please delete all the IP resources and remove their finalizers if necessary.",
+				ip.String())
 			return err
 		}
 	}
