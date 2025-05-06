@@ -541,6 +541,29 @@ liqoctl info -o json
 liqoctl info --get network.podcidr
 ```
 
+## ArgoCD
+
+### Annotations
+
+When using ArgoCD to install Liqo, we recommend to set the following values:
+
+```yaml
+common:
+  globalAnnotations:
+    argocd.argoproj.io/ignore-resource-updates: "true"
+    argocd.argoproj.io/sync-options: Delete=true
+    argocd.argoproj.io/sync-wave: 10
+    argocd.argoproj.io/compare-options: IgnoreExtraneous  
+```
+
+This instruments Liqo to add some **argocd annotations** to the resources it creates.
+These annotations allow to:
+
+* **argocd.argoproj.io/ignore-resource-updates: "true"**: This allows ArgoCD to ignore updates on resources created by other resources (like a *Pod* and its *Deployment*), which are managed by ArgoCD.
+* **argocd.argoproj.io/sync-options: Delete=true**: Allows ArgoCD to delete resources created by Liqo controllers.
+* **argocd.argoproj.io/sync-wave: 10**: This allows ArgoCD to wait resources deletion before deleting the Liqo controllers.
+* **argocd.argoproj.io/compare-options: IgnoreExtraneous**: This allows ArgoCD to ignore resources created by Liqo controllers.
+
 ## CNIs
 
 ### Cilium
