@@ -38,6 +38,7 @@
 //     -- Latency
 //     -- NodesNumber
 //     -- VirtualNodesNumber
+//     -- ResourceSliceNumber
 //   - Namespaces info
 //     -- UID
 //     -- MappingStrategy (EnforceSameName/DefaultName)
