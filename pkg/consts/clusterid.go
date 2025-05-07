@@ -17,12 +17,21 @@ package consts
 import "k8s.io/apimachinery/pkg/labels"
 
 const (
-	// ClusterIDLabelName is the name of the label key to use with Cluster ID.
+	// ClusterIDLabelName is the name of the label key to use with cluster-id.
 	ClusterIDLabelName = "clusterID"
 	// ClusterIDConfigMapKey is the key of the configmap where the cluster-id is stored.
 	ClusterIDConfigMapKey = "CLUSTER_ID"
 	// ClusterIDConfigMapNameLabelValue value of the name key of the configmap used to get it by label.
 	ClusterIDConfigMapNameLabelValue = "clusterid-configmap"
+
+	// ClusterIDTelemetryLabelName is the name of the label key to use with telemetry cluster-id.
+	ClusterIDTelemetryLabelName = "clusterIDTelemetry"
+	// ClusterIDTelemetryConfigMapKey is the key of the configmap where the telemetry cluster-id is stored.
+	ClusterIDTelemetryConfigMapKey = "CLUSTER_ID_TELEMETRY"
+	// ClusterIDTelemetryConfigMapNameLabelValue value of the name key of the configmap used to get it by label.
+	ClusterIDTelemetryConfigMapNameLabelValue = "clusterid-telemetry-configmap"
+	// ClusterIDTelemetryConfigMapName is the name of the configmap where the telemetry cluster-id is stored.
+	ClusterIDTelemetryConfigMapName = "telemetry-identity"
 )
 
 // ClusterIDConfigMapSelector returns the selector for the configmap where the cluster-id is stored.

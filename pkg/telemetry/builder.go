@@ -16,9 +16,11 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
@@ -34,9 +36,17 @@ import (
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
 func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
-	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, c.Client, c.Namespace)
+	clusterID, err := utils.GetClusterIDTelemetryWithControllerClient(ctx, c.Client, c.Namespace)
 	if err != nil {
-		return nil, err
+		switch {
+		case apierrors.IsNotFound(err):
+			klog.V(4).InfoS("ClusterID not found, creating a new one")
+			if err := createClusterIDTelemetryConfigMap(ctx, c.Client, c.Namespace); err != nil {
+				return nil, fmt.Errorf("failed to create configmap: %w", err)
+			}
+		default:
+			return nil, fmt.Errorf("failed to get clusterID: %w", err)
+		}
 	}
 
 	return &Telemetry{
