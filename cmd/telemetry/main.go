@@ -54,7 +54,8 @@ func init() {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=core,resources=configmaps;nodes;pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes;pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch

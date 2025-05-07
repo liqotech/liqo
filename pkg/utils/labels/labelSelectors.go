@@ -39,6 +39,17 @@ var (
 		},
 	}
 
+	// ClusterIDTelemetryConfigMapLabelSelector selector used to get the cluster id telemetry configmap.
+	ClusterIDTelemetryConfigMapLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.K8sAppNameKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{liqoconst.ClusterIDTelemetryConfigMapNameLabelValue},
+			},
+		},
+	}
+
 	// ProxyServiceLabelSelector selector used to get the gateway service.
 	ProxyServiceLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{

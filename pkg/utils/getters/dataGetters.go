@@ -62,6 +62,17 @@ func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (liqov1beta1.ClusterID
 	return liqov1beta1.ClusterID(id), nil
 }
 
+// RetrieveClusterIDTelemetryFromConfigMap retrieves telemetry ClusterID from a given configmap.
+func RetrieveClusterIDTelemetryFromConfigMap(cm *corev1.ConfigMap) (string, error) {
+	id, found := cm.Data[liqoconsts.ClusterIDTelemetryConfigMapKey]
+	if !found {
+		return "", fmt.Errorf("unable to get cluster ID telemetry: field {%s} not found in configmap {%s/%s}",
+			liqoconsts.ClusterIDTelemetryConfigMapKey, cm.Namespace, cm.Name)
+	}
+
+	return id, nil
+}
+
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object
 // based on the service and port name.
 func RetrieveEndpointFromService(svc *corev1.Service, svcType corev1.ServiceType, portName string) (endpointIP, endpointPort string, err error) {
