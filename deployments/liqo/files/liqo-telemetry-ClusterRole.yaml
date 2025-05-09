@@ -3,6 +3,15 @@ rules:
   - ""
   resources:
   - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - nodes
   - pods
   verbs:

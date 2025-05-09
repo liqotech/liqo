@@ -74,6 +74,24 @@ func GetClusterIDWithControllerClient(ctx context.Context, cl client.Client, nam
 	return clusterID, nil
 }
 
+// GetClusterIDTelemetryWithControllerClient returns telemetry cluster identity using a client.Client client.
+func GetClusterIDTelemetryWithControllerClient(ctx context.Context, cl client.Client, namespace string) (string, error) {
+	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ClusterIDTelemetryConfigMapLabelSelector)
+	if err != nil {
+		return "", err
+	}
+	cm, err := liqogetters.GetConfigMapByLabel(ctx, cl, namespace, selector)
+	if err != nil {
+		return "", err
+	}
+	clusterID, err := liqogetters.RetrieveClusterIDTelemetryFromConfigMap(cm)
+	if err != nil {
+		return "", err
+	}
+
+	return clusterID, nil
+}
+
 // GetClusterID returns the local clusterID.
 func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (liqov1beta1.ClusterID, error) {
 	clusterID, err := GetClusterIDWithNativeClient(ctx, cl, namespace)
