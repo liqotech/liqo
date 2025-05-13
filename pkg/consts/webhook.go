@@ -20,7 +20,7 @@ const (
 	VirtualNodeTolerationKey = "virtual-node.omni.cast.ai/not-allowed"
 
 	// WebHookLabel used to mark the resouces related to the Liqo webhooks.
-	WebHookLabel = "omni.cast.ai/webhook"
+	WebHookLabel = "liqo.io/webhook"
 
 	// WebHookLabelValue is the value of the label used to identify Liqo webhooks.
 	WebHookLabelValue = "true"
