@@ -38,11 +38,11 @@ jobs:
           echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "master=false" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
         elif [ "${{ github.ref_name }}" == "master" ]; then
           echo "master=true" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         else
           echo "master=false" >> $GITHUB_OUTPUT
