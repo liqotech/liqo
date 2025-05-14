@@ -446,7 +446,7 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	if err != nil {
 		klog.Errorf("Failed to update local pod status %q (remote: %q): %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), err)
 		if !kerrors.IsConflict(err) {
-			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(terr))
+			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(err))
 		}
 		return err
 	}
