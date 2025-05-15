@@ -543,26 +543,72 @@ liqoctl info --get network.podcidr
 
 ## ArgoCD
 
-### Annotations
+[ArgoCD](https://argo-cd.readthedocs.io/en/stable/) is a GitOps continuous delivery tool designed for Kubernetes.
+**Liqo supports installation and configuration with ArgoCD** via a declarative approach.
 
-When using ArgoCD to install Liqo, we recommend to set the following values:
+The following is an example of ArgoCD application installing the [Liqo Helm chart](#install-with-helm).
 
-```yaml
-common:
-  globalAnnotations:
-    argocd.argoproj.io/ignore-resource-updates: "true"
-    argocd.argoproj.io/sync-options: Delete=true
-    argocd.argoproj.io/sync-wave: 10
-    argocd.argoproj.io/compare-options: IgnoreExtraneous  
+{{ env.config.html_context.generate_argocd_manifest() }}
+
+In the previous example, you should define the values to configure your Liqo installation.
+You can generate a template of the `spec.source.helm.values` field via `liqoctl`:
+
+```bash
+liqoctl install <provider> [flags] --only-output-values
 ```
 
-This instruments Liqo to add some **argocd annotations** to the resources it creates.
-These annotations allow to:
+The previous command produces a pre-configured `values.yaml` file in the working directory, which you can customize and place in the `spec.source.helm.values` field of the ArgoCD application manifest.
 
-* **argocd.argoproj.io/ignore-resource-updates: "true"**: This allows ArgoCD to ignore updates on resources created by other resources (like a *Pod* and its *Deployment*), which are managed by ArgoCD.
-* **argocd.argoproj.io/sync-options: Delete=true**: Allows ArgoCD to delete resources created by Liqo controllers.
-* **argocd.argoproj.io/sync-wave: 10**: This allows ArgoCD to wait resources deletion before deleting the Liqo controllers.
-* **argocd.argoproj.io/compare-options: IgnoreExtraneous**: This allows ArgoCD to ignore resources created by Liqo controllers.
+Check the [ArgoCD documentation](https://argo-cd.readthedocs.io/en/latest/user-guide/helm/) for further info about how to install a Helm Chart via ArgoCD.
+
+### Ensure clean Liqo removal with ArgoCD
+
+When Liqo is installed via ArgoCD, to ensure the clean removal of all the Liqo resources during the uninstallation process, some configurations need to be applied to the ArgoCD `Application` manifest.
+
+Depending on the version of ArgoCD you are running or the enabled [resource tracking strategy](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking), you should add the following to your `spec.source.helm.values` field:
+
+* When [ArgoCD tracks resources by label](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/#tracking-kubernetes-resources-by-label) (default of **ArgoCD v2.X**)
+
+  ```yaml
+  common:
+    globalLabels:
+      app.kubernetes.io/instance: ARGOCD_APP_NAME
+    globalAnnotations:
+      argocd.argoproj.io/ignore-resource-updates: "true"
+      argocd.argoproj.io/sync-wave: 10
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/sync-options: Prune=false
+  ```
+
+  Where **ARGOCD_APP_NAME** should be replaced with the name of your ArgoCD application.
+
+* When [ArgoCD tracks resources by annotation](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/#tracking-kubernetes-resources-by-annotation) (default of **ArgoCD >= v3.X**)
+
+  ```yaml
+  common:
+    globalAnnotations:
+      argocd.argoproj.io/tracking-id: ARGOCD_APP_NAME:${group}/${kind}:${namespace}/${name}
+      argocd.argoproj.io/ignore-resource-updates: "true"
+      argocd.argoproj.io/sync-wave: 10
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/sync-options: Prune=false
+  ```
+
+  Where **ARGOCD_APP_NAME** should be replaced with the name of your ArgoCD application.
+
+  The `${group}`, `${kind}`, `${namespace}` and `${name}` fields are replaced at runtime with the values of the object where annotation is applied.
+
+The above instruments Liqo to add some **argocd annotations and labels** to the resources it creates.
+Those fields and labels have the following meaning:
+
+* labels:
+  * **app.kubernetes.io/instance: ARGOCD_APP_NAME**: when ArgoCD tracks resource by label, it tells ArgoCD to track the resource
+* annotations:
+  * **argocd.argoproj.io/tracking-id: ARGOCD_APP_NAME:${group}/${kind}:${namespace}/${name}**: when ArgoCD tracks resource by annotation, it tells ArgoCD to track the annotated resource
+  * **argocd.argoproj.io/ignore-resource-updates: "true"**: allows ArgoCD to ignore updates on resources created by other resources (like a *Pod* and its *Deployment*), which are managed by ArgoCD.
+  * **argocd.argoproj.io/sync-wave: 10**: allows ArgoCD to wait resources deletion before deleting the Liqo controllers.
+  * **argocd.argoproj.io/compare-options: IgnoreExtraneous**: allows ArgoCD to ignore resources created by Liqo controllers when the sync status is determined.
+  * **argocd.argoproj.io/sync-options: Prune=false**: prevents ArgoCD from deleting the resources managed by the Liqo controllers.
 
 ## CNIs
 
