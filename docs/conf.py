@@ -167,6 +167,33 @@ def generate_version() -> str:
         version = x.json()['tag_name']
     return version
 
+def generate_argocd_manifest() -> str:
+    return f"""```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: liqo-app
+  namespace: argocd
+spec:
+  project: default # Place here your project name
+  source:
+    chart: liqo
+    repoURL: https://helm.liqo.io/
+    targetRevision: {generate_version()}
+    helm:
+      releaseName: liqo
+      values: |
+        HERE_YOUR_VALUES_FILE
+  destination:
+    server: "https://kubernetes.default.svc" # Place here your destination cluster
+    namespace: liqo
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+```
+"""
+
 # generate_link_to_repo generates a link to the repository for the given file, according to the current version of the documentation.
 def generate_link_to_repo(text: str, file_path: str) -> str:
     version = generate_version()
@@ -237,6 +264,7 @@ The following instructions will guide you through the installation of the **late
 html_context = {
     'generate_clone_example': generate_clone_example,
     'generate_clone_example_tf': generate_clone_example_tf,
+    'generate_argocd_manifest': generate_argocd_manifest,
     'generate_liqoctl_install': generate_liqoctl_install,
     'generate_link_to_repo': generate_link_to_repo,
     'generate_helm_install': generate_helm_install,
