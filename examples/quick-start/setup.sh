@@ -20,3 +20,13 @@ delete_clusters "$CLUSTER_NAME_1" "$CLUSTER_NAME_2"
 
 create_cluster "$CLUSTER_NAME_1" "$KUBECONFIG_1" "$LIQO_CLUSTER_CONFIG_YAML"
 create_cluster "$CLUSTER_NAME_2" "$KUBECONFIG_2" "$LIQO_CLUSTER_CONFIG_YAML"
+
+export KUBECONFIG="$PWD/liqo_kubeconf_rome"
+export MILAN="$PWD/liqo_kubeconf_milan"
+
+cd ..
+cd ..
+
+./liqoctl install kind --cluster-id "$CLUSTER_NAME_1" --version "v1.0.0"
+./liqoctl install kind --cluster-id "$CLUSTER_NAME_2" --kubeconfig "$MILAN" --version "v1.0.0"
+./liqoctl peer --remote-kubeconfig "$MILAN" --gw-server-service-type NodePort

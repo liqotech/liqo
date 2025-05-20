@@ -35,9 +35,11 @@ type Options struct {
 	RemoteFactory *factory.Factory
 	waiter        *wait.Waiter
 
-	Timeout         time.Duration
-	Wait            bool
-	DeleteNamespace bool
+	Timeout              time.Duration
+	Wait                 bool
+	DeleteNamespace      bool
+	Force                bool
+	RemoteKubeconfigPath string
 
 	consumerClusterID liqov1beta1.ClusterID
 	providerClusterID liqov1beta1.ClusterID
@@ -53,10 +55,30 @@ func NewOptions(localFactory *factory.Factory) *Options {
 
 // RunUnpeer implements the unpeer command.
 func (o *Options) RunUnpeer(ctx context.Context) error {
+
 	var err error
 
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
+
+	// fmt.Println("LOCAL", o.RemoteFactory.HelmClient().GetSettings().KubeConfig, o.RemoteFactory.LiqoNamespace)
+
+	// fmt.Println("PATH", o.RemoteFactory)
+
+	// fmt.Println("REST CONFIG", o.RemoteFactory.RESTConfig.ContentConfig)
+
+	// fmt.Println("KUBECONFIG", o.RemoteKubeconfigPath)
+
+	if o.Force {
+
+		if err := o.unpeerConsumerClusterOnly(ctx); err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}
+
+	fmt.Print("dopo il force")
 
 	// To ease the experience for most users, we disable the namespace and remote-namespace flags
 	// so that resources are created according to the default Liqo logic.
@@ -145,14 +167,24 @@ func (o *Options) disableOffloading(ctx context.Context) error {
 
 func (o *Options) disableNetworking(ctx context.Context) error {
 	networkOptions := network.Options{
-		LocalFactory:  o.LocalFactory,
-		RemoteFactory: o.RemoteFactory,
+		LocalFactory: o.LocalFactory,
+		// RemoteFactory: o.RemoteFactory,
 
 		Timeout: o.Timeout,
 		Wait:    true,
 	}
 
-	if err := networkOptions.RunReset(ctx); err != nil {
+	fmt.Println("Prima del force", o.Force)
+	if !o.Force {
+		networkOptions.RemoteFactory = o.RemoteFactory
+		if err := networkOptions.RunReset(ctx); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("dopo del force", o.Force)
+
+	if err := networkOptions.RunResetLocalOnly(ctx); err != nil {
 		return err
 	}
 
