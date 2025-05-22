@@ -155,13 +155,6 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		r.eventRecorder.Event(wgClient, corev1.EventTypeNormal, "Reconciled", "WireGuard gateway client reconciled")
 	}()
 
-	if err := r.handleSecretRefStatus(ctx, wgClient); err != nil {
-		klog.Errorf("Error while handling secret ref status: %v", err)
-		r.eventRecorder.Event(wgClient, corev1.EventTypeWarning, "SecretRefStatusFailed",
-			fmt.Sprintf("Failed to handle secret ref status: %s", err))
-		return ctrl.Result{}, err
-	}
-
 	if err := r.handleInternalEndpointStatus(ctx, wgClient, deploy); err != nil {
 		klog.Errorf("Error while handling internal endpoint status: %v", err)
 		r.eventRecorder.Event(wgClient, corev1.EventTypeWarning, "InternalEndpointStatusFailed",
@@ -178,11 +171,19 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		r.eventRecorder.Event(wgClient, corev1.EventTypeNormal, "KeysSecretEnforced", "Enforced keys secret")
 	} else {
-		// Check if the secret exists and has the correct labels
+		// Check that the secret exists and is correctly labeled
 		if err = checkExistingKeysSecret(ctx, r.Client, wgClient.Spec.SecretRef.Name, wgClient.Namespace); err != nil {
 			r.eventRecorder.Event(wgClient, corev1.EventTypeWarning, "KeysSecretCheckFailed", fmt.Sprintf("Failed to check keys secret: %s", err))
 			return ctrl.Result{}, err
 		}
+		r.eventRecorder.Event(wgClient, corev1.EventTypeNormal, "KeysSecretChecked", "Checked keys secret")
+	}
+
+	if err := r.handleSecretRefStatus(ctx, wgClient); err != nil {
+		klog.Errorf("Error while handling secret ref status: %v", err)
+		r.eventRecorder.Event(wgClient, corev1.EventTypeWarning, "SecretRefStatusFailed",
+			fmt.Sprintf("Failed to handle secret ref status: %s", err))
+		return ctrl.Result{}, err
 	}
 
 	// Ensure deployment (create or update)
