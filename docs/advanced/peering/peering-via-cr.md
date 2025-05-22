@@ -121,6 +121,7 @@ kind: Secret
 metadata:
   labels:
     liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>
+    networking.liqo.io/gateway-resource: "true"
   name: gw-keys
   namespace: <TENANT_NAMESPACE>
 type: Opaque
@@ -146,7 +147,7 @@ spec:
   publicKey: <REMOTE_WIREGUARD_PUBLIC_KEY>
 ```
 
-In order to make things work, make sure that the PublicKey resource has the labels:
+In order to make things work, make sure that both the Secret and PublicKey resources have the labels:
 
 ```yaml
 liqo.io/remote-cluster-id: <HERE_THE_CLUSTER_ID_OF_PEER_CLUSTER>
