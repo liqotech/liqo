@@ -169,6 +169,7 @@ func deleteVirtualNodesByClusterID(ctx context.Context, f *factory.Factory,
 // 	return nil
 // }
 
+// L'OBIETTIVO è DI ELIMINARE QUESTA FUNZIONE E DI INSERIRE SOLAMENTE LA CONDIZIONE DI IF NEL CODICE PRINCIPALE
 func (o *Options) unpeerConsumerClusterOnly(ctx context.Context) error {
 
 	fmt.Print("Sono entrata nella funzione\n")
