@@ -180,8 +180,8 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "KeysSecretEnforced", "Enforced keys secret")
 	} else {
-		// Check that the secret exists and is correctly labeled
-		if err = checkExistingKeysSecret(ctx, r.Client, wgServer.Spec.SecretRef.Name, wgServer.Namespace); err != nil {
+		// Check that the secret exists and ensure is correctly labeled
+		if err = checkExistingKeysSecret(ctx, r.Client, wgServer.Spec.SecretRef.Name, wgServer.Namespace, wgServer.GetObjectMeta()); err != nil {
 			r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "KeysSecretCheckFailed", fmt.Sprintf("Failed to check keys secret: %s", err))
 			return ctrl.Result{}, err
 		}
