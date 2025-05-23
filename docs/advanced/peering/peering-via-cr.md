@@ -399,6 +399,7 @@ metadata:
   labels:
     liqo.io/remote-cluster-id: <PROVIDER_CLUSTER_ID>
     liqo.io/remoteID: <PROVIDER_CLUSTER_ID>
+    liqo.io/replication: "true"
   name: test
   namespace: <CONSUMER_TENANT_NAMESPACE>
 spec:
