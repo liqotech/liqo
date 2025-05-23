@@ -23,6 +23,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
@@ -170,22 +171,44 @@ func ensureKeysSecret(ctx context.Context, cl client.Client, wgObj metav1.Object
 	}
 }
 
-func checkExistingKeysSecret(ctx context.Context, cl client.Client, secretName, namespace string) error {
+func checkExistingKeysSecret(ctx context.Context, cl client.Client, secretName, namespace string, wgObj metav1.Object) error {
 	var s corev1.Secret
 	if err := cl.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &s); err != nil {
 		return err
 	}
 
-	// check labels
-	if s.Labels == nil {
-		return fmt.Errorf("mandatory labels %q: \"true\" and %q are missing in secret %q", consts.GatewayResourceLabel, consts.RemoteClusterID, secretName)
+	// Check needed data fields are present
+	if s.Data == nil {
+		return fmt.Errorf("mandatory data %q and %q are missing in secret %q", consts.PrivateKeyField, consts.PublicKeyField, secretName)
+	}
+	if _, ok := s.Data[consts.PrivateKeyField]; !ok {
+		return fmt.Errorf("missing %q data in secret %q", consts.PrivateKeyField, secretName)
+	}
+	if _, ok := s.Data[consts.PublicKeyField]; !ok {
+		return fmt.Errorf("missing %q data in secret %q", consts.PublicKeyField, secretName)
 	}
 
-	if s.Labels[consts.GatewayResourceLabel] != consts.GatewayResourceLabelValue {
-		return fmt.Errorf("missing %q: \"true\" label in secret %q", consts.GatewayResourceLabel, secretName)
+	// Check remote cluster ID label match the parent wireguard object
+	remoteClusterID, exists := wgObj.GetLabels()[consts.RemoteClusterID]
+	if !exists || remoteClusterID == "" {
+		return fmt.Errorf("missing %q label in WireGuard gateway %q", consts.RemoteClusterID, wgObj.GetName())
 	}
-	if v, ok := s.Labels[consts.RemoteClusterID]; !ok || v == "" {
-		return fmt.Errorf("missing %q label in secret %q", consts.RemoteClusterID, secretName)
+	if s.Labels != nil {
+		if v, ok := s.Labels[consts.RemoteClusterID]; ok && v != remoteClusterID {
+			return fmt.Errorf("label %q in secret %q does not match the one in WireGuard gateway %q", consts.RemoteClusterID, secretName, wgObj.GetName())
+		}
+	}
+
+	// Enforce correct labels on the secret if not present
+	if s.Labels == nil || s.Labels[consts.RemoteClusterID] == "" || s.Labels[consts.GatewayResourceLabel] != consts.GatewayResourceLabelValue {
+		s.SetLabels(labels.Merge(s.GetLabels(), map[string]string{
+			consts.RemoteClusterID:      remoteClusterID,
+			consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,
+		}))
+		if err := cl.Update(ctx, &s); err != nil {
+			return fmt.Errorf("unable to update labels in secret %q: %w", secretName, err)
+		}
+		klog.Infof("Enforced correct gateway labels in secret %q", secretName)
 	}
 
 	return nil
