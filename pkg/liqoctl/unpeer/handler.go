@@ -27,7 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
-	// "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Options encapsulates the arguments of the unpeer command.
@@ -56,42 +56,16 @@ func NewOptions(localFactory *factory.Factory) *Options {
 
 // RunUnpeer implements the unpeer command.
 func (o *Options) RunUnpeer(ctx context.Context) error {
-
-	fmt.Println("sono dentro")
-
 	var err error
 
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	// fmt.Println("LOCAL", o.RemoteFactory.HelmClient().GetSettings().KubeConfig, o.RemoteFactory.LiqoNamespace)
-
-	// fmt.Println("PATH", o.RemoteFactory)
-
-	// fmt.Println("REST CONFIG", o.RemoteFactory.RESTConfig.ContentConfig)
-
-	// fmt.Println("KUBECONFIG", o.RemoteKubeconfigPath)
-
-	// if o.Force {
-
-	// 	if err := o.unpeerConsumerClusterOnly(ctx); err != nil {
-	// 		return err
-	// 	} else {
-	// 		return nil
-	// 	}
-	// }
-
-	// To ease the experience for most users, we disable the namespace and remote-namespace flags
+	// To ease the experience for most users, we disable the namespace flag
 	// so that resources are created according to the default Liqo logic.
 	// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
 	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
 	o.LocalFactory.Namespace = ""
-
-	if !o.Force {
-		o.RemoteFactory.Namespace = ""
-	}
-
-	fmt.Println("prima")
 
 	// Get consumer clusterID
 	o.consumerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.LocalFactory.CRClient, o.LocalFactory.LiqoNamespace)
@@ -100,15 +74,21 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		return err
 	}
 
-	fmt.Println("dopo il force")
-
 	if !o.Force {
+
+		// To ease the experience for most users, we disable remote-namespace flag
+		// so that resources are created according to the default Liqo logic.
+		// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
+		// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
+		o.RemoteFactory.Namespace = ""
+
 		// Get provider clusterID
 		o.providerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.RemoteFactory.CRClient, o.RemoteFactory.LiqoNamespace)
 		if err != nil {
 			o.RemoteFactory.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
 			return err
 		}
+
 		// check if there is a bidirectional peering between the two clusters
 		bidirectional, err := o.isBidirectionalPeering(ctx)
 		if err != nil {
@@ -133,15 +113,11 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		o.providerClusterID = liqov1beta1.ClusterID(o.RemoteClusterID)
 	}
 
-	fmt.Println("dopo il primo controllo")
-
 	// Disable offloading
 	if err := o.disableOffloading(ctx); err != nil {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable offloading: %w", err))
 		return err
 	}
-
-	fmt.Println("dopo il offloading")
 
 	if !o.Force {
 		// Disable authentication
@@ -150,14 +126,15 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 			return err
 		}
 	}
-	fmt.Println("dopo authentication")
 
 	if err := o.disableNetworking(ctx); err != nil {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
 		return err
 	}
 
-	fmt.Println("dopo networking")
+	if err := o.deleteForeignCluster(ctx, o.providerClusterID); err != nil {
+		return err
+	}
 
 	if o.DeleteNamespace {
 		consumer := unauthenticate.NewCluster(o.LocalFactory)
@@ -167,11 +144,13 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 			return err
 		}
 
-		provider := unauthenticate.NewCluster(o.RemoteFactory)
+		if !o.Force {
+			provider := unauthenticate.NewCluster(o.RemoteFactory)
 
-		// Delete tenant namespace on provider cluster
-		if err := provider.DeleteTenantNamespace(ctx, o.consumerClusterID, o.Wait); err != nil {
-			return err
+			// Delete tenant namespace on provider cluster
+			if err := provider.DeleteTenantNamespace(ctx, o.consumerClusterID, o.Wait); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -195,13 +174,11 @@ func (o *Options) disableOffloading(ctx context.Context) error {
 func (o *Options) disableNetworking(ctx context.Context) error {
 	networkOptions := network.Options{
 		LocalFactory: o.LocalFactory,
-		// RemoteFactory: o.RemoteFactory,
 
 		Timeout: o.Timeout,
 		Wait:    true,
 	}
 
-	fmt.Println("Prima del force", o.Force)
 	if !o.Force {
 		networkOptions.RemoteFactory = o.RemoteFactory
 		if err := networkOptions.RunReset(ctx); err != nil {
@@ -210,9 +187,7 @@ func (o *Options) disableNetworking(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Println("dopo del force", o.Force)
-
-	if err := networkOptions.RunResetLocalOnly(ctx); err != nil {
+	if err := networkOptions.RunResetLocalOnly(ctx, liqov1beta1.ClusterID(o.RemoteClusterID)); err != nil {
 		return err
 	}
 
@@ -245,20 +220,19 @@ func (o *Options) isBidirectionalPeering(ctx context.Context) (bool, error) {
 }
 
 // deleteForeignCluster deletes the ForeignCluster resource with the given clusterID in the local cluster.
-// func (o *Options) deleteForeignCluster(ctx context.Context, clusterID liqov1beta1.ClusterID) error {
-// 	err := o.LocalFactory.CRClient.Delete(ctx, &liqov1beta1.ForeignCluster{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name: string(clusterID),
-// 		},
-// 	})
-// 	if err != nil {
-// 		if errors.IsNotFound(err) {
-// 			o.LocalFactory.PrinterGlobal.Error.Printfln("ForeignCluster %q not found, skipping deletion\n", clusterID)
-// 			return nil
-// 		}
-// 		return fmt.Errorf("failed to delete ForeignCluster %q: %w", clusterID, err)
-// 	}
+func (o *Options) deleteForeignCluster(ctx context.Context, clusterID liqov1beta1.ClusterID) error {
 
-// 	o.LocalFactory.PrinterGlobal.Success.Printf("ForeignCluster %q successfully deleted\n", clusterID)
-// 	return nil
-// }
+	err := o.LocalFactory.CRClient.Delete(ctx, &liqov1beta1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(clusterID),
+		},
+	})
+
+	if err != nil {
+		o.LocalFactory.PrinterGlobal.Error.Printf("Failed to delete ForeignCluster %q\n", clusterID)
+		return err
+	}
+
+	o.LocalFactory.PrinterGlobal.Success.Printf("ForeignCluster %q successfully deleted\n", clusterID)
+	return nil
+}

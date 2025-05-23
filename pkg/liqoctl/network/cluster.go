@@ -59,11 +59,11 @@ type Cluster struct {
 	remoteClusterID liqov1beta1.ClusterID
 
 	networkConfiguration *networkingv1beta1.Configuration
+	force                bool
 }
 
 // NewCluster returns a new Cluster struct.
 func NewCluster(ctx context.Context, local, remote *factory.Factory, createTenantNs bool) (*Cluster, error) {
-	fmt.Print("Dentro newCluster\n")
 	cluster := Cluster{
 		local:  local,
 		remote: remote,
@@ -75,16 +75,18 @@ func NewCluster(ctx context.Context, local, remote *factory.Factory, createTenan
 
 	if remote != nil {
 		cluster.remoteNamespaceManager = tenantnamespace.NewManager(remote.KubeClient, remote.CRClient.Scheme())
+	} else {
+		cluster.force = true
 	}
 
-	fmt.Print("Dentro runResetLocalONly prima di SetClusterIDs\n")
 	if err := cluster.SetClusterIDs(ctx); err != nil {
 		return nil, err
 	}
 
-	fmt.Print("Dentro runResetLocalONly prima di SetNamespaces\n")
-	if err := cluster.SetNamespaces(ctx, createTenantNs); err != nil {
-		return nil, err
+	if remote != nil {
+		if err := cluster.SetNamespaces(ctx, createTenantNs); err != nil {
+			return nil, err
+		}
 	}
 
 	return &cluster, nil
@@ -119,74 +121,6 @@ func (c *Cluster) SetClusterIDs(ctx context.Context) error {
 // func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error {
 // 	var err error
 
-// 	if c.localClusterID == "" || c.remoteClusterID == "" {
-// 		if err := c.SetClusterIDs(ctx); err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	switch c.local.Namespace {
-// 	case "", corev1.NamespaceDefault:
-// 		// If the local namespace is not set or it is the default one, create or retrieve the tenant namespace and
-// 		// set it as the local network namespace.
-// 		var localTenantNs *corev1.Namespace
-
-// 		if createTenantNs {
-// 			localTenantNs, err = c.localNamespaceManager.CreateNamespace(ctx, c.remoteClusterID)
-// 			if err != nil {
-// 				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while creating local tenant namespace: %v", output.PrettyErr(err)))
-// 				return err
-// 			}
-// 		} else {
-// 			localTenantNs, err = c.localNamespaceManager.GetNamespace(ctx, c.remoteClusterID)
-// 			if err != nil {
-// 				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving local tenant namespace: %v", output.PrettyErr(err)))
-// 				return err
-// 			}
-// 		}
-
-// 		c.localNetworkNamespace = localTenantNs.Name
-// 	default:
-// 		c.localNetworkNamespace = c.local.Namespace
-// 	}
-
-// 	switch c.remote.Namespace {
-// 	case "", corev1.NamespaceDefault:
-// 		// If the remote namespace is not set or it is the default one, create or retrieve the tenant namespace and
-// 		// set it as the remote network namespace.
-// 		var remoteTenantNs *corev1.Namespace
-// 		creationError := false
-// 		if createTenantNs {
-// 			remoteTenantNs, err = c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID)
-// 			switch {
-// 			case apierrors.IsForbidden(err):
-// 				c.remote.Printer.Warning.Printfln(
-// 					"Current user has no permissions to create a namespace in the remote cluster. " +
-// 						"Checking whether a tenant namespace has been created in advance",
-// 				)
-// 				creationError = true
-// 			case err != nil:
-// 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating remote tenant namespace: %v", output.PrettyErr(err)))
-// 				return err
-// 			}
-// 		}
-
-// 		if !createTenantNs || creationError {
-// 			remoteTenantNs, err = c.remoteNamespaceManager.GetNamespace(ctx, c.localClusterID)
-// 			if err != nil {
-// 				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving remote tenant namespace: %v", output.PrettyErr(err)))
-// 				return err
-// 			}
-// 		}
-
-// 		c.remoteNetworkNamespace = remoteTenantNs.Name
-// 	default:
-// 		c.remoteNetworkNamespace = c.remote.Namespace
-// 	}
-
-// 	return nil
-// }
-
 func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error {
 	var err error
 
@@ -196,12 +130,14 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 		}
 	}
 
-	// Gestione namespace locale
 	switch c.local.Namespace {
 	case "", corev1.NamespaceDefault:
+		// If the local namespace is not set or it is the default one, create or retrieve the tenant namespace and
+		// set it as the local network namespace.
 		var localTenantNs *corev1.Namespace
 
-		if c.remoteClusterID == "" {
+		//CAPIRE COME GESTIRE QUESTA PARTE NEL CASO IN CUI IL MIO CLUSTER ID VENGA INSERITO MANUALMENTE DA ME CAUSA PEERING BIDIREZIONALE
+		if c.remoteClusterID == "" && !c.force {
 			c.local.Printer.Warning.Printfln("Remote cluster ID is missing; skipping tenant namespace lookup")
 			return nil
 		}
@@ -225,7 +161,6 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 		c.localNetworkNamespace = c.local.Namespace
 	}
 
-	// Gestione namespace remoto solo se remote è disponibile
 	if c.remote != nil {
 		switch c.remote.Namespace {
 		case "", corev1.NamespaceDefault:
