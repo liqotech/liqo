@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	pod "github.com/liqotech/liqo/pkg/utils/pod"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -357,7 +358,7 @@ func (spm *Mutator) HandleDelete() admission.Response {
 }
 
 func extractCreatorInfo(userInfo *authenticationv1.UserInfo) (creatorName string, err error) {
-	creatorName = userInfo.Username
+	creatorName = resource.EscapeLabel(userInfo.Username)
 	if creatorName == "" {
 		return "", fmt.Errorf("missing creator name")
 	}

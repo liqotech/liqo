@@ -41,6 +41,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -463,7 +464,7 @@ func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, iden
 // ListShadowPodsByCreator returns the list of ShadowPods created by the given user.
 func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*offloadingv1beta1.ShadowPodList, error) {
 	list := new(offloadingv1beta1.ShadowPodList)
-	if err := cl.List(ctx, list, client.MatchingLabels{consts.CreatorLabelKey: creator}); err != nil {
+	if err := cl.List(ctx, list, client.MatchingLabels{consts.CreatorLabelKey: resource.EscapeLabel(creator)}); err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -479,7 +480,7 @@ func GetQuotaByUser(ctx context.Context, cl client.Client,
 	}
 
 	for i := range quotas.Items {
-		if quotas.Items[i].Spec.User == user {
+		if resource.EscapeLabel(quotas.Items[i].Spec.User) == user {
 			return &quotas.Items[i], nil
 		}
 	}

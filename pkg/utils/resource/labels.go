@@ -16,13 +16,15 @@ package resource
 
 import (
 	"maps"
+	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
 	// globalLabels stores the global labels that should be added to all resources.
-	globalLabels = make(map[string]string)
+	globalLabels     = make(map[string]string)
+	regexLabelEscape = regexp.MustCompile(`[^\w\-.]`)
 )
 
 // SetGlobalLabels sets the global labels that should be added to all resources.
@@ -46,4 +48,9 @@ func AddGlobalLabels(obj metav1.Object) {
 		obj.SetLabels(make(map[string]string))
 	}
 	maps.Copy(obj.GetLabels(), globalLabels)
+}
+
+// EscapeLabel escapes a label value so that it is compliant.
+func EscapeLabel(val string) string {
+	return regexLabelEscape.ReplaceAllString(val, "-")
 }
