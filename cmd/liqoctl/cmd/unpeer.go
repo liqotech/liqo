@@ -72,8 +72,6 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	// cmd.Flags().StringVar(&options.RemoteKubeconfigPath, "remote-kubeconfig", "", "Path to the kubeconfig file of the remote cluster")
-
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
 	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for resource to be deleted before returning")
 	cmd.PersistentFlags().BoolVar(&options.DeleteNamespace, "delete-namespaces", false, "Delete the tenant namespace after unpeering")

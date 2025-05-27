@@ -159,8 +159,12 @@ func twoClustersPersistentPreRun(cmd *cobra.Command, local, remote *factory.Fact
 	// Populate the remote factory fields based on the configured parameters.
 	remote.Printer.CheckErr(remote.Initialize(opts...))
 
-	// Check that local and remote clusters are different.
-	if reflect.DeepEqual(local.RESTConfig, remote.RESTConfig) {
-		local.Printer.CheckErr(fmt.Errorf("local and remote clusters must be different"))
+	force, _ := cmd.Flags().GetBool("force")
+
+	if !force {
+		// Check that local and remote clusters are different.
+		if reflect.DeepEqual(local.RESTConfig, remote.RESTConfig) {
+			local.Printer.CheckErr(fmt.Errorf("local and remote clusters must be different"))
+		}
 	}
 }
