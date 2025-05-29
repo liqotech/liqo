@@ -35,9 +35,11 @@ type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
 
-	Timeout        time.Duration
-	Wait           bool
-	SkipValidation bool
+	Timeout         time.Duration
+	Wait            bool
+	SkipValidation  bool
+	Force           bool
+	remoteClusterId liqov1beta1.ClusterID
 
 	ServerGatewayType           string
 	ServerTemplateName          string
@@ -101,6 +103,35 @@ func (o *Options) RunReset(ctx context.Context) error {
 
 	// Delete Configuration on cluster 2
 	return cluster2.DeleteConfiguration(ctx, cluster1.localClusterID, cluster2.localNetworkNamespace)
+}
+
+// RunReset reset the liqo networking in local cluster.
+func (o *Options) RunResetLocalOnly(ctx context.Context, remoteClusterId liqov1beta1.ClusterID) error {
+	o.Force = true
+	o.remoteClusterId = remoteClusterId
+
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	// Create and initialize local cluster
+	cluster, err := NewCluster(ctx, o.LocalFactory, nil, false)
+	if err != nil {
+		return err
+	}
+
+	cluster.remoteClusterID = remoteClusterId
+	if err := cluster.SetNamespaces(ctx, false); err != nil {
+		return err
+	}
+
+	// Run disconnect command to remove gateways.
+
+	if err := o.RunDisconnect(ctx, cluster, nil); err != nil {
+		return err
+	}
+
+	// Delete Configuration on local cluster
+	return cluster.DeleteConfiguration(ctx, remoteClusterId, cluster.localNetworkNamespace)
 }
 
 // RunConnect connect two clusters using liqo networking.
@@ -248,18 +279,25 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		// Wait for Connections on both cluster to be created.
 		conn2, err := cluster2.waiter.ForConnection(ctx, gwServer.Namespace, cluster1.localClusterID)
 		if err != nil {
+			o.LocalFactory.PrinterGlobal.Error.Printfln("GeneveTunnel doasn't exists in provider: %v", err)
 			return err
 		}
 		conn1, err := cluster1.waiter.ForConnection(ctx, gwClient.Namespace, cluster2.localClusterID)
 		if err != nil {
+			o.LocalFactory.PrinterGlobal.Error.Printfln("GeneveTunnel doasn't exists in provider: %v", err)
 			return err
 		}
 
 		// Wait for Connections on both cluster cluster to be established
+		gwEndpoint := gwServer.Status.Endpoint
 		if err := cluster1.waiter.ForConnectionEstablished(ctx, conn1); err != nil {
+			for _, address := range gwEndpoint.Addresses {
+				o.LocalFactory.PrinterGlobal.Error.Printfln("Connection failed: Provider on cluster %v unreachable on %v://%v:%v\n", gwServer.Name, *gwEndpoint.Protocol, address, gwEndpoint.Port)
+			}
 			return err
 		}
 		if err := cluster2.waiter.ForConnectionEstablished(ctx, conn2); err != nil {
+			o.LocalFactory.PrinterGlobal.Error.Printfln("Connection failed: Provider on cluster %v unreachable on %v://%v:%v\n", gwServer.Name, *gwEndpoint.Protocol, gwEndpoint.Addresses, gwEndpoint.Port)
 			return err
 		}
 	}
@@ -283,7 +321,7 @@ func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster
 		}
 	}
 
-	if cluster2 == nil {
+	if cluster2 == nil && !o.Force {
 		// Create and initialize cluster 2.
 		cluster2, err = NewCluster(ctx, o.RemoteFactory, o.LocalFactory, false)
 		if err != nil {
@@ -291,23 +329,37 @@ func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster
 		}
 	}
 
-	// Delete gateway client on cluster 1
-	if err := cluster1.DeleteGatewayClient(ctx, cluster2.localClusterID); err != nil {
-		return err
+	if o.Force {
+		// Delete gateway client on cluster 1
+		if err := cluster1.DeleteGatewayClient(ctx, o.remoteClusterId); err != nil {
+			return err
+		}
+	} else {
+		// Delete gateway client on cluster 1
+		if err := cluster1.DeleteGatewayClient(ctx, cluster2.localClusterID); err != nil {
+			return err
+		}
 	}
 
-	// Delete gateway client on cluster 2
-	if err := cluster2.DeleteGatewayClient(ctx, cluster1.localClusterID); err != nil {
-		return err
+	if !o.Force {
+		// Delete gateway client on cluster 2
+		if err := cluster2.DeleteGatewayClient(ctx, cluster1.localClusterID); err != nil {
+			return err
+		}
+	}
+	if !o.Force {
+		// Delete gateway server on cluster 1
+		if err := cluster1.DeleteGatewayServer(ctx, cluster2.localClusterID); err != nil {
+			return err
+		}
+
+		// Delete gateway server on cluster 2
+		if err := cluster2.DeleteGatewayServer(ctx, cluster1.localClusterID); err != nil {
+			return err
+		}
 	}
 
-	// Delete gateway server on cluster 1
-	if err := cluster1.DeleteGatewayServer(ctx, cluster2.localClusterID); err != nil {
-		return err
-	}
-
-	// Delete gateway server on cluster 2
-	return cluster2.DeleteGatewayServer(ctx, cluster1.localClusterID)
+	return nil
 }
 
 func (o *Options) initNetworkConfigs(ctx context.Context, cluster1, cluster2 *Cluster) error {
