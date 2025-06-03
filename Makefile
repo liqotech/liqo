@@ -13,7 +13,7 @@ else
 SED_COMMAND=sed -i -n '/rules/,$$p'
 endif
 
-generate: generate-controller generate-groups rbacs manifests fmt
+generate: generate-groups rbacs manifests fmt
 
 #generate helm documentation
 docs: helm-docs ctldocs
@@ -146,9 +146,6 @@ endif
 # - nilaway: static analysis tool to detect potential Nil panics in Go code
 staticcheck: nilaway
 	$(NILAWAY) -include-pkgs github.com/liqotech/liqo ./...
-
-generate-controller: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
