@@ -290,8 +290,10 @@ metadata:
 spec:
   remote:
     cidr:
-      external: 10.70.0.0/16        # the external CIDR of the remote cluster
-      pod: 10.243.0.0/16            # the pod CIDR of the remote cluster
+      external:
+      - 10.70.0.0/16        # the external CIDR of the remote cluster
+      pod:
+      - 10.243.0.0/16       # the pod CIDR of the remote cluster
 ```
 
 You can find the value of the *REMOTE_CLUSTER_ID* by launching the following command on the **remote cluster**:

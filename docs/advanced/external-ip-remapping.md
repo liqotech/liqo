@@ -105,8 +105,10 @@ spec:
 status:
   remote:
     cidr:
-      external: <REMAPPED_EXT_CIDR>
-      pod: <REMAPPED_POD_CIDR>
+      external:
+      - <REMAPPED_EXT_CIDR>
+      pod:
+      - <REMAPPED_POD_CIDR>
 ```
 
 Let's focus on the `REMAPPED_EXT_CIDR` value. Keep the *prefix* of that CIDR and replace it inside the `REMAPPED_IP` found in the **IP** CRD status (check the previous section).
