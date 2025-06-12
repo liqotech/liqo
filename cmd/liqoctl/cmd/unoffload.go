@@ -27,14 +27,18 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
-const liqoctlUnoffloadNamespaceLongHelp = `Unoffload a namespace from remote clusters.
+const liqoctlUnoffloadNamespaceLongHelp = `Unoffload one or more namespaces from remote clusters.
 
-This command disables the offloading of a namespace, deleting all resources
+This command disables the offloading of one or more namespaces, deleting all resources
 reflected to remote clusters (including the namespaces themselves), and causing
 all offloaded pods to be rescheduled locally.
 
 Examples:
   $ {{ .Executable }} unoffload namespace foo
+or
+  $ {{ .Executable }} unoffload namespace foo bar
+or
+  $ {{ .Executable }} unoffload namespace --ns-selector 'foo=bar'
 `
 
 func newUnoffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
@@ -50,27 +54,39 @@ func newUnoffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 }
 
 func newUnoffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	var labelSelector string
+
 	options := unoffload.Options{Factory: f}
 	cmd := &cobra.Command{
 		Use:     "namespace name",
-		Aliases: []string{"ns"},
-		Short:   "Unoffload a namespace from remote clusters",
+		Aliases: []string{"ns", "namespaces"},
+		Short:   "Unoffload namespaces from remote clusters",
 		Long:    liqoctlUnoffloadNamespaceLongHelp,
 
-		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completion.OffloadedNamespaces(ctx, f, 1),
+		ValidArgsFunction: completion.OffloadedNamespaces(ctx, f, completion.NoLimit),
 
 		PreRun: func(_ *cobra.Command, _ []string) {
+			options.LabelSelector = labelSelector
 			output.ExitOnErr(f.Printer.AskConfirm("unoffload", f.SkipConfirm))
 		},
 
 		Run: func(_ *cobra.Command, args []string) {
-			options.Namespace = args[0]
+			if len(args) == 0 && labelSelector == "" {
+				options.Printer.ExitWithMessage("namespace name or label selector must be specified")
+			}
+			if len(args) != 0 && labelSelector != "" {
+				options.Printer.ExitWithMessage("namespace name and label selector must not be specified together")
+			}
+			options.Namespaces = args
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
+	cmd.Flags().StringVar(&labelSelector, "ns-selector", "",
+		"Selector (label query) to filter namespaces, supports '=', '==', and '!=' (e.g., -l key1=value1,key2=value2).")
 	cmd.Flags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for the unoffload operation")
+
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("ns-selector", completion.NamespacesSelector(ctx, f, completion.NoLimit)))
 
 	return cmd
 }
