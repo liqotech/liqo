@@ -92,6 +92,25 @@ func Namespaces(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
+// NamespacesSelector returns a function to autocomplete namespace label selectors.
+func NamespacesSelector(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		// labelsCounter contains a 'key=value' string as key and the number of times it appears as value.
+		labelsCounter := map[string]int{}
+		var namespaces corev1.NamespaceList
+		if err := f.CRClient.List(ctx, &namespaces); err != nil {
+			return nil, err
+		}
+		for i := range namespaces.Items {
+			for k, v := range namespaces.Items[i].Labels {
+				addLabelSelector(k, v, labelsCounter)
+			}
+		}
+		return parseLabelSelectors(labelsCounter, len(namespaces.Items)), nil
+	}
+	return common(ctx, f, argsLimit, retriever)
+}
+
 // OffloadedNamespaces returns a function to autocomplete namespace names (only offloaded ones).
 func OffloadedNamespaces(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {

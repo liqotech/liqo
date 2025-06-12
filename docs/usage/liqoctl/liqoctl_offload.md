@@ -11,11 +11,11 @@ Offload a resource to remote clusters.
 
 ## liqoctl offload namespace
 
-Offload a namespace to remote clusters
+Offload namespaces to remote clusters
 
 ### Synopsis
 
-Offload a namespace to remote clusters.
+Offload one or more namespaces to remote clusters.
 
 Once a given namespace is selected for offloading, Liqo extends it across the
 cluster boundaries, through the the automatic creation of twin namespaces in the
@@ -52,6 +52,18 @@ liqoctl offload namespace name [flags]
 or
 
 ```bash
+  $ liqoctl offload namespace foo bar
+```
+
+or
+
+```bash
+  $ liqoctl offload namespace --ns-selector 'foo=bar'
+```
+
+or
+
+```bash
   $ liqoctl offload namespace foo --pod-offloading-strategy Remote --namespace-mapping-strategy EnforceSameName
 ```
 
@@ -83,6 +95,10 @@ or (output the NamespaceOffloading resource as a yaml manifest, without applying
 `--namespace-mapping-strategy` _string_:
 
 >The naming strategy adopted for the creation of remote namespaces, among DefaultName, EnforceSameName and SelectedName **(default "DefaultName")**
+
+`--ns-selector` _string_:
+
+>Selector (label query) to filter namespaces, supports '=', '==', and '!=' (e.g., -l key1=value1,key2=value2).
 
 `-o`, `--output` _string_:
 

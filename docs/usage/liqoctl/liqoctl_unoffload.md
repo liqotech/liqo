@@ -11,13 +11,13 @@ Unoffload a resource from remote clusters.
 
 ## liqoctl unoffload namespace
 
-Unoffload a namespace from remote clusters
+Unoffload namespaces from remote clusters
 
 ### Synopsis
 
-Unoffload a namespace from remote clusters.
+Unoffload one or more namespaces from remote clusters.
 
-This command disables the offloading of a namespace, deleting all resources
+This command disables the offloading of one or more namespaces, deleting all resources
 reflected to remote clusters (including the namespaces themselves), and causing
 all offloaded pods to be rescheduled locally.
 
@@ -34,11 +34,27 @@ liqoctl unoffload namespace name [flags]
   $ liqoctl unoffload namespace foo
 ```
 
+or
+
+```bash
+  $ liqoctl unoffload namespace foo bar
+```
+
+or
+
+```bash
+  $ liqoctl unoffload namespace --ns-selector 'foo=bar'
+```
+
 
 
 
 
 ### Options
+`--ns-selector` _string_:
+
+>Selector (label query) to filter namespaces, supports '=', '==', and '!=' (e.g., -l key1=value1,key2=value2).
+
 `--timeout` _duration_:
 
 >Timeout for the unoffload operation **(default 2m0s)**
