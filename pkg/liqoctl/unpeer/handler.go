@@ -27,6 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Options encapsulates the arguments of the unpeer command.
@@ -38,6 +39,8 @@ type Options struct {
 	Timeout         time.Duration
 	Wait            bool
 	DeleteNamespace bool
+	Force           bool
+	RemoteClusterID string
 
 	consumerClusterID liqov1beta1.ClusterID
 	providerClusterID liqov1beta1.ClusterID
@@ -58,12 +61,11 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	// To ease the experience for most users, we disable the namespace and remote-namespace flags
+	// To ease the experience for most users, we disable the namespace flag
 	// so that resources are created according to the default Liqo logic.
 	// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
 	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
 	o.LocalFactory.Namespace = ""
-	o.RemoteFactory.Namespace = ""
 
 	// Get consumer clusterID
 	o.consumerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.LocalFactory.CRClient, o.LocalFactory.LiqoNamespace)
@@ -72,23 +74,43 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		return err
 	}
 
-	// Get provider clusterID
-	o.providerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.RemoteFactory.CRClient, o.RemoteFactory.LiqoNamespace)
-	if err != nil {
-		o.RemoteFactory.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
-		return err
-	}
+	if !o.Force {
 
-	// check if there is a bidirectional peering between the two clusters
-	bidirectional, err := o.isBidirectionalPeering(ctx)
-	if err != nil {
-		o.LocalFactory.Printer.CheckErr(fmt.Errorf("an error occurred while checking bidirectional peering: %v", output.PrettyErr(err)))
-		return err
-	}
-	if bidirectional && o.DeleteNamespace {
-		err = fmt.Errorf("cannot delete the tenant namespace when a bidirectional is enabled, please remove the --delete-namespaces flag")
-		o.LocalFactory.Printer.CheckErr(err)
-		return err
+		// To ease the experience for most users, we disable remote-namespace flag
+		// so that resources are created according to the default Liqo logic.
+		// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
+		// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
+		o.RemoteFactory.Namespace = ""
+
+		// Get provider clusterID
+		o.providerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.RemoteFactory.CRClient, o.RemoteFactory.LiqoNamespace)
+		if err != nil {
+			o.RemoteFactory.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
+			return err
+		}
+
+		// check if there is a bidirectional peering between the two clusters
+		bidirectional, err := o.isBidirectionalPeering(ctx)
+		if err != nil {
+			o.LocalFactory.Printer.CheckErr(fmt.Errorf("an error occurred while checking bidirectional peering: %v", output.PrettyErr(err)))
+			return err
+		}
+		if bidirectional && o.DeleteNamespace {
+			err = fmt.Errorf("cannot delete the tenant namespace when a bidirectional is enabled, please remove the --delete-namespaces flag")
+			o.LocalFactory.Printer.CheckErr(err)
+			return err
+		}
+
+		if !bidirectional {
+			// Disable networking
+			if err := o.disableNetworking(ctx); err != nil {
+				o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
+				return err
+			}
+		}
+
+	} else {
+		o.providerClusterID = liqov1beta1.ClusterID(o.RemoteClusterID)
 	}
 
 	// Disable offloading
@@ -97,32 +119,38 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		return err
 	}
 
-	// Disable authentication
-	if err := o.disableAuthentication(ctx); err != nil {
-		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable authentication: %w", err))
-		return err
-	}
-
-	if !bidirectional {
-		// Disable networking
-		if err := o.disableNetworking(ctx); err != nil {
-			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
+	if !o.Force {
+		// Disable authentication
+		if err := o.disableAuthentication(ctx); err != nil {
+			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable authentication: %w", err))
 			return err
 		}
 	}
 
+	if err := o.disableNetworking(ctx); err != nil {
+		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
+		return err
+	}
+
+	if err := o.deleteForeignCluster(ctx, o.providerClusterID); err != nil {
+		return err
+	}
+
 	if o.DeleteNamespace {
 		consumer := unauthenticate.NewCluster(o.LocalFactory)
-		provider := unauthenticate.NewCluster(o.RemoteFactory)
 
 		// Delete tenant namespace on consumer cluster
 		if err := consumer.DeleteTenantNamespace(ctx, o.providerClusterID, o.Wait); err != nil {
 			return err
 		}
 
-		// Delete tenant namespace on provider cluster
-		if err := provider.DeleteTenantNamespace(ctx, o.consumerClusterID, o.Wait); err != nil {
-			return err
+		if !o.Force {
+			provider := unauthenticate.NewCluster(o.RemoteFactory)
+
+			// Delete tenant namespace on provider cluster
+			if err := provider.DeleteTenantNamespace(ctx, o.consumerClusterID, o.Wait); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -145,14 +173,21 @@ func (o *Options) disableOffloading(ctx context.Context) error {
 
 func (o *Options) disableNetworking(ctx context.Context) error {
 	networkOptions := network.Options{
-		LocalFactory:  o.LocalFactory,
-		RemoteFactory: o.RemoteFactory,
+		LocalFactory: o.LocalFactory,
 
 		Timeout: o.Timeout,
 		Wait:    true,
 	}
 
-	if err := networkOptions.RunReset(ctx); err != nil {
+	if !o.Force {
+		networkOptions.RemoteFactory = o.RemoteFactory
+		if err := networkOptions.RunReset(ctx); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := networkOptions.RunResetLocalOnly(ctx, liqov1beta1.ClusterID(o.RemoteClusterID)); err != nil {
 		return err
 	}
 
@@ -182,4 +217,22 @@ func (o *Options) isBidirectionalPeering(ctx context.Context) (bool, error) {
 	}
 
 	return consumerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole, nil
+}
+
+// deleteForeignCluster deletes the ForeignCluster resource with the given clusterID in the local cluster.
+func (o *Options) deleteForeignCluster(ctx context.Context, clusterID liqov1beta1.ClusterID) error {
+
+	err := o.LocalFactory.CRClient.Delete(ctx, &liqov1beta1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(clusterID),
+		},
+	})
+
+	if err != nil {
+		o.LocalFactory.PrinterGlobal.Error.Printf("Failed to delete ForeignCluster %q\n", clusterID)
+		return err
+	}
+
+	o.LocalFactory.PrinterGlobal.Success.Printf("ForeignCluster %q successfully deleted\n", clusterID)
+	return nil
 }
