@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build darwin
+// +build darwin
+
 package cleanup
 
 import (
+	"context"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-var _ manager.Runnable = &RunnableGeneveCleanup{}
+// NewRunnableGeneveCleanup is a stub for macOS.
+func NewRunnableGeneveCleanup(_ client.Client, _ time.Duration) (*RunnableGeneveCleanup, error) {
+	panic("RunnableGeneveCleanup is not supported on darwin")
+}
 
-// RunnableGeneveCleanup is a RunnableGeneveCleanup that manages concurrency.
-type RunnableGeneveCleanup struct {
-	Client   client.Client
-	Interval time.Duration
+// Start is a stub for macOS.
+func (rgc *RunnableGeneveCleanup) Start(_ context.Context) error {
+	panic("RunnableGeneveCleanup.Start is not supported on darwin")
 }

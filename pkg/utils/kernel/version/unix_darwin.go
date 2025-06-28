@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleanup
+//go:build darwin
+// +build darwin
 
-import (
-	"time"
+package version
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
+// CheckKernelVersion checks if the current kernel version satisfies the minimum requirements.
+func CheckKernelVersion(_ *KernelVersion) error {
+	panic("CheckKernelVersion is not implemented for darwin, use CheckKernelVersionFromNodes instead")
+}
 
-var _ manager.Runnable = &RunnableGeneveCleanup{}
-
-// RunnableGeneveCleanup is a RunnableGeneveCleanup that manages concurrency.
-type RunnableGeneveCleanup struct {
-	Client   client.Client
-	Interval time.Duration
+// GetKernelVersion gets the current kernel version.
+func GetKernelVersion() (*KernelVersion, error) {
+	panic("GetKernelVersion is not implemented for darwin, use GetKernelVersionFromNode instead")
 }

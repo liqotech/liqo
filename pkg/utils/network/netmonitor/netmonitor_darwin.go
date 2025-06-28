@@ -12,31 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package network
+//go:build darwin
+// +build darwin
+
+package netmonitor
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/vishvananda/netlink"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-// GetDefaultInterfaceName returns the name of the interface used for the default route.
-func GetDefaultInterfaceName() (string, error) {
-	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
-		Dst: nil,
-	}, netlink.RT_FILTER_DST)
-	if err != nil {
-		return "", err
-	}
-	if len(routes) == 0 {
-		return "", fmt.Errorf("no default route found")
-	}
-	link, err := netlink.LinkByIndex(routes[0].LinkIndex)
-	if err != nil {
-		return "", err
-	}
-	if link == nil {
-		return "", fmt.Errorf("no default interface found")
-	}
-	return link.Attrs().Name, err
+// InterfacesMonitoring is a stub for macOS.
+func InterfacesMonitoring(_ context.Context, _ chan event.GenericEvent, _ *Options) error {
+	return fmt.Errorf("InterfacesMonitoring is not supported on darwin")
 }

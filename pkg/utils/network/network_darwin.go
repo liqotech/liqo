@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleanup
+//go:build darwin
+// +build darwin
 
-import (
-	"time"
+package network
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
-
-var _ manager.Runnable = &RunnableGeneveCleanup{}
-
-// RunnableGeneveCleanup is a RunnableGeneveCleanup that manages concurrency.
-type RunnableGeneveCleanup struct {
-	Client   client.Client
-	Interval time.Duration
+// GetDefaultInterfaceName is a stub for macOS.
+func GetDefaultInterfaceName() (string, error) {
+	panic("GetDefaultInterfaceName is not supported on darwin")
 }

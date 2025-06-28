@@ -8,9 +8,9 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 ifeq ($(shell uname),Darwin)
-SED_COMMAND=sed -i '' -n '/rules/,$$p'
+SED_INPLACE=sed -i ''
 else
-SED_COMMAND=sed -i -n '/rules/,$$p'
+SED_INPLACE=sed -i
 endif
 
 generate: generate-groups rbacs manifests fmt
@@ -58,21 +58,21 @@ manifests: controller-gen
 #Generate RBAC for each controller
 rbacs: controller-gen
 	rm -f deployments/liqo/files/*
-	$(CONTROLLER_GEN) paths="./internal/crdReplicator" rbac:roleName=liqo-crd-replicator output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-crd-replicator-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-crd-replicator-ClusterRole.yaml deployments/liqo/files/liqo-crd-replicator-Role.yaml
-	$(CONTROLLER_GEN) paths="./pkg/peering-roles/controlplane" rbac:roleName=liqo-remote-controlplane output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-controlplane-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-remote-controlplane-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/liqo-controller-manager/..." rbac:roleName=liqo-controller-manager output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-controller-manager-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-controller-manager-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/webhooks/..." rbac:roleName=liqo-webhook output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-webhook-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-webhook-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/local" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/remote" rbac:roleName=liqo-virtual-kubelet-remote output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-virtual-kubelet-remote-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/remoteclusterwide" rbac:roleName=liqo-virtual-kubelet-remote-clusterwide output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-clusterwide-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-virtual-kubelet-remote-clusterwide-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./cmd/uninstaller" rbac:roleName=liqo-pre-delete output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-pre-delete-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-pre-delete-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./cmd/metric-agent" rbac:roleName=liqo-metric-agent output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-metric-agent-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-metric-agent-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./cmd/telemetry" rbac:roleName=liqo-telemetry output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-telemetry-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-telemetry-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="{./pkg/gateway/...,./cmd/gateway/...,./pkg/firewall/...,./pkg/route/...}" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-gateway-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="{./cmd/fabric/...,./pkg/firewall/...,./pkg/route/...,./pkg/fabric/...}" rbac:roleName=liqo-fabric output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-fabric-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-fabric-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="{./cmd/ipam/...,./pkg/ipam/...}" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-ipam-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/tenant-ns" rbac:roleName=liqo-peering-user-tenant-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-tenant-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-peering-user-tenant-ns-ClusterRole.yaml
-	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/liqo-ns" rbac:roleName=liqo-peering-user-liqo-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-liqo-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-peering-user-liqo-ns-Role.yaml
+	$(CONTROLLER_GEN) paths="./internal/crdReplicator" rbac:roleName=liqo-crd-replicator output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-crd-replicator-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-crd-replicator-ClusterRole.yaml deployments/liqo/files/liqo-crd-replicator-Role.yaml
+	$(CONTROLLER_GEN) paths="./pkg/peering-roles/controlplane" rbac:roleName=liqo-remote-controlplane output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-controlplane-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-remote-controlplane-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/liqo-controller-manager/..." rbac:roleName=liqo-controller-manager output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-controller-manager-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-controller-manager-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/webhooks/..." rbac:roleName=liqo-webhook output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-webhook-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-webhook-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/local" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/remote" rbac:roleName=liqo-virtual-kubelet-remote output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-remote-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/virtualKubelet/roles/remoteclusterwide" rbac:roleName=liqo-virtual-kubelet-remote-clusterwide output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-clusterwide-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-remote-clusterwide-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./cmd/uninstaller" rbac:roleName=liqo-pre-delete output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-pre-delete-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-pre-delete-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./cmd/metric-agent" rbac:roleName=liqo-metric-agent output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-metric-agent-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-metric-agent-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./cmd/telemetry" rbac:roleName=liqo-telemetry output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-telemetry-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-telemetry-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="{./pkg/gateway/...,./cmd/gateway/...,./pkg/firewall/...,./pkg/route/...}" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-gateway-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="{./cmd/fabric/...,./pkg/firewall/...,./pkg/route/...,./pkg/fabric/...}" rbac:roleName=liqo-fabric output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-fabric-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-fabric-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="{./cmd/ipam/...,./pkg/ipam/...}" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-ipam-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/tenant-ns" rbac:roleName=liqo-peering-user-tenant-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-tenant-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-peering-user-tenant-ns-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./pkg/peering-roles/peering-user/liqo-ns" rbac:roleName=liqo-peering-user-liqo-ns output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-peering-user-liqo-ns-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_INPLACE) -n '/rules/,$$p' deployments/liqo/files/liqo-peering-user-liqo-ns-Role.yaml
 
 
 # Install gci if not available
@@ -99,7 +99,7 @@ fmt: gci addlicense docs
 	go fmt ./...
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) write -s standard -s default -s "prefix(github.com/liqotech/liqo)" {} \;
 	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" {} \;
-	find . -type f -name "*.go" -exec sed -i "s/Copyright 2019-[0-9]\{4\} The Liqo Authors/Copyright 2019-$(shell date +%Y) The Liqo Authors/" {} +
+	find . -type f -name "*.go" -exec $(SED_INPLACE) "s/Copyright 2019-[0-9]\{4\} The Liqo Authors/Copyright 2019-$(shell date +%Y) The Liqo Authors/" {} +
 
 # Install golangci-lint if not available
 golangci-lint:
@@ -191,19 +191,7 @@ endif
 
 helm-docs:
 ifeq (, $(shell which helm-docs))
-	@{ \
-	set -e ;\
-	HELM_DOCS_TMP_DIR=$$(mktemp -d) ;\
-	cd $$HELM_DOCS_TMP_DIR ;\
-	version=1.11.0 ;\
-    arch=x86_64 ;\
-    echo  $$HELM_DOCS_PATH ;\
-    echo https://github.com/norwoodj/helm-docs/releases/download/v$${version}/helm-docs_$${version}_linux_$${arch}.tar.gz ;\
-    curl -LO https://github.com/norwoodj/helm-docs/releases/download/v$${version}/helm-docs_$${version}_linux_$${arch}.tar.gz ;\
-    tar -zxvf helm-docs_$${version}_linux_$${arch}.tar.gz ;\
-    mv helm-docs $(GOBIN)/helm-docs ;\
-	rm -rf $$HELM_DOCS_TMP_DIR ;\
-	}
+	@go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2
 HELM_DOCS=$(GOBIN)/helm-docs
 else
 HELM_DOCS=$(shell which helm-docs)
@@ -267,5 +255,7 @@ metrics:
 	chmod +x ${PWD}/test/e2e/pipeline/metrics/metrics.sh
 	${PWD}/test/e2e/pipeline/metrics/metrics.sh
 
+e2e/%:
+	go test ${PWD}/test/$@/... -count=1 -timeout=30m -p=1
 e2e/%:
 	go test ${PWD}/test/$@/... -count=1 -timeout=30m -p=1
