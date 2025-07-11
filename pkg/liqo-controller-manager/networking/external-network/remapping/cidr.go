@@ -179,13 +179,13 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuratio
 
 func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuration,
 	opts *Options, cidrtype CIDRType) []firewall.NatRule {
-	var localCIDR, remoteRemapCIDR string
+	var remoteCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
-		localCIDR = cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()
+		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String()
 		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
 	case ExternalCIDR:
-		localCIDR = cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String()
+		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String()
 		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
 	}
 
@@ -204,7 +204,7 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Value:    localCIDR,
+						Value:    remoteCIDR,
 						Position: firewall.MatchPositionSrc,
 					},
 				},
