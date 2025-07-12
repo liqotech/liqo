@@ -74,7 +74,9 @@ jobs:
 
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
+        cache: true
+        cache-dependency-path: go.sum
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
