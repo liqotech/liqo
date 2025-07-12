@@ -43,7 +43,7 @@ spec:
         - image: {{ .Values.networking.fabric.image.name }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $fabricConfig.name }}
-          command: ["/usr/bin/liqo-fabric"]
+          command: ["/usr/bin/fabric"]
           args:
           - --podname=$(POD_NAME)
           - --nodename=$(NODE_NAME)

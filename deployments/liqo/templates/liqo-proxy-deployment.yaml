@@ -48,6 +48,8 @@ spec:
           {{- toYaml .Values.proxy.pod.extraArgs | nindent 10 }}
           {{- end }}
           {{- end }}
+          command:
+          - /usr/bin/proxy
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}

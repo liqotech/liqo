@@ -2,11 +2,9 @@ name: Integration Pipeline
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
     branches:
       - master
-      - release
-      - ipam
   repository_dispatch:
     types:
       - test-command
@@ -23,78 +21,65 @@ jobs:
       architectures: ${{ steps.configure.outputs.architectures }}
       pr-number: ${{ steps.configure.outputs.pr-number }}
     steps:
-    - name: Get the version
-      id: get_version
-      run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
-      if: startsWith(github.ref, 'refs/tags/v')
-    - name: Configure
-      id: configure
-      run: |
-        # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
-        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "master=false" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
-          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
-        elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-          echo "master=false" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
-          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-        elif [ "${{ github.ref_name }}" == "master" ]; then
-          echo "master=true" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
-          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-        else
-          echo "master=false" >> $GITHUB_OUTPUT
-          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
-          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-        fi
+      - name: Get the version
+        id: get_version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Configure
+        id: configure
+        run: |
+          # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            echo "master=false" >> $GITHUB_OUTPUT
+            echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
+            echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
+            echo "master=false" >> $GITHUB_OUTPUT
+            echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+            echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "master" ]; then
+            echo "master=true" >> $GITHUB_OUTPUT
+            echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "master=false" >> $GITHUB_OUTPUT
+            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
 
-        # The suffix to append to the repository name if not triggered by a push for a release
-        ([[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
-          echo "repo-suffix=-ci" ||
-          echo "repo-suffix=") >> $GITHUB_OUTPUT
+          # The suffix to append to the repository name if not triggered by a push for a release
+          ([[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
+            echo "repo-suffix=-ci" ||
+            echo "repo-suffix=") >> $GITHUB_OUTPUT
 
-        if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-           echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
-        else
-           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
-        fi
+          if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
+             echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
+          else
+             echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
+          fi
 
-      # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
-    - uses: octokit/request-action@v2.x
-      name: "Initialize run check to 'pending (For PR-only)"
-      with:
-        route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
-        state: "pending"
-        description: "Component build status"
-        context:  "Components building"
-        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: ${{ github.event_name == 'repository_dispatch' }}
+        # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
+      - uses: octokit/request-action@v2.x
+        name: "Initialize run check to 'pending (For PR-only)"
+        with:
+          route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
+          state: "pending"
+          description: "Component build status"
+          context: "Components building"
+          target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+        if: ${{ github.event_name == 'repository_dispatch' }}
 
-  build:
+  build-standard:
     runs-on: ubuntu-latest
     needs: configure
     strategy:
       fail-fast: false
       matrix:
         component:
-        - cert-creator
-        - crd-replicator
-        - ipam
-        - liqo-controller-manager
-        - webhook
-        - uninstaller
-        - virtual-kubelet
-        - metric-agent
-        - telemetry
-        - proxy
-        - gateway
-        - gateway/wireguard
-        - gateway/geneve
-        - fabric
+          - cert-creator
     steps:
       - name: Set architectures
         id: set-architectures
@@ -164,54 +149,106 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+  build-go:
+    runs-on: ubuntu-latest
+    needs: configure
+    env:
+      DOCKER_REGISTRY: ghcr.io
+      DOCKER_ORGANIZATION: ${{ github.repository_owner }}
+      DOCKER_TAG: ${{ needs.configure.outputs.commit-ref }}
+      DOCKER_PUSH: true
+      ARCHS: ${{ needs.configure.outputs.architectures }}
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - crd-replicator
+          - ipam
+          - liqo-controller-manager
+          - webhook
+          - uninstaller
+          - virtual-kubelet
+          - metric-agent
+          - telemetry
+          - proxy
+          - gateway
+          - gateway/wireguard
+          - gateway/geneve
+          - fabric
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ needs.configure.outputs.commit-ref }}"
+          repository: "${{ needs.configure.outputs.repo-name }}"
+          persist-credentials: false
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the container image
+        run: |
+          chmod +x ./build/liqo/build.sh
+          ./build/liqo/build.sh ./cmd/${{ matrix.component }}
   post-build:
-     runs-on: ubuntu-latest
-     needs: [build, configure, liqoctl]
-     steps:
-
-       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
-       - uses: octokit/request-action@v2.x
-         name: "Set the PR check status (For PR-only)"
-         with:
-           route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
-           state: "${{ needs.build.result }}"
-           description: "Component build status"
-           context: "Components building"
-           target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-         env:
-           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-         if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    needs: [build-standard, build-go, configure, liqoctl]
+    steps:
+      # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
+      - uses: octokit/request-action@v2.x
+        name: "Set the PR check status (For PR-only)"
+        with:
+          route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
+          state: "${{ needs.build.result }}"
+          description: "Component build status"
+          context: "Components building"
+          target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+        if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
 
   e2e-test-trigger:
     runs-on: ubuntu-latest
     needs: [build, configure, liqoctl]
     if: github.event.client_payload.slash_command.command == 'test'
     steps:
-
-       - name: Notify Event to E2E Tests
-         uses: peter-evans/repository-dispatch@v3
-         with:
-           token: ${{ secrets.CI_TOKEN }}
-           repository: liqotech/liqops
-           event-type: "dev-event"
-           client-payload: |
-             {
-               "master": "${{ needs.configure.outputs.master }}",
-               "commit": "${{ needs.configure.outputs.commit-ref }}",
-               "repo-name": "${{ needs.configure.outputs.repo-name }}",
-               "base-repo": "${{ github.repository }}",
-               "run-id": "${{ github.run_id }}",
-               "pr-number" : "${{ needs.configure.outputs.pr-number }}"
-             }
+      - name: Notify Event to E2E Tests
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          repository: liqotech/liqops
+          event-type: "dev-event"
+          client-payload: |
+            {
+              "master": "${{ needs.configure.outputs.master }}",
+              "commit": "${{ needs.configure.outputs.commit-ref }}",
+              "repo-name": "${{ needs.configure.outputs.repo-name }}",
+              "base-repo": "${{ github.repository }}",
+              "run-id": "${{ github.run_id }}",
+              "pr-number" : "${{ needs.configure.outputs.pr-number }}"
+            }
 
   liqoctl:
     runs-on: ubuntu-latest
-    needs: [ configure ]
+    needs: [configure]
     strategy:
       matrix:
-        goos: [ linux, windows, darwin ]
-        goarch: [ arm64, amd64, arm ]
+        goos: [linux, windows, darwin]
+        goarch: [arm64, amd64, arm]
         exclude:
           - goarch: arm64
             goos: windows
@@ -220,20 +257,24 @@ jobs:
           - goarch: arm
             goos: darwin
 
-
     steps:
-
       - uses: actions/checkout@v4
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
       - name: Build Liqoctl
         run: |
           ./build/liqoctl/build.sh
         env:
-          CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           LIQOCTLVERSION: ${{ needs.configure.outputs.commit-ref }}
@@ -246,23 +287,22 @@ jobs:
       - name: Upload Liqoctl
         uses: actions/upload-artifact@v4
         with:
-         name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
-         path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
-         retention-days: 1
+          name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 1
 
       - name: Upload Liqoctl Archive
         uses: actions/upload-artifact@v4
         with:
-         name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-         path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-         retention-days: 1
+          name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          retention-days: 1
 
   release:
     runs-on: ubuntu-latest
     needs: [build, configure, liqoctl]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -293,8 +333,8 @@ jobs:
         id: semver_parser
         uses: booxmedialtd/ws-action-parse-semver@v1
         with:
-          input_string: '${{ needs.configure.outputs.commit-ref }}'
-          version_extractor_regex: 'v(.*)$'
+          input_string: "${{ needs.configure.outputs.commit-ref }}"
+          version_extractor_regex: "v(.*)$"
 
       # we cannot use the official chart-releaser-action since it does not support releases on tags
       # https://github.com/helm/chart-releaser-action/issues/60, and it is not possible to add the
@@ -310,7 +350,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-         path: ./liqoctl/
+          path: ./liqoctl/
 
       # we need to upload only helm artifacts first, to make the index updater to work
       - uses: ncipollo/release-action@v1
