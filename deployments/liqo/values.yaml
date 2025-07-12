@@ -275,9 +275,9 @@ offloading:
       enabled: true
       # -- Tolerations for the tolerations.
       tolerations:
-      - key: virtual-node.omni.cast.ai/not-allowed
-        operator: Exists
-        effect: NoExecute
+        - key: virtual-node.omni.cast.ai/not-allowed
+          operator: Exists
+          effect: NoExecute
   reflection:
     skip:
       # -- List of labels that must not be reflected on remote clusters.
