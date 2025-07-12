@@ -211,27 +211,28 @@ offloading:
       enabled: true
       # -- Tolerations for the tolerations.
       tolerations:
-      - key: virtual-node.liqo.io/not-allowed
-        operator: Exists
-        effect: NoExecute
+        - key: virtual-node.liqo.io/not-allowed
+          operator: Exists
+          effect: NoExecute
   reflection:
     skip:
       # -- List of labels that must not be reflected on remote clusters.
       labels: []
       # -- List of annotations that must not be reflected on remote clusters.
-      annotations: [
-        cloud.google.com/neg,
-        cloud.google.com/neg-status,
-        kubernetes.digitalocean.com/load-balancer-id,
-        ingress.kubernetes.io/backends,
-        ingress.kubernetes.io/forwarding-rule,
-        ingress.kubernetes.io/target-proxy,
-        ingress.kubernetes.io/url-map,
-        metallb.universe.tf/address-pool,
-        metallb.universe.tf/ip-allocated-from-pool,
-        metallb.universe.tf/loadBalancerIPs,
-        loadbalancer.openstack.org/load-balancer-id,
-      ]
+      annotations:
+        [
+          cloud.google.com/neg,
+          cloud.google.com/neg-status,
+          kubernetes.digitalocean.com/load-balancer-id,
+          ingress.kubernetes.io/backends,
+          ingress.kubernetes.io/forwarding-rule,
+          ingress.kubernetes.io/target-proxy,
+          ingress.kubernetes.io/url-map,
+          metallb.universe.tf/address-pool,
+          metallb.universe.tf/ip-allocated-from-pool,
+          metallb.universe.tf/loadBalancerIPs,
+          loadbalancer.openstack.org/load-balancer-id,
+        ]
     pod:
       # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.
       workers: 10
@@ -474,9 +475,9 @@ ipam:
   # Network pools are used to map a cluster network into another one in order to prevent conflicts.
   # If left empty, it is defaulted to the private addresses ranges: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
   pools:
-  - "10.0.0.0/8"
-  - "192.168.0.0/16"
-  - "172.16.0.0/12"
+    - "10.0.0.0/8"
+    - "192.168.0.0/16"
+    - "172.16.0.0/12"
 
 crdReplicator:
   pod:
@@ -517,9 +518,10 @@ discovery:
     clusterID: ""
     # -- A set of labels that characterizes the local cluster when exposed remotely as a virtual node.
     # It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster.
-    clusterLabels: {}
-     # topology.kubernetes.io/zone: us-east-1
-     # liqo.io/provider: your-provider
+    clusterLabels:
+      {}
+      # topology.kubernetes.io/zone: us-east-1
+      # liqo.io/provider: your-provider
 
 metricAgent:
   # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics
@@ -686,5 +688,5 @@ openshiftConfig:
   # Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators.
   # Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded.
   virtualKubeletSCCs:
-  - anyuid
-  - privileged
+    - anyuid
+    - privileged
