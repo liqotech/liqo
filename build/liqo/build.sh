@@ -4,8 +4,14 @@ set -e
 set -o nounset
 set -o pipefail
 
+usage() {
+    echo "Usage: $0 [-m] [-p] <component-folder>"
+    echo "  -p    Push the built image to the registry"
+    echo "  -h    Show this help message"
+}
+
 if [ $# -ne 1 ]; then
-    echo "Usage: $0 <component-folder>"
+    usage
     exit 1
 fi
 

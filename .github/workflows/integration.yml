@@ -395,7 +395,7 @@ jobs:
         with:
           path: ./liqoctl/
 
-               # we need to upload only helm artifacts first, to make the index updater to work
+            # we need to upload only helm artifacts first, to make the index updater to work
       - uses: ncipollo/release-action@v1
         with:
           artifacts: ".cr-release-packages/*"
