@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
+	netutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -106,9 +107,14 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 		return fmt.Errorf("internal endpoint not found for the gateway server %q", gwServer.Name)
 	}
 
+	internalFabricName, err := netutils.ForgeInternalFabricName(ctx, r.Client, &gwServer.ObjectMeta)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve the cluster ID from the gateway server %q", gwServer.Name)
+	}
+
 	internalFabric := &networkingv1beta1.InternalFabric{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      gwServer.Name,
+			Name:      internalFabricName,
 			Namespace: gwServer.Namespace,
 		},
 	}
