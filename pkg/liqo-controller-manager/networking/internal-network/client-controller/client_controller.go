@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
+	netutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -106,9 +107,14 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		return fmt.Errorf("internal endpoint not found for the gateway client %q", gwClient.Name)
 	}
 
+	internalFabricName, err := netutils.ForgeInternalFabricName(ctx, r.Client, &gwClient.ObjectMeta)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve the cluster ID from the gateway client %q", gwClient.Name)
+	}
+
 	internalFabric := &networkingv1beta1.InternalFabric{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      gwClient.Name,
+			Name:      internalFabricName,
 			Namespace: gwClient.Namespace,
 		},
 	}
@@ -123,7 +129,11 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 
 		internalFabric.Spec.GatewayIP = *gwClient.Status.InternalEndpoint.IP
 
-		if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalFabric); err != nil {
+		if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(
+			ctx,
+			r.Client,
+			internalFabric,
+		); err != nil {
 			return err
 		}
 		ip, err := ipam.Allocate(internalFabric.GetName())

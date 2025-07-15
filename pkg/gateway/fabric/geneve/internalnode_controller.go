@@ -21,7 +21,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -72,17 +71,14 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
-	// The internal fabric has the same name of the gateway resource.
-	internalFabricName := r.Options.GwOptions.Name
-	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabricName, internalnode.Name)
+	internalFabric, err := getInternalFabric(ctx, r.Client, r.Options.GwOptions.Name, r.Options.GwOptions.RemoteClusterID, r.Options.GwOptions.Namespace)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("internalnodecontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
+		return ctrl.Result{}, fmt.Errorf("unable to get the internal fabric: %w", err)
 	}
 
-	internalFabric := &networkingv1beta1.InternalFabric{}
-	if err = r.Get(ctx, types.NamespacedName{
-		Name: internalFabricName, Namespace: r.Options.GwOptions.Namespace}, internalFabric); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", internalFabricName, err)
+	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("internalnodecontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
 	}
 
 	var remoteIP *networkingv1beta1.IP
