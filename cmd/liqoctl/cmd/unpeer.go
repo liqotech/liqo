@@ -48,7 +48,6 @@ Examples:
 func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options := unpeer.NewOptions(f)
 	options.RemoteFactory = factory.NewForRemote()
-
 	cmd := &cobra.Command{
 		Use:   "unpeer",
 		Short: "Disable a peering towards a remote provider cluster",
@@ -67,6 +66,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
 	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for resource to be deleted before returning")
 	cmd.PersistentFlags().BoolVar(&options.DeleteNamespace, "delete-namespaces", false, "Delete the tenant namespace after unpeering")
+	cmd.PersistentFlags().StringVar(&options.ForceClusterID, "force-with-cluster-id", "", "Force unpeering only on the local cluster even if the remote cluster is unreachable")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)

@@ -54,6 +54,8 @@ type Reflector struct {
 	remoteNamespace string
 	remoteClusterID liqov1beta1.ClusterID
 
+	ForceUnpeering bool
+
 	resources map[schema.GroupVersionResource]*reflectedResource
 
 	secretHash string
@@ -178,18 +180,50 @@ func (r *Reflector) StopForResource(resource *resources.Resource) error {
 }
 
 func (r *Reflector) stop(skipResourcePresenceCheck bool) error {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
+	// klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
+
+	// for gvr := range r.resources {
+	// 	if err := r.stopForResource(gvr, skipResourcePresenceCheck); err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	// // if !r.ForceUnpeering {
+	// r.cancel()
+	// // } else {
+	// // 	for _, res := range r.resources {
+	// // 		res.cancel()
+	// // 	}
+	// // 	r.resources = map[schema.GroupVersionResource]*reflectedResource{}
+
+	// // 	if r.cancel != nil {
+	// // 		r.cancel()
+	// // 	}
+	// // }
+	// return nil
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
 
+	// var errs []error
 	for gvr := range r.resources {
 		if err := r.stopForResource(gvr, skipResourcePresenceCheck); err != nil {
+			// errs = append(errs, err)
 			return err
 		}
 	}
 
 	r.cancel()
+
+	// if len(errs) > 0 {
+	// 	// Restituisci tutti gli errori concatenati, oppure solo il primo
+	// 	return fmt.Errorf("ERRORS STOPPING RESOURCES: %v", errs)
+	// }
 	return nil
 }
 
@@ -203,7 +237,7 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource, skipResourc
 
 	klog.Infof("[%v] Stopping reflection of %v", r.remoteClusterID, gvr)
 
-	if !skipResourcePresenceCheck {
+	if !skipResourcePresenceCheck && !r.ForceUnpeering {
 		// Check if any object is still present in the local or in the remote cluster
 		for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
 			objects, err := lister.List(labels.Everything())
