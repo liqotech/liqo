@@ -28,6 +28,7 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Options encapsulates the arguments of the unpeer command.
@@ -39,8 +40,7 @@ type Options struct {
 	Timeout         time.Duration
 	Wait            bool
 	DeleteNamespace bool
-	Force           bool
-	RemoteClusterID string
+	ForceClusterID  string
 
 	consumerClusterID liqov1beta1.ClusterID
 	providerClusterID liqov1beta1.ClusterID
@@ -57,7 +57,6 @@ func NewOptions(localFactory *factory.Factory) *Options {
 // RunUnpeer implements the unpeer command.
 func (o *Options) RunUnpeer(ctx context.Context) error {
 	var err error
-
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
@@ -74,15 +73,14 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		return err
 	}
 
-	if !o.Force {
+	// To ease the experience for most users, we disable remote-namespace flag
+	// so that resources are created according to the default Liqo logic.
+	// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
+	// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
+	o.RemoteFactory.Namespace = ""
 
-		// To ease the experience for most users, we disable remote-namespace flag
-		// so that resources are created according to the default Liqo logic.
-		// Advanced users can use the individual commands (e.g., liqoctl reset, liqoctl disconnect, etc..) to
-		// customize the namespaces according to their needs (e.g., networking resources in a specific namespace).
-		o.RemoteFactory.Namespace = ""
-
-		// Get provider clusterID
+	// Get provider clusterID
+	if o.ForceClusterID == "" {
 		o.providerClusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, o.RemoteFactory.CRClient, o.RemoteFactory.LiqoNamespace)
 		if err != nil {
 			o.RemoteFactory.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
@@ -110,22 +108,56 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		}
 
 	} else {
-		o.providerClusterID = liqov1beta1.ClusterID(o.RemoteClusterID)
+		o.providerClusterID = liqov1beta1.ClusterID(o.ForceClusterID)
+		s := o.LocalFactory.Printer.StartSpinner("Checking ForeignCluster existence")
+
+		fc := &liqov1beta1.ForeignCluster{}
+		err := o.LocalFactory.CRClient.Get(ctx, client.ObjectKey{
+			Name: string(o.providerClusterID),
+		}, fc)
+		if err != nil {
+			s.Fail("Error while retrieving ForeignCluster: ", output.PrettyErr(err))
+			return err
+		}
+
+		patch := client.MergeFrom(fc.DeepCopy())
+		if fc.Annotations == nil {
+			fc.Annotations = map[string]string{}
+		}
+
+		client.Object.SetAnnotations(fc, map[string]string{
+			"liqo.io/force-unpeer": "true",
+		})
+
+		//Add unpeering force annotation
+		// fc.Annotations["liqo.io/force-unpeer"] = "true"
+
+		err = o.LocalFactory.CRClient.Patch(ctx, fc, patch)
+		if err != nil {
+			return fmt.Errorf("failed to patch ForeignCluster with force-unpeer annotation: %w", err)
+		}
+
+		if err := ForceAnnotateAndDeleteAllLiqoResources(ctx, o.LocalFactory, o.providerClusterID); err != nil {
+			return err
+		}
+
+		s.Success(fmt.Sprintf("ForeignCluster %q successfully patched with force-unpeer annotation", o.providerClusterID))
 	}
 
 	// Disable offloading
-	if err := o.disableOffloading(ctx); err != nil {
+	err = o.disableOffloading(ctx)
+	if err != nil {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable offloading: %w", err))
 		return err
 	}
 
-	if !o.Force {
-		// Disable authentication
-		if err := o.disableAuthentication(ctx); err != nil {
-			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable authentication: %w", err))
-			return err
-		}
+	// if o.ForceClusterID == "" {
+	// Disable authentication
+	if err := o.disableAuthentication(ctx); err != nil {
+		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable authentication: %w", err))
+		return err
 	}
+	// }
 
 	if err := o.disableNetworking(ctx); err != nil {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
@@ -144,7 +176,7 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 			return err
 		}
 
-		if !o.Force {
+		if o.ForceClusterID == "" {
 			provider := unauthenticate.NewCluster(o.RemoteFactory)
 
 			// Delete tenant namespace on provider cluster
@@ -159,7 +191,7 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 
 func (o *Options) disableOffloading(ctx context.Context) error {
 	// Delete all resourceslices on consumer cluster
-	if err := deleteResourceSlicesByClusterID(ctx, o.LocalFactory, o.providerClusterID, o.Wait); err != nil {
+	if err := deleteResourceSlicesByClusterID(ctx, o.LocalFactory, o.providerClusterID, o.Wait, o.ForceClusterID); err != nil {
 		return err
 	}
 
@@ -179,7 +211,7 @@ func (o *Options) disableNetworking(ctx context.Context) error {
 		Wait:    true,
 	}
 
-	if !o.Force {
+	if o.ForceClusterID == "" {
 		networkOptions.RemoteFactory = o.RemoteFactory
 		if err := networkOptions.RunReset(ctx); err != nil {
 			return err
@@ -187,7 +219,7 @@ func (o *Options) disableNetworking(ctx context.Context) error {
 		return nil
 	}
 
-	if err := networkOptions.RunResetLocalOnly(ctx, liqov1beta1.ClusterID(o.RemoteClusterID)); err != nil {
+	if err := networkOptions.RunResetLocalOnly(ctx, liqov1beta1.ClusterID(o.ForceClusterID)); err != nil {
 		return err
 	}
 
@@ -196,8 +228,9 @@ func (o *Options) disableNetworking(ctx context.Context) error {
 
 func (o *Options) disableAuthentication(ctx context.Context) error {
 	unauthenticateOptions := unauthenticate.Options{
-		LocalFactory:  o.LocalFactory,
-		RemoteFactory: o.RemoteFactory,
+		LocalFactory:   o.LocalFactory,
+		RemoteFactory:  o.RemoteFactory,
+		ForceClusterID: o.ForceClusterID,
 
 		Timeout: o.Timeout,
 		Wait:    true,
@@ -236,3 +269,39 @@ func (o *Options) deleteForeignCluster(ctx context.Context, clusterID liqov1beta
 	o.LocalFactory.PrinterGlobal.Success.Printf("ForeignCluster %q successfully deleted\n", clusterID)
 	return nil
 }
+
+// func forceAnnotateAndDeleteAllLiqoResources(ctx context.Context, f *factory.Factory) error {
+
+// 	// Esempio per NamespaceMap
+// 	nsMapList := &offv1beta1.NamespaceMapList{}
+// 	if err := f.CRClient.List(ctx, nsMapList, &client.ListOptions{}); err == nil {
+// 		for i := range nsMapList.Items {
+// 			nsMap := &nsMapList.Items[i]
+// 			// Puoi filtrare per clusterID se necessario
+// 			patch := client.MergeFrom(nsMap.DeepCopy())
+// 			if nsMap.Annotations == nil {
+// 				nsMap.Annotations = map[string]string{}
+// 			}
+// 			nsMap.Annotations["liqo.io/force-unpeer"] = "true"
+// 			_ = f.CRClient.Patch(ctx, nsMap, patch)
+// 			_ = f.CRClient.Delete(ctx, nsMap)
+// 		}
+// 	}
+
+// 	// NamespaceOffloading
+// 	nsOffList := &offv1beta1.NamespaceOffloadingList{}
+// 	if err := f.CRClient.List(ctx, nsOffList, &client.ListOptions{}); err == nil {
+// 		for i := range nsOffList.Items {
+// 			nsOff := &nsOffList.Items[i]
+// 			patch := client.MergeFrom(nsOff.DeepCopy())
+// 			if nsOff.Annotations == nil {
+// 				nsOff.Annotations = map[string]string{}
+// 			}
+// 			nsOff.Annotations["liqo.io/force-unpeer"] = "true"
+// 			_ = f.CRClient.Patch(ctx, nsOff, patch)
+// 			_ = f.CRClient.Delete(ctx, nsOff)
+// 		}
+// 	}
+
+// 	return nil
+// }

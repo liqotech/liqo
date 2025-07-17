@@ -88,6 +88,13 @@ func main() {
 	reflectionManager := reflection.NewManager(dynClient, clusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
+	// dynamicClient, err := dynamic.NewForConfig(cfg)
+	// if err != nil {
+	// 	// gestisci errore (es. log.Fatal)
+	// 	klog.Error(err, "unable to create dynamic client")
+	// }
+
+	// DynamicClient: dynamicClient,
 	d := &crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),

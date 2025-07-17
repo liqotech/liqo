@@ -52,7 +52,8 @@ const (
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
-	ClusterID liqov1beta1.ClusterID
+	DynamicClient dynamic.Interface
+	ClusterID     liqov1beta1.ClusterID
 
 	// RegisteredResources is a list of GVRs of resources to be replicated.
 	RegisteredResources []resources.Resource
@@ -64,6 +65,8 @@ type Controller struct {
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
+
+	ForceUnpeering bool
 }
 
 // cluster-role
@@ -81,6 +84,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	tracer := trace.New("Reconcile", trace.Field{Key: "Secret", Value: req.Name})
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
+	//NELKL'UNPEER SI FERMA QUI
 	var secret corev1.Secret
 	if err := c.Get(ctx, req.NamespacedName, &secret); err != nil {
 		if errors.IsNotFound(err) {
@@ -106,6 +110,12 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if !secret.ObjectMeta.DeletionTimestamp.IsZero() {
+
+		if reflector, found := c.Reflectors[remoteClusterID]; found {
+			if reflector.ForceUnpeering {
+				c.ForceUnpeering = true
+			}
+		}
 		// the object is being deleted
 		if controllerutil.ContainsFinalizer(&secret, finalizer) {
 			// close remote watcher for remote cluster
@@ -114,7 +124,22 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 				return ctrl.Result{}, err
 			}
 
+			// In caso di force-unpeer, pulisci tutte le risorse locali replicate
+			// if c.ForceUnpeering {
+			// 	if err := c.cleanupLocalReplicatedResources(ctx, string(remoteClusterID)); err != nil {
+			// 		klog.Errorf("Failed to cleanup local replicated resources for %q: %v", remoteClusterID, err)
+			// 		// Non bloccare la rimozione del finalizer, logga solo
+			// 	}
+			// }
+
 			// remove the finalizer from the list and update it.
+			// Defer the function to start/stop the reflection of the different resources.
+			// defer func() {
+			// 	if err == nil {
+			// 		err = c.enforceReflectionStatus(ctx, remoteClusterID, !secret.GetDeletionTimestamp().IsZero())
+			// 	}
+			// }()
+
 			if err := c.ensureFinalizer(ctx, &secret, controllerutil.RemoveFinalizer); err != nil {
 				klog.Errorf("An error occurred while removing the finalizer to %q: %v", req.NamespacedName, err)
 				return ctrl.Result{}, err

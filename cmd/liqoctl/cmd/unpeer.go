@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -56,15 +55,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			if options.Force {
-				if options.RemoteClusterID == "" {
-					options.LocalFactory.Printer.CheckErr(fmt.Errorf("error: to activate force add remote cluster id"))
-				} else {
-					twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
-				}
-			} else {
-				twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
-			}
+			twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {
@@ -75,8 +66,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
 	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for resource to be deleted before returning")
 	cmd.PersistentFlags().BoolVar(&options.DeleteNamespace, "delete-namespaces", false, "Delete the tenant namespace after unpeering")
-	cmd.PersistentFlags().BoolVar(&options.Force, "force", false, "Force unpeering only on the local cluster even if the remote cluster is unreachable")
-	cmd.PersistentFlags().StringVar(&options.RemoteClusterID, "remote-cluster-id", "", "Remote ClusterId even if the remote cluster in unreachable")
+	cmd.PersistentFlags().StringVar(&options.ForceClusterID, "force-with-cluster-id", "", "Force unpeering only on the local cluster even if the remote cluster is unreachable")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
