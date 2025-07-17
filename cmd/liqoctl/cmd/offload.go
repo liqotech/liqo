@@ -29,7 +29,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
-const liqoctlOffloadNamespaceLongHelp = `Offload a namespace to remote clusters.
+const liqoctlOffloadNamespaceLongHelp = `Offload one or more namespaces to remote clusters.
 
 Once a given namespace is selected for offloading, Liqo extends it across the
 cluster boundaries, through the the automatic creation of twin namespaces in the
@@ -52,6 +52,10 @@ resource, that can later be applied through automation tools.
 
 Examples:
   $ {{ .Executable }} offload namespace foo
+or
+  $ {{ .Executable }} offload namespace foo bar
+or
+  $ {{ .Executable }} offload namespace --ns-selector 'foo=bar'
 or
   $ {{ .Executable }} offload namespace foo --pod-offloading-strategy Remote --namespace-mapping-strategy EnforceSameName
 or (cluster labels in logical AND)
@@ -78,6 +82,7 @@ func newOffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	var selectors []string
+	var labelSelector string
 
 	podOffloadingStrategy := args.NewEnum([]string{
 		string(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
@@ -98,23 +103,31 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 	options := offload.Options{Factory: f}
 	cmd := &cobra.Command{
 		Use:     "namespace name",
-		Aliases: []string{"ns"},
-		Short:   "Offload a namespace to remote clusters",
+		Aliases: []string{"ns", "namespaces"},
+		Short:   "Offload namespaces to remote clusters",
 		Long:    liqoctlOffloadNamespaceLongHelp,
 
-		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completion.Namespaces(ctx, f, 1),
+		ValidArgsFunction: completion.Namespaces(ctx, f, completion.NoLimit),
 
 		PreRun: func(_ *cobra.Command, _ []string) {
 			options.PodOffloadingStrategy = offloadingv1beta1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
 			options.NamespaceMappingStrategy = offloadingv1beta1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
 			options.RemoteNamespaceName = remoteNamespaceName
 			options.OutputFormat = outputFormat.Value
+			options.LabelSelector = labelSelector
 			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))
 		},
-
 		Run: func(_ *cobra.Command, args []string) {
-			options.Namespace = args[0]
+			if len(args) == 0 && labelSelector == "" {
+				options.Printer.ExitWithMessage("namespace name or label selector must be specified")
+			}
+			if len(args) != 0 && labelSelector != "" {
+				options.Printer.ExitWithMessage("namespace name and label selector must not be specified together")
+			}
+			if (len(args) > 1 || labelSelector != "") && remoteNamespaceName != "" {
+				options.Printer.ExitWithMessage("the remote namespace name cannot be specified when offloading multiple namespaces at once")
+			}
+			options.Namespaces = args
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}
@@ -130,6 +143,8 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 
 	cmd.Flags().StringArrayVarP(&selectors, "selector", "l", []string{},
 		"The selector to filter the target clusters. Can be specified multiple times, defining alternative requirements (i.e., in logical OR)")
+	cmd.Flags().StringVar(&labelSelector, "ns-selector", "",
+		"Selector (label query) to filter namespaces, supports '=', '==', and '!=' (e.g., -l key1=value1,key2=value2).")
 
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting NamespaceOffloading resource, instead of applying it. Supported formats: json, yaml")
@@ -137,6 +152,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("pod-offloading-strategy", completion.Enumeration(podOffloadingStrategy.Allowed)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace-mapping-strategy", completion.Enumeration(namespaceMappingStrategy.Allowed)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("selector", completion.LabelsSelector(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("ns-selector", completion.NamespacesSelector(ctx, f, completion.NoLimit)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 
 	return cmd

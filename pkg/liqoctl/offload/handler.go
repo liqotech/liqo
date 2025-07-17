@@ -15,14 +15,18 @@
 package offload
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/printers"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -36,7 +40,8 @@ import (
 type Options struct {
 	*factory.Factory
 
-	Namespace                string
+	Namespaces               []string
+	LabelSelector            string
 	PodOffloadingStrategy    offloadingv1beta1.PodOffloadingStrategyType
 	NamespaceMappingStrategy offloadingv1beta1.NamespaceMappingStrategyType
 	RemoteNamespaceName      string
@@ -72,11 +77,59 @@ func (o *Options) Run(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	// Output the NamespaceOffloading resource, instead of applying it.
-	if o.OutputFormat != "" {
-		o.Printer.CheckErr(o.output())
+	var offloadNamespaces []string
+	offloadNamespaces = append(offloadNamespaces, o.Namespaces...)
+
+	if o.LabelSelector != "" {
+		// Parse the label selector
+		selector, err := labels.Parse(o.LabelSelector)
+		if err != nil {
+			return fmt.Errorf("invalid label selector: %w", err)
+		}
+
+		// List namespaces
+		var selectedNsList corev1.NamespaceList
+		if err := o.CRClient.List(ctx, &selectedNsList, &client.ListOptions{LabelSelector: selector}); err != nil {
+			return fmt.Errorf("cannot list namespace objects: %w", err)
+		}
+
+		for i := range selectedNsList.Items {
+			ns := &selectedNsList.Items[i]
+			if !slices.Contains(offloadNamespaces, ns.Name) {
+				offloadNamespaces = append(offloadNamespaces, ns.Name)
+			}
+		}
+	}
+
+	if len(offloadNamespaces) == 0 {
+		o.Printer.Info.Println("No namespaces can be offloaded")
 		return nil
 	}
+
+	// Offload each namespace
+	var errors []error
+	for _, ns := range offloadNamespaces {
+		if err := o.runOffload(ctx, ns); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("encountered %d errors during offloading, error details: %v", len(errors), errors)
+	}
+
+	return nil
+}
+
+// runOffload encapsulates the core logic of the offload namespace command.
+func (o *Options) runOffload(ctx context.Context, namespace string) error {
+	// Output the NamespaceOffloading resource, instead of applying it.
+	if o.OutputFormat != "" {
+		o.Printer.CheckErr(o.output(namespace))
+		return nil
+	}
+
+	o.Namespace = namespace
 
 	s := o.Printer.StartSpinner(fmt.Sprintf("Enabling namespace offloading for %q", o.Namespace))
 
@@ -117,20 +170,10 @@ func (o *Options) Run(ctx context.Context) error {
 }
 
 // output implements the logic to output the generated NamespaceOffloading resource.
-func (o *Options) output() error {
-	var printer printers.ResourcePrinter
-	switch o.OutputFormat {
-	case "yaml":
-		printer = &printers.YAMLPrinter{}
-	case "json":
-		printer = &printers.JSONPrinter{}
-	default:
-		return fmt.Errorf("unsupported output format %q", o.OutputFormat)
-	}
-
+func (o *Options) output(namespace string) error {
 	nsoff := offloadingv1beta1.NamespaceOffloading{
 		TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1beta1.SchemeGroupVersion.String(), Kind: "NamespaceOffloading"},
-		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: namespace},
 		Spec: offloadingv1beta1.NamespaceOffloadingSpec{
 			PodOffloadingStrategy:    o.PodOffloadingStrategy,
 			NamespaceMappingStrategy: o.NamespaceMappingStrategy,
@@ -139,7 +182,24 @@ func (o *Options) output() error {
 		},
 	}
 
-	return printer.PrintObj(&nsoff, os.Stdout)
+	switch o.OutputFormat {
+	case "yaml":
+		var buf bytes.Buffer
+		printer := &printers.YAMLPrinter{}
+		if err := printer.PrintObj(&nsoff, &buf); err != nil {
+			return err
+		}
+		if _, err := buf.WriteString("---\n"); err != nil {
+			return err
+		}
+		_, err := buf.WriteTo(os.Stdout)
+		return err
+	case "json":
+		printer := &printers.JSONPrinter{}
+		return printer.PrintObj(&nsoff, os.Stdout)
+	default:
+		return fmt.Errorf("unsupported output format %q", o.OutputFormat)
+	}
 }
 
 func toNodeSelector(selectors [][]metav1.LabelSelectorRequirement) corev1.NodeSelector {

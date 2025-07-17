@@ -175,7 +175,11 @@ func (c *Cluster) GenerateTenant(
 // EnsureTenant apply the tenant resource on the provider cluster and wait for the status to be updated.
 func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	s := c.local.Printer.StartSpinner("Applying tenant on provider cluster")
+	newTenant := tenant.DeepCopy()
 	if _, err := resource.CreateOrUpdate(ctx, c.local.CRClient, tenant, func() error {
+		tenant.Labels = newTenant.Labels
+		tenant.Annotations = newTenant.Annotations
+		tenant.Spec = newTenant.Spec
 		return nil
 	}); err != nil {
 		s.Fail(fmt.Sprintf("Unable to apply tenant on provider cluster: %v", output.PrettyErr(err)))
@@ -208,7 +212,11 @@ func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace st
 // EnsureIdentity apply the identity resource on the consumer cluster and wait for the status to be updated.
 func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1beta1.Identity) error {
 	s := c.local.Printer.StartSpinner("Applying identity on consumer cluster")
+	newIdentity := identity.DeepCopy()
 	if _, err := resource.CreateOrUpdate(ctx, c.local.CRClient, identity, func() error {
+		identity.Labels = newIdentity.Labels
+		identity.Annotations = newIdentity.Annotations
+		identity.Spec = newIdentity.Spec
 		return nil
 	}); err != nil {
 		s.Fail(fmt.Sprintf("Unable to apply identity on consumer cluster: %v", output.PrettyErr(err)))

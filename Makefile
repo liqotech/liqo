@@ -38,6 +38,10 @@ ctl:
 	$(eval GIT_COMMIT=$(shell git rev-parse HEAD 2>/dev/null || echo "unknown"))
 	go build -o ${BINDIR} -buildvcs=false -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.LiqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
 
+ctl-install:
+	$(eval GIT_COMMIT=$(shell git rev-parse HEAD 2>/dev/null || echo "unknown"))
+	go install -ldflags="-X 'github.com/liqotech/liqo/pkg/liqoctl/version.LiqoctlVersion=$(git rev-parse HEAD)'" ./cmd/liqoctl
+
 # Install LIQO into a cluster
 install: manifests ctl
 	$(BINDIR)/liqoctl install $(TARGET) --generate-name
