@@ -9,7 +9,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/gateway
 
 
-FROM alpine:3.21.3
+FROM alpine:3.22.1
 
 RUN apk update && \
     apk add iproute2 nftables bash tcpdump conntrack-tools curl iputils && \
