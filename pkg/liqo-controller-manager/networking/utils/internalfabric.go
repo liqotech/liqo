@@ -50,5 +50,5 @@ func ForgeInternalFabricName(ctx context.Context, cl client.Client, meta *metav1
 	case err != nil:
 		return "", fmt.Errorf("unable to get the internal fabric %q: %w", meta.Name, err)
 	}
-	return internalFabric.Name, nil
+	return meta.Name, nil
 }
