@@ -24,6 +24,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
 	identitycreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identitycreator-controller"
@@ -47,6 +48,28 @@ type AuthOption struct {
 	CAOverrideB64            string
 	TrustedCA                bool
 	SliceStatusOptions       *remoteresourceslicecontroller.SliceStatusOptions
+}
+
+// NewAuthOption creates a new AuthOption with the given parameters.
+func NewAuthOption(identityProvider identitymanager.IdentityProvider, namespaceManager tenantnamespace.Manager,
+	clusterID liqov1beta1.ClusterID, opts *liqocontrollermanager.Options) *AuthOption {
+	return &AuthOption{
+		IdentityProvider:         identityProvider,
+		NamespaceManager:         namespaceManager,
+		LocalClusterID:           clusterID,
+		LiqoNamespace:            opts.LiqoNamespace,
+		APIServerAddressOverride: opts.APIServerAddressOverride,
+		CAOverrideB64:            opts.CAOverride,
+		TrustedCA:                opts.TrustedCA,
+		SliceStatusOptions: &remoteresourceslicecontroller.SliceStatusOptions{
+			EnableStorage:             opts.EnableStorage,
+			LocalRealStorageClassName: opts.RealStorageClassName,
+			IngressClasses:            opts.IngressClasses,
+			LoadBalancerClasses:       opts.LoadBalancerClasses,
+			ClusterLabels:             opts.ClusterLabels.StringMap,
+			DefaultResourceQuantity:   opts.DefaultNodeResources.ToResourceList(),
+		},
+	}
 }
 
 // SetupAuthenticationModule setup the authentication module and initializes its controllers .

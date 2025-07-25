@@ -16,11 +16,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
@@ -45,16 +46,14 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
-	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
-	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
+	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
 	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnodecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -68,6 +67,7 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
+	opts   = liqocontrollermanager.NewOptions()
 )
 
 func init() {
@@ -83,197 +83,103 @@ func init() {
 }
 
 func main() {
-	var clusterLabels argsutils.StringMap
-	var ingressClasses argsutils.ClassNameList
-	var loadBalancerClasses argsutils.ClassNameList
-	var defaultNodeResources argsutils.ResourceMap
-	var gatewayServerResources argsutils.StringList
-	var gatewayClientResources argsutils.StringList
-	var globalLabels argsutils.StringMap
-	var globalAnnotations argsutils.StringMap
-	var apiServerAddressOverride string
-	var caOverride string
-	var trustedCA bool
-	var awsConfig identitymanager.LocalAwsConfig
+	var cmd = cobra.Command{
+		Use:  "liqo-controller-manager",
+		RunE: run,
+	}
 
-	// Cluster-wide modules enable/disable flags.
-	networkingEnabled := pflag.Bool("networking-enabled", true, "Enable/disable the networking module")
-	authenticationEnabled := pflag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
-	offloadingEnabled := pflag.Bool("offloading-enabled", true, "Enable/disable the offloading module")
+	liqoerrors.InitFlags(cmd.Flags())
+	flagsutils.InitKlogFlags(cmd.Flags())
+	restcfg.InitFlags(cmd.Flags())
 
-	// Manager flags
-	webhookPort := pflag.Uint("webhook-port", 9443, "The port the webhook server binds to")
-	metricsAddr := pflag.String("metrics-address", ":8082", "The address the metric endpoint binds to")
-	probeAddr := pflag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
-	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
+	liqocontrollermanager.InitFlags(cmd.Flags(), opts)
 
-	// Global parameters
-	resyncPeriod := pflag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
-	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
-	liqoNamespace := pflag.String("liqo-namespace", consts.DefaultLiqoNamespace,
-		"Name of the namespace where the liqo components are running")
-	foreignClusterWorkers := pflag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
-	foreignClusterPingInterval := pflag.Duration("foreign-cluster-ping-interval", 15*time.Second,
-		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
-	foreignClusterPingTimeout := pflag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
-		"The timeout of the ForeignCluster API server readiness check")
-	defaultLimitsEnforcement := pflag.String("default-limits-enforcement", string(offloadingv1beta1.NoLimitsEnforcement),
-		"Defines how strict is the enforcement of the quota offered by the remote cluster. Possible values are: "+
-			string(offloadingv1beta1.NoLimitsEnforcement)+", "+string(offloadingv1beta1.SoftLimitsEnforcement)+", "+
-			string(offloadingv1beta1.HardLimitsEnforcement))
+	if err := cmd.Execute(); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+}
 
-	// NETWORKING MODULE
-	ipamServer := pflag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
-	pflag.Var(&gatewayServerResources, "gateway-server-resources",
-		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
-	pflag.Var(&gatewayClientResources, "gateway-client-resources",
-		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
-	wgGatewayServerClusterRoleName := pflag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
-		"The name of the cluster role used by the wireguard gateway servers")
-	wgGatewayClientClusterRoleName := pflag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
-		"The name of the cluster role used by the wireguard gateway clients")
-	fabricFullMasqueradeEnabled := pflag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
-	gwmasqbypassEnabled := pflag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
-	networkWorkers := pflag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
-	ipWorkers := pflag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
-	genevePort := pflag.Uint16("geneve-port", consts.DefaultGenevePort, "The port used by the Geneve tunnel")
-
-	// AUTHENTICATION MODULE
-	pflag.StringVar(&apiServerAddressOverride,
-		"api-server-address-override", "", "Override the API server address where the Kuberentes APIServer is exposed")
-	pflag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
-	pflag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
-	// AWS configurations
-	pflag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
-	pflag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
-	pflag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
-	pflag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
-	// Resource sharing parameters
-	pflag.Var(&clusterLabels, consts.ClusterLabelsParameter,
-		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
-	pflag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
-	pflag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
-	pflag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
-	pflag.Var(&globalLabels, "global-labels",
-		"The set of labels that will be added to all resources created by Liqo controllers")
-	pflag.Var(&globalAnnotations, "global-annotations",
-		"The set of annotations that will be added to all resources created by Liqo controllers")
-
-	// OFFLOADING MODULE
-	// Storage Provisioner parameters
-	enableStorage := pflag.Bool("enable-storage", false, "enable the liqo virtual storage class")
-	virtualStorageClassName := pflag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
-	realStorageClassName := pflag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
-	storageNamespace := pflag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
-	// Service continuity
-	enableNodeFailureController := pflag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
-	// Controllers workers
-	shadowPodWorkers := pflag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
-	shadowEndpointSliceWorkers := pflag.Int("shadow-endpointslice-ctrl-workers", 10,
-		"The number of workers used to reconcile ShadowEndpointSlice resources.")
-
-	// CROSS MODULE
-	enableAPIServerIPRemapping := pflag.Bool("enable-api-server-ip-remapping", true, "Enable the API server IP remapping")
-
-	liqoerrors.InitFlags(nil)
-	restcfg.InitFlags(nil)
-	flagsutils.InitKlogFlags(nil)
-
-	pflag.Parse()
+func run(cmd *cobra.Command, _ []string) error {
+	cmd.SetContext(ctrl.SetupSignalHandler())
 
 	log.SetLogger(klog.NewKlogr())
 
-	clusterID := clusterIDFlags.ReadOrDie()
-
-	ctx := ctrl.SetupSignalHandler()
+	clusterID := opts.ClusterIDFlags.ReadOrDie()
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	// Configure clients:
-
-	// clientset
 	clientset := kubernetes.NewForConfigOrDie(config)
 
-	// uncached client. Note: Use mgr.GetClient() to get the cached client used in controllers.
 	uncachedClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
-		klog.Errorf("unable to create the client: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("unable to create uncached client: %w", err)
 	}
 
-	// dynamic client
 	dynClient := dynamic.NewForConfigOrDie(config)
 	factory := &dynamicutils.RunnableFactory{
 		DynamicSharedInformerFactory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, corev1.NamespaceAll, nil),
 	}
 
-	// Initialize global labels from flag
-	resource.SetGlobalLabels(globalLabels.StringMap)
-	resource.SetGlobalAnnotations(globalAnnotations.StringMap)
+	resource.SetGlobalLabels(opts.GlobalLabels.StringMap)
+	resource.SetGlobalAnnotations(opts.GlobalAnnotations.StringMap)
 
-	// Create the main manager.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
-			BindAddress: *metricsAddr,
+			BindAddress: opts.MetricsAddr,
 		},
-		HealthProbeBindAddress:        *probeAddr,
-		LeaderElection:                *leaderElection,
+		HealthProbeBindAddress:        opts.ProbeAddr,
+		LeaderElection:                opts.LeaderElection,
 		LeaderElectionID:              "66cf253f.ctrlmgr.liqo.io",
-		LeaderElectionNamespace:       *liqoNamespace,
+		LeaderElectionNamespace:       opts.LiqoNamespace,
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		WebhookServer: &webhook.DefaultServer{
 			Options: webhook.Options{
-				Port: int(*webhookPort),
+				Port: opts.WebhookPort,
 			},
 		},
 	})
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		return fmt.Errorf("manager creation failed: %w", err)
 	}
 
 	if err = mgr.Add(factory); err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		return fmt.Errorf("unable to add factory to manager: %w", err)
 	}
 
 	// Register the healthiness probes.
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		klog.Errorf("Unable to set up healthz probe: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("unable to set up healthz probe: %w", err)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		klog.Errorf("Unable to set up readyz probe: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("unable to set up readyz probe: %w", err)
 	}
 
-	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
-		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
-		os.Exit(1)
+	if err := indexer.IndexField(cmd.Context(), mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
+		return fmt.Errorf("unable to setup the indexer for the Pod nodeName field: %w", err)
 	}
 
-	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset, scheme)
+	namespaceManager := tenantnamespace.NewCachedManager(cmd.Context(), clientset, scheme)
 
 	// Setup operators for each module:
 
 	// NETWORKING MODULE
-	if *networkingEnabled {
+	if opts.NetworkingEnabled {
 		// Connect to the IPAM server if specified.
 		var ipamClient ipam.IPAMClient
-		if *ipamServer != "" {
-			klog.Infof("connecting to the IPAM server %q", *ipamServer)
-			conn, err := grpc.NewClient(*ipamServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if opts.IPAMServer != "" {
+			klog.Infof("connecting to the IPAM server %q", opts.IPAMServer)
+			conn, err := grpc.NewClient(opts.IPAMServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
-				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
-				os.Exit(1)
+				return fmt.Errorf("failed to establish a connection to the IPAM %q: %w", opts.IPAMServer, err)
 			}
 
-			if err := grpcutils.WaitForConnectionReady(ctx, conn, 10*time.Second); err != nil {
-				klog.Errorf("failed to establish a connection to the IPAM server %q", *ipamServer)
-				os.Exit(1)
+			if err := grpcutils.WaitForConnectionReady(cmd.Context(), conn, 10*time.Second); err != nil {
+				return fmt.Errorf("failed to establish a connection to the IPAM server %q: %w", opts.IPAMServer, err)
 			}
 			klog.Infof("connected to the IPAM server (status: %s)", conn.GetState())
 
@@ -282,118 +188,69 @@ func main() {
 			ipamClient = ipam.NewIPAMClient(conn)
 		}
 
-		opts := &modules.NetworkingOption{
-			DynClient: dynClient,
-			Factory:   factory,
+		netOpts := modules.NewNetworkingOption(factory, dynClient, ipamClient, opts)
 
-			LiqoNamespace: *liqoNamespace,
-			IpamClient:    ipamClient,
-
-			GatewayServerResources:         gatewayServerResources.StringList,
-			GatewayClientResources:         gatewayClientResources.StringList,
-			WgGatewayServerClusterRoleName: *wgGatewayServerClusterRoleName,
-			WgGatewayClientClusterRoleName: *wgGatewayClientClusterRoleName,
-			NetworkWorkers:                 *networkWorkers,
-			IPWorkers:                      *ipWorkers,
-			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
-			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
-
-			GenevePort: *genevePort,
-		}
-
-		if err := modules.SetupNetworkingModule(ctx, mgr, uncachedClient, opts); err != nil {
-			klog.Fatalf("Unable to setup the networking module: %v", err)
+		if err := modules.SetupNetworkingModule(cmd.Context(), mgr, uncachedClient, netOpts); err != nil {
+			return fmt.Errorf("unable to setup the networking module: %w", err)
 		}
 	}
 
 	// AUTHENTICATION MODULE
-	if *authenticationEnabled {
+	if opts.AuthenticationEnabled {
 		var idProvider identitymanager.IdentityProvider
-		if awsConfig.IsEmpty() {
-			idProvider = identitymanager.NewCertificateIdentityProvider(ctx,
+		if opts.AWSConfig.IsEmpty() {
+			idProvider = identitymanager.NewCertificateIdentityProvider(cmd.Context(),
 				mgr.GetClient(), clientset, config, clusterID, namespaceManager)
 		} else {
-			idProvider = identitymanager.NewIAMIdentityProvider(ctx,
-				mgr.GetClient(), clientset, clusterID, &awsConfig, namespaceManager)
-		}
-		opts := &modules.AuthOption{
-			IdentityProvider:         idProvider,
-			NamespaceManager:         namespaceManager,
-			LocalClusterID:           clusterID,
-			LiqoNamespace:            *liqoNamespace,
-			APIServerAddressOverride: apiServerAddressOverride,
-			CAOverrideB64:            caOverride,
-			TrustedCA:                trustedCA,
-			SliceStatusOptions: &remoteresourceslicecontroller.SliceStatusOptions{
-				EnableStorage:             *enableStorage,
-				LocalRealStorageClassName: *realStorageClassName,
-				IngressClasses:            ingressClasses,
-				LoadBalancerClasses:       loadBalancerClasses,
-				ClusterLabels:             clusterLabels.StringMap,
-				DefaultResourceQuantity:   defaultNodeResources.ToResourceList(),
-			},
+			idProvider = identitymanager.NewIAMIdentityProvider(cmd.Context(),
+				mgr.GetClient(), clientset, clusterID, opts.AWSConfig, namespaceManager)
 		}
 
-		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, opts); err != nil {
-			klog.Errorf("Unable to setup the authentication module: %v", err)
-			os.Exit(1)
+		authOpts := modules.NewAuthOption(idProvider, namespaceManager, clusterID, opts)
+
+		if err := modules.SetupAuthenticationModule(cmd.Context(), mgr, uncachedClient, authOpts); err != nil {
+			return fmt.Errorf("unable to setup the authentication module: %w", err)
 		}
 	}
 
 	// OFFLOADING MODULE
-	if *offloadingEnabled {
-		opts := &modules.OffloadingOption{
-			Clientset:                   clientset,
-			LocalClusterID:              clusterID,
-			NamespaceManager:            namespaceManager,
-			EnableStorage:               *enableStorage,
-			VirtualStorageClassName:     *virtualStorageClassName,
-			RealStorageClassName:        *realStorageClassName,
-			StorageNamespace:            *storageNamespace,
-			EnableNodeFailureController: *enableNodeFailureController,
-			ShadowPodWorkers:            *shadowPodWorkers,
-			ShadowEndpointSliceWorkers:  *shadowEndpointSliceWorkers,
-			ResyncPeriod:                *resyncPeriod,
-		}
+	if opts.OffloadingEnabled {
+		offOpts := modules.NewOffloadingOption(clientset, clusterID, namespaceManager, opts)
 
-		if err := modules.SetupOffloadingModule(ctx, mgr, opts); err != nil {
-			klog.Errorf("Unable to setup the offloading module: %v", err)
-			os.Exit(1)
+		if err := modules.SetupOffloadingModule(cmd.Context(), mgr, offOpts); err != nil {
+			return fmt.Errorf("unable to setup the offloading module: %w", err)
 		}
 	}
 
 	// CROSS MODULE OPERATORS
 
 	// AUTHENTICATION MODULE & OFFLOADING MODULE
-	if *authenticationEnabled && *offloadingEnabled {
+	if opts.AuthenticationEnabled && opts.OffloadingEnabled {
 		// Configure controller that create virtualnodes from resourceslices.
 		vnCreatorReconciler := virtualnodecreatorcontroller.NewVirtualNodeCreatorReconciler(
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("virtualnodecreator-controller"))
 		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to setup the virtualnodecreator reconciler: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("unable to setup the virtualnodecreator reconciler: %w", err)
 		}
 
 		// Configure controller that create quotas from resourceslices.
 		quotaCreatorReconciler := quotacreatorcontroller.NewQuotaCreatorReconciler(
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("quotacreator-controller"),
-			offloadingv1beta1.LimitsEnforcement(*defaultLimitsEnforcement))
+			offloadingv1beta1.LimitsEnforcement(opts.DefaultLimitsEnforcement))
 		if err := quotaCreatorReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to setup the quotacreator reconciler: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("unable to setup the quotacreator reconciler: %w", err)
 		}
 	}
 
 	// OFFLOADING MODULE & NETWORKING MODULE
-	if *offloadingEnabled && *networkingEnabled {
+	if opts.OffloadingEnabled && opts.NetworkingEnabled {
 		offloadedPodReconciler := ipmapping.NewOffloadedPodReconciler(
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("offloadedpod-controller"),
 		)
 		if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to start the offloadedPod reconciler: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("unable to start the offloadedPod reconciler: %w", err)
 		}
 
 		configurationReconciler := ipmapping.NewConfigurationReconciler(
@@ -402,46 +259,43 @@ func main() {
 			mgr.GetEventRecorderFor("configuration-controller"),
 		)
 		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to start the configuration reconciler: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("unable to start the configuration reconciler: %w", err)
 		}
 
-		if *enableAPIServerIPRemapping {
-			if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
-				klog.Errorf("Unable to enforce the API server IP remapping: %v", err)
-				os.Exit(1)
+		if opts.EnableAPIServerIPRemapping {
+			if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
+				return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
 			}
 		}
 
-		if err := ipamips.EnforceAPIServerProxyIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
-			klog.Errorf("Unable to enforce the API server proxy IP remapping: %v", err)
-			os.Exit(1)
+		if err := ipamips.EnforceAPIServerProxyIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
+			return fmt.Errorf("unable to enforce the API server proxy IP remapping: %w", err)
 		}
 	}
 
 	// CORE OPERATORS
 	// Configure the foreigncluster controller.
-	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterID, namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(cmd.Context(), mgr.GetClient(), clientset, mgr.GetConfig(), clusterID, namespaceManager)
 	foreignClusterReconciler := &foreignclustercontroller.ForeignClusterReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
-		ResyncPeriod: *resyncPeriod,
+		ResyncPeriod: opts.ResyncPeriod,
 
-		NetworkingEnabled:     *networkingEnabled,
-		AuthenticationEnabled: *authenticationEnabled,
-		OffloadingEnabled:     *offloadingEnabled,
+		NetworkingEnabled:     opts.NetworkingEnabled,
+		AuthenticationEnabled: opts.AuthenticationEnabled,
+		OffloadingEnabled:     opts.OffloadingEnabled,
 
-		APIServerCheckers: foreignclustercontroller.NewAPIServerCheckers(idManager, *foreignClusterPingInterval, *foreignClusterPingTimeout),
+		APIServerCheckers: foreignclustercontroller.NewAPIServerCheckers(idManager, opts.ForeignClusterPingInterval, opts.ForeignClusterPingTimeout),
 	}
-	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
-		klog.Errorf("Unable to setup the foreigncluster reconciler: %v", err)
-		os.Exit(1)
+	if err = foreignClusterReconciler.SetupWithManager(mgr, opts.ForeignClusterWorkers); err != nil {
+		return fmt.Errorf("unable to setup the foreigncluster reconciler: %w", err)
 	}
 
 	// Start the manager.
 	klog.Info("starting manager as controller manager")
-	if err := mgr.Start(ctx); err != nil {
-		klog.Error(err)
-		os.Exit(1)
+	if err := mgr.Start(cmd.Context()); err != nil {
+		return fmt.Errorf("unable to start the manager: %w", err)
 	}
+
+	return nil
 }
