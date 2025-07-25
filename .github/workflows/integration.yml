@@ -211,9 +211,9 @@ jobs:
       - name: Forge build result
         id: forge_build_result
         run: |
-          if [[ "${{ needs.build-standard.result }}" == "success" && "${{ needs.build-go.result }}" == "success" ]]; then
+          if [[ "${{ needs.build-standard.result }}" == "success" && "${{ needs.build-go.result }}" == "success" && "${{ needs.liqoctl.result }}" == "success" ]]; then
             echo "result=success" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.build-standard.result }}" == "cancelled" || "${{ needs.build-go.result }}" == "cancelled" ]]; then
+          elif [[ "${{ needs.build-standard.result }}" == "cancelled" || "${{ needs.build-go.result }}" == "cancelled" || "${{ needs.liqoctl.result }}" == "cancelled" ]]; then
             echo "result=cancelled" >> $GITHUB_OUTPUT
           else
             echo "result=failure" >> $GITHUB_OUTPUT
