@@ -258,7 +258,7 @@ jobs:
     strategy:
       matrix:
         goos: [linux, windows, darwin]
-        goarch: ${{ (startsWith(github.ref, 'refs/tags/v') || github.ref_name == 'master') && '[arm64, amd64, arm]' || '[amd64]' }}
+        goarch: [amd64, arm64, arm]
         exclude:
           - goarch: arm64
             goos: windows
