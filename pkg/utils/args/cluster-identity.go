@@ -43,7 +43,7 @@ var _ flag.Value = &ClusterIDFlags{}
 //	fcFlags := NewClusterIDFlags(false, nil)
 //	flag.Parse()
 //	foreignClusterID := fcFlags.Read()
-func NewClusterIDFlags(local bool, flags *pflag.FlagSet) ClusterIDFlags {
+func NewClusterIDFlags(local bool, flags *pflag.FlagSet) *ClusterIDFlags {
 	var prefix, description string
 	if local {
 		prefix = "cluster" //nolint:goconst // No need to make the word "cluster" a const...
@@ -55,7 +55,7 @@ func NewClusterIDFlags(local bool, flags *pflag.FlagSet) ClusterIDFlags {
 	if flags == nil {
 		flags = pflag.CommandLine
 	}
-	return ClusterIDFlags{
+	return &ClusterIDFlags{
 		local:     local,
 		ClusterID: flags.String(fmt.Sprintf("%s-id", prefix), "", fmt.Sprintf(description, "ID")),
 	}
