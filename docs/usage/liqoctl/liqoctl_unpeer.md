@@ -51,6 +51,10 @@ liqoctl unpeer [flags]
 
 >Delete the tenant namespace after unpeering
 
+`--force-with-cluster-id` _string_:
+
+>Force unpeering only on the local cluster even if the remote cluster is unreachable
+
 `--kubeconfig` _string_:
 
 >Path to the kubeconfig file to use for CLI requests

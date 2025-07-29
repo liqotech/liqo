@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
@@ -25,6 +27,8 @@ import (
 type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
+
+	ForceClusterID string
 
 	Timeout time.Duration
 	Wait    bool
@@ -51,25 +55,38 @@ func (o *Options) RunUnauthenticate(ctx context.Context) error {
 		return err
 	}
 
-	// Create and initialize cluster provider.
-	provider := NewCluster(o.RemoteFactory)
-	if err := provider.SetLocalClusterID(ctx); err != nil {
-		return err
-	}
+	if o.ForceClusterID == "" {
+		// Create and initialize cluster provider.
+		provider := NewCluster(o.RemoteFactory)
+		if err := provider.SetLocalClusterID(ctx); err != nil {
+			return err
+		}
 
-	// Check if any resourceslice is still present on consumer cluster
-	if err := consumer.CheckLeftoverResourceSlices(ctx, provider.localClusterID); err != nil {
-		return err
-	}
+		// Check if any resourceslice is still present on consumer cluster
+		if err := consumer.CheckLeftoverResourceSlices(ctx, provider.localClusterID); err != nil {
+			return err
+		}
 
-	// Delete control plane Identity on consumer cluster
-	if err := consumer.DeleteControlPlaneIdentity(ctx, provider.localClusterID); err != nil {
-		return err
-	}
+		// Delete control plane Identity on consumer cluster
+		if err := consumer.DeleteControlPlaneIdentity(ctx, provider.localClusterID); err != nil {
+			return err
+		}
 
-	// Delete tenant on provider cluster
-	if err := provider.DeleteTenant(ctx, consumer.localClusterID); err != nil {
-		return err
+		// Delete tenant on provider cluster
+		if err := provider.DeleteTenant(ctx, consumer.localClusterID); err != nil {
+			return err
+		}
+	} else {
+
+		// Check if any resourceslice is still present on consumer cluster
+		if err := consumer.CheckLeftoverResourceSlices(ctx, liqov1beta1.ClusterID(o.ForceClusterID)); err != nil {
+			return err
+		}
+
+		// Delete control plane Identity on consumer cluster
+		if err := consumer.DeleteControlPlaneIdentity(ctx, liqov1beta1.ClusterID(o.ForceClusterID)); err != nil {
+			return err
+		}
 	}
 
 	return nil

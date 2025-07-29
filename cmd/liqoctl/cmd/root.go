@@ -154,13 +154,18 @@ func singleClusterPersistentPreRun(_ *cobra.Command, f *factory.Factory, opts ..
 // twoClustersPersistentPreRun initializes both the local and the remote factory.
 func twoClustersPersistentPreRun(cmd *cobra.Command, local, remote *factory.Factory, opts ...factory.Options) {
 	// Initialize the local factory fields based on the configured parameters.
+
 	singleClusterPersistentPreRun(cmd, local, opts...)
 
 	// Populate the remote factory fields based on the configured parameters.
 	remote.Printer.CheckErr(remote.Initialize(opts...))
 
-	// Check that local and remote clusters are different.
-	if reflect.DeepEqual(local.RESTConfig, remote.RESTConfig) {
-		local.Printer.CheckErr(fmt.Errorf("local and remote clusters must be different"))
+	ForceClusterID, _ := cmd.Flags().GetString("ForceClusterID")
+
+	if ForceClusterID == "" {
+		// Check that local and remote clusters are different.
+		if reflect.DeepEqual(local.RESTConfig, remote.RESTConfig) {
+			local.Printer.CheckErr(fmt.Errorf("local and remote clusters must be different"))
+		}
 	}
 }

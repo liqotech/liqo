@@ -66,10 +66,14 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	local, err := resource.local.Get(key.name)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			klog.Infof("[%v] Deleting remote %v with name %v, since the local one does no longer exist",
-				r.remoteClusterID, key.gvr, key.name)
-			defer tracer.Step("Ensured the absence of the remote object")
-			_, err = r.deleteRemoteObject(ctx, resource, key)
+
+			if !r.ForceUnpeering {
+				klog.Infof("[%v] Deleting remote %v with name %v, since the local one does no longer exist",
+					r.remoteClusterID, key.gvr, key.name)
+				defer tracer.Step("Ensured the absence of the remote object")
+				_, err = r.deleteRemoteObject(ctx, resource, key)
+			}
+
 			return err
 		}
 		klog.Errorf("[%v] Failed to retrieve local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
@@ -95,18 +99,36 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 
 	// Check if the local resource has been marked for deletion
 	if !localUnstr.GetDeletionTimestamp().IsZero() {
-		klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
-		vanished, err := r.deleteRemoteObject(ctx, resource, key)
-		if err != nil {
-			return err
+		// If force-unpeer is set, skip remote deletion and remove finalizer locally
+		if value, ok := localUnstr.GetAnnotations()["liqo.io/force-unpeer"]; ok && value == "true" {
+			r.ForceUnpeering = true
 		}
-		tracer.Step("Ensured the absence of the remote object")
 
-		// Remove the finalizer from the local resource, if the remote one does no longer exist.
-		if vanished {
+		// If the force-unpeer annotation is set, we remove the finalizer locally without deleting the remote resource
+		if r.ForceUnpeering {
+			klog.Infof("[%v] Force-unpeer enabled: removing finalizer from local %v %q without deleting remote", r.remoteClusterID, key.gvr, key.name)
+
 			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.RemoveFinalizer)
-			tracer.Step("Ensured the local finalizer absence")
-			return err
+			if err != nil {
+				klog.Errorf("[%v] Failed to remove finalizer from local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+				return err
+			}
+
+			return nil
+		} else {
+			klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
+			vanished, err := r.deleteRemoteObject(ctx, resource, key)
+			if err != nil {
+				return err
+			}
+			tracer.Step("Ensured the absence of the remote object")
+
+			// Remove the finalizer from the local resource, if the remote one does no longer exist.
+			if vanished {
+				_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.RemoveFinalizer)
+				tracer.Step("Ensured the local finalizer absence")
+				return err
+			}
 		}
 
 		return nil
@@ -256,7 +278,6 @@ func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Inte
 	return nil
 }
 
-// deleteRemoteObject deletes a given object from the remote cluster.
 func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
 	if _, err := resource.remote.Get(key.name); err != nil {
 		if kerrors.IsForbidden(err) {
@@ -267,6 +288,7 @@ func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedR
 			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
 			return true, nil
 		}
+
 		klog.Errorf("[%v] Failed to retrieve remote object %v %s: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return false, err
 	}
