@@ -13,4 +13,4 @@
 // limitations under the License.
 
 // Package utils contains utility functions for the networking module.
-package utils
+package utils //nolint:revive // we want to use this package name

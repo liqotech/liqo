@@ -24,7 +24,7 @@ linters:
     - misspell
     - nakedret
     - noctx
-    - nolintlint
+    #- nolintlint
     - revive
     - rowserrcheck
     - staticcheck

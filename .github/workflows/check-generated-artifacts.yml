@@ -20,7 +20,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Run the automatic generation
         working-directory: ./

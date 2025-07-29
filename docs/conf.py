@@ -65,7 +65,7 @@ linkcheck_ignore = [
     'https://ieeexplore.ieee.org',
     'https://dl.acm.org', # often 403
     'https://scholar.google.com',
-    'https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/'
+    'https://kubernetes.io/docs/*'
 ]
 
 

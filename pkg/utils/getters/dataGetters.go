@@ -180,3 +180,18 @@ func RetrieveClusterIDsFromObjectsLabels[T metav1.Object](objectList []T) []stri
 	}
 	return slices.Collect(maps.Keys(clusterIDs))
 }
+
+// RetrieveRemoteClusterIDFromMeta retrieves the remote cluster ID from the labels of a generic kubernetes object.
+func RetrieveRemoteClusterIDFromMeta(meta *metav1.ObjectMeta) (liqov1beta1.ClusterID, error) {
+	labels := meta.GetLabels()
+	if labels == nil {
+		return "", fmt.Errorf("object %s/%s has no labels", meta.GetNamespace(), meta.GetName())
+	}
+
+	clusterID, ok := labels[liqoconsts.RemoteClusterID]
+	if !ok || clusterID == "" {
+		return "", fmt.Errorf("object %s/%s has no remote cluster ID label", meta.GetNamespace(), meta.GetName())
+	}
+
+	return liqov1beta1.ClusterID(clusterID), nil
+}
