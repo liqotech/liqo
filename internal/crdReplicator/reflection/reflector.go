@@ -154,14 +154,8 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 		// Start the informer, and wait for its caches to sync
 		factory.Start(ctx.Done())
-		synced := factory.WaitForCacheSync(ctx.Done())
 
-		if !synced[gvr] {
-			// The context was closed before the cache was ready, let abort the setup
-			return
-		}
-
-		// The informer has synced, and we are now ready to start te replication
+		// The informer has synced, and we are now ready to start the replication
 		klog.Infof("[%v] Reflection of %v correctly started", r.remoteClusterID, gvr)
 		r.manager.registerHandler(gvr, r.localNamespace, func(key item) { r.workqueue.Add(key) })
 
@@ -180,50 +174,19 @@ func (r *Reflector) StopForResource(resource *resources.Resource) error {
 }
 
 func (r *Reflector) stop(skipResourcePresenceCheck bool) error {
-	// r.mu.Lock()
-	// defer r.mu.Unlock()
-
-	// klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
-
-	// for gvr := range r.resources {
-	// 	if err := r.stopForResource(gvr, skipResourcePresenceCheck); err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// // if !r.ForceUnpeering {
-	// r.cancel()
-	// // } else {
-	// // 	for _, res := range r.resources {
-	// // 		res.cancel()
-	// // 	}
-	// // 	r.resources = map[schema.GroupVersionResource]*reflectedResource{}
-
-	// // 	if r.cancel != nil {
-	// // 		r.cancel()
-	// // 	}
-	// // }
-	// return nil
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
 
-	// var errs []error
 	for gvr := range r.resources {
 		if err := r.stopForResource(gvr, skipResourcePresenceCheck); err != nil {
-			// errs = append(errs, err)
 			return err
 		}
 	}
 
 	r.cancel()
-
-	// if len(errs) > 0 {
-	// 	// Restituisci tutti gli errori concatenati, oppure solo il primo
-	// 	return fmt.Errorf("ERRORS STOPPING RESOURCES: %v", errs)
-	// }
 	return nil
 }
 

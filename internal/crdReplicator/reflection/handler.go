@@ -16,12 +16,9 @@ package reflection
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 	"reflect"
 	"strconv"
-	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +49,6 @@ type item struct {
 	name string
 }
 
-// QUI PER PROBLEMI DELLA REFLECTION RIGUARDANTI UNPEER
 // handle is the reconciliation function which is executed to reflect an object.
 func (r *Reflector) handle(ctx context.Context, key item) error {
 	tracer := trace.New("Handle", trace.Field{Key: "RemoteClusterID", Value: r.remoteClusterID},
@@ -104,52 +100,28 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	// Check if the local resource has been marked for deletion
 	if !localUnstr.GetDeletionTimestamp().IsZero() {
 		// If force-unpeer is set, skip remote deletion and remove finalizer locally
-		value, ok := localUnstr.GetAnnotations()["liqo.io/force-unpeer"]
-
-		if ok && value == "true" {
+		if value, ok := localUnstr.GetAnnotations()["liqo.io/force-unpeer"]; ok && value == "true" {
 			r.ForceUnpeering = true
 		}
+
 		// If the force-unpeer annotation is set, we remove the finalizer locally without deleting the remote resource
 		if r.ForceUnpeering {
 			klog.Infof("[%v] Force-unpeer enabled: removing finalizer from local %v %q without deleting remote", r.remoteClusterID, key.gvr, key.name)
 
-			// Ensure the finalizer is removed from the local resource
-			finalizers := localUnstr.GetFinalizers()
-			// Rimuovi la finalizer specifica se presente
-			newFinalizers := []string{}
-			for _, f := range finalizers {
-				if f != "crdreplicator.liqo.io/resource" {
-					newFinalizers = append(newFinalizers, f)
-				}
-			}
-			localUnstr.SetFinalizers(newFinalizers)
-
-			// Aggiorna la risorsa senza la finalizer usando il dynamic client
-			_, err := r.manager.client.Resource(key.gvr).Namespace(localUnstr.GetNamespace()).Update(ctx, localUnstr, metav1.UpdateOptions{})
+			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.RemoveFinalizer)
 			if err != nil {
-				klog.Errorf("[%v] Errore nella rimozione della finalizer da %v/%v: %v", r.remoteClusterID, localUnstr.GetNamespace(), localUnstr.GetName(), err)
+				klog.Errorf("[%v] Failed to remove finalizer from local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
 				return err
 			}
-			klog.Infof("[%v] Finalizer rimossa da %v/%v", r.remoteClusterID, localUnstr.GetNamespace(), localUnstr.GetName())
-
-			// _, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.RemoveFinalizer)
-			// if err != nil {
-			// 	klog.Errorf("[%v] Failed to remove finalizer from local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
-			// 	return err
-			// }
 
 			return nil
 		} else {
-
-			// var vanished bool = false
-			// if !r.ForceUnpeering {
 			klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
 			vanished, err := r.deleteRemoteObject(ctx, resource, key)
 			if err != nil {
 				return err
 			}
 			tracer.Step("Ensured the absence of the remote object")
-			// }
 
 			// Remove the finalizer from the local resource, if the remote one does no longer exist.
 			if vanished {
@@ -157,8 +129,6 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 				tracer.Step("Ensured the local finalizer absence")
 				return err
 			}
-
-			klog.Infof("[%v] Remote resource still exists and force-unpeer not set; skipping finalizer removal", r.remoteClusterID)
 		}
 
 		return nil
@@ -308,36 +278,6 @@ func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Inte
 	return nil
 }
 
-// deleteRemoteObject deletes a given object from the remote cluster.
-// func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
-// 	if _, err := resource.remote.Get(key.name); err != nil {
-// 		if kerrors.IsForbidden(err) {
-// 			klog.Infof("[%v] Cannot retrieve remote %v with name %v (permission removed by provider)", r.remoteClusterID, key.gvr, key.name)
-// 			return true, nil
-// 		}
-// 		if kerrors.IsNotFound(err) {
-// 			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
-// 			return true, nil
-// 		}
-
-// 		klog.Errorf("[%v] Failed to retrieve remote object %v %s: %v", r.remoteClusterID, key.gvr, key.name, err)
-// 		return false, err
-// 	}
-
-// 	err = r.remoteClient.Resource(key.gvr).Namespace(r.remoteNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
-// 	if err != nil && !kerrors.IsNotFound(err) {
-// 		if isNetworkError(err) {
-// 			klog.Warningf("[%v] Remote cluster unreachable while deleting %v with name %v: %v. Assuming vanished.", r.remoteClusterID, key.gvr, key.name, err)
-// 			return true, nil
-// 		}
-// 		klog.Errorf("[%v] Failed to delete remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
-// 		return false, err
-// 	}
-
-// 	klog.Infof("[%v] Remote %v with name %v successfully deleted", r.remoteClusterID, key.gvr, key.name)
-// 	return kerrors.IsNotFound(err), nil
-// }
-
 func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
 	if _, err := resource.remote.Get(key.name); err != nil {
 		if kerrors.IsForbidden(err) {
@@ -349,24 +289,12 @@ func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedR
 			return true, nil
 		}
 
-		// Gestione errore di rete
-		// klog.Warningf("[%v] FORCE VALUE: ", r.ForceUnpeering)
-		if isNetworkError(err) && r.ForceUnpeering {
-			klog.Warningf("[%v] Remote cluster unreachable while deleting %v with name %v: %v. Assuming vanished.", r.remoteClusterID, key.gvr, key.name, err)
-			return true, nil
-		}
-
 		klog.Errorf("[%v] Failed to retrieve remote object %v %s: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return false, err
 	}
 
 	err = r.remoteClient.Resource(key.gvr).Namespace(r.remoteNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
-		// Gestione errore di rete durante la delete
-		if isNetworkError(err) && r.ForceUnpeering {
-			klog.Warningf("[%v] Remote cluster unreachable while deleting %v with name %v: %v. Assuming vanished.", r.remoteClusterID, key.gvr, key.name, err)
-			return true, nil
-		}
 		klog.Errorf("[%v] Failed to delete remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return false, err
 	}
@@ -470,19 +398,4 @@ func (r *Reflector) processNextWorkItem() bool {
 	// get queued again until another change happens.
 	r.workqueue.Forget(key)
 	return true
-}
-
-func isNetworkError(err error) bool {
-	if err == nil {
-		return false
-	}
-	// Cerca errori comuni di rete nella stringa
-	if strings.Contains(err.Error(), "no route to host") ||
-		strings.Contains(err.Error(), "connection refused") ||
-		strings.Contains(err.Error(), "i/o timeout") {
-		return true
-	}
-	// Oppure controlla se è un net.OpError
-	var netErr *net.OpError
-	return errors.As(err, &netErr)
 }

@@ -70,7 +70,7 @@ type Controller struct {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list;watch
 
@@ -84,7 +84,6 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	tracer := trace.New("Reconcile", trace.Field{Key: "Secret", Value: req.Name})
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
-	//NELKL'UNPEER SI FERMA QUI
 	var secret corev1.Secret
 	if err := c.Get(ctx, req.NamespacedName, &secret); err != nil {
 		if errors.IsNotFound(err) {
@@ -108,7 +107,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	localTenantNamespace := secret.Namespace
 	remoteTenantNamespace := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
 
-	// examine DeletionTimestamp to determine if object is under deletion
+	// Examine DeletionTimestamp to determine if object is under deletion
 	if !secret.ObjectMeta.DeletionTimestamp.IsZero() {
 
 		if reflector, found := c.Reflectors[remoteClusterID]; found {
@@ -116,34 +115,19 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 				c.ForceUnpeering = true
 			}
 		}
-		// the object is being deleted
+		// The object is being deleted
 		if controllerutil.ContainsFinalizer(&secret, finalizer) {
-			// close remote watcher for remote cluster
+			// Close remote watcher for remote cluster
 			if err := c.stopReflector(remoteClusterID, false); err != nil {
 				klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
 				return ctrl.Result{}, err
 			}
 
-			// In caso di force-unpeer, pulisci tutte le risorse locali replicate
-			// if c.ForceUnpeering {
-			// 	if err := c.cleanupLocalReplicatedResources(ctx, string(remoteClusterID)); err != nil {
-			// 		klog.Errorf("Failed to cleanup local replicated resources for %q: %v", remoteClusterID, err)
-			// 		// Non bloccare la rimozione del finalizer, logga solo
-			// 	}
-			// }
-
-			// remove the finalizer from the list and update it.
-			// Defer the function to start/stop the reflection of the different resources.
-			// defer func() {
-			// 	if err == nil {
-			// 		err = c.enforceReflectionStatus(ctx, remoteClusterID, !secret.GetDeletionTimestamp().IsZero())
-			// 	}
-			// }()
-
 			if err := c.ensureFinalizer(ctx, &secret, controllerutil.RemoveFinalizer); err != nil {
 				klog.Errorf("An error occurred while removing the finalizer to %q: %v", req.NamespacedName, err)
 				return ctrl.Result{}, err
 			}
+
 			return ctrl.Result{}, nil
 		}
 	}

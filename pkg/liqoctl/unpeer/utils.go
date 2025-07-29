@@ -50,35 +50,14 @@ func deleteResourceSlicesByClusterID(ctx context.Context, f *factory.Factory,
 		s.Success("No resourceslices found")
 	default:
 
-		if forceClusterId != "" {
-			for i := range resourceSlices {
-				rs := &resourceSlices[i]
-				if len(rs.Finalizers) > 0 {
-					rs.Finalizers = nil
-					err = f.CRClient.Update(ctx, rs)
-					if err != nil {
-						s.Fail("Error while updating finalizers from resourceslice ", client.ObjectKeyFromObject(rs), ": ", output.PrettyErr(err))
-						return err
-					}
-				}
-				err = f.CRClient.Delete(ctx, rs)
-				if err != nil {
-					s.Fail("Error while deleting resourceslice ", client.ObjectKeyFromObject(rs), ": ", output.PrettyErr(err))
-					return err
-				}
-			}
-		} else {
-			for i := range resourceSlices {
-				if err := client.IgnoreNotFound(f.CRClient.Delete(ctx, &resourceSlices[i])); err != nil {
-					s.Fail("Error while deleting resourceslice ", client.ObjectKeyFromObject(&resourceSlices[i]), ": ", output.PrettyErr(err))
-					return err
-				}
+		for i := range resourceSlices {
+			if err := client.IgnoreNotFound(f.CRClient.Delete(ctx, &resourceSlices[i])); err != nil {
+				s.Fail("Error while deleting resourceslice ", client.ObjectKeyFromObject(&resourceSlices[i]), ": ", output.PrettyErr(err))
+				return err
 			}
 		}
 
 		s.Success("All resourceslices deleted")
-
-		//DEVO METTERE IL CASO IN CUI SE INSERISCO LA FLAG --FORCE ALLORA NON DEVE CONTATTARE IL CLUSTER REMOTO
 
 		if waitForActualDeletion {
 			// wait for all resourceslices to be deleted
@@ -93,6 +72,7 @@ func deleteResourceSlicesByClusterID(ctx context.Context, f *factory.Factory,
 	return nil
 }
 
+// deleteVirtualNodesByClusterID removes all virtual nodes associated with a specific remote cluster.
 func deleteVirtualNodesByClusterID(ctx context.Context, f *factory.Factory,
 	remoteClusterID liqov1beta1.ClusterID, waitForActualDeletion bool) error {
 	s := f.Printer.StartSpinner("Deleting virtualnodes")
@@ -126,6 +106,8 @@ func deleteVirtualNodesByClusterID(ctx context.Context, f *factory.Factory,
 	return nil
 }
 
+// Adds the force-unpeer annotation to all Liqo resources belonging to the specified remote cluster and then deletes them.
+// This function is used during forced unpeering operations to ensure proper cleanup of NamespaceMap and NamespaceOffloading resources.
 func ForceAnnotateAndDeleteAllLiqoResources(ctx context.Context, f *factory.Factory, remoteClusterID liqov1beta1.ClusterID) error {
 	// NamespaceMap
 	nsMapList := &offv1beta1.NamespaceMapList{}
