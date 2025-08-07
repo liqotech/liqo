@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +45,9 @@ import (
 
 // Reflector represents an object managing the reflection of resources towards a given remote cluster.
 type Reflector struct {
-	mu sync.RWMutex
+	// RemoteReachable indicates whether the remote cluster is reachable or if it is dead and will never come up.
+	RemoteReachable atomic.Bool
+	mu              sync.RWMutex
 
 	manager        *Manager
 	localNamespace string
@@ -67,8 +70,9 @@ type reflectedResource struct {
 	gvr       schema.GroupVersionResource
 	ownership consts.OwnershipType
 
-	local  cache.GenericNamespaceLister
-	remote cache.GenericNamespaceLister
+	informer cache.SharedIndexInformer
+	local    cache.GenericNamespaceLister
+	remote   cache.GenericNamespaceLister
 
 	cancel      context.CancelFunc
 	initialized bool
@@ -86,6 +90,7 @@ func (r *Reflector) GetSecretHash() string {
 
 // Start starts the reflection towards the remote cluster.
 func (r *Reflector) Start(ctx context.Context) {
+	r.RemoteReachable.Store(true)
 	ctx, r.cancel = context.WithCancel(ctx)
 	klog.Infof("[%v] Starting reflection towards remote cluster", r.remoteClusterID)
 	for i := uint(0); i < r.manager.workers; i++ {
@@ -139,8 +144,9 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		gvr:       gvr,
 		ownership: resource.Ownership,
 
-		local:  r.manager.listers[gvr].ByNamespace(r.localNamespace),
-		remote: informer.Lister().ByNamespace(r.remoteNamespace),
+		informer: informer.Informer(),
+		local:    r.manager.listers[gvr].ByNamespace(r.localNamespace),
+		remote:   informer.Lister().ByNamespace(r.remoteNamespace),
 
 		cancel: cancel,
 	}
@@ -152,12 +158,6 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 		// Start the informer, and wait for its caches to sync
 		factory.Start(ctx.Done())
-		synced := factory.WaitForCacheSync(ctx.Done())
-
-		if !synced[gvr] {
-			// The context was closed before the cache was ready, let abort the setup
-			return
-		}
 
 		// The informer has synced, and we are now ready to start te replication
 		klog.Infof("[%v] Reflection of %v correctly started", r.remoteClusterID, gvr)
@@ -204,11 +204,19 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource, skipResourc
 	klog.Infof("[%v] Stopping reflection of %v", r.remoteClusterID, gvr)
 
 	if !skipResourcePresenceCheck {
+		localKey := "local"
+		remoteKey := "remote"
 		// Check if any object is still present in the local or in the remote cluster
-		for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
+		for key, lister := range map[string]cache.GenericNamespaceLister{localKey: rs.local, remoteKey: rs.remote} {
 			objects, err := lister.List(labels.Everything())
 
-			if key == "remote" && apierrors.IsForbidden(err) {
+			if key == remoteKey && !r.RemoteReachable.Load() {
+				// The remote cluster is unreachable, so the lister cache is stale and can never drain. Skip the check.
+				klog.Infof("[%v] Skipping remote presence check for %v (remote cluster is unreachable)", r.remoteClusterID, gvr)
+				continue
+			}
+
+			if key == remoteKey && apierrors.IsForbidden(err) {
 				// The remote cluster has probably removed the necessary permissions to operate on reflected resources, let's ignore the error
 				klog.Infof("[%v] Cannot list %v objects in the remote cluster (permission removed by provider).", r.remoteClusterID, gvr)
 				continue

@@ -16,6 +16,7 @@ package virtualnodectrl
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +31,7 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
 
@@ -46,9 +48,25 @@ func drainNode(ctx context.Context, cl client.Client, vn *offloadingv1beta1.Virt
 		return err
 	}
 
-	if err = evictPods(ctx, cl, podsToEvict); err != nil {
+	// Check the foreign cluster status
+	fc, err := foreigncluster.GetForeignClusterByID(ctx, cl, vn.Spec.ClusterID)
+	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Error(err)
-		return err
+		return fmt.Errorf("failed to get foreign cluster %q: %w", vn.Spec.ClusterID, err)
+	}
+
+	// Check whether foreigncluster is dead. If fc is nil, we assume the foreign cluster is dead.
+	if dead, msg := foreigncluster.IsDead(fc); dead {
+		klog.Infof("Force pod deletion: foreign cluster %q is dead: %s", vn.Spec.ClusterID, msg)
+		if err := forcePodsDeletion(ctx, cl, podsToEvict); err != nil {
+			klog.Error(err)
+			return fmt.Errorf("failed to force deletion of pods on virtual node %q: %w", vn.Name, err)
+		}
+	} else {
+		if err = evictPods(ctx, cl, podsToEvict); err != nil {
+			klog.Error(err)
+			return err
+		}
 	}
 
 	return nil
@@ -109,6 +127,22 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 	}
 
 	klog.V(4).Infof("Drain node %s -> pod %v/%v eviction started", pod.Spec.NodeName, pod.Namespace, pod.Name)
+
+	return nil
+}
+
+func forcePodsDeletion(ctx context.Context, cl client.Client, podList *corev1.PodList) error {
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		klog.Infof("Force deletion of pod %s/%s", pod.Namespace, pod.Name)
+
+		if err := cl.Delete(ctx, pod, &client.DeleteOptions{
+			GracePeriodSeconds: new(int64), // Delete immediately orphan pod.
+		}); err != nil && !kerrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete pod %s/%s: %v", pod.Namespace, pod.Name, err)
+			return err
+		}
+	}
 
 	return nil
 }

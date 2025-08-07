@@ -73,6 +73,7 @@ var _ = Describe("Reflector tests", func() {
 		manager = NewManager(local, localClusterID, workers, 0)
 		manager.Start(ctx, []resources.Resource{res})
 		reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace, "")
+		reflector.RemoteReachable.Store(true)
 	})
 
 	AfterEach(func() { cancel() })
