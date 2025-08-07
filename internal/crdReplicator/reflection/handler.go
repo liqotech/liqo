@@ -96,6 +96,7 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	// Check if the local resource has been marked for deletion
 	if !localUnstr.GetDeletionTimestamp().IsZero() {
 		klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
+
 		vanished, err := r.deleteRemoteObject(ctx, resource, key)
 		if err != nil {
 			return err
@@ -117,6 +118,11 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 		return err
 	}
 	tracer.Step("Ensured the local finalizer presence")
+
+	if !resource.informer.HasSynced() {
+		klog.Warningf("[%v] The informer for %v is not synced, skipping remote reconciliation for %v", r.remoteClusterID, key.gvr, key.name)
+		return fmt.Errorf("the informer for %v is not synced, skipping remote reconciliation for %v", key.gvr, key.name)
+	}
 
 	// Retrieve the resource from the remote cluster
 	remote, err := resource.remote.Get(key.name)
@@ -258,6 +264,11 @@ func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Inte
 
 // deleteRemoteObject deletes a given object from the remote cluster.
 func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
+	if !r.RemoteReachable.Load() {
+		klog.Warningf("[%v] Remote cluster is marked as dead, skipping deletion of %v with name %v", r.remoteClusterID, key.gvr, key.name)
+		return true, nil
+	}
+
 	if _, err := resource.remote.Get(key.name); err != nil {
 		if kerrors.IsForbidden(err) {
 			klog.Infof("[%v] Cannot retrieve remote %v with name %v (permission removed by provider)", r.remoteClusterID, key.gvr, key.name)
