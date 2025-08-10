@@ -19,4 +19,5 @@ check_requirements
 delete_clusters "$CLUSTER_NAME_1" "$CLUSTER_NAME_2"
 
 create_cluster "$CLUSTER_NAME_1" "$KUBECONFIG_1" "$LIQO_CLUSTER_CONFIG_YAML"
+sleep 15 
 create_cluster "$CLUSTER_NAME_2" "$KUBECONFIG_2" "$LIQO_CLUSTER_CONFIG_YAML"
