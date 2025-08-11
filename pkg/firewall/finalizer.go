@@ -24,17 +24,21 @@ import (
 
 const (
 	// firewallConfigurationsControllerFinalizer is the finalizer added to virtual-node to allow the controller to clean up.
-	firewallConfigurationsControllerFinalizer = "firewallconfigurations-controller.liqo.io/finalizer"
+	firewallConfigurationsControllerFinalizer = "firewallconfigurations-controller.liqo.io/"
 )
 
+func forgeFinalizer(name string) string {
+	return firewallConfigurationsControllerFinalizer + name
+}
+
 func (r *FirewallConfigurationReconciler) ensureFirewallConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration) error {
-	ctrlutil.AddFinalizer(fwcfg, firewallConfigurationsControllerFinalizer)
+	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration, name string) error {
+	ctrlutil.AddFinalizer(fwcfg, forgeFinalizer(name))
 	return r.Client.Update(ctx, fwcfg)
 }
 
 func (r *FirewallConfigurationReconciler) ensureFirewallConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration) error {
-	ctrlutil.RemoveFinalizer(fwcfg, firewallConfigurationsControllerFinalizer)
+	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration, name string) error {
+	ctrlutil.RemoveFinalizer(fwcfg, forgeFinalizer(name))
 	return r.Client.Update(ctx, fwcfg)
 }
