@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
@@ -303,8 +302,24 @@ func (gr *reflector) handle(ctx context.Context, key types.NamespacedName) error
 // handle dispatches the items to be reconciled based on the resource type and namespace.
 func (gr *reflector) handlers(keyer options.Keyer, filters ...options.EventFilter) cache.ResourceEventHandler {
 	eh := func(ev watch.EventType, obj interface{}) {
+		// Unwrap tombstones for delete events. Informers may pass a
+		// cache.DeletedFinalStateUnknown containing the last known object.
+		if ev == watch.Deleted {
+			switch tombstone := obj.(type) {
+			case cache.DeletedFinalStateUnknown:
+				obj = tombstone.Obj
+			case *cache.DeletedFinalStateUnknown:
+				obj = tombstone.Obj
+			}
+		}
+
 		metadata, err := meta.Accessor(obj)
-		utilruntime.Must(err)
+		if err != nil {
+			// Do not panic: just log and skip this event.
+			klog.Errorf("Failed to get metadata accessor in %v reflector for event %q: obj=%T, err=%v",
+				gr.name, ev, obj, err)
+			return
+		}
 
 		for _, filter := range filters {
 			if filter(ev) {

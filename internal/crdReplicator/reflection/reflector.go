@@ -247,15 +247,29 @@ func (r *Reflector) get(gvr schema.GroupVersionResource) (*reflectedResource, bo
 func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 	eh := func(obj interface{}) {
 		metadata, err := meta.Accessor(obj)
-		utilruntime.Must(err)
+		if err != nil {
+			klog.Errorf("[%v] Failed to get metadata accessor for %v event handler: obj=%T, err=%v", r.remoteClusterID, gvr, obj, err)
+			return
+		}
 
 		r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
+	}
+
+	ehDelete := func(obj interface{}) {
+		// Delete events may come wrapped in a tombstone; unwrap it if needed.
+		switch tombstone := obj.(type) {
+		case cache.DeletedFinalStateUnknown:
+			obj = tombstone.Obj
+		case *cache.DeletedFinalStateUnknown:
+			obj = tombstone.Obj
+		}
+		eh(obj)
 	}
 
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc:    eh,
 		UpdateFunc: func(_, obj interface{}) { eh(obj) },
-		DeleteFunc: eh,
+		DeleteFunc: ehDelete,
 	}
 }
 
