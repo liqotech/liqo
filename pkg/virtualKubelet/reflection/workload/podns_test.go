@@ -275,6 +275,47 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				When("the remote object already exists, but is not managed by the reflection", WhenBodyRemoteNotManagedByReflection())
 
+				When("the local object is in terminal phase Succeeded", func() {
+					BeforeEach(func() {
+						// Mark local as Succeeded and persist.
+						local.Status.Phase = corev1.PodSucceeded
+						UpdatePod(client, &local)
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("should not create a remote shadowpod", func() {
+						Expect(GetShadowPodError(liqoClient, RemoteNamespace, PodName)).To(BeNotFound())
+					})
+				})
+
+				When("the local object is in terminal phase Failed without OffloadingAborted reason and a ShadowPod exists", func() {
+					BeforeEach(func() {
+						// Prepare local Failed with a non-aborted reason and ensure it is stored.
+						local.Status.Phase = corev1.PodFailed
+						local.Status.Reason = "SomeOtherReason"
+						UpdatePod(client, &local)
+
+						// Create a managed ShadowPod.
+						shadow.SetLabels(forge.ReflectionLabels())
+						CreateShadowPod(liqoClient, &shadow)
+
+						// Ensure that any attempt to mutate the ShadowPod would fail the test (should not happen).
+						if c, ok := liqoClient.(*liqoclientfake.Clientset); ok {
+							c.PrependReactor("update", "shadowpods", func(action testing.Action) (bool, runtime.Object, error) {
+								return true, nil, fmt.Errorf("should not call update on shadowpods")
+							})
+							c.PrependReactor("delete", "shadowpods", func(action testing.Action) (bool, runtime.Object, error) {
+								return true, nil, fmt.Errorf("should not call delete on shadowpods")
+							})
+						}
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("should not delete the existing remote shadowpod", func() {
+						Expect(GetShadowPodError(liqoClient, RemoteNamespace, PodName)).ToNot(HaveOccurred())
+					})
+				})
+
 				When("the local object has already the appropriate offloading label", func() {
 					BeforeEach(func() {
 						shouldDenyPodPatches = true
