@@ -305,6 +305,11 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 		return nil
 	}
 
+	// The local pod already failed (terminal), hence no change shall be performed.
+	if local.Status.Phase == corev1.PodFailed {
+		return nil
+	}
+
 	// Otherwise, mark the pod as rejected (either Pending or Failed based on its previous status).
 	phase := corev1.PodPending
 	reason := forge.PodOffloadingBackOffReason
