@@ -27,6 +27,9 @@ type Options struct {
 	namespaceManager tenantnamespace.Manager
 
 	clusterID args.ClusterIDFlags
+	// tlsCompatibilityMode controls key type selection for the generated user.
+	// Accepted values: "auto", "true", "false".
+	tlsCompatibilityMode string
 }
 
 var _ rest.API = &Options{}
