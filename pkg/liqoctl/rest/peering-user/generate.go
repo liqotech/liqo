@@ -17,6 +17,7 @@ package peeringuser
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -25,7 +26,9 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/peering-user/userfactory"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 const liqoctlGeneratePeeringUserHelp = `Generate a new user with the permissions to peer with this cluster.
@@ -56,6 +59,11 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 	}
 
 	cmd.Flags().Var(&o.clusterID, "consumer-cluster-id", "The cluster ID of the cluster from which peering will be performed")
+	cmd.Flags().StringVar(&o.tlsCompatibilityMode, "tls-compatibility-mode", "auto",
+		"TLS compatibility mode for peering-user keys: one of auto,true,false. "+
+			"If set to true keys are generated with a widely supported algorithm (RSA) "+
+			"to ensure compatibility with systems that do not yet support Ed25519 (default) as signature algorithm. "+
+			"When auto, liqoctl attempts to detect the system configuration.")
 
 	runtime.Must(cmd.MarkFlagRequired("consumer-cluster-id"))
 
@@ -70,6 +78,32 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	opts.Printer.Warning.Println("Please take note of this kubeconfig as it is not stored.")
 	opts.Printer.Warning.Printfln("Note that it can only be used to peer with this cluster from a cluster with ID %s", clusterID)
 
+	// Resolve TLS compatibility mode to a boolean.
+	var tlsCompat bool
+	mode := strings.ToLower(strings.TrimSpace(o.tlsCompatibilityMode))
+	switch mode {
+	case "true":
+		tlsCompat = true
+	case "false":
+		tlsCompat = false
+	case "auto", "":
+		// Detect from controller manager args; default to false if not found.
+		ctrlDeployment, err := getters.GetControllerManagerDeployment(ctx, opts.CRClient, opts.LiqoNamespace)
+		if err == nil {
+			if ctrlContainer, e := utils.GetCtrlManagerContainer(ctrlDeployment); e == nil {
+				if v, e := utils.ExtractValuesFromArgumentList("--tls-compatibility-mode", ctrlContainer.Args); e == nil {
+					if v == "" || strings.EqualFold(v, "true") {
+						tlsCompat = true
+					} else {
+						tlsCompat = false
+					}
+				}
+			}
+		}
+	default:
+		return fmt.Errorf("invalid value for --tls-compatibility-mode: %q (allowed: auto,true,false)", o.tlsCompatibilityMode)
+	}
+
 	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, clusterID)
 	if err != nil {
 		wErr := fmt.Errorf("unable to create the tenant namespace: %w", err)
@@ -78,7 +112,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	spinner := opts.Printer.StartSpinner("Generating a user for peering with this cluster")
-	kubeconfig, err := userfactory.GeneratePeerUser(ctx, clusterID, tenantNs.Name, opts.Factory)
+	kubeconfig, err := userfactory.GeneratePeerUser(ctx, clusterID, tenantNs.Name, opts.Factory, tlsCompat)
 	if err != nil {
 		spinner.Fail(err)
 		return err

@@ -11,6 +11,7 @@
 | authentication.awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
 | authentication.awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
 | authentication.enabled | bool | `true` | Enable/Disable the authentication module. |
+| authentication.tlsCompatibilityMode | bool | `false` | Enable TLS compatibility mode for client certificates and keys. If set to true, Liqo will use widely supported algorithm (RSA) instead of Ed25519 (default) for generating private keys and CSRs. Enable this option to ensure compatibility with systems that do not yet support Ed25519 as signature algorithm. |
 | common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
 | common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
 | common.globalAnnotations | object | `{}` | Global annotations to be added to all resources created by Liqo controllers |
