@@ -182,6 +182,10 @@ liqoctl generate peering-user [flags]
 
 >The cluster ID of the cluster from which peering will be performed
 
+`--tls-compatibility-mode` _string_:
+
+>TLS compatibility mode for peering-user keys: one of auto,true,false. When auto, liqoctl attempts to detect the controller manager setting. **(default "auto")**
+
 
 ### Global options
 

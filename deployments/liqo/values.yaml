@@ -141,6 +141,11 @@ networking:
 authentication:
   # -- Enable/Disable the authentication module.
   enabled: true
+  # -- Enable TLS compatibility mode for client certificates and keys.
+  # When true, Liqo will use a widely supported algorithm (e.g., RSA/ECDSA)
+  # for generating private keys and CSRs instead of Ed25519. Keep disabled
+  # by default to preserve current behavior.
+  tlsCompatibilityMode: false
   # AWS-specific configuration for the local cluster and the Liqo user.
   # This user should be able (1) to create new IAM users, (2) to create new programmatic access
   # credentials, and (3) to describe EKS clusters.
