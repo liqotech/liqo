@@ -16,8 +16,11 @@ package authentication
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -33,7 +36,7 @@ import (
 type CSRChecker func(*x509.CertificateRequest) error
 
 // GenerateCSRForResourceSlice generates a new CSR given a private key and a resource slice.
-func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
+func GenerateCSRForResourceSlice(key crypto.PrivateKey,
 	resourceSlice *authv1beta1.ResourceSlice) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameResourceSliceCSR(resourceSlice), OrganizationResourceSliceCSR(resourceSlice))
 }
@@ -64,12 +67,12 @@ func OrganizationResourceSliceCSR(resourceSlice *authv1beta1.ResourceSlice) stri
 }
 
 // GenerateCSRForControlPlane generates a new CSR given a private key and a subject.
-func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, err error) {
+func GenerateCSRForControlPlane(key crypto.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameControlPlaneCSR(clusterID), OrganizationControlPlaneCSR())
 }
 
 // GenerateCSRForPeerUser generates a new CSR given a private key and the clusterID from which the peering will start.
-func GenerateCSRForPeerUser(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, userCN string, err error) {
+func GenerateCSRForPeerUser(key crypto.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, userCN string, err error) {
 	userCN, err = commonNamePeerUser(clusterID)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to generate user CN: %w", err)
@@ -162,40 +165,56 @@ func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organizati
 	}
 
 	if checkPublicKey {
-		// Check the length of the public key and return an error if invalid
+		// Validate provided public key bytes
 		if len(publicKey) == 0 {
 			return fmt.Errorf("invalid public key")
 		}
 
-		// if the pub key is 0-terminated, drop it
-		if publicKey[len(publicKey)-1] == 0 {
-			publicKey = publicKey[:len(publicKey)-1]
+		// Marshal CSR public key to PKIX DER and compare with provided PKIX public key bytes
+		csrPubDER, err := x509.MarshalPKIXPublicKey(x509Csr.PublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to marshal CSR public key: %w", err)
 		}
 
-		// Check that the public key used the expected algorithm and verify that the CSR has been
-		// signed with the key provided by the peer at peering time.
-		switch crtKey := x509Csr.PublicKey.(type) {
-		case ed25519.PublicKey:
-			if !bytes.Equal(crtKey, publicKey) {
-				return fmt.Errorf("invalid public key")
-			}
-		default:
-			return fmt.Errorf("invalid public key type %T", crtKey)
+		if !bytes.Equal(csrPubDER, publicKey) {
+			return fmt.Errorf("invalid public key")
 		}
 	}
 
 	return nil
 }
 
-func generateCSR(key ed25519.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {
+func generateCSR(key crypto.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {
 	asn1Subj, err := asn1.Marshal(pkix.Name{CommonName: commonName, Organization: []string{organization}}.ToRDNSequence())
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal subject information: %w", err)
 	}
 
+	// Select appropriate signature algorithm based on private key type
+	var sigAlg x509.SignatureAlgorithm
+	switch k := key.(type) {
+	case ed25519.PrivateKey:
+		sigAlg = x509.PureEd25519
+	case *rsa.PrivateKey:
+		// Default to SHA256 for RSA keys
+		sigAlg = x509.SHA256WithRSA
+	case *ecdsa.PrivateKey:
+		// Choose hash based on curve size
+		switch k.Curve.Params().BitSize {
+		case 521:
+			sigAlg = x509.ECDSAWithSHA512
+		case 384:
+			sigAlg = x509.ECDSAWithSHA384
+		default:
+			sigAlg = x509.ECDSAWithSHA256
+		}
+	default:
+		return nil, fmt.Errorf("unsupported private key type %T", key)
+	}
+
 	template := x509.CertificateRequest{
 		RawSubject:         asn1Subj,
-		SignatureAlgorithm: x509.PureEd25519,
+		SignatureAlgorithm: sigAlg,
 	}
 
 	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)

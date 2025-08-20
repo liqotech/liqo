@@ -83,6 +83,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"Override the API server address where the Kuberentes APIServer is exposed")
 	flagset.StringVar(&opts.CAOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
 	flagset.BoolVar(&opts.TrustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
+	flagset.BoolVar(&opts.TLSCompatibilityMode, "tls-compatibility-mode", false,
+		"Enable TLS compatibility mode for client certificates and keys (use RSA instead of Ed25519)")
 	flagset.StringVar(&opts.AWSConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
