@@ -116,7 +116,11 @@ func (r *NonceSignerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Sign the nonce using the private key.
-	signedNonce := authentication.SignNonce(privateKey, nonce)
+	signedNonce, err := authentication.SignNonce(privateKey, nonce)
+	if err != nil {
+		klog.Errorf("unable to sign nonce for secret %q: %v", req.NamespacedName, err)
+		return ctrl.Result{}, err
+	}
 
 	// Check if the secret is already signed and the signature is the same.
 	existingSignedNonce, found := secret.Data[consts.SignedNonceSecretField]
