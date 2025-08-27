@@ -101,8 +101,8 @@ func RemoteSASecretNamespacedKeyer(namespace, nodename string) func(metadata met
 			return []types.NamespacedName{}
 		}
 
-		// The label is certainly present, since it matched the selector.
-		po := metadata.GetLabels()[forge.LiqoSASecretForPodNameKey]
+		// The annotation is certainly present, since it matched the selector.
+		po := metadata.GetAnnotations()[forge.LiqoSASecretForPodNameKey]
 		return []types.NamespacedName{{Namespace: namespace, Name: po}}
 	}
 }

@@ -57,7 +57,7 @@ func init() {
 
 // IsServiceAccountSecret returns whether the current object contains remotely reflected service account tokens.
 func IsServiceAccountSecret(obj metav1.Object) bool {
-	return serviceAccountSecretSelector.Matches(labels.Set(obj.GetLabels()))
+	return serviceAccountSecretSelector.Matches(labels.Merge(obj.GetLabels(), obj.GetAnnotations()))
 }
 
 // RemoteSecret forges the apply patch for the reflected secret, given the local one.
@@ -97,7 +97,6 @@ func RemoteServiceAccountSecret(tokens *ServiceAccountPodTokens, targetName, tar
 // RemoteServiceAccountSecretLabels returns the labels assigned to the secret holding service account tokens.
 func RemoteServiceAccountSecretLabels(tokens *ServiceAccountPodTokens) labels.Set {
 	return map[string]string{
-		LiqoSASecretForPodNameKey:        tokens.PodName,
 		LiqoSASecretForServiceAccountKey: tokens.ServiceAccountName,
 	}
 }
@@ -105,6 +104,7 @@ func RemoteServiceAccountSecretLabels(tokens *ServiceAccountPodTokens) labels.Se
 // RemoteServiceAccountSecretAnnotations returns the annotations assigned to the secret holding service account tokens.
 func RemoteServiceAccountSecretAnnotations(tokens *ServiceAccountPodTokens) labels.Set {
 	return map[string]string{
+		LiqoSASecretForPodNameKey: tokens.PodName,
 		LiqoSASecretForPodUIDKey:  string(tokens.PodUID),
 		LiqoSASecretExpirationKey: tokens.EarliestExpiration().Format(time.RFC3339),
 	}
