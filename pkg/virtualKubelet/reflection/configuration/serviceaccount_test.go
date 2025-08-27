@@ -108,6 +108,7 @@ var _ = Describe("ServiceAccount Reflection", func() {
 						l := labels.Merge(forge.ReflectionLabels(), forge.RemoteServiceAccountSecretLabels(&tokens))
 						l = labels.Merge(l, map[string]string{forge.LiqoOriginClusterNodeName: LiqoNodeName})
 						remote.SetLabels(l)
+						remote.SetAnnotations(forge.RemoteServiceAccountSecretAnnotations(&tokens))
 						CreateSecret(remote)
 					}
 				})
@@ -208,8 +209,8 @@ var _ = Describe("ServiceAccount Reflection", func() {
 					remoteAfter := GetSecret(RemoteNamespace)
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
-					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoSASecretForPodNameKey, PodName))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoSASecretForServiceAccountKey, ServiceAccountName))
+					Expect(remoteAfter.Annotations).To(HaveKeyWithValue(forge.LiqoSASecretForPodNameKey, PodName))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue(forge.LiqoSASecretForPodUIDKey, string(local.GetUID())))
 					Expect(remoteAfter.Annotations).To(HaveKey(forge.LiqoSASecretExpirationKey))
 				})

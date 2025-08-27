@@ -175,11 +175,11 @@ var _ = Describe("Service accounts management", func() {
 		It("should correctly set the labels", func() {
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(LocalClusterID)))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(RemoteClusterID)))
-			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoSASecretForPodNameKey, "pod"))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoSASecretForServiceAccountKey, "sa"))
 		})
 
 		It("should correctly set the annotations", func() {
+			Expect(output.Annotations).To(HaveKeyWithValue(forge.LiqoSASecretForPodNameKey, "pod"))
 			Expect(output.Annotations).To(HaveKeyWithValue(forge.LiqoSASecretForPodUIDKey, "pod-uid"))
 			Expect(output.Annotations).To(HaveKeyWithValue(
 				forge.LiqoSASecretExpirationKey, time.Now().Add(1600*time.Second).Format(time.RFC3339)))
