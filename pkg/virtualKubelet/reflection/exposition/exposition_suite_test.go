@@ -46,6 +46,9 @@ const (
 
 	LiqoNodeName = "local-node"
 	LiqoNodeIP   = "1.1.1.1"
+
+	ThirdClusterID       = "third-cluster-id"
+	ThirdClusterNodeName = "third-cluster-node"
 )
 
 var (
@@ -81,6 +84,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	_, err = client.CoreV1().Nodes().Create(ctx, testutil.FakeNodeWithNameAndLabels(LiqoNodeName, map[string]string{
 		consts.RemoteClusterID: RemoteClusterID,
+	}), metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	_, err = client.CoreV1().Nodes().Create(ctx, testutil.FakeNodeWithNameAndLabels(ThirdClusterNodeName, map[string]string{
+		consts.TypeLabel:       consts.TypeNode,
+		consts.RemoteClusterID: ThirdClusterID,
 	}), metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: LocalNamespace}}, metav1.CreateOptions{})

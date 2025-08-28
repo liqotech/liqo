@@ -108,6 +108,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.ShadowPodWorkers, "shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	flagset.IntVar(&opts.ShadowEndpointSliceWorkers, "shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
+	flagset.BoolVar(&opts.DenyDirectConnections, "deny-direct-connections", false,
+		"Prevents the usage of direct connections between provider clusters.")
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerIPRemapping, "enable-api-server-ip-remapping", true, "Enable the API server IP remapping")
