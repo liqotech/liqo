@@ -52,6 +52,7 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --networking-enabled={{ .Values.networking.enabled }}
           - --authentication-enabled={{ .Values.authentication.enabled }}
+          - --tls-compatibility-mode={{ .Values.authentication.tlsCompatibilityMode }}
           - --offloading-enabled={{ .Values.offloading.enabled }}
           - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
           {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}

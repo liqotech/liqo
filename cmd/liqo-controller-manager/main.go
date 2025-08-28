@@ -143,6 +143,9 @@ func main() {
 		"api-server-address-override", "", "Override the API server address where the Kuberentes APIServer is exposed")
 	pflag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
 	pflag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
+	// TLS compatibility mode
+	tlsCompatibilityMode := pflag.Bool("tls-compatibility-mode", false,
+		"Enable TLS compatibility mode for client certificates and keys (use RSA instead of Ed25519)")
 	// AWS configurations
 	pflag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
 	pflag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
@@ -324,6 +327,7 @@ func main() {
 			APIServerAddressOverride: apiServerAddressOverride,
 			CAOverrideB64:            caOverride,
 			TrustedCA:                trustedCA,
+			TLSCompatibilityMode:     *tlsCompatibilityMode,
 			SliceStatusOptions: &remoteresourceslicecontroller.SliceStatusOptions{
 				EnableStorage:             *enableStorage,
 				LocalRealStorageClassName: *realStorageClassName,
