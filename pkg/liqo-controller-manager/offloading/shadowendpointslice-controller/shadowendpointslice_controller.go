@@ -44,9 +44,14 @@ import (
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+
+	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 )
 
-const ctrlFieldManager = "shadow-endpointslice-controller"
+const (
+	ctrlFieldManager = "shadow-endpointslice-controller"
+	directConnectionAnnotationLabel = "direct-connections-data"
+)
 
 // Reconciler reconciles a ShadowEndpointSlice object.
 type Reconciler struct {
@@ -97,12 +102,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Check foreign API server status
 	apiServerReady := foreigncluster.IsAPIServerReadyOrDisabled(fc)
 
+	// Check if direct connections data is provided
+	var remoteConnectionsData directconnectioninfo.DirectConnectionInfoList
+	if val, ok := shadowEps.Annotations[directConnectionAnnotationLabel]; ok {
+		err := remoteConnectionsData.FromJSON([]byte(val))
+
+		if err != nil {
+			klog.Errorf("failed to unmarshal direct connection data for shadowendpointslice %q: %v", nsName, err)
+		}
+		// JSON is not propagated to the EndpointSlice
+		delete(shadowEps.Annotations, directConnectionAnnotationLabel)
+	}
+
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
 	// If the networking module is disabled, we do not need to remap the endpoints.
 	remappedEndpoints := shadowEps.Spec.Template.Endpoints
 	if foreigncluster.IsNetworkingModuleEnabled(fc) {
 		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
-		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints); err != nil {
+		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints, remoteConnectionsData); err != nil {
 			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
 			return ctrl.Result{}, err
 		}
