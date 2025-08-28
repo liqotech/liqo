@@ -207,6 +207,12 @@ func remapWithin(ip net.IP, address string, spec, status []networkingv1beta1.CID
 			continue
 		}
 
+		// The status lists the remapped CIDRs positionally, and lags behind the spec while a newly
+		// added CIDR is being remapped: report it, rather than indexing past the end of the status.
+		if i >= len(status) {
+			return "", false, fmt.Errorf("the CIDR %q has not been remapped yet", spec[i].String())
+		}
+
 		// If spec and status CIDRs are the same, no remapping required, just return the original address.
 		if spec[i].String() == status[i].String() {
 			return address, true, nil
