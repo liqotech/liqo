@@ -294,10 +294,30 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 	identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, r.Client, clusterID)
 	switch {
 	case errors.IsNotFound(err):
-		klog.V(6).Infof("Identity resource not found for ForeignCluster %q", clusterID)
 		fcutils.DeleteModuleCondition(&fc.Status.Modules.Authentication, liqov1beta1.AuthIdentityControlPlaneStatusCondition)
+		klog.V(6).Infof(
+			"ControlPlane Identity resource not found for ForeignCluster %q, checking if there is a control plane secret...",
+			clusterID,
+		)
+
+		// Check whether there is no identity but the if the cluster has been configured with a control plane secret.
+		cfg, err := r.identityManager.GetConfig(fc.Spec.ClusterID, corev1.NamespaceAll)
+		switch {
+		case errors.IsNotFound(err):
+			klog.V(6).Infof("No credentials found for ForeignCluster %q", clusterID)
+			return nil
+		case err != nil:
+			klog.Errorf("An error occurred while getting the API server config for the ForeignCluster %q: %s", clusterID, err)
+			return err
+		}
+
+		// Enable the authentication module
+		*provider = true
+		fcutils.EnableModuleAuthentication(fc)
+		// Set the API Server URL to enable the health check.
+		fc.Status.APIServerURL = cfg.Host
 	case err != nil:
-		klog.Errorf("an error occurred while getting the Identity resource for the ForeignCluster %q: %s", clusterID, err)
+		klog.Errorf("An error occurred while getting the Identity resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
 	default:
 		*provider = true
