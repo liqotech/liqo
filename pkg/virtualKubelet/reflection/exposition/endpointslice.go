@@ -39,6 +39,10 @@ import (
 	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	consts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/directconnection"
+	getters "github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -52,6 +56,7 @@ var _ manager.NamespacedReflector = (*NamespacedEndpointSliceReflector)(nil)
 const (
 	// EndpointSliceReflectorName -> The name associated with the EndpointSlice reflector.
 	EndpointSliceReflectorName = "EndpointSlice"
+	maxAnnotationSize          = 256 * 1024 // 256 KiB
 )
 
 // NamespacedEndpointSliceReflector manages the EndpointSlice reflection for a given pair of local and remote namespaces.
@@ -187,6 +192,12 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return nil
 	}
 
+	shouldProvideDirectConnectionData, err := ner.ShouldProvideDirectConnectionData(local)
+	if err != nil {
+		klog.Errorf("Failed to check direct connection data eligibility for local EndpointSlice %q: %v", ner.LocalRef(name), err)
+		return err
+	}
+
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
 	translator := func(originals []string) []string {
@@ -196,8 +207,68 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		var translations []string
-		translations, terr = ner.MapEndpointIPs(name, originals)
+		translations, terr = ner.MapEndpointIPs(name, originals, shouldProvideDirectConnectionData)
 		return translations
+	}
+
+	var marshaledData []byte
+	if shouldProvideDirectConnectionData {
+		// Gather the data needed to make the providers use the direct connections between them.
+		// 1) The address that needs to be remapped.
+		// 2) ClusterID of the cluster on which that endpoint is running.
+
+		var remoteConnectionsData directconnection.ClusterAddresses
+
+		for _, endpoint := range local.Endpoints {
+			if endpoint.NodeName == nil {
+				continue
+			}
+			if endpoint.TargetRef == nil {
+				klog.V(4).Infof("Endpoint with IP %q has no targetRef, skipping direct connection data collection for it", endpoint.Addresses)
+				continue
+			}
+			node, err := ner.localNodeClient.Get(*endpoint.NodeName)
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					klog.V(4).Infof("Node %q not found, skipping direct connection data collection for endpoint %q", *endpoint.NodeName, endpoint.Addresses)
+					continue
+				}
+				klog.Errorf("Failed getting the node %q: %v", *endpoint.NodeName, err)
+				return err
+			}
+
+			clusterID, err := getters.RetrieveRemoteClusterIDFromNode(node)
+			if err != nil {
+				klog.Errorf("Failed to retrieve remote cluster ID from node %q: %v", *endpoint.NodeName, err)
+				continue
+			}
+
+			// No data collection for nodes in the remote cluster or in the central cluster
+			if !shouldIncludeDataFromNode(node, clusterID, string(forge.RemoteCluster)) {
+				continue
+			}
+
+			IPs := endpoint.Addresses
+			remoteConnectionsData.Add(clusterID, IPs...)
+		}
+		if len(remoteConnectionsData.Clusters) == 0 {
+			klog.V(4).Infof("Service is set for direct connections but no data found for this endpointslice: %s", local.Name)
+		} else {
+			var err error
+
+			marshaledData, err = remoteConnectionsData.ToJSON()
+			if err != nil {
+				klog.Errorf("Failed to marshal direct connection data: %v", err)
+				// Reflection is stopped, this error is considered critical to be more detectable
+				return err
+			}
+			if len(consts.DirectConnectionDataAnnotationKey)+len(marshaledData)+totalAnnotationsSize(local) >= maxAnnotationSize {
+				err := fmt.Errorf("annotations exceed maximum size of %d bytes (directConnection=%d bytes)", maxAnnotationSize, len(marshaledData))
+				klog.Errorf("Failed to reflect local EndpointSlice %q: %v", local.Name, err)
+				return err
+			}
+			klog.V(4).Infof("Direct connection data for endpointslice %q marshaled successfully: %s", local.Name, string(marshaledData))
+		}
 	}
 
 	target := forge.RemoteShadowEndpointSlice(local, remote, ner.localNodeClient, ner.RemoteNamespace(), translator, ner.ForgingOpts)
@@ -205,6 +276,10 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		klog.Errorf("Reflection of local EndpointSlice %q to %q failed: %v", ner.LocalRef(name), ner.RemoteRef(name), terr)
 		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
+	}
+
+	if marshaledData != nil {
+		target.Annotations[consts.DirectConnectionDataAnnotationKey] = string(marshaledData)
 	}
 	tracer.Step("Forged the remote shadowendpointslice")
 
@@ -281,7 +356,15 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(origina
 }
 
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
-func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string) ([]string, error) {
+//
+// skipTranslation parameter is needed when direct connections are enabled: in that case
+// we want to skip the mapping on ExternalCIDR for endpoints that are reachable through direct connections between providers.
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string, skipTranslation bool) ([]string, error) {
+	if skipTranslation {
+		klog.V(4).Infof("Skipping translation of endpoint IPs for EndpointSlice %q, because direct connections are enabled.", ner.LocalRef(endpointslice))
+		return originals, nil
+	}
+
 	var translations []string
 	var err error
 
@@ -307,7 +390,6 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string
 			}
 			cache[original] = translation
 		}
-
 		translations = append(translations, translation)
 		klog.V(6).Infof("Translated local endpoint IP %v to remote %v", original, translation)
 	}
@@ -365,6 +447,39 @@ func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metada
 	return keys
 }
 
+// ShouldProvideDirectConnectionData returns whether the reflector should provide the data to make pods deployed on providers communicate directly
+// (only in case a direct connection is established).
+func (ner *NamespacedEndpointSliceReflector) ShouldProvideDirectConnectionData(obj metav1.Object) (bool, error) {
+	// Check if a service is associated to the EndpointSlice
+	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
+	if !ok {
+		return false, nil
+	}
+	// Retrieve the service from the local cache, done again after ShouldSkipReflection
+	svc, err := ner.localServices.Get(svcname)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			// Error is not wrapped here to avoid transient errors
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get service %q for EndpointSlice %q: %w", svcname, obj.GetName(), err)
+	}
+
+	// Check if the service is marked to provide direct connection data
+	return svc.GetAnnotations()[consts.UseDirectConnectionAnnotationKey] == "true", nil
+}
+
+// totalAnnotationsSize computes the total size in bytes of all annotation keys and values in the given object.
+func totalAnnotationsSize(obj metav1.Object) int {
+	annotations := obj.GetAnnotations()
+
+	size := 0
+	for k, v := range annotations {
+		size += len(k) + len(v)
+	}
+	return size
+}
+
 // List returns the list of EndpointSlices managed by informers.
 func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
 	listEps, err := virtualkubelet.List[virtualkubelet.Lister[*discoveryv1.EndpointSlice], *discoveryv1.EndpointSlice](
@@ -390,4 +505,32 @@ func (ner *NamespacedEndpointSliceReflector) isLocalPodIP(ip string) bool {
 	}
 
 	return false
+}
+
+// ShouldIncludeDataFromNode returns whether to include the direct connection data
+// (IP and clusterID) of the pods deployed on this node to the remote cluster.
+//
+// It returns false in case the node is not virtual and in case it's not the one this VK is reflecting to.
+//
+// Used only when the the use-direct-connections is requested.
+//
+// E.G.: in case this VK is reflecting to "clusterA", no data from pods running on nodes belonging to "clusterA" will be included.
+func shouldIncludeDataFromNode(node *corev1.Node, nodeClusterID, remoteClusterID string) bool {
+	if node == nil {
+		return false
+	}
+
+	if node.Labels == nil {
+		return false
+	}
+
+	if !utils.IsVirtualNode(node) {
+		return false
+	}
+
+	if nodeClusterID == remoteClusterID {
+		return false
+	}
+
+	return true
 }

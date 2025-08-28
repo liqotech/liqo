@@ -115,6 +115,9 @@ spec:
           {{- if .Values.controllerManager.config.enableNodeFailureController }}
           - --enable-node-failure-controller
           {{- end }}
+          {{- if .Values.networking.denyDirectConnections }}
+          - --deny-direct-connections
+          {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}

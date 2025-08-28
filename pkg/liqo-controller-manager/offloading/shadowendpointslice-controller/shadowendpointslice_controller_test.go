@@ -37,6 +37,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
+	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -428,6 +429,206 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			for i := range eps.Endpoints {
 				Expect(eps.Endpoints[i].Conditions.Ready).To(PointTo(BeFalse()))
 			}
+		})
+	})
+
+	When("networking module is disabled and direct connection data is present", func() {
+		const directProviderID = "direct-provider-id"
+
+		// ForeignCluster with networking module disabled (offloading-only peering).
+		newFcNetworkingDisabled := func() *liqov1beta1.ForeignCluster {
+			return &liqov1beta1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: testFcID,
+					Labels: map[string]string{
+						consts.RemoteClusterID: testFcID,
+					},
+				},
+				Spec: liqov1beta1.ForeignClusterSpec{
+					ClusterID: liqov1beta1.ClusterID(testFcID),
+				},
+				Status: liqov1beta1.ForeignClusterStatus{
+					Modules: liqov1beta1.Modules{
+						Networking: liqov1beta1.Module{Enabled: false},
+					},
+					Conditions: []liqov1beta1.Condition{
+						{
+							Type:   liqov1beta1.APIServerStatusCondition,
+							Status: liqov1beta1.ConditionStatusEstablished,
+						},
+					},
+				},
+			}
+		}
+
+		// Configuration for the direct provider (provider B), with index-aligned remote (desired) and remapped pod CIDRs.
+		// The direct provider is the remote cluster of this Configuration (RemoteClusterID label), so its real pod
+		// addresses live in Spec.Remote, and Status.Remote holds the CIDR used to reach that cluster.
+		newDirectProviderConf := func(remotePodCIDRs, remappedPodCIDRs []string) *networkingv1beta1.Configuration {
+			return &networkingv1beta1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "direct-provider-conf",
+					Namespace: shadowEpsNamespace,
+					Labels: map[string]string{
+						consts.RemoteClusterID: directProviderID,
+					},
+					Generation: 1,
+				},
+				Spec: networkingv1beta1.ConfigurationSpec{
+					Remote: networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod: cidrutils.FromStrings(remotePodCIDRs),
+						},
+					},
+				},
+				Status: networkingv1beta1.ConfigurationStatus{
+					Remote: &networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod: cidrutils.FromStrings(remappedPodCIDRs),
+						},
+					},
+				},
+			}
+		}
+
+		// directAnnotation builds a DirectConnectionDataAnnotationKey annotation value
+		// that maps the given addresses to directProviderID.
+		directAnnotation := func(addrs ...string) string {
+			d := directconnectioninfo.ClusterAddresses{}
+			d.Add(directProviderID, addrs...)
+			jsonBytes, err := d.ToJSON()
+			Expect(err).NotTo(HaveOccurred())
+			return string(jsonBytes)
+		}
+
+		BeforeEach(func() {
+			// Single endpoint whose address belongs to the direct provider.
+			// 10.20.0.1 is in the direct-connection index and should be remapped to 10.30.0.1.
+			testShadowEps = &offloadingv1beta1.ShadowEndpointSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      shadowEpsName,
+					Namespace: shadowEpsNamespace,
+					Labels: map[string]string{
+						discoveryv1.LabelManagedBy:   forge.EndpointSliceManagedBy,
+						forge.LiqoOriginClusterIDKey: testFcID,
+					},
+					Annotations: map[string]string{
+						consts.DirectConnectionDataAnnotationKey: directAnnotation("10.20.0.1"),
+					},
+				},
+				Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+					Template: offloadingv1beta1.EndpointSliceTemplate{
+						Endpoints: []discoveryv1.Endpoint{
+							{Addresses: []string{"10.20.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)}},
+						},
+						Ports:       []discoveryv1.EndpointPort{{Name: ptr.To("HTTPS")}},
+						AddressType: discoveryv1.AddressTypeIPv4,
+					},
+				},
+			}
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+				testShadowEps.DeepCopy(), newFcNetworkingDisabled(),
+				newDirectProviderConf([]string{"10.20.0.0/16"}, []string{"10.30.0.0/16"}),
+			).Build()
+		})
+
+		It("should remap direct-connection endpoint addresses using the direct provider configuration", func() {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			Expect(eps.Endpoints).To(HaveLen(1))
+			Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.30.0.1"}))
+		})
+
+		It("should not propagate the direct connection data annotation to the endpointslice", func() {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			Expect(eps.Annotations).NotTo(HaveKey(consts.DirectConnectionDataAnnotationKey))
+		})
+
+		When("some endpoint addresses are not in the direct connection index", func() {
+			const nonDirectAddr = "192.168.100.1"
+
+			BeforeEach(func() {
+				// Only "10.20.0.1" is registered in the direct-connection index; "192.168.100.1" is not.
+				testShadowEps = &offloadingv1beta1.ShadowEndpointSlice{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      shadowEpsName,
+						Namespace: shadowEpsNamespace,
+						Labels: map[string]string{
+							discoveryv1.LabelManagedBy:   forge.EndpointSliceManagedBy,
+							forge.LiqoOriginClusterIDKey: testFcID,
+						},
+						Annotations: map[string]string{
+							consts.DirectConnectionDataAnnotationKey: directAnnotation("10.20.0.1"),
+						},
+					},
+					Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+						Template: offloadingv1beta1.EndpointSliceTemplate{
+							Endpoints: []discoveryv1.Endpoint{
+								{Addresses: []string{"10.20.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)}},
+								{Addresses: []string{nonDirectAddr}, Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)}},
+							},
+							Ports:       []discoveryv1.EndpointPort{{Name: ptr.To("HTTPS")}},
+							AddressType: discoveryv1.AddressTypeIPv4,
+						},
+					},
+				}
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+					testShadowEps.DeepCopy(), newFcNetworkingDisabled(),
+					newDirectProviderConf([]string{"10.20.0.0/16"}, []string{"10.30.0.0/16"}),
+				).Build()
+			})
+
+			It("should remap only the direct-connection address and leave others unchanged", func() {
+				eps := discoveryv1.EndpointSlice{}
+				Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+				Expect(eps.Endpoints).To(HaveLen(2))
+				Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.30.0.1"}))
+				Expect(eps.Endpoints[1].Addresses).To(Equal([]string{nonDirectAddr}))
+			})
+		})
+
+		When("the direct provider has multiple pod CIDRs", func() {
+			BeforeEach(func() {
+				testShadowEps = &offloadingv1beta1.ShadowEndpointSlice{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      shadowEpsName,
+						Namespace: shadowEpsNamespace,
+						Labels: map[string]string{
+							discoveryv1.LabelManagedBy:   forge.EndpointSliceManagedBy,
+							forge.LiqoOriginClusterIDKey: testFcID,
+						},
+						Annotations: map[string]string{
+							consts.DirectConnectionDataAnnotationKey: directAnnotation("10.10.0.1", "10.20.0.1"),
+						},
+					},
+					Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+						Template: offloadingv1beta1.EndpointSliceTemplate{
+							Endpoints: []discoveryv1.Endpoint{
+								{Addresses: []string{"10.10.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)}},
+								{Addresses: []string{"10.20.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)}},
+							},
+							Ports:       []discoveryv1.EndpointPort{{Name: ptr.To("HTTPS")}},
+							AddressType: discoveryv1.AddressTypeIPv4,
+						},
+					},
+				}
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+					testShadowEps.DeepCopy(), newFcNetworkingDisabled(),
+					newDirectProviderConf(
+						[]string{"10.10.0.0/16", "10.20.0.0/16"},
+						[]string{"10.40.0.0/16", "10.30.0.0/16"},
+					),
+				).Build()
+			})
+
+			It("should remap each direct address using the matching pod CIDR index", func() {
+				eps := discoveryv1.EndpointSlice{}
+				Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+				Expect(eps.Endpoints).To(HaveLen(2))
+				Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.40.0.1"}))
+				Expect(eps.Endpoints[1].Addresses).To(Equal([]string{"10.30.0.1"}))
+			})
 		})
 	})
 })
