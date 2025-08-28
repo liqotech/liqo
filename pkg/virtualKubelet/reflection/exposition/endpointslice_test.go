@@ -399,12 +399,23 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				BeforeEach(func() {
 					local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
 					local.AddressType = discoveryv1.AddressTypeIPv4
+					// Mixed endpoints: one on a third provider (direct-connections candidate) and one on
+					// a local node (path-independent, must appear in the direct slice only).
 					local.Endpoints = []discoveryv1.Endpoint{{
 						NodeName:  ptr.To(ThirdClusterNodeName),
 						Addresses: []string{"10.10.0.5"},
 						TargetRef: &corev1.ObjectReference{Name: "pod-1", Namespace: LocalNamespace},
+					}, {
+						NodeName:  ptr.To(LocalClusterNodeName),
+						Addresses: []string{"10.168.0.30"},
+						TargetRef: &corev1.ObjectReference{Name: "pod-local", Namespace: LocalNamespace},
 					}}
 					CreateEndpointSlice(&local)
+
+					// The direct ShadowEPS carries the untranslated IP, but the indirect (hub-and-spoke)
+					// companion still needs the IPAM-remapped address, so the corresponding IP resource
+					// must exist — exactly as it would in a real converged cluster.
+					CreateIP("ip-third", LocalNamespace, "10.10.0.5", "192.168.200.5")
 
 					CreateService(&corev1.Service{
 						ObjectMeta: metav1.ObjectMeta{
@@ -428,10 +439,40 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					Expect(dcData.Clusters).To(HaveKey(ThirdClusterID))
 					Expect(dcData.Clusters[ThirdClusterID]).To(ContainElement("10.10.0.5"))
 				})
-				It("the endpoint IP in the shadow endpointslice should not be IPAM-translated", func() {
+				It("the shadow endpointslice should carry ALL the endpoints, not IPAM-translated", func() {
 					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
-					Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(1))
-					Expect(remoteAfter.Spec.Template.Endpoints[0].Addresses).To(ContainElement("10.10.0.5"))
+					Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(2))
+					addresses := []string{}
+					for i := range remoteAfter.Spec.Template.Endpoints {
+						addresses = append(addresses, remoteAfter.Spec.Template.Endpoints[i].Addresses...)
+					}
+					Expect(addresses).To(ConsistOf("10.10.0.5", "10.168.0.30"))
+				})
+				It("the indirect companion should stay bound to the service and be marked as indirect", func() {
+					indirect, errIndirect := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).
+						Get(ctx, EndpointSliceName+forge.IndirectEndpointSliceSuffix, metav1.GetOptions{})
+					Expect(errIndirect).ToNot(HaveOccurred())
+					Expect(indirect.Labels).To(HaveKeyWithValue(discoveryv1.LabelServiceName, ServiceName))
+					Expect(indirect.Labels).To(HaveKeyWithValue(forge.IndirectEndpointSliceLabelKey, "true"))
+				})
+				It("the indirect companion should carry the direct-connections data annotation", func() {
+					indirect, errIndirect := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).
+						Get(ctx, EndpointSliceName+forge.IndirectEndpointSliceSuffix, metav1.GetOptions{})
+					Expect(errIndirect).ToNot(HaveOccurred())
+					Expect(indirect.Annotations).To(HaveKeyWithValue(
+						consts.DirectConnectionDataAnnotationKey,
+						GetShadowEndpointSlice(RemoteNamespace).Annotations[consts.DirectConnectionDataAnnotationKey]))
+				})
+				It("the indirect companion should carry ONLY the cross-provider endpoint, IPAM-translated", func() {
+					// The path-independent endpoint (10.168.0.30, hosted on a local node) must NOT be
+					// replicated here: its hub representation is the address itself, and duplicating it
+					// across the two slices with opposite Ready conditions makes the dataplane resolve
+					// the conflict arbitrarily (e.g. Cilium excludes the endpoint entirely).
+					indirect, errIndirect := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).
+						Get(ctx, EndpointSliceName+forge.IndirectEndpointSliceSuffix, metav1.GetOptions{})
+					Expect(errIndirect).ToNot(HaveOccurred())
+					Expect(indirect.Spec.Template.Endpoints).To(HaveLen(1))
+					Expect(indirect.Spec.Template.Endpoints[0].Addresses).To(ConsistOf("192.168.200.5"))
 				})
 			})
 
@@ -461,6 +502,30 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				It("the shadow endpointslice should not have the direct-connections-data annotation", func() {
 					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 					Expect(remoteAfter.Annotations).ToNot(HaveKey(consts.DirectConnectionDataAnnotationKey))
+				})
+				It("the indirect companion should not be created (nothing to fail over)", func() {
+					_, getErr := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).
+						Get(ctx, EndpointSliceName+forge.IndirectEndpointSliceSuffix, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+
+				When("a stale indirect companion exists (the cross-provider endpoints disappeared)", func() {
+					BeforeEach(func() {
+						_, createErr := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).Create(ctx,
+							&offloadingv1beta1.ShadowEndpointSlice{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:   EndpointSliceName + forge.IndirectEndpointSliceSuffix,
+									Labels: map[string]string{forge.IndirectEndpointSliceLabelKey: "true"},
+								},
+							}, metav1.CreateOptions{})
+						Expect(createErr).ToNot(HaveOccurred())
+					})
+
+					It("should delete it", func() {
+						_, getErr := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).
+							Get(ctx, EndpointSliceName+forge.IndirectEndpointSliceSuffix, metav1.GetOptions{})
+						Expect(getErr).To(BeNotFound())
+					})
 				})
 			})
 
