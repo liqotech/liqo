@@ -19,19 +19,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-
-// Returns whether to include the direct connection data (IP, remapped IP and clusterID) of the pods deployed on this node to the remote cluster.
+// ShouldIncludeDataFromNode returns whether to include the direct connection data
+// (IP, remapped IP and clusterID) of the pods deployed on this node to the remote cluster.
 //
 // It returns false in case the node is not virtual and in case it's not the one this VK is reflecting to.
-// 
+//
 // Used only when the the use-direct-link is requested.
-// 
+//
 // E.G.: in case this VK is reflecting to "clusterA", no data from pods running on nodes belonging to "clusterA" will be included.
 func ShouldIncludeDataFromNode(node *corev1.Node, remoteClusterID string) bool {
 	if node == nil {
 		return false
 	}
-	
+
 	if node.Labels == nil {
 		return false
 	}
