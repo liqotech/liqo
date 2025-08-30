@@ -18,35 +18,33 @@ import (
 	"context"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
+	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
-	klog "k8s.io/klog/v2"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
-//
-// The last parameter is needed to 
 func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 	clusterID liqov1beta1.ClusterID, endpoints []discoveryv1.Endpoint,
-	list directconnectioninfo.DirectConnectionInfoList,
-	) error {
+	list directconnectioninfo.InfoList,
+) error {
 	for i := range endpoints {
 		for j := range endpoints[i].Addresses {
 			addr := endpoints[i].Addresses[j]
 
 			addrHasBeenRemapped := false
 
-			// If data is passed, check if mapping can be made manually 
+			// If data is passed, check if mapping can be made manually
 			if len(list.Items) != 0 {
-				clusterID, ip, addressFound := list.GetConnectionDataByIp(addr)
-				
+				clusterID, ip, addressFound := list.GetConnectionDataByIP(addr)
+
 				if addressFound {
 					rAddr, err := ipamips.ForceMapAddressWithConfiguration(ctx, cl, liqov1beta1.ClusterID(clusterID), ip)
 
-					if err == nil { 
+					if err == nil {
 						endpoints[i].Addresses[j] = rAddr.String()
 						addrHasBeenRemapped = true
 					} else {
@@ -55,7 +53,7 @@ func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 				}
 				if addrHasBeenRemapped {
 					break
-				}	
+				}
 			}
 
 			// Regular mapping is performed

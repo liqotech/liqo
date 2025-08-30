@@ -41,15 +41,14 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
+	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-
-	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 )
 
 const (
-	ctrlFieldManager = "shadow-endpointslice-controller"
+	ctrlFieldManager                = "shadow-endpointslice-controller"
 	directConnectionAnnotationLabel = "direct-connections-data"
 )
 
@@ -103,7 +102,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	apiServerReady := foreigncluster.IsAPIServerReadyOrDisabled(fc)
 
 	// Check if direct connections data is provided
-	var remoteConnectionsData directconnectioninfo.DirectConnectionInfoList
+	var remoteConnectionsData directconnectioninfo.InfoList
 	if val, ok := shadowEps.Annotations[directConnectionAnnotationLabel]; ok {
 		err := remoteConnectionsData.FromJSON([]byte(val))
 
