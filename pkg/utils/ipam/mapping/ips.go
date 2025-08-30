@@ -178,8 +178,7 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 //
 // In case of failure returns the address unchanged.
 func ForceMapAddressWithConfiguration(ctx context.Context, cl client.Client,
-	clusterID liqov1beta1.ClusterID, address string,
-	) (net.IP, error) {
+	clusterID liqov1beta1.ClusterID, address string) (net.IP, error) {
 
 	// This address is used only to get the host part!
 	addr := net.ParseIP(address)
