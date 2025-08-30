@@ -30,6 +30,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/nodefailure-controller"
@@ -55,6 +56,24 @@ type OffloadingOption struct {
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
 	ResyncPeriod                time.Duration
+}
+
+// NewOffloadingOption creates a new OffloadingOption with the given parameters.
+func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1beta1.ClusterID,
+	namespaceManager tenantnamespace.Manager, opts *liqocontrollermanager.Options) *OffloadingOption {
+	return &OffloadingOption{
+		Clientset:                   clientset,
+		LocalClusterID:              localClusterID,
+		NamespaceManager:            namespaceManager,
+		EnableStorage:               opts.EnableStorage,
+		VirtualStorageClassName:     opts.VirtualStorageClassName,
+		RealStorageClassName:        opts.RealStorageClassName,
+		StorageNamespace:            opts.StorageNamespace,
+		EnableNodeFailureController: opts.EnableNodeFailureController,
+		ShadowPodWorkers:            opts.ShadowPodWorkers,
+		ShadowEndpointSliceWorkers:  opts.ShadowEndpointSliceWorkers,
+		ResyncPeriod:                opts.ResyncPeriod,
+	}
 }
 
 // SetupOffloadingModule setup the offloading module and initializes its controllers.

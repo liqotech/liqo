@@ -199,6 +199,13 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		return nil
 	}
 
+	// Skip reflection for pods in a terminal phase (Succeeded or Failed).
+	// Avoid recreating ShadowPods and changing local pod status when the workload already completed.
+	if local.Status.Phase == corev1.PodSucceeded || local.Status.Phase == corev1.PodFailed {
+		klog.V(4).Infof("Skipping reflection of local pod %q as it is in terminal phase %q", npr.LocalRef(name), local.Status.Phase)
+		return nil
+	}
+
 	// Ensure the local pod has the appropriate labels to mark it as offloaded.
 	if err := npr.HandleLabels(ctx, local); err != nil {
 		return err
