@@ -27,8 +27,6 @@ import (
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
-//
-// The last parameter is needed to
 func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 	clusterID liqov1beta1.ClusterID, endpoints []discoveryv1.Endpoint,
 	list directconnectioninfo.InfoList,
