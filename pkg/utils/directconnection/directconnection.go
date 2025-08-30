@@ -44,7 +44,7 @@ type InfoList struct {
 // IP is used to extract the host part;
 //
 // clusterID is used to retrieve the right podCIDR.
-func (l *InfoList) GetConnectionDataByIP(ip string) (clusterID string, originalIP string, found bool) {
+func (l *InfoList) GetConnectionDataByIP(ip string) (clusterID, originalIP string, found bool) {
 	for _, entry := range l.Items {
 		for i, remappedIP := range entry.RemappedIPs {
 			if ip == remappedIP {
