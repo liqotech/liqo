@@ -26,6 +26,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
+	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
@@ -63,6 +64,29 @@ type NetworkingOption struct {
 	GwmasqbypassEnabled            bool
 
 	GenevePort uint16
+}
+
+// NewNetworkingOption creates a new NetworkingOption with the provided parameters.
+func NewNetworkingOption(factory *dynamicutils.RunnableFactory, dynClient dynamic.Interface,
+	ipamClient ipam.IPAMClient, opts *liqocontrollermanager.Options) *NetworkingOption {
+	return &NetworkingOption{
+		DynClient: dynClient,
+		Factory:   factory,
+
+		LiqoNamespace: opts.LiqoNamespace,
+		IpamClient:    ipamClient,
+
+		GatewayServerResources:         opts.GatewayServerResources.StringList,
+		GatewayClientResources:         opts.GatewayClientResources.StringList,
+		WgGatewayServerClusterRoleName: opts.WgGatewayServerClusterRoleName,
+		WgGatewayClientClusterRoleName: opts.WgGatewayClientClusterRoleName,
+		NetworkWorkers:                 opts.NetworkWorkers,
+		IPWorkers:                      opts.IPWorkers,
+		FabricFullMasquerade:           opts.FabricFullMasqueradeEnabled,
+		GwmasqbypassEnabled:            opts.GwmasqbypassEnabled,
+
+		GenevePort: opts.GenevePort,
+	}
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .

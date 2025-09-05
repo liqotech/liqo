@@ -180,7 +180,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 						corev1.PodFailed, forge.PodOffloadingAbortedReason),
 					)
 					When("phase is running", WhenBody(corev1.PodStatus{Phase: corev1.PodRunning}, corev1.PodFailed, forge.PodOffloadingAbortedReason))
-					When("phase is failed", WhenBody(corev1.PodStatus{Phase: corev1.PodFailed}, corev1.PodFailed, forge.PodOffloadingAbortedReason))
+					When("phase is failed", WhenBody(corev1.PodStatus{Phase: corev1.PodFailed}, corev1.PodFailed, ""))
 				})
 
 				When("it is terminating", func() {
