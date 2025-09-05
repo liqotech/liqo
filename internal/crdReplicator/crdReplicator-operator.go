@@ -52,7 +52,8 @@ const (
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
-	ClusterID liqov1beta1.ClusterID
+	DynamicClient dynamic.Interface
+	ClusterID     liqov1beta1.ClusterID
 
 	// RegisteredResources is a list of GVRs of resources to be replicated.
 	RegisteredResources []resources.Resource
@@ -64,10 +65,12 @@ type Controller struct {
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
+
+	ForceUnpeering bool
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list;watch
 
@@ -104,21 +107,27 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	localTenantNamespace := secret.Namespace
 	remoteTenantNamespace := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
 
-	// examine DeletionTimestamp to determine if object is under deletion
+	// Examine DeletionTimestamp to determine if object is under deletion
 	if !secret.ObjectMeta.DeletionTimestamp.IsZero() {
-		// the object is being deleted
+
+		if reflector, found := c.Reflectors[remoteClusterID]; found {
+			if reflector.ForceUnpeering {
+				c.ForceUnpeering = true
+			}
+		}
+		// The object is being deleted
 		if controllerutil.ContainsFinalizer(&secret, finalizer) {
-			// close remote watcher for remote cluster
+			// Close remote watcher for remote cluster
 			if err := c.stopReflector(remoteClusterID, false); err != nil {
 				klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
 				return ctrl.Result{}, err
 			}
 
-			// remove the finalizer from the list and update it.
 			if err := c.ensureFinalizer(ctx, &secret, controllerutil.RemoveFinalizer); err != nil {
 				klog.Errorf("An error occurred while removing the finalizer to %q: %v", req.NamespacedName, err)
 				return ctrl.Result{}, err
 			}
+
 			return ctrl.Result{}, nil
 		}
 	}
