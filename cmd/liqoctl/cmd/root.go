@@ -139,6 +139,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	utils.AddCommand(cmd, delete.NewDeleteCommand(ctx, liqoResources, f))
 	utils.AddCommand(cmd, newInfoCommand(ctx, f))
 	utils.AddCommand(cmd, newTestCommand(ctx, f))
+	utils.AddCommand(cmd, newForceCommand(ctx, f))
 
 	return cmd
 }
