@@ -37,6 +37,10 @@ func getInternalFabric(ctx context.Context, cl client.Client, gatewayName, remot
 		return nil, fmt.Errorf("unable to get the internal fabric %q: %w", remoteID, err)
 	}
 
+	if err == nil {
+		return internalFabric, nil
+	}
+
 	err = cl.Get(ctx, client.ObjectKey{
 		Name:      gatewayName,
 		Namespace: ns,
