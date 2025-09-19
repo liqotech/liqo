@@ -297,23 +297,32 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 					if nodeProvider.IsTerminating() {
 						// this avoids the re-creation of terminated nodes
-						klog.V(4).Info("skipping: node is in terminating phase")
+						klog.Info("skipping: node is in terminating phase")
 						return nil
 					}
 
+					klog.Infof("attempting to get node: %s", newNode.Name)
 					oldNode, newErr := localClient.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
 					if newErr != nil {
 						if !k8serrors.IsNotFound(newErr) {
 							klog.Error(newErr, "node error")
 							return newErr
 						}
+						klog.Info("node not found, creating new node")
 						_, newErr = localClient.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
-						klog.Info("new node created")
+						if newErr == nil {
+							klog.Info("new node created")
+						} else {
+							klog.Errorf("failed to create node: %v", newErr)
+						}
 					} else {
+						klog.Info("node exists, updating status")
 						oldNode.Status = newNode.Status
 						_, newErr = localClient.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
-						if newErr != nil {
+						if newErr == nil {
 							klog.Info("node updated")
+						} else {
+							klog.Errorf("failed to update node: %v", newErr)
 						}
 					}
 
