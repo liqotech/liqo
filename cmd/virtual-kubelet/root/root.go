@@ -293,6 +293,19 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 				func(ctx context.Context, _ error) error {
 					klog.Info("node setting up")
 					newNode := nodeProvider.GetNode().DeepCopy()
+
+					klog.Infof("Restart check")
+					if newNode == nil || newNode.Name == "" {
+						klog.Errorf("Restartining the pod")
+						if newNode == nil {
+							klog.Errorf("newNode is nil")
+						}
+						if newNode.Name == "" {
+							klog.Errorf("newNode.Name is empty")
+						}
+						os.Exit(1)
+					}
+
 					newNode.ResourceVersion = ""
 
 					if nodeProvider.IsTerminating() {
