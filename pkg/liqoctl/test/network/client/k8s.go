@@ -95,7 +95,7 @@ func initConfigAndClient(ctx context.Context, kubeconfig string, cl *Client, cfg
 	sname := string(name)
 
 	cfg[sname] = cfgtmp
-	if cl.ConsumerName == "" {
+	if kubeconfig == "" {
 		cl.ConsumerName = sname
 		cl.Consumer = cltmp
 		cl.ConsumerDynamic = cldyntmp

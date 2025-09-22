@@ -37,7 +37,7 @@ func MakeInfrastructure(ctx context.Context, cl *client.Client, opts *flags.Opti
 		return 0, fmt.Errorf("error offloading namespace: %w", err)
 	}
 
-	if err := CreatePolicy(ctx, cl); err != nil {
+	if err := CreatePolicy(ctx, cl, opts); err != nil {
 		return 0, fmt.Errorf("error creating policy: %w", err)
 	}
 
