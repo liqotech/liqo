@@ -17,6 +17,23 @@ pullPolicy: IfNotPresent
 imagePullSecrets: []
 # - name: regcred
 
+# -- Liqo CRD subchart configuration
+# Since Liqo contains a lot of CRDs, we decided to separate them from the main chart
+# These values override the ones in the liqo-crds subchart
+liqo-crds:
+  crdUpgrade:
+    # -- Enable/Disable the CRD upgrade job. When enabled, a pre-upgrade hook will automatically update CRDs during helm upgrade.
+    enabled: false
+    # -- Keep the CRD upgrade resources (Job, ConfigMap, ServiceAccount, ClusterRole, ClusterRoleBinding) after completion. If false, they are deleted on success.
+    keepResources: false
+    image:
+      # -- Image repository for the CRD upgrade job.
+      name: "ghcr.io/liqotech/liqo-crd-upgrade"
+      # -- Image version for the CRD upgrade job. Required when crdUpgrade.enabled is true.
+      version: ""
+      # -- Image pull policy for the CRD upgrade job.
+      pullPolicy: IfNotPresent
+
 metrics:
   # -- Enable/Disable the metrics server in every liqo component.
   enabled: false
