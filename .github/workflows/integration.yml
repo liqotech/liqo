@@ -6,7 +6,6 @@ on:
     branches:
       - master
       - release
-      - ipam
   repository_dispatch:
     types:
       - test-command

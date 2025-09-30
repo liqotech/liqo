@@ -100,8 +100,10 @@ func (p *LiqoNodeProvider) NotifyNodeStatus(_ context.Context, f func(*corev1.No
 
 // IsTerminating indicates if the node is in terminating (and in the draining phase).
 func (p *LiqoNodeProvider) IsTerminating() bool {
+	klog.Infof("Trying to check if the node is terminating")
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
+	klog.Infof("Node is terminating: %v", p.terminating)
 	return p.terminating
 }
 

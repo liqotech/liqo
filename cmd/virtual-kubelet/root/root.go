@@ -303,6 +303,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 						if newNode.Name == "" {
 							klog.Errorf("newNode.Name is empty")
 						}
+						klog.Flush() // Force flush before exit
 						os.Exit(1)
 					}
 
