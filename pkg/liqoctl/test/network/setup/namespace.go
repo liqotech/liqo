@@ -74,9 +74,9 @@ func RemoveNamespace(ctx context.Context, cl *client.Client) error {
 	if err := cl.Consumer.Delete(ctx, ns); err != nil {
 		return err
 	}
-	timeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	timeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	if err := wait.PollUntilContextCancel(timeout, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+	if err := wait.PollUntilContextCancel(timeout, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		if err := cl.Consumer.Get(ctx, ctrlclient.ObjectKeyFromObject(ns), ns); err != nil {
 			return ctrlclient.IgnoreNotFound(err) == nil, nil
 		}
