@@ -88,8 +88,8 @@ func (r *PodReconciler) processFirewallConfiguration(ctx context.Context, fwcfgl
 
 		chain := fwcfglist.Items[i].Spec.Table.Chains[0]
 
-		if chain.Type == nil || *chain.Type != firewall.ChainTypeNAT {
-			return fmt.Errorf("firewall configuration table chain should be of type NAT, not %s", *chain.Type)
+		if chain.Type == "" || chain.Type != firewall.ChainTypeNAT {
+			return fmt.Errorf("firewall configuration table chain should be of type NAT, not %s", chain.Type)
 		}
 
 		if err := r.processRules(ctx, &chain, getNodeFromFirewallConfigurationName(fwcfglist.Items[i].Name)); err != nil {

@@ -31,11 +31,6 @@ func (in *Chain) DeepCopyInto(out *Chain) {
 		**out = **in
 	}
 	in.Rules.DeepCopyInto(&out.Rules)
-	if in.Type != nil {
-		in, out := &in.Type, &out.Type
-		*out = new(ChainType)
-		**out = **in
-	}
 	if in.Policy != nil {
 		in, out := &in.Policy, &out.Policy
 		*out = new(ChainPolicy)

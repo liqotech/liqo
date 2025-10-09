@@ -84,7 +84,7 @@ func forgeMutateFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfigura
 func forgeFirewallChain() *firewallapi.Chain {
 	return &firewallapi.Chain{
 		Name:     ptr.To(PrePostroutingChainName),
-		Type:     ptr.To(firewallapi.ChainTypeNAT),
+		Type:     firewallapi.ChainTypeNAT,
 		Policy:   ptr.To(firewallapi.ChainPolicyAccept),
 		Priority: ptr.To(firewallapi.ChainPriorityNATSource - 1),
 		Hook:     ptr.To(firewallapi.ChainHookPostrouting),
