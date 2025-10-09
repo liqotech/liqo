@@ -174,7 +174,7 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfigu
 	chainPre := &fwcfg.Spec.Table.Chains[0]
 	chainPre.Name = &PreroutingChainName
 	chainPre.Policy = ptr.To(firewall.ChainPolicyAccept)
-	chainPre.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPre.Type = firewall.ChainTypeNAT
 	chainPre.Hook = &firewall.ChainHookPrerouting
 	chainPre.Priority = ptr.To(firewall.ChainPriorityNATDest)
 	ensureFirewallConfigurationDNATRules(&chainPre.Rules, ip)
@@ -182,7 +182,7 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfigu
 	chainPost := &fwcfg.Spec.Table.Chains[1]
 	chainPost.Name = &PostroutingChainName
 	chainPost.Policy = ptr.To(firewall.ChainPolicyAccept)
-	chainPost.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPost.Type = firewall.ChainTypeNAT
 	chainPost.Hook = &firewall.ChainHookPostrouting
 	chainPost.Priority = ptr.To(firewall.ChainPriorityNATSource)
 	ensureFirewallConfigurationSNATRules(&chainPost.Rules, ip)
@@ -195,7 +195,7 @@ func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1beta1.FirewallCon
 	chainPre := &fwcfg.Spec.Table.Chains[0]
 	chainPre.Name = &PreroutingChainName
 	chainPre.Policy = ptr.To(firewall.ChainPolicyAccept)
-	chainPre.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPre.Type = firewall.ChainTypeNAT
 	chainPre.Hook = &firewall.ChainHookPrerouting
 	chainPre.Priority = ptr.To(firewall.ChainPriorityNATDest)
 	ensureFirewallConfigurationDNATRules(&chainPre.Rules, ip)
@@ -203,7 +203,7 @@ func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1beta1.FirewallCon
 	chainPost := &fwcfg.Spec.Table.Chains[1]
 	chainPost.Name = &PostroutingChainName
 	chainPost.Policy = ptr.To(firewall.ChainPolicyAccept)
-	chainPost.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPost.Type = firewall.ChainTypeNAT
 	chainPost.Hook = &firewall.ChainHookPostrouting
 	chainPost.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)
 	ensureFirewallConfigurationMasqSNATRules(&chainPost.Rules, ip)
