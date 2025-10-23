@@ -500,6 +500,8 @@ liqoctl create resourceslice [flags]
 ```bash
   $ liqoctl create resourceslice my-slice --remote-cluster-id remote-cluster-id \
   --cpu 4 --memory 8Gi --pods 30
+  $ liqoctl create resourceslice my-slice --remote-cluster-id remote-cluster-id \
+  --cpu 4 --memory 8Gi --pods 30 --resource nvidia.com/gpu=2
 ```
 
 
@@ -531,6 +533,10 @@ liqoctl create resourceslice [flags]
 `--remote-cluster-id` _clusterID_:
 
 >The cluster ID of the remote cluster
+
+`--resource` _stringToString_:
+
+>Other resources requested in the resource slice (e.g., 'resource=nvidia.com/gpu=2')
 
 
 ### Global options
@@ -655,6 +661,10 @@ liqoctl create virtualnode [flags]
 `--remote-cluster-id` _clusterID_:
 
 >The cluster ID of the remote cluster
+
+`--resource` _stringToString_:
+
+>Other resources available in the virtual node (e.g., 'resource=nvidia.com/gpu=2')
 
 `--resource-slice-name` _string_:
 
