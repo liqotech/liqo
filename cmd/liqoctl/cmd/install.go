@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kind"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/rke2"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/version"
@@ -188,6 +189,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, kind.New))
 	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, kubeadm.New))
 	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, openshift.New))
+	utils.AddCommand(cmd, newInstallProviderCommand(ctx, options.CommonOptions, rke2.New))
 
 	return cmd
 }
