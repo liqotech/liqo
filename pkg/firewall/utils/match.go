@@ -58,6 +58,12 @@ func applyMatch(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 			return err
 		}
 	}
+	if m.CtState != nil {
+		err = applyMatchCtState(m, rule, op)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -302,4 +308,59 @@ func ifname(n string) []byte {
 	b := make([]byte, 16)
 	copy(b, n+"\x00")
 	return b
+}
+
+func applyMatchCtState(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	var stateBits uint32
+
+	cmpOp := expr.CmpOpNeq
+	if op == expr.CmpOpNeq {
+		cmpOp = expr.CmpOpEq
+	}
+
+	for _, state := range m.CtState.Value {
+		bit, err := getCtStateBit(state)
+		if err != nil {
+			return err
+		}
+		stateBits |= bit
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		&expr.Ct{
+			Register:       1,
+			SourceRegister: false,
+			Key:            expr.CtKeySTATE,
+		},
+		&expr.Bitwise{
+			SourceRegister: 1,
+			DestRegister:   1,
+			Len:            4,
+			Mask:           binaryutil.NativeEndian.PutUint32(stateBits),
+			Xor:            []byte{0x0, 0x0, 0x0, 0x0},
+		},
+		&expr.Cmp{
+			Op:       cmpOp,
+			Register: 1,
+			Data:     []byte{0, 0, 0, 0},
+		},
+	)
+	return nil
+}
+
+func getCtStateBit(state firewallv1beta1.CtStateValue) (uint32, error) {
+	switch state {
+	case firewallv1beta1.CtStateNew:
+		return expr.CtStateBitNEW, nil
+	case firewallv1beta1.CtStateEstablished:
+		return expr.CtStateBitESTABLISHED, nil
+	case firewallv1beta1.CtStateRelated:
+		return expr.CtStateBitRELATED, nil
+	case firewallv1beta1.CtStateInvalid:
+		return expr.CtStateBitINVALID, nil
+	case firewallv1beta1.CtStateUntracked:
+		return expr.CtStateBitUNTRACKED, nil
+	default:
+		return 0, fmt.Errorf("invalid ctstate value %s", state)
+	}
 }

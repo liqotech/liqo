@@ -112,6 +112,28 @@ spec:
                                       description: Match is a match to be applied
                                         to a rule.
                                       properties:
+                                        ctstate:
+                                          description: CtState contains the options
+                                            to match a connection tracking state.
+                                          properties:
+                                            value:
+                                              description: Value is the connection
+                                                tracking state to be matched.
+                                              items:
+                                                description: CtStateValue is the connection
+                                                  tracking state of the packet.
+                                                enum:
+                                                - new
+                                                - established
+                                                - related
+                                                - untracked
+                                                - invalid
+                                                type: string
+                                              minItems: 1
+                                              type: array
+                                          required:
+                                          - value
+                                          type: object
                                         dev:
                                           description: Dev contains the options to
                                             match a device.
@@ -221,6 +243,28 @@ spec:
                                       description: Match is a match to be applied
                                         to a rule.
                                       properties:
+                                        ctstate:
+                                          description: CtState contains the options
+                                            to match a connection tracking state.
+                                          properties:
+                                            value:
+                                              description: Value is the connection
+                                                tracking state to be matched.
+                                              items:
+                                                description: CtStateValue is the connection
+                                                  tracking state of the packet.
+                                                enum:
+                                                - new
+                                                - established
+                                                - related
+                                                - untracked
+                                                - invalid
+                                                type: string
+                                              minItems: 1
+                                              type: array
+                                          required:
+                                          - value
+                                          type: object
                                         dev:
                                           description: Dev contains the options to
                                             match a device.
