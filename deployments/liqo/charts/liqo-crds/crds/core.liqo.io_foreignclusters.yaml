@@ -322,6 +322,10 @@ spec:
                 - networking
                 - offloading
                 type: object
+              remoteVersion:
+                description: RemoteVersion is the Liqo version running on the remote
+                  cluster.
+                type: string
               role:
                 default: Unknown
                 description: Role of the ForeignCluster.

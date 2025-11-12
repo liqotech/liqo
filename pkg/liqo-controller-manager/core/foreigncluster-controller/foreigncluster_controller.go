@@ -39,6 +39,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -53,6 +54,11 @@ type ForeignClusterReconciler struct {
 	NetworkingEnabled     bool
 	AuthenticationEnabled bool
 	OffloadingEnabled     bool
+
+	// IdentityManager is used to access remote clusters using the control plane identity.
+	IdentityManager identitymanager.IdentityReader
+	// LiqoNamespace is the namespace where Liqo is installed.
+	LiqoNamespace string
 
 	// Handle concurrent access to the map containing the cancel context functions of the API server checkers.
 	APIServerCheckers
@@ -140,6 +146,12 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Set the role of the ForeignCluster depending on the presence of the different resources.
 	fcutils.SetRole(&foreignCluster, consumer, provider)
+
+	// Fetch and update the remote cluster version if authentication is enabled and a connection exists.
+	if r.AuthenticationEnabled {
+		r.handleRemoteVersion(ctx, &foreignCluster)
+	}
+	tracer.Step("Handled remote version")
 
 	// Activate/deactivate API server checker logic if the foreigncluster has the API server URL (or the proxy) set.
 	cont, res, err := r.handleAPIServerChecker(ctx, &foreignCluster)

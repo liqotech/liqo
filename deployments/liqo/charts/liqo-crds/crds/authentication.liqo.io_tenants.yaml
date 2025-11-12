@@ -66,6 +66,16 @@ spec:
                 x-kubernetes-validations:
                 - message: ClusterID is immutable
                   rule: self == oldSelf
+              consumerAPIServerURL:
+                description: |-
+                  ConsumerAPIServerURL is the URL of the consumer cluster's API server.
+                  This is used by the provider cluster to fetch the consumer's Liqo version.
+                type: string
+              consumerVersionReaderToken:
+                description: |-
+                  ConsumerVersionReaderToken is the token used to authenticate when fetching the consumer's Liqo version.
+                  This should be the token from the liqo-version-reader ServiceAccount on the consumer cluster.
+                type: string
               csr:
                 description: CSR is the Certificate Signing Request of the tenant
                   cluster.

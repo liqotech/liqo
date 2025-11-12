@@ -52,6 +52,7 @@ import (
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
 	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
+	versionpkg "github.com/liqotech/liqo/pkg/liqo-controller-manager/version"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnodecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -161,6 +162,13 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	if err := indexer.IndexField(cmd.Context(), mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		return fmt.Errorf("unable to setup the indexer for the Pod nodeName field: %w", err)
+	}
+
+	// Setup version resources (ConfigMap, Role, RoleBinding) for remote clusters to read the local Liqo version.
+	// Read the version from the liqo-controller-manager deployment's image tag
+	liqoVersion := versionpkg.GetVersionFromDeployment(cmd.Context(), clientset, opts.LiqoNamespace, "liqo-controller-manager")
+	if err := versionpkg.SetupVersionResources(cmd.Context(), clientset, opts.LiqoNamespace, liqoVersion); err != nil {
+		return fmt.Errorf("unable to setup version resources: %w", err)
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(cmd.Context(), clientset, scheme)
@@ -284,6 +292,9 @@ func run(cmd *cobra.Command, _ []string) error {
 		NetworkingEnabled:     opts.NetworkingEnabled,
 		AuthenticationEnabled: opts.AuthenticationEnabled,
 		OffloadingEnabled:     opts.OffloadingEnabled,
+
+		IdentityManager: idManager,
+		LiqoNamespace:   opts.LiqoNamespace,
 
 		APIServerCheckers: foreignclustercontroller.NewAPIServerCheckers(idManager, opts.ForeignClusterPingInterval, opts.ForeignClusterPingTimeout),
 	}

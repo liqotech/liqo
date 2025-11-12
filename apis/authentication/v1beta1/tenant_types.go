@@ -76,6 +76,14 @@ type TenantSpec struct {
 	// +kubebuilder:validation:Enum=Active;Cordoned;Drained
 	// +kubebuilder:default=Active
 	TenantCondition TenantCondition `json:"tenantCondition,omitempty"`
+	// ConsumerAPIServerURL is the URL of the consumer cluster's API server.
+	// This is used by the provider cluster to fetch the consumer's Liqo version.
+	// +kubebuilder:validation:Optional
+	ConsumerAPIServerURL string `json:"consumerAPIServerURL,omitempty"`
+	// ConsumerVersionReaderToken is the token used to authenticate when fetching the consumer's Liqo version.
+	// This should be the token from the liqo-version-reader ServiceAccount on the consumer cluster.
+	// +kubebuilder:validation:Optional
+	ConsumerVersionReaderToken string `json:"consumerVersionReaderToken,omitempty"`
 }
 
 // TenantCondition contains the conditions of the tenant.
