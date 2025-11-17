@@ -97,6 +97,11 @@ var _ = Describe("Liqo E2E", func() {
 			_, err := util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, namespaceName)
 			Expect(err).ToNot(HaveOccurred())
 
+			By("Ensuring virtual nodes are ready")
+			Eventually(func() bool {
+				return util.CheckVirtualNodes(ctx, testContext.Clusters[0].NativeClient, clustersRequired)
+			}, timeout, interval).Should(BeTrue())
+
 			Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName,
 				"--pod-offloading-strategy", "Remote")).To(Succeed())
 			time.Sleep(2 * time.Second)

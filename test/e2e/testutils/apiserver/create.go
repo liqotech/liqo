@@ -41,7 +41,7 @@ const (
 )
 
 var (
-	image = "bitnami/kubectl"
+	image = "alpine/kubectl"
 )
 
 func init() {
