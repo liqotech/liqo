@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +62,7 @@ func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string, v
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:      containerName,
-						Image:     fmt.Sprintf("%s:%s.%s", image, v.Major, v.Minor),
+						Image:     fmt.Sprintf("%s:%s.%s.%s", image, v.Major, v.Minor, patchVersion(v)),
 						Args:      []string{"get", "pods", "-n", namespace, "--no-headers", "-o", "custom-columns=:.metadata.name"},
 						Resources: util.ResourceRequirements(),
 					}},
@@ -112,4 +113,13 @@ func CreateRoleBinding(ctx context.Context, cl client.Client, namespace string) 
 		Subjects:   []rbacv1.Subject{{Kind: rbacv1.ServiceAccountKind, Name: serviceAccountName, Namespace: namespace}},
 	}
 	return cl.Create(ctx, rb)
+}
+
+func patchVersion(v *version.Info) string {
+	tmp := strings.Split(v.GitVersion, ".")
+	if len(tmp) < 3 {
+		return ""
+	}
+	patch := tmp[2]
+	return strings.Split(patch, "+")[0]
 }
