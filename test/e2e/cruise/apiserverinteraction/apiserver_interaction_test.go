@@ -99,7 +99,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			By("Ensuring virtual nodes are ready")
 			Eventually(func() bool {
-				return util.CheckVirtualNodes(ctx, testContext.Clusters[0].NativeClient, clustersRequired)
+				return util.CheckVirtualNodes(ctx, testContext.Clusters[0].NativeClient, testContext.ClustersNumber)
 			}, timeout, interval).Should(BeTrue())
 
 			Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName,
