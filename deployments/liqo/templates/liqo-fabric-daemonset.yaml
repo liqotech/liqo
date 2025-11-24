@@ -25,6 +25,14 @@ spec:
           {{- toYaml .Values.networking.fabric.pod.labels | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.networking.fabric.nodeSelector }}
+      nodeSelector:
+      {{- toYaml .Values.networking.fabric.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.networking.fabric.affinity }}
+      affinity:
+      {{- toYaml .Values.networking.fabric.affinity | nindent 8 }}
+      {{- end }}
       tolerations:
         - key: CriticalAddonsOnly
           operator: Exists
@@ -38,7 +46,7 @@ spec:
         {{- toYaml .Values.networking.fabric.tolerations | nindent 8 }}
         {{- end }}
       serviceAccountName: {{ include "liqo.prefixedName" $fabricConfig }}
-      {{- include "liqo.imagePullSecrets" . | nindent 6 }}
+      {{- include "liqo.imagePullSecrets" . | nindent 6 -}}
       containers:
         - image: {{ .Values.networking.fabric.image.name }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
@@ -98,5 +106,4 @@ spec:
       {{- if .Values.networking.fabric.pod.priorityClassName }}
       priorityClassName: {{ .Values.networking.fabric.pod.priorityClassName }}
       {{- end }}
-
 {{- end }}
