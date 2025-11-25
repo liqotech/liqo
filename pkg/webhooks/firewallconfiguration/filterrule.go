@@ -15,12 +15,9 @@
 package firewallconfiguration
 
 import (
-	"bytes"
 	"fmt"
-	"net"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
-	fwutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
 func checkFilterRules(rules []firewallapi.FilterRule) error {
@@ -33,11 +30,12 @@ func checkFilterRules(rules []firewallapi.FilterRule) error {
 }
 
 func checkFilterRule(r *firewallapi.FilterRule) error {
+	if r.Name == nil {
+		return fmt.Errorf("filterrule has nil name")
+	}
 	for _, match := range r.Match {
-		if match.IP != nil {
-			if err := checkFilterRuleIPValue(match.IP); err != nil {
-				return fmt.Errorf("filterrule ip value: %w", err)
-			}
+		if err := checkRuleMatch(&match); err != nil {
+			return fmt.Errorf("filterrule %s: %v", *r.Name, err)
 		}
 	}
 
@@ -56,46 +54,4 @@ func checkFilterRuleTCPMssClamp(r *firewallapi.FilterRule) error {
 		}
 	}
 	return fmt.Errorf("tcp mss clamp rule should have a match for tcp protocol")
-}
-
-func checkFilterRuleIPValue(mIP *firewallapi.MatchIP) error {
-	IPValueType, err := fwutils.GetIPValueType(&mIP.Value)
-	if err != nil {
-		return err
-	}
-
-	switch IPValueType {
-	case firewallapi.IPValueTypeIP:
-		if net.ParseIP(mIP.Value) == nil {
-			return fmt.Errorf("invalid IP %s", mIP.Value)
-		}
-	case firewallapi.IPValueTypeSubnet:
-		if _, _, err := net.ParseCIDR(mIP.Value); err != nil {
-			return fmt.Errorf("invalid subnet %s", mIP.Value)
-		}
-	case firewallapi.IPValueTypeRange:
-		if err := checkGranularRangeIP(mIP); err != nil {
-			return fmt.Errorf("invalid range %s", mIP.Value)
-		}
-	default:
-		return fmt.Errorf("invalid IP value type %s", IPValueType)
-	}
-	return nil
-}
-
-func checkGranularRangeIP(mIP *firewallapi.MatchIP) error {
-	addr1, addr2, err := fwutils.GetIPValueRange(mIP.Value)
-	if err != nil {
-		return err
-	}
-
-	if addr1 == nil || addr2 == nil {
-		return fmt.Errorf("missing one of the IPs in range: %s", mIP.Value)
-	}
-
-	if bytes.Compare(addr1, addr2) > 0 {
-		return fmt.Errorf("invalid IP range (start > end): %s", mIP.Value)
-	}
-
-	return nil
 }
