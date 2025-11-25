@@ -74,6 +74,8 @@ func applyMatchIP(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) 
 		return applyMatchIPPoolSubnet(m, rule, op)
 	case firewallv1beta1.IPValueTypeRange:
 		return applyMatchIPRange(m, rule, op)
+	case firewallv1beta1.IPValueTypeNamedSet:
+		return applyMatchIPNamedSet(m, rule, op)
 	default:
 		return fmt.Errorf("invalid match value type %s", matchIPValueType)
 	}
@@ -280,6 +282,39 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 			Register: 1,
 			FromData: startIPBytes,
 			ToData:   endIPBytes,
+		},
+	)
+
+	return nil
+}
+
+func applyMatchIPNamedSet(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	invert := false
+	if op == expr.CmpOpNeq {
+		invert = true
+	}
+
+	posOffset, err := getMatchIPPositionOffset(m)
+	if err != nil {
+		return err
+	}
+
+	setName, err := GetIPValueNamedSet(m.IP.Value)
+	if err != nil {
+		return err
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		&expr.Payload{
+			DestRegister: 1,
+			Base:         expr.PayloadBaseNetworkHeader,
+			Offset:       posOffset,
+			Len:          4,
+		},
+		&expr.Lookup{
+			SourceRegister: 1,
+			SetName:        setName,
+			Invert:         invert,
 		},
 	)
 

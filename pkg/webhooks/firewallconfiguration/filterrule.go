@@ -20,28 +20,29 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-func checkFilterRules(rules []firewallapi.FilterRule) error {
-	for i := range rules {
-		if err := checkFilterRule(&rules[i]); err != nil {
+func checkFilterRulesInChain(chain *firewallapi.Chain, sets []firewallapi.Set) error {
+	filterRules := chain.Rules.FilterRules
+	for i := range filterRules {
+		if err := checkFilterRule(&filterRules[i], sets); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkFilterRule(r *firewallapi.FilterRule) error {
-	if r.Name == nil {
+func checkFilterRule(filterRule *firewallapi.FilterRule, sets []firewallapi.Set) error {
+	if filterRule.Name == nil {
 		return fmt.Errorf("filterrule has nil name")
 	}
-	for _, match := range r.Match {
-		if err := checkRuleMatch(&match); err != nil {
-			return fmt.Errorf("filterrule %s: %v", *r.Name, err)
+	for _, match := range filterRule.Match {
+		if err := checkRuleMatch(&match, sets); err != nil {
+			return fmt.Errorf("filterrule %s: %v", *filterRule.Name, err)
 		}
 	}
 
-	switch r.Action {
+	switch filterRule.Action {
 	case firewallapi.ActionTCPMssClamp:
-		return checkFilterRuleTCPMssClamp(r)
+		return checkFilterRuleTCPMssClamp(filterRule)
 	default:
 		return nil
 	}

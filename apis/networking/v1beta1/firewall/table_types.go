@@ -39,4 +39,7 @@ type Table struct {
 	// Family is the family of the table.
 	// +kubebuilder:validation:Enum="INET";"IPV4";"IPV6";"ARP";"NETDEV";"BRIDGE"
 	Family *TableFamily `json:"family"`
+	// Sets is a list of sets to be applied to the table.
+	// +kubebuilder:validation:Optional
+	Sets []Set `json:"sets,omitempty"`
 }
