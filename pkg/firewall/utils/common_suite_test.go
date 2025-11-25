@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package port
+package utils
 
 import (
-	"fmt"
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-// ParsePortRange parses the port range and returns the start and end of the range.
-func ParsePortRange(value string) (start, end uint16, err error) {
-	_, err = fmt.Sscanf(value, "%d-%d", &start, &end)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid port range %s", value)
-	}
-
-	return start, end, nil
+func TestCommon(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Firewall Utils Suite")
 }
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})
