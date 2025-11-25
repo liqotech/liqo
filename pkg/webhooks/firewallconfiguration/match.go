@@ -23,16 +23,16 @@ import (
 	fwutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
-func checkRuleMatch(matchRule *firewallapi.Match) error {
+func checkRuleMatch(matchRule *firewallapi.Match, sets []firewallapi.Set) error {
 	if matchRule.IP != nil {
-		if err := checkMatchIPValue(matchRule.IP); err != nil {
+		if err := checkMatchIPValue(matchRule.IP, sets); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkMatchIPValue(mIP *firewallapi.MatchIP) error {
+func checkMatchIPValue(mIP *firewallapi.MatchIP, sets []firewallapi.Set) error {
 	IPValueType, err := fwutils.GetIPValueType(&mIP.Value)
 	if err != nil {
 		return err
@@ -50,6 +50,15 @@ func checkMatchIPValue(mIP *firewallapi.MatchIP) error {
 	case firewallapi.IPValueTypeRange:
 		if err := checkGranularRangeIP(mIP); err != nil {
 			return fmt.Errorf("invalid range %s", mIP.Value)
+		}
+	case firewallapi.IPValueTypeNamedSet:
+		matchedSet := findMatchingSet(mIP, sets)
+		if matchedSet == nil {
+			return fmt.Errorf("named set %s does not exist", mIP.Value)
+		}
+
+		if matchedSet.KeyType != firewallapi.SetTypeIPAddr {
+			return fmt.Errorf("named set %s is not of type IP", mIP.Value)
 		}
 	default:
 		return fmt.Errorf("invalid IP value type %s", IPValueType)
@@ -71,5 +80,19 @@ func checkGranularRangeIP(mIP *firewallapi.MatchIP) error {
 		return fmt.Errorf("invalid IP range (start > end): %s", mIP.Value)
 	}
 
+	return nil
+}
+
+func findMatchingSet(mIP *firewallapi.MatchIP, sets []firewallapi.Set) *firewallapi.Set {
+	setName, err := fwutils.GetIPValueNamedSet(mIP.Value)
+	if err != nil {
+		return nil
+	}
+
+	for _, set := range sets {
+		if set.Name == setName {
+			return &set
+		}
+	}
 	return nil
 }

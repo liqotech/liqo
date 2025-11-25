@@ -138,7 +138,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	// We need to flush the updates to allow the recreation of updated chains/rules.
+	// We need to flush the updates to allow the recreation of updated chains/rules and the usage of sets in rules.
 	if err = r.NftConnection.Flush(); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -148,6 +148,12 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	// Enforce table existence.
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 
+	// Add the missing sets
+	if err = addSets(r.NftConnection, fwcfg.Spec.Table.Sets, table); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Add the missing chains and rules.
 	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
 		return ctrl.Result{}, err
 	}

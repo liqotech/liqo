@@ -418,6 +418,48 @@ spec:
                   name:
                     description: Name is the name of the table.
                     type: string
+                  sets:
+                    description: Sets is a list of sets to be applied to the table.
+                    items:
+                      description: Set represents a nftables set
+                      properties:
+                        dataType:
+                          description: DataType is the type of the set data.
+                          enum:
+                          - ipv4_addr
+                          type: string
+                        elements:
+                          description: Elements are the elements of the set.
+                          items:
+                            description: SetElement represents an element of a nftables
+                              set
+                            properties:
+                              data:
+                                description: Data is the data of the set element.
+                                type: string
+                              key:
+                                description: Key is the key of the set element.
+                                type: string
+                            required:
+                            - key
+                            type: object
+                          type: array
+                        keyType:
+                          description: KeyType is the type of the set keys.
+                          enum:
+                          - ipv4_addr
+                          type: string
+                        name:
+                          description: Name is the name of the set.
+                          maxLength: 200
+                          minLength: 1
+                          pattern: ^[a-zA-Z][a-zA-Z0-9/\\_.]*$
+                          type: string
+                      required:
+                      - keyType
+                      - name
+                      type: object
+                    type: array
                 required:
                 - family
                 - name

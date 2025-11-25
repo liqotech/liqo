@@ -12,33 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewallconfiguration
+package utils
 
 import (
 	"fmt"
+	"net"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-func checkFilterRulesInChain(chain *firewallapi.Chain, sets []firewallapi.Set) error {
-	filterRules := chain.Rules.FilterRules
-	for i := range filterRules {
-		if err := checkFilterRule(&filterRules[i], sets); err != nil {
-			return err
+func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, error) {
+	if dataType == nil {
+		if data != nil {
+			return nil, fmt.Errorf("set element has data but no data type is specified")
 		}
-	}
-	return nil
-}
-
-func checkFilterRule(filterRule *firewallapi.FilterRule, sets []firewallapi.Set) error {
-	if filterRule.Name == nil {
-		return fmt.Errorf("filterrule has nil name")
-	}
-	for _, match := range filterRule.Match {
-		if err := checkRuleMatch(&match, sets); err != nil {
-			return fmt.Errorf("filterrule %s: %v", *filterRule.Name, err)
-		}
+		return []byte{}, nil
 	}
 
-	return nil
+	if data == nil {
+		return nil, fmt.Errorf("set element has nil data for data type %s", *dataType)
+	}
+
+	switch *dataType {
+	case firewallapi.SetTypeIPAddr:
+		ip := net.ParseIP(*data)
+		if ip == nil {
+			return nil, fmt.Errorf("set element has invalid IP value %s", *data)
+		}
+		return ip.To4(), nil
+
+	default:
+		return nil, fmt.Errorf("invalid set value type %s", *dataType)
+	}
 }
