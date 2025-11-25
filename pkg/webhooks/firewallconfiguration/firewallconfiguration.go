@@ -129,6 +129,10 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 		return admission.Denied(err.Error())
 	}
 
+	if err := checkSetsInTable(firewallConfiguration.Spec.Table.Sets); err != nil {
+		return admission.Denied(err.Error())
+	}
+
 	for i := range chains {
 		chain := chains[i]
 
@@ -142,11 +146,11 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 
 		switch chain.Type {
 		case firewallapi.ChainTypeNAT:
-			if err := checkNatRulesInChain(&chain); err != nil {
+			if err := checkNatRulesInChain(&chain, firewallConfiguration.Spec.Table.Sets); err != nil {
 				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
 		case firewallapi.ChainTypeFilter:
-			if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
+			if err := checkFilterRulesInChain(&chain, firewallConfiguration.Spec.Table.Sets); err != nil {
 				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
 		}
