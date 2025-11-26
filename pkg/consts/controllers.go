@@ -24,9 +24,10 @@ package consts
 // with the prefix "Ctrl".
 const (
 	// Core.
-	CtrlForeignCluster      = "foreigncluster"
-	CtrlSecretCRDReplicator = "secret_crdreplicator" //nolint:gosec // not a credential
-	CtrlSecretWebhook       = "secret_webhook"
+	CtrlForeignCluster                   = "foreigncluster"
+	CtrlSecretCRDReplicator              = "secret_crdreplicator" //nolint:gosec // not a credential
+	CtrlForeignClusterStateCRDReplicator = "foreignclusterstate_crdreplicator"
+	CtrlSecretWebhook                    = "secret_webhook"
 
 	// Networking.
 	CtrlConfigurationExternal  = "configuration_external"
