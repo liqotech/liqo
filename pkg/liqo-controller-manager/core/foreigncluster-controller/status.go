@@ -301,7 +301,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 		)
 
 		// Check whether there is no identity but the if the cluster has been configured with a control plane secret.
-		cfg, err := r.identityManager.GetConfig(fc.Spec.ClusterID, corev1.NamespaceAll)
+		cfg, err := r.IdentityManager.GetConfig(fc.Spec.ClusterID, corev1.NamespaceAll)
 		switch {
 		case errors.IsNotFound(err):
 			klog.V(6).Infof("No credentials found for ForeignCluster %q", clusterID)

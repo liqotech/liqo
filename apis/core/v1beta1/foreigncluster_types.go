@@ -67,6 +67,10 @@ type ForeignClusterStatus struct {
 	// +kubebuilder:validation:Optional
 	TenantNamespace TenantNamespaceType `json:"tenantNamespace"`
 
+	// RemoteVersion is the Liqo version running on the remote cluster.
+	// +kubebuilder:validation:Optional
+	RemoteVersion string `json:"remoteVersion,omitempty"`
+
 	// Generic conditions related to the foreign cluster.
 	Conditions []Condition `json:"conditions,omitempty"`
 }

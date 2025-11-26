@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -30,6 +31,7 @@ import (
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -94,6 +96,7 @@ func NewTenantReconciler(cl client.Client, scheme *runtime.Scheme, config *rest.
 // cluster-role
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants;tenants/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants;tenants/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces/finalizers,verbs=update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;deletecollection;delete
@@ -265,6 +268,12 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 	}
 
+	// Ensure a ForeignCluster exists for the consumer cluster to enable bidirectional version detection
+	if err := r.ensureForeignCluster(ctx, tenant); err != nil {
+		klog.Errorf("Unable to ensure ForeignCluster for Tenant %q: %s", req.Name, err)
+		// Don't fail the reconciliation if ForeignCluster creation fails, just log it
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -371,6 +380,53 @@ func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *a
 			return err
 		}
 	}
+
+	return nil
+}
+
+// ensureForeignCluster ensures a ForeignCluster exists for the consumer cluster.
+// This enables bidirectional version detection even in unidirectional peering scenarios.
+func (r *TenantReconciler) ensureForeignCluster(ctx context.Context, tenant *authv1beta1.Tenant) error {
+	clusterID := tenant.Spec.ClusterID
+
+	// Check if a ForeignCluster already exists
+	var existingFC liqov1beta1.ForeignCluster
+	err := r.Get(ctx, client.ObjectKey{Name: string(clusterID)}, &existingFC)
+	if err == nil {
+		// ForeignCluster already exists, nothing to do
+		klog.V(6).Infof("ForeignCluster for consumer cluster %q already exists", clusterID)
+		return nil
+	}
+
+	if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to check for existing ForeignCluster: %w", err)
+	}
+
+	// ForeignCluster doesn't exist, create it
+	foreignCluster := &liqov1beta1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(clusterID),
+			Labels: map[string]string{
+				consts.RemoteClusterID: string(clusterID),
+			},
+		},
+		Spec: liqov1beta1.ForeignClusterSpec{
+			ClusterID: clusterID,
+		},
+	}
+
+	if err := r.Create(ctx, foreignCluster); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// Race condition - another controller created it
+			klog.V(6).Infof("ForeignCluster for consumer cluster %q was created concurrently", clusterID)
+			return nil
+		}
+		return fmt.Errorf("failed to create ForeignCluster: %w", err)
+	}
+
+	klog.Infof("Created ForeignCluster for consumer cluster %q", clusterID)
+	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "ForeignClusterCreated",
+		fmt.Sprintf("ForeignCluster created for consumer cluster %s", clusterID))
 
 	return nil
 }
