@@ -81,7 +81,7 @@ Where:
 * `$NAMESPACE_NAME` is the name of the namespace where the *PVC* lives in.
 * `$TARGET_NODE_NAME` is the name of the node where the *PVC* will be moved to.
 
-Under the hood, the migration process leverages the Liqo cross-cluster network fabric and the [Restic project](https://restic.net/) to back up the original data in a temporary repository, and then restore it in a brand-new *PVC* forced to be created in the target cluster.
+Under the hood, the migration process leverages the Liqo cross-cluster network fabric and the [Restic project](https://github.com/restic/restic) to back up the original data in a temporary repository, and then restore it in a brand-new *PVC* forced to be created in the target cluster.
 
 ```{warning}
 *Liqo* and *liqoctl* **are not** backup tools. Make sure to properly back up important data before starting the migration process.

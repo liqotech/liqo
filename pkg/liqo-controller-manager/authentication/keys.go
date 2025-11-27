@@ -109,10 +109,37 @@ func SignNonce(priv crypto.PrivateKey, nonce []byte) ([]byte, error) {
 	}
 }
 
-// VerifyNonce verifies the signature of a nonce using the PKIX-encoded public key bytes of the cluster.
+// parsePublicKey parses a public key from various formats:
+// - PKIX DER-encoded bytes
+// - PEM-encoded public key
+// - Raw Ed25519 public key bytes (32 bytes)
+func parsePublicKey(pubKeyBytes []byte) (crypto.PublicKey, error) {
+	// Try PEM decoding first
+	if block, _ := pem.Decode(pubKeyBytes); block != nil {
+		pubKeyBytes = block.Bytes
+	}
+
+	// Try PKIX parsing
+	if pub, err := x509.ParsePKIXPublicKey(pubKeyBytes); err == nil {
+		return pub, nil
+	}
+
+	// Try raw Ed25519 public key (32 bytes)
+	if len(pubKeyBytes) == ed25519.PublicKeySize {
+		return ed25519.PublicKey(pubKeyBytes), nil
+	}
+
+	return nil, fmt.Errorf("unable to parse public key: unrecognized format (length: %d)", len(pubKeyBytes))
+}
+
+// VerifyNonce verifies the signature of a nonce using the public key bytes of the cluster.
 // The public key can be Ed25519, RSA, or ECDSA.
-func VerifyNonce(pubKeyPKIX, nonce, signature []byte) (bool, error) {
-	pub, err := x509.ParsePKIXPublicKey(pubKeyPKIX)
+// It accepts the public key in multiple formats:
+// - PKIX DER-encoded bytes
+// - PEM-encoded public key (will be decoded first)
+// - Raw Ed25519 public key bytes (32 bytes)
+func VerifyNonce(pubKeyBytes, nonce, signature []byte) (bool, error) {
+	pub, err := parsePublicKey(pubKeyBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse public key: %w", err)
 	}

@@ -170,13 +170,24 @@ func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organizati
 			return fmt.Errorf("invalid public key")
 		}
 
-		// Marshal CSR public key to PKIX DER and compare with provided PKIX public key bytes
+		// Parse the provided public key (supports PEM, PKIX DER, or raw Ed25519)
+		parsedPubKey, err := parsePublicKey(publicKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse provided public key: %w", err)
+		}
+
+		// Marshal both keys to PKIX DER for comparison
 		csrPubDER, err := x509.MarshalPKIXPublicKey(x509Csr.PublicKey)
 		if err != nil {
 			return fmt.Errorf("failed to marshal CSR public key: %w", err)
 		}
 
-		if !bytes.Equal(csrPubDER, publicKey) {
+		parsedPubDER, err := x509.MarshalPKIXPublicKey(parsedPubKey)
+		if err != nil {
+			return fmt.Errorf("failed to marshal provided public key: %w", err)
+		}
+
+		if !bytes.Equal(csrPubDER, parsedPubDER) {
 			return fmt.Errorf("invalid public key")
 		}
 	}
