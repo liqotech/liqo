@@ -5,8 +5,11 @@
 # from the environment for the first two.
 SPHINXOPTS    ?= -W -n --keep-going
 SPHINXAUTOOPTS    ?= -W -n
-SPHINXBUILD   ?= sphinx-build
-SPHINXAUTOBUILD ?= sphinx-autobuild
+VENV ?= .venv
+PYTHON ?= $(VENV)/bin/python
+PIP ?= $(VENV)/bin/pip
+SPHINXBUILD   ?= $(VENV)/bin/sphinx-build
+SPHINXAUTOBUILD ?= $(VENV)/bin/sphinx-autobuild
 SOURCEDIR     = .
 BUILDDIR      = _build
 
@@ -22,13 +25,18 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 install:
-	pip3 install -r requirements.txt
+	@if [ ! -d "$(VENV)" ]; then python3 -m venv $(VENV); fi
+	@$(PIP) install --upgrade pip setuptools wheel
+	@$(PIP) install -r requirements.txt
 
 serve: install html
-	docker run --rm -it -v $(PWD)/_build/html:/usr/share/nginx/html -p 8080:80 nginx
+	@$(PYTHON) -m http.server 8080 --directory $(BUILDDIR)/html
 
 autoserve: install
 	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) --port 8081 $(O)
 
 lint:
 	markdownlint lint -c ../.markdownlint.yml -i usage/liqoctl **/*.md
+
+clean-venv:
+	@rm -rf $(VENV)
