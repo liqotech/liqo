@@ -56,6 +56,18 @@ subtrees:
       - file: advanced/external-ip-remapping.md
       - file: advanced/k8s-api-server-proxy.md
 
+  - caption: Architecture
+    entries:
+      - file: architecture/network/main.md
+        entries:
+          - file: architecture/network/basic.md
+          - file: architecture/network/leaftoleaf.md
+          - file: architecture/network/nodeport.md
+          - file: architecture/network/firewallconfiguration.md
+          - file: architecture/network/routeconfiguration.md
+          - file: architecture/network/ip.md
+          - file: architecture/network/internalnode.md
+
   - caption: Contributing
     entries:
       - file: contributing/contributing.md
