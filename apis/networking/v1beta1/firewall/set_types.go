@@ -20,7 +20,7 @@ type SetDataType string
 
 // Possible SetDataType values.
 const (
-	SetTypeIPAddr SetDataType = "ipv4_addr"
+	SetDataTypeIPAddr SetDataType = "ipv4_addr"
 )
 
 // Set represents a nftables set
