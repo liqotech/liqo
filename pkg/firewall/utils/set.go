@@ -34,7 +34,7 @@ func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, er
 	}
 
 	switch *dataType {
-	case firewallapi.SetTypeIPAddr:
+	case firewallapi.SetDataTypeIPAddr:
 		ip := net.ParseIP(*data)
 		if ip == nil {
 			return nil, fmt.Errorf("set element has invalid IP value %s", *data)
