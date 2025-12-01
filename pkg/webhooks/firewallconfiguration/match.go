@@ -57,7 +57,7 @@ func checkMatchIPValue(mIP *firewallapi.MatchIP, sets []firewallapi.Set) error {
 			return fmt.Errorf("named set %s does not exist", mIP.Value)
 		}
 
-		if matchedSet.KeyType != firewallapi.SetTypeIPAddr {
+		if matchedSet.KeyType != firewallapi.SetDataTypeIPAddr {
 			return fmt.Errorf("named set %s is not of type IP", mIP.Value)
 		}
 	default:
