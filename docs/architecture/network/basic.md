@@ -41,7 +41,7 @@ The flow of a packet from a pod in one cluster to a pod in another cluster invol
 
 The return traffic follows the same path in reverse, ensuring symmetric routing between the two pods across clusters.
 
-![Packets flow](/_static/images/architecture/network/baseflow.excalidraw.png)
+![Packets flow](../../_static/images/architecture/network/baseflow.excalidraw.png)
 
 ## CIDR Remapping
 
