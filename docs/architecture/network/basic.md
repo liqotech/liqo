@@ -7,7 +7,7 @@ The 2 main areas of the Liqo network are:
 - **Internal network**: it manages the traffic inside the cluster and forwards it between nodes and gateways. It uses the Geneve protocol to encapsulate the traffic (the green tunnels in the image below).
 - **External network**: it manages the traffic between different clusters. It uses WireGuard to create a secure tunnel between gateways (the yellow tunnels in the image below).
 
-![basic](/_static/images/architecture/network/base.excalidraw.png)
+![basic](../../_static/images/architecture/network/base.excalidraw.png)
 
 ## Internal network
 
