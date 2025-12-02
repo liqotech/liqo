@@ -44,7 +44,7 @@ There are two types of gateway pods: **gateway-client** and **gateway-server**.
 - A GENEVE interface for each node within the cluster (at least one in the case of a single-node cluster).
 - A tunnel interface for communication with the remote Gateway, WireGuard by default.
 
-The Gateway is also responsible for performing Destination Network Address Translation (DNAT) to support the remapping of the remote cluster.
+The Gateway is also responsible for performing DNAT and SNAT to support the remapping of the remote cluster.
 
 #### Further details about GENEVE
 
@@ -65,7 +65,7 @@ The flow of a packet from a pod in one cluster to a pod in another cluster invol
 1. The packet originates from a pod and reaches its node through a virtual Ethernet interface. This is managed by the CNI and is standard Kubernetes networking behavior (Liqo is not responsible for this part).
 2. From the node, the packet enters a Geneve tunnel using a specific [route](routeconfiguration.md#local-cluster-id-node-gw-node).The packet arrives at the other end of the Geneve tunnel, inside the gateway pod.
 3. The gateway does DNAT and routes the packet into the WireGuard tunnel([check [this route](routeconfiguration.md#local-cluster-id-gw-ext-gateway)]).
-4. The traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and reinserted into the stack. SNAT is applied, and after that the traffic must be directed to the correct Geneve interface to reach the node hosting the target pod. This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). The traffic entering the Geneve interface is then encapsulated and sent back to the appropriate node
+4. The traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and reinserted into the stack. It is then routed to the correct Geneve interface to reach the node hosting the target pod.This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). After routing, SNAT is applied.
 5. The packet is then forwarded from the node to the target pod, leveraging the CNI.
 
 The return traffic follows the same path in reverse, ensuring symmetric routing between the two pods across clusters.
@@ -90,3 +90,6 @@ All the remapping logic is managed by the IPAM component of liqo, which tracks t
 All the firewall rules for managing this remapping is handled inside the gateway pods, ensuring seamless communication even in the presence of overlapping CIDRs.
 
 The same logic is applied also to the **external CIDR**. This means that every cluster will be able to remap its neighboring cluster's external CIDR to a different, locally chosen CIDR. Pay attention that if you don't change the default external CIDR used by Liqo (check the helm values), every cluster will use the same external CIDR and neighbour's external CIDRs will appear always remapped.
+
+## Example
+A full example of the entire path can be found [here](./basic_example.md)
