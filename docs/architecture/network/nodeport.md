@@ -8,17 +8,17 @@ When packets from a Pod of Cluster A are directed toward a Pod in cluster B, ret
 
 To address this issue, before traffic leaves cluster A the Liqo’s gateway performs source NAT on traffic coming from unknown IP addresses, rewriting the source IP to the first IP of the tenant’s external CIDR. This ensures that, when the traffic reaches the destination cluster, its source IP is within a known CIDR associated with Cluster A. This allows the response traffic to be routed back through the correct WireGuard tunnel to the originating cluster.
 
-![The NodePort issue solution](/_static/images/architecture/network/nodeport.excalidraw.png)
+![The NodePort issue solution](../../_static/images/architecture/network/nodeport.excalidraw.png)
 
 Another aspect to consider is that, once the return traffic reaches the originating cluster, it must exit from the same node where the original request was received. This ensures that traffic **follows the same path in both directions**, which is crucial because some CNIs may drop traffic if it follows a different return path.
 
 To achieve this, a conntrack mark (ctmark) is applied. When traffic exits through a Geneve interface on the gateway (each connected to a specific node), a conntrack entry is created with a mark representing a unique identifier for the node where the traffic was initially received. As each Geneve interface is connected to one of the node, the mark is determined by checking from which Geneve interface the packets came out.
 
-![conntrack_outbound](/_static/images/architecture/network/conntrack_outbound.excalidraw.png)
+![conntrack_outbound](../../_static/images/architecture/network/conntrack_outbound.excalidraw.png)
 
 Conntrack stores the traffic quintuple (protocol, source and destination IP addresses, and ports) along with the mark. When return traffic passes through the gateway, the destination IP (which was previously set to the first IP of the external CIDR) is restored to the original source IP. The conntrack entry is matched, and the response packets are tagged with the same mark, identifying the node of origin.
 
-![conntrack_inbound](/_static/images/architecture/network/conntrack_inbound.excalidraw.png)
+![conntrack_inbound](../../_static/images/architecture/network/conntrack_inbound.excalidraw.png)
 
 A policy routing rule based on this mark ensures that traffic is forwarded to the correct Geneve tunnel, ultimately reaching the originating node, where packets are then delivered to their final destination.
 
