@@ -79,7 +79,7 @@ The return traffic follows the same path in reverse, ensuring symmetric routing 
 
 Liqo enables two clusters to peer even if they have the same pod CIDR. Each cluster can independently remap the remote cluster’s pod CIDR to a different, locally chosen CIDR. This remapped CIDR is decided by each cluster on its own and is not shared with other clusters.
 
-For example, if both Cluster A and Cluster B use 10.0.0.0/16 as their pod CIDR, Cluster A can remap Cluster B’s pod CIDR (10.0.0.0/16) to a new CIDR, such as 11.0.0.0/16. As a result, Cluster A will be able to reach a pod in Cluster B with IP 10.0.0.6 using the remapped IP 11.0.0.6. The same applies in the opposite direction if Cluster B chooses to remap Cluster A’s CIDR.
+For example, if both Cluster A and Cluster B use `10.0.0.0/16` as their pod CIDR, Cluster A can remap Cluster B’s pod CIDR (`10.0.0.0/16`) to a new CIDR, such as `11.0.0.0/16`. As a result, Cluster A will be able to reach a pod in Cluster B with IP `10.0.0.6` using the remapped IP `11.0.0.6`. The same applies in the opposite direction if Cluster B chooses to remap Cluster A’s CIDR.
 
 When a packet directed to a remote pod enters the gateway, its destination IP is the remapped one. The gateway performs a DNAT operation to replace this remapped address (used only within the local cluster) with the corresponding real IP address used by the remote cluster.
 ![Packets flow](../../_static/images/architecture/network/SNAT-DNAT.svg)
