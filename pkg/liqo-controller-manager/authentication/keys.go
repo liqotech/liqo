@@ -111,13 +111,8 @@ func SignNonce(priv crypto.PrivateKey, nonce []byte) ([]byte, error) {
 
 // VerifyNonce verifies the signature of a nonce using the PKIX-encoded public key bytes of the cluster.
 // The public key can be Ed25519, RSA, or ECDSA.
-func VerifyNonce(pubKeyPKIX, nonce, signature []byte) (bool, error) {
-	pub, err := x509.ParsePKIXPublicKey(pubKeyPKIX)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse public key: %w", err)
-	}
-
-	switch pk := pub.(type) {
+func VerifyNonce(publicKey crypto.PublicKey, nonce, signature []byte) (bool, error) {
+	switch pk := publicKey.(type) {
 	case ed25519.PublicKey:
 		return ed25519.Verify(pk, nonce, signature), nil
 	case *rsa.PublicKey:
@@ -133,7 +128,7 @@ func VerifyNonce(pubKeyPKIX, nonce, signature []byte) (bool, error) {
 		}
 		return false, nil
 	default:
-		return false, fmt.Errorf("unsupported public key type %T", pub)
+		return false, fmt.Errorf("unsupported public key type %T", publicKey)
 	}
 }
 
