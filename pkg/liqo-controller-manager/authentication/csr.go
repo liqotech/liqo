@@ -26,6 +26,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -112,8 +113,8 @@ func IsControlPlaneUser(groups []string) bool {
 }
 
 // CheckCSRForControlPlane checks a CSR for a control plane.
-func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.ClusterID) error {
-	return checkCSR(csr, publicKey, true,
+func CheckCSRForControlPlane(csr, publicKeyDER []byte, remoteClusterID liqov1beta1.ClusterID) error {
+	return checkCSR(csr, publicKeyDER, true,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterID) {
 				return fmt.Errorf("invalid common name")
@@ -129,8 +130,8 @@ func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
-func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
-	return checkCSR(resourceSlice.Spec.CSR, publicKey, checkPublicKey,
+func CheckCSRForResourceSlice(publicKeyDER []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
+	return checkCSR(resourceSlice.Spec.CSR, publicKeyDER, checkPublicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {
 				return fmt.Errorf("invalid common name")
@@ -145,7 +146,7 @@ func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.Resou
 		})
 }
 
-func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
+func checkCSR(csr, publicKeyDER []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
 	pemCsr, rst := pem.Decode(csr)
 	if pemCsr == nil || len(rst) != 0 {
 		return fmt.Errorf("invalid CSR")
@@ -166,7 +167,7 @@ func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organizati
 
 	if checkPublicKey {
 		// Validate provided public key bytes
-		if len(publicKey) == 0 {
+		if len(publicKeyDER) == 0 {
 			return fmt.Errorf("invalid public key")
 		}
 
@@ -176,7 +177,7 @@ func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organizati
 			return fmt.Errorf("failed to marshal CSR public key: %w", err)
 		}
 
-		if !bytes.Equal(csrPubDER, publicKey) {
+		if !bytes.Equal(csrPubDER, publicKeyDER) {
 			return fmt.Errorf("invalid public key")
 		}
 	}
@@ -223,4 +224,32 @@ func generateCSR(key crypto.PrivateKey, commonName, organization string) (csrByt
 	}
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes}), nil
+}
+
+// ParseTenantPublicKey parses the public key from the tenant resource.
+// To keep the back-compatibility to the version before 1.0.2 which encodes the public key in the tenant in the
+// PEM format, this function tries to decode the PEM file and if it fails, it tries to read the key
+// as ed25519 public key format, used before 1.0.2.
+func ParseTenantPublicKey(publicKey []byte) (crypto.PublicKey, []byte, error) {
+	block, _ := pem.Decode(publicKey)
+	if block == nil {
+		// failed to parse PEM try to cast to ed25519 public key
+		if ed25519.PublicKeySize == len(publicKey) {
+			parsedKey := ed25519.PublicKey(publicKey)
+			derBytes, err := x509.MarshalPKIXPublicKey(parsedKey)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to marshal ed25519 public key to DER: %w", err)
+			}
+			return parsedKey, derBytes, nil
+		}
+
+		return nil, nil, errors.New("invalid public key format")
+	}
+
+	parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to parse PEM public key: %w", err)
+	}
+
+	return parsedKey, block.Bytes, nil
 }
