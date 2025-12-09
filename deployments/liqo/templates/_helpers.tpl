@@ -250,3 +250,31 @@ imagePullSecrets:
 {{- toYaml .Values.imagePullSecrets | nindent 0 }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Get value from ConfigMap with fallback to chart values
+*/}}
+{{- define "liqo.getValue" -}}
+{{- $key := .key -}}
+{{- $default := .default -}}
+{{- $context := .context -}}
+
+{{- if and $context.Values.valuesConfigMap.enabled $context.Values.valuesConfigMap.name -}}
+{{- $namespace := $context.Values.valuesConfigMap.namespace | default $context.Release.Namespace -}}
+{{- $configMap := lookup "v1" "ConfigMap" $namespace $context.Values.valuesConfigMap.name -}}
+{{- if $configMap -}}
+{{- $valuesYaml := index $configMap.data $context.Values.valuesConfigMap.key -}}
+{{- if $valuesYaml -}}
+{{- $configMapValues := fromYaml $valuesYaml -}}
+{{- $value := dig (splitList "." $key) $default $configMapValues -}}
+{{- $value -}}
+{{- else -}}
+{{- $default -}}
+{{- end -}}
+{{- else -}}
+{{- $default -}}
+{{- end -}}
+{{- else -}}
+{{- $default -}}
+{{- end -}}
+{{- end }}

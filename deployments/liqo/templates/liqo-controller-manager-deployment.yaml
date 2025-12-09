@@ -77,7 +77,7 @@ spec:
           - --aws-cluster-name={{ .Values.authentication.awsConfig.clusterName }}
           {{- end }}
           {{- if .Values.apiServer.address }}
-          - --api-server-address-override={{ .Values.apiServer.address }}
+          - --api-server-address-override={{ include "liqo.getValue" (dict "key" "apiServer.address" "default" .Values.apiServer.address "context" .) | quote }}
           {{- end }}
           {{- if .Values.apiServer.ca }}
           - --ca-override={{ .Values.apiServer.ca }}
