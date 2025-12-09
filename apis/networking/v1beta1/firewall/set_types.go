@@ -15,12 +15,13 @@
 package firewall
 
 // SetDataType is the type of a set element
-// +kubebuilder:validation:Enum="ipv4_addr"
+// +kubebuilder:validation:Enum=integer;ipv4_addr
 type SetDataType string
 
 // Possible SetDataType values.
 const (
-	SetDataTypeIPAddr SetDataType = "ipv4_addr"
+	SetDataTypeInteger SetDataType = "integer"
+	SetDataTypeIPAddr  SetDataType = "ipv4_addr"
 )
 
 // Set represents a nftables set
