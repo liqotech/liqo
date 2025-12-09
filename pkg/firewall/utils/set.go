@@ -17,6 +17,7 @@ package utils
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
@@ -40,6 +41,18 @@ func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, er
 			return nil, fmt.Errorf("set element has invalid IP value %s", *data)
 		}
 		return ip.To4(), nil
+
+	case firewallapi.SetDataTypeInteger:
+		intValue, err := strconv.Atoi(*data)
+		if err != nil {
+			return nil, fmt.Errorf("set element has invalid integer value %s", *data)
+		}
+		return []byte{
+			byte((intValue >> 24) & 0xFF),
+			byte((intValue >> 16) & 0xFF),
+			byte((intValue >> 8) & 0xFF),
+			byte(intValue & 0xFF),
+		}, nil
 
 	default:
 		return nil, fmt.Errorf("invalid set value type %s", *dataType)

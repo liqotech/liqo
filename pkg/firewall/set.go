@@ -232,6 +232,8 @@ func getSetDataType(dataType *firewallapi.SetDataType) (nftables.SetDatatype, er
 	switch *dataType {
 	case firewallapi.SetDataTypeIPAddr:
 		return nftables.TypeIPAddr, nil
+	case firewallapi.SetDataTypeInteger:
+		return nftables.TypeInteger, nil
 	default:
 		return nftables.SetDatatype{}, fmt.Errorf("unsupported set data type: %s", *dataType)
 	}
