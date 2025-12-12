@@ -9,6 +9,11 @@ on:
     types:
       - test-command
       - build-command
+
+env:
+  REGISTRY: us-docker.pkg.dev
+  IMAGE_PREFIX: castai-hub/library/liqo
+
 jobs:
   configure:
     name: Preliminary configuration
@@ -106,6 +111,13 @@ jobs:
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
+      - name: Login to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: _json_key
+          password: ${{ secrets.GCP_IMAGE_RELEASER_JSON_KEY }}
+
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
@@ -113,13 +125,6 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.component }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.component }}-buildx-
-
-      - name: Login to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure the build-push-action dockerfile path
         id: dockerfile
@@ -136,8 +141,8 @@ jobs:
           context: .
           platforms: ${{ env.ARCHITECTURES }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
           push: true
           file: ${{ steps.dockerfile.outputs.path }}
           build-args: |
