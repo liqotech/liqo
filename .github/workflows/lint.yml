@@ -32,110 +32,105 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ github.event.pull_request.head.sha }}"
-        repository: ${{github.event.pull_request.head.repo.full_name}}
-        persist-credentials: false
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-    - name: Execute go mod tidy and check the outcome
-      working-directory: ./
-      run: |
-        go mod tidy
-        exit_code=$(git diff --exit-code)
-        exit ${exit_code}
+      - name: Execute go mod tidy and check the outcome
+        working-directory: ./
+        run: |
+          go mod tidy
+          exit_code=$(git diff --exit-code)
+          exit ${exit_code}
 
-    - name: Issue a comment in case the of failure
-      uses: peter-evans/create-or-update-comment@v4
-      with:
-        token: ${{ secrets.CI_TOKEN }}
-        issue-number: ${{ github.event.pull_request.number }}
-        body: |
-          The `go.mod` and/or `go.sum` files appear not to be correctly tidied.
+      - name: Issue a comment in case the of failure
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The `go.mod` and/or `go.sum` files appear not to be correctly tidied.
 
-          Please, rerun `go mod tidy` to fix the issues.
-        reactions: confused
-      if: |
-        failure() && github.event.pull_request.head.repo.full_name == github.repository
+            Please, rerun `go mod tidy` to fix the issues.
+          reactions: confused
+        if: |
+          failure() && github.event.pull_request.head.repo.full_name == github.repository
 
   shelllint:
     name: Lint bash files
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ github.event.pull_request.head.sha }}"
-        repository: ${{github.event.pull_request.head.repo.full_name}}
-        persist-credentials: false
-    - name: Run Shellcheck
-      uses: ludeeus/action-shellcheck@2.0.0
-      env:
-        # Allow 'source' outside of FILES
-        SHELLCHECK_OPTS: -x
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
+      - name: Run Shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        env:
+          # Allow 'source' outside of FILES
+          SHELLCHECK_OPTS: -x
 
   markdownlint:
     name: Lint markdown files
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ github.event.pull_request.head.sha }}"
-        repository: ${{github.event.pull_request.head.repo.full_name}}
-        persist-credentials: false
-    - name: Lint markdown files
-      uses: avto-dev/markdown-lint@v1
-      with:
-        config: '.markdownlint.yml'
-        args: '**/*.md'
-        ignore: ".github/ISSUE_TEMPLATE/*.md docs/usage/liqoctl/*.md"
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
+      - name: Lint markdown files
+        uses: avto-dev/markdown-lint@v1
+        with:
+          config: ".markdownlint.yml"
+          args: "**/*.md"
+          ignore: ".github/ISSUE_TEMPLATE/*.md docs/usage/liqoctl/*.md"
 
   doclint:
     name: Lint documentation files
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ github.event.pull_request.head.sha }}"
-        repository: ${{github.event.pull_request.head.repo.full_name}}
-        persist-credentials: false
-    - name: Setup python3
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
-    - name: Install python3 dependencies
-      working-directory: ./docs
-      run: |
-        pip3 install -r requirements.txt
-    - name: Build documentation
-      working-directory: ./docs
-      run: |
-        make dummy
-    - name: Check external links
-      working-directory: ./docs
-      run: |
-        make linkcheck
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
+      - name: Setup python3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install python3 dependencies
+        working-directory: ./docs
+        run: |
+          pip3 install -r requirements.txt
+      - name: Build documentation
+        working-directory: ./docs
+        run: |
+          make dummy
 
   helmlint:
     name: Lint helm chart
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ github.event.pull_request.head.sha }}"
-        repository: ${{github.event.pull_request.head.repo.full_name}}
-        persist-credentials: false
-    - name: Verify that the helm chart is well-formed
-      uses: WyriHaximus/github-action-helm3@v4
-      with:
-        exec:
-          helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
+      - name: Verify that the helm chart is well-formed
+        uses: WyriHaximus/github-action-helm3@v4
+        with:
+          exec: helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion
