@@ -3,6 +3,7 @@
 Below you will find links to the available topics in this section:
 
 - [Basic](basic.md): This page presents the foundational concepts and general information about the Liqo networking model.
+  - [Basic-Example](basic_example.md) An example illustrating the basic concepts of Liqo.
 - [Leaf-to-Leaf](leaftoleaf.md): This section covers the details of leaf-to-leaf networking, including how network traffic is routed between leaf nodes.
 - [NodePort](nodeport.md): This section describes NodePort services and how they are managed within the Liqo network.
 
