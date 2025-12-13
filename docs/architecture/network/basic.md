@@ -65,8 +65,8 @@ Once encapsulated, the traffic is reintroduced into the Gateway and exits via th
 The flow of a packet from a pod in one cluster to a pod in another cluster involves several steps:
 
 1. The packet originates from a pod and reaches its node through a virtual Ethernet interface. This is managed by the CNI and is standard Kubernetes networking behavior (Liqo is not responsible for this part).
-2. From the node, the packet enters a Geneve tunnel using a specific [route](routeconfiguration.md#local-cluster-id-node-gw-node).The packet arrives at the other end of the Geneve tunnel, inside the gateway pod.
-3. The gateway does DNAT and routes the packet into the WireGuard tunnel([check [this route](routeconfiguration.md#local-cluster-id-gw-ext-gateway)]).
+2. From the node, the packet enters a Geneve tunnel using a specific [route](routeconfiguration.md#remote-cluster-id-node-gw-node).The packet arrives at the other end of the Geneve tunnel, inside the gateway pod.
+3. The gateway does DNAT and routes the packet into the WireGuard tunnel([check [this route](routeconfiguration.md#remote-cluster-id-gw-ext-gateway)]).
 4. The traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and reinserted into the stack. It is then routed to the correct Geneve interface to reach the node hosting the target pod.This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). After routing, SNAT is applied.
 5. The packet is then forwarded from the node to the target pod, leveraging the CNI.
 
