@@ -55,7 +55,7 @@ spec:
                 - --ping-loss-threshold=5
                 - --ping-interval=2s
                 - --ping-update-status-interval=10s
-                image: ghcr.io/castai/gateway:<VERSION>
+                image: us-docker.pkg.dev/castai-hub/library/liqo/gateway:<VERSION>
                 imagePullPolicy: IfNotPresent
                 name: gateway
                 securityContext:
@@ -75,7 +75,7 @@ spec:
                 - --endpoint-port={{ .Spec.Endpoint.Port }}
                 - --metrics-address=:8082
                 - --health-probe-bind-address=:8083
-                image: ghcr.io/castai/gateway/wireguard:<VERSION>
+                image: us-docker.pkg.dev/castai-hub/library/liqo/gateway/wireguard:<VERSION>
                 imagePullPolicy: IfNotPresent
                 name: wireguard
                 securityContext:
@@ -98,7 +98,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
-                image: ghcr.io/castai/gateway/geneve:<VERSION>
+                image: us-docker.pkg.dev/castai-hub/library/liqo/gateway/geneve:<VERSION>
                 imagePullPolicy: IfNotPresent
                 name: geneve
                 securityContext:
