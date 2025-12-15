@@ -115,19 +115,19 @@ networking:
       gateway:
         image:
           # -- Image repository for the gateway container.
-          name: "ghcr.io/castai/gateway"
+          name: "us-docker.pkg.dev/castai-hub/library/liqo/gateway"
           # -- Custom version for the gateway image. If not specified, the global tag is used.
           version: ""
       wireguard:
         image:
           # -- Image repository for the wireguard container.
-          name: "ghcr.io/castai/gateway/wireguard"
+          name: "us-docker.pkg.dev/castai-hub/library/liqo/gateway/wireguard"
           # -- Custom version for the wireguard image. If not specified, the global tag is used.
           version: ""
       geneve:
         image:
           # -- Image repository for the geneve container.
-          name: "ghcr.io/castai/gateway/geneve"
+          name: "us-docker.pkg.dev/castai-hub/library/liqo/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
     # -- Enable/Disable the nftables monitor for the gateway pods.
@@ -152,7 +152,7 @@ networking:
       priorityClassName: ""
     image:
       # -- Image repository for the fabric pod.
-      name: "ghcr.io/castai/fabric"
+      name: "us-docker.pkg.dev/castai-hub/library/liqo/fabric"
       # -- Custom version for the fabric image. If not specified, the global tag is used.
       version: ""
     # -- NodeSelector for the fabric pod.
@@ -394,7 +394,7 @@ controllerManager:
     priorityClassName: ""
   image:
     # -- Image repository for the controller-manager pod.
-    name: "ghcr.io/castai/liqo-controller-manager"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/liqo-controller-manager"
     # -- Custom version for the controller-manager image. If not specified, the global tag is used.
     version: ""
   config:
@@ -453,7 +453,7 @@ webhook:
     priorityClassName: ""
   image:
     # -- Image repository for the webhook pod.
-    name: "ghcr.io/castai/webhook"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/webhook"
     # -- Custom version for the webhook image. If not specified, the global tag is used.
     version: ""
   metrics:
@@ -492,7 +492,7 @@ ipam:
   internal:
     image:
       # -- Image repository for the IPAM pod.
-      name: "ghcr.io/castai/ipam"
+      name: "us-docker.pkg.dev/castai-hub/library/liqo/ipam"
       # -- Custom version for the IPAM image. If not specified, the global tag is used.
       version: ""
     # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
@@ -572,7 +572,7 @@ crdReplicator:
       labels: {}
   image:
     # -- Image repository for the crdReplicator pod.
-    name: "ghcr.io/castai/crd-replicator"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/crd-replicator"
     # -- Custom version for the crdReplicator image. If not specified, the global tag is used.
     version: ""
 
@@ -611,13 +611,13 @@ metricAgent:
     priorityClassName: ""
   image:
     # -- Image repository for the metricAgent pod.
-    name: "ghcr.io/castai/metric-agent"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/metric-agent"
     # -- Custom version for the metricAgent image. If not specified, the global tag is used.
     version: ""
   initContainer:
     image:
       # --Image repository for the init container of the metricAgent pod.
-      name: "ghcr.io/castai/cert-creator"
+      name: "us-docker.pkg.dev/castai-hub/library/liqo/cert-creator"
       # -- Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used.
       version: ""
 
@@ -637,7 +637,7 @@ telemetry:
       requests: {}
   image:
     # -- Image repository for the telemetry pod.
-    name: "ghcr.io/castai/telemetry"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/telemetry"
     # -- Custom version for the telemetry image. If not specified, the global tag is used.
     version: ""
   config:
@@ -650,7 +650,7 @@ virtualKubelet:
   replicas: 1
   image:
     # -- Image repository for the virtual kubelet pod.
-    name: "ghcr.io/castai/virtual-kubelet"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/virtual-kubelet"
     # -- Custom version for the virtual kubelet image. If not specified, the global tag is used.
     version: ""
   # Additional values that are added to virtual kubelet deployments and pods.
@@ -700,7 +700,7 @@ uninstaller:
       requests: {}
   image:
     # -- Image repository for the uninstaller pod.
-    name: "ghcr.io/castai/uninstaller"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/uninstaller"
     # -- Custom version for the uninstaller image. If not specified, the global tag is used.
     version: ""
 
@@ -726,7 +726,7 @@ proxy:
     priorityClassName: ""
   image:
     # -- Image repository for the proxy pod.
-    name: "ghcr.io/castai/proxy"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/proxy"
     # -- Custom version for the proxy image. If not specified, the global tag is used.
     version: ""
   service:

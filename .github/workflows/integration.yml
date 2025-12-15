@@ -25,6 +25,8 @@ jobs:
       repo-name: ${{ steps.configure.outputs.repo-name }}
       architectures: ${{ steps.configure.outputs.architectures }}
       pr-number: ${{ steps.configure.outputs.pr-number }}
+      registry: ${{ steps.configure.outputs.registry }}
+      image-prefix: ${{ steps.configure.outputs.image-prefix }}
     steps:
       - name: Get the version
         id: get_version
@@ -63,6 +65,10 @@ jobs:
           else
              echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
           fi
+
+          # Set registry configuration
+          echo "registry=${{ env.REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "image-prefix=${{ env.IMAGE_PREFIX }}" >> $GITHUB_OUTPUT
 
         # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
       - uses: octokit/request-action@v2.x
@@ -163,8 +169,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: configure
     env:
-      DOCKER_REGISTRY: ghcr.io
-      DOCKER_ORGANIZATION: ${{ github.repository_owner }}
+      DOCKER_REGISTRY: ${{ needs.configure.outputs.registry }}
+      DOCKER_ORGANIZATION: ${{ needs.configure.outputs.image-prefix }}
       DOCKER_TAG: ${{ needs.configure.outputs.commit-ref }}
       DOCKER_PUSH: true
       ARCHS: ${{ needs.configure.outputs.architectures }}
@@ -206,9 +212,9 @@ jobs:
       - name: Login to the Container registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: _json_key
+          password: ${{ secrets.GCP_IMAGE_RELEASER_JSON_KEY }}
 
       - name: Build and push the container image
         run: |
