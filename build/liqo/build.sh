@@ -24,8 +24,8 @@ fi
 component=$(basename "$componentdir")
 
 # Set registry/org/tag if not already defined
-DOCKER_REGISTRY="${DOCKER_REGISTRY:-ghcr.io}"
-DOCKER_ORGANIZATION="${DOCKER_ORGANIZATION:-liqotech}"
+DOCKER_REGISTRY="${DOCKER_REGISTRY:-us-docker.pkg.dev}"
+DOCKER_ORGANIZATION="${DOCKER_ORGANIZATION:-castai-hub/library/liqo}"
 DOCKER_TAG="${DOCKER_TAG:-latest}"
 DOCKER_PUSH="${DOCKER_PUSH:-true}"
 ARCHS="${ARCHS:-linux/amd64,linux/arm64}"
