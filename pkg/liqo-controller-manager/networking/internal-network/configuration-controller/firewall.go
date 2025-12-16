@@ -50,6 +50,8 @@ func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Contex
 func forgeMutateFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfiguration,
 	cfg *networkingv1beta1.Configuration, scheme *runtime.Scheme, opts *Options) func() error {
 	return func() error {
+		var err error
+
 		if fwcfg.Labels == nil {
 			fwcfg.Labels = make(map[string]string)
 		}
@@ -60,23 +62,14 @@ func forgeMutateFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfigura
 		}
 
 		fwcfg.Spec.Table.Name = ptr.To(generateFirewallConfigurationName(cfg))
-
 		fwcfg.Spec.Table.Family = ptr.To(firewallapi.TableFamilyIPv4)
+		fwcfg.Spec.Table.Chains = []firewallapi.Chain{*forgeFirewallChain()}
 
-		if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 1 {
-			fwcfg.Spec.Table.Chains = []firewallapi.Chain{*forgeFirewallChain()}
+		fwcfg.Spec.Table.Chains[0].Rules.NatRules, err = forgeFirewallNatRule(cfg, opts)
+		if err != nil {
+			return err
 		}
 
-		if !isNatRuleAlreadyPresentInChain(cfg, &fwcfg.Spec.Table.Chains[0]) {
-			if fwcfg.Spec.Table.Chains[0].Rules.NatRules == nil {
-				fwcfg.Spec.Table.Chains[0].Rules.NatRules = []firewallapi.NatRule{}
-			}
-			rules, err := forgeFirewallNatRule(cfg, opts)
-			if err != nil {
-				return err
-			}
-			fwcfg.Spec.Table.Chains[0].Rules.NatRules = append(fwcfg.Spec.Table.Chains[0].Rules.NatRules, rules...)
-		}
 		return nil
 	}
 }
@@ -218,19 +211,4 @@ func generatePodNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {
 
 func generateNodePortSvcNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("service-nodeport-%s-ext", cfg.Name)
-}
-
-func isNatRuleAlreadyPresentInChain(cfg *networkingv1beta1.Configuration, chain *firewallapi.Chain) bool {
-	natRuleNames := []string{generatePodNatRuleName(cfg), generateNodePortSvcNatRuleName(cfg)}
-	if chain.Rules.NatRules == nil {
-		return false
-	}
-	for _, rule := range chain.Rules.NatRules {
-		for _, natRuleName := range natRuleNames {
-			if rule.Name != nil && *rule.Name == natRuleName {
-				return true
-			}
-		}
-	}
-	return false
 }
