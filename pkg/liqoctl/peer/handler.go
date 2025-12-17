@@ -61,6 +61,7 @@ type Options struct {
 	CPU               string
 	Memory            string
 	Pods              string
+	OtherResources    map[string]string
 }
 
 // NewOptions returns a new Options struct.
@@ -195,9 +196,10 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		Class:                      o.ResourceSliceClass,
 		DisableVirtualNodeCreation: !o.CreateVirtualNode,
 
-		CPU:    o.CPU,
-		Memory: o.Memory,
-		Pods:   o.Pods,
+		CPU:            o.CPU,
+		Memory:         o.Memory,
+		Pods:           o.Pods,
+		OtherResources: o.OtherResources,
 	}
 
 	if err := rsOptions.HandleCreate(ctx); err != nil {

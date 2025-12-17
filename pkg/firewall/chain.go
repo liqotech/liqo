@@ -55,8 +55,8 @@ func addChain(nftconn *nftables.Conn, chain *firewallapi.Chain, table *nftables.
 	if chain.Priority != nil {
 		setPriority(nftChain, *chain.Priority)
 	}
-	if chain.Type != nil {
-		setType(nftChain, *chain.Type)
+	if chain.Type != "" {
+		setType(nftChain, chain.Type)
 	}
 	if chain.Policy != nil {
 		setPolicy(nftChain, *chain.Policy)
@@ -198,7 +198,7 @@ func isChainOutdated(nftChain *nftables.Chain, chains []firewallapi.Chain) (outd
 // isChainModified checks if the chain has been modified.
 // It does not consider policies since they can be modified without deleting the chain.
 func isChainModified(nftChain *nftables.Chain, chain *firewallapi.Chain) bool {
-	if chain.Type != nil && *chain.Type != getType(nftChain.Type) {
+	if chain.Type != "" && chain.Type != getType(nftChain.Type) {
 		return true
 	}
 	if chain.Hook != nil && *chain.Hook != getHooknum(*nftChain.Hooknum) {
@@ -215,7 +215,7 @@ func isChainModified(nftChain *nftables.Chain, chain *firewallapi.Chain) bool {
 
 // FromChainToRulesArray converts a chain to an array of rules.
 func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallutils.Rule) {
-	switch *chain.Type {
+	switch chain.Type {
 	case firewallapi.ChainTypeFilter:
 		rules = make([]firewallutils.Rule, len(chain.Rules.FilterRules))
 		for i := range chain.Rules.FilterRules {

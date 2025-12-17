@@ -36,29 +36,34 @@ waitandretry() {
   fi
 }
 
-function setup_arch_and_os(){
+function setup_arch_and_os() {
   ARCH=$(uname -m)
   case $ARCH in
-    armv5*) ARCH="armv5";;
-    armv6*) ARCH="armv6";;
-    armv7*) ARCH="arm";;
-    aarch64) ARCH="arm64";;
-    x86) ARCH="386";;
-    x86_64) ARCH="amd64";;
-    i686) ARCH="386";;
-    i386) ARCH="386";;
-    *) echo "Error architecture '${ARCH}' unknown"; exit 1 ;;
+  armv5*) ARCH="armv5" ;;
+  armv6*) ARCH="armv6" ;;
+  armv7*) ARCH="arm" ;;
+  aarch64) ARCH="arm64" ;;
+  x86) ARCH="386" ;;
+  x86_64) ARCH="amd64" ;;
+  i686) ARCH="386" ;;
+  i386) ARCH="386" ;;
+  *)
+    echo "Error architecture '${ARCH}' unknown"
+    exit 1
+    ;;
   esac
 
-  OS=$(uname |tr '[:upper:]' '[:lower:]')
+  OS=$(uname | tr '[:upper:]' '[:lower:]')
   case "$OS" in
   # Minimalist GNU for Windows
-    "mingw"*) OS='windows'; return ;;
+  "mingw"*)
+    OS='windows'
+    return
+    ;;
   esac
 }
 
-
-function check_supported_arch_and_os(){
+function check_supported_arch_and_os() {
   local supported=$1
   local os=$2
   local arch=$3
@@ -89,8 +94,7 @@ function install_kubectl() {
     version=$(curl -L -s https://dl.k8s.io/release/stable.txt)
   fi
 
-  if ! command -v "${KUBECTL}" &> /dev/null
-  then
+  if ! command -v "${KUBECTL}" &>/dev/null; then
     echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
     echo "Downloading https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"
     if ! curl --fail -Lo "${KUBECTL}" "https://dl.k8s.io/release/${version}/bin/${os}/${arch}/kubectl"; then
@@ -114,8 +118,7 @@ function install_helm() {
 
   HELM_VERSION="v3.15.3"
 
-  if ! command -v "${HELM}" &> /dev/null
-  then
+  if ! command -v "${HELM}" &>/dev/null; then
     echo "WARNING: helm could not be found. Downloading and installing it locally..."
     if ! curl --fail -Lo "./helm-${HELM_VERSION}-${os}-${arch}.tar.gz" "https://get.helm.sh/helm-${HELM_VERSION}-${os}-${arch}.tar.gz"; then
       echo "Error: Unable to download helm for '${os}-${arch}'"
@@ -159,7 +162,7 @@ function install_gcloud() {
   cd -
 
   #Login to gcloud
-  echo "${GCLOUD_KEY}" | base64 -d > "${BINDIR}/gke_key_file.json"
+  echo "${GCLOUD_KEY}" | base64 -d >"${BINDIR}/gke_key_file.json"
   "${GCLOUD}" auth activate-service-account --key-file="${BINDIR}/gke_key_file.json"
   "${GCLOUD}" components install gke-gcloud-auth-plugin
 }
@@ -167,19 +170,16 @@ function install_gcloud() {
 function install_az() {
   local os=$1
 
-  if ! command -v az &> /dev/null
-  then
-      echo "Azure CLI could not be found. Downloading and installing..."
-      if [[ "${os}" == "linux" ]]
-      then
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      elif [[ "${os}" == "darwin" ]]
-      then
-          brew update && brew install azure-cli
-      else
-          echo "Error: Azure CLI is not supported on ${os}"
-          exit 1
-      fi
+  if ! command -v az &>/dev/null; then
+    echo "Azure CLI could not be found. Downloading and installing..."
+    if [[ "${os}" == "linux" ]]; then
+      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    elif [[ "${os}" == "darwin" ]]; then
+      brew update && brew install azure-cli
+    else
+      echo "Error: Azure CLI is not supported on ${os}"
+      exit 1
+    fi
   fi
 
   echo "Azure CLI version:"
@@ -206,8 +206,7 @@ function wait_kyverno() {
   local kubeconfig=$1
 
   # Wait for the kyverno deployments to be ready
-  if ! waitandretry 5s 2 "${KUBECTL} rollout status deployment -n kyverno --kubeconfig ${kubeconfig}"
-  then
+  if ! waitandretry 5s 2 "${KUBECTL} rollout status deployment -n kyverno --kubeconfig ${kubeconfig}"; then
     echo "Failed to wait for kyverno deployments to be ready"
     exit 1
   fi
@@ -220,4 +219,42 @@ function install_clusterctl() {
   curl -L "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.5/clusterctl-${os}-${arch}" -o clusterctl
   sudo install -o root -g root -m 0755 clusterctl /usr/local/bin/clusterctl
   clusterctl version
+}
+
+function generate_kubeconfig() {
+  # Ensure .kube directory exists
+  mkdir -p "${HOME}/.kube"
+
+  # Get service account details
+  SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+  SA_CA_CERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+
+  echo "SA_TOKEN: ${SA_TOKEN}"
+  echo "SA_CA_CERT: ${SA_CA_CERT}"
+  echo "NAMESPACE: ${NAMESPACE}"
+
+  # Get the Kubernetes API server address
+  KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST:-kubernetes.default.svc}
+  KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT:-443}
+
+  # Create kubeconfig
+  "${KUBECTL}" config set-cluster default-cluster \
+    --server=https://"${KUBERNETES_SERVICE_HOST}":"${KUBERNETES_SERVICE_PORT}" \
+    --certificate-authority="${SA_CA_CERT}" \
+    --embed-certs=true \
+    --kubeconfig="${HOME}/.kube/config"
+
+  "${KUBECTL}" config set-credentials default-user \
+    --token="${SA_TOKEN}" \
+    --kubeconfig="${HOME}/.kube/config"
+
+  "${KUBECTL}" config set-context default-context \
+    --cluster=default-cluster \
+    --user=default-user \
+    --namespace="${NAMESPACE}" \
+    --kubeconfig="${HOME}/.kube/config"
+
+  "${KUBECTL}" config use-context default-context \
+    --kubeconfig="${HOME}/.kube/config"
 }

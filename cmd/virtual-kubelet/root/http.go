@@ -189,7 +189,6 @@ func newCertificateRetriever(kubeClient kubernetes.Interface, signer, nodeName s
 			certificates.UsageServerAuth,
 		},
 		CertificateStore: certificateStore,
-		Logf:             klog.V(2).Infof,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize server certificate manager: %w", err)

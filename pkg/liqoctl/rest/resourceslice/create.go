@@ -44,7 +44,9 @@ The ResourceSlice resource is used to represent a slice of resources that can be
 
 Examples:
   $ {{ .Executable }} create resourceslice my-slice --remote-cluster-id remote-cluster-id \
-  --cpu 4 --memory 8Gi --pods 30`
+  --cpu 4 --memory 8Gi --pods 30
+  $ {{ .Executable }} create resourceslice my-slice --remote-cluster-id remote-cluster-id \
+  --cpu 4 --memory 8Gi --pods 30 --resource nvidia.com/gpu=2`
 
 // Create implements the create command.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
@@ -80,6 +82,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.CPU, "cpu", "", "The amount of CPU requested in the resource slice")
 	cmd.Flags().StringVar(&o.Memory, "memory", "", "The amount of memory requested in the resource slice")
 	cmd.Flags().StringVar(&o.Pods, "pods", "", "The amount of pods requested in the resource slice")
+	cmd.Flags().StringToStringVar(
+		&o.OtherResources, "resource", nil, "Other resources requested in the resource slice (e.g., 'resource=nvidia.com/gpu=2')")
 	cmd.Flags().BoolVar(&o.DisableVirtualNodeCreation, "no-virtual-node", false,
 		"Prevent the automatic creation of a VirtualNode for the ResourceSlice. Default: false")
 
@@ -111,12 +115,8 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	_, err = resource.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
 		return forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-			Class: authv1beta1.ResourceSliceClass(o.Class),
-			Resources: map[corev1.ResourceName]string{
-				corev1.ResourceCPU:    o.CPU,
-				corev1.ResourceMemory: o.Memory,
-				corev1.ResourcePods:   o.Pods,
-			},
+			Class:     authv1beta1.ResourceSliceClass(o.Class),
+			Resources: o.buildResourceMap(),
 		}, !o.DisableVirtualNodeCreation)
 	})
 	if err != nil {
@@ -157,6 +157,21 @@ func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
 	}
 }
 
+func (o *Options) buildResourceMap() map[corev1.ResourceName]string {
+	resources := map[corev1.ResourceName]string{
+		corev1.ResourceCPU:    o.CPU,
+		corev1.ResourceMemory: o.Memory,
+		corev1.ResourcePods:   o.Pods,
+	}
+
+	// Add other resources to the resources map.
+	for name, quantity := range o.OtherResources {
+		resources[corev1.ResourceName(name)] = quantity
+	}
+
+	return resources
+}
+
 // output implements the logic to output the generated ResourceSlice resource.
 func (o *Options) output(ctx context.Context) error {
 	opts := o.CreateOptions
@@ -177,12 +192,8 @@ func (o *Options) output(ctx context.Context) error {
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	err = forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-		Class: authv1beta1.ResourceSliceClass(o.Class),
-		Resources: map[corev1.ResourceName]string{
-			corev1.ResourceCPU:    o.CPU,
-			corev1.ResourceMemory: o.Memory,
-			corev1.ResourcePods:   o.Pods,
-		},
+		Class:     authv1beta1.ResourceSliceClass(o.Class),
+		Resources: o.buildResourceMap(),
 	}, !o.DisableVirtualNodeCreation)
 	if err != nil {
 		return err

@@ -52,6 +52,7 @@ Examples:
   $ {{ .Executable }} peer --remote-kubeconfig <provider>
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --gw-server-service-type NodePort
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --cpu 2 --memory 4Gi --pods 10
+  $ {{ .Executable }} peer --remote-kubeconfig <provider> --cpu 2 --memory 4Gi --pods 10 --resource nvidia.com/gpu=2
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --create-resource-slice false
   $ {{ .Executable }} peer --remote-kubeconfig <provider> --create-virtual-node false
 `
@@ -129,6 +130,8 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&options.CPU, "cpu", "", "The amount of CPU requested for the VirtualNode")
 	cmd.Flags().StringVar(&options.Memory, "memory", "", "The amount of memory requested for the VirtualNode")
 	cmd.Flags().StringVar(&options.Pods, "pods", "", "The amount of pods requested for the VirtualNode")
+	cmd.Flags().StringToStringVar(
+		&options.OtherResources, "resource", nil, "Other resources requested for the VirtualNode (e.g., '--resource=nvidia.com/gpu=2')")
 
 	return cmd
 }

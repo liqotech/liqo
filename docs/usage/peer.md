@@ -36,8 +36,8 @@ To perform a peering without having access to both clusters, you need to manuall
 The peering command enables all 3 liqo modules and performs the following steps:
 
 1. **enables networking**.
-Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.  
-The location of the client/server gateway can be customized when creating the peering using the `--gw-server-service-location` flag in `liqoctl`.  
+Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.
+The location of the client/server gateway can be customized when creating the peering using the `--gw-server-service-location` flag in `liqoctl`.
 2. **enables authentication**.
 Authenticates the consumer with the provider.
 In this step, the consumer obtains an `Identity` (*kubeconfig*) to replicate resources to the provider cluster.
@@ -235,6 +235,18 @@ liqoctl peer \
   --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
   --cpu=2 \
   --memory=2Gi
+```
+
+Other non-standard resources can be defined via the `--resource` flag:
+
+```bash
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
+  --cpu=2 \
+  --memory=2Gi \
+  --resource=nvidia.com/gpu=2 \
+  --resource=custom=2Gi
 ```
 
 ```{warning}

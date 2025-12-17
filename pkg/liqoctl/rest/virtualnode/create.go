@@ -94,6 +94,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.cpu, "cpu", "2", "The amount of CPU available in the virtual node")
 	cmd.Flags().StringVar(&o.memory, "memory", "4Gi", "The amount of memory available in the virtual node")
 	cmd.Flags().StringVar(&o.pods, "pods", "110", "The amount of pods available in the virtual node")
+	cmd.Flags().StringToStringVar(&o.otherResources, "resource", nil,
+		"Other resources available in the virtual node (e.g., 'resource=nvidia.com/gpu=2')")
 	cmd.Flags().StringSliceVar(&o.storageClasses, "storage-classes",
 		[]string{}, "The storage classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringSliceVar(&o.ingressClasses, "ingress-classes",
@@ -225,6 +227,20 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		return nil, fmt.Errorf("unable to parse pod quantity: %w", err)
 	}
 
+	resourceMap := corev1.ResourceList{
+		corev1.ResourceCPU:    cpuQnt,
+		corev1.ResourceMemory: memoryQnt,
+		corev1.ResourcePods:   podsQnt,
+	}
+
+	for resourceName, resourceValue := range o.otherResources {
+		parsedQuantity, err := k8sresource.ParseQuantity(resourceValue)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse quantity for resource %q: %w", resourceName, err)
+		}
+		resourceMap[corev1.ResourceName(resourceName)] = parsedQuantity
+	}
+
 	storageClasses := make([]liqov1beta1.StorageType, len(o.storageClasses))
 	for i, storageClass := range o.storageClasses {
 		sc := liqov1beta1.StorageType{
@@ -261,17 +277,12 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 	return &forge.VirtualNodeOptions{
 		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: o.kubeconfigSecretName},
 		VkOptionsTemplateRef: vkOptionsTemplateRef,
-
-		ResourceList: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuQnt,
-			corev1.ResourceMemory: memoryQnt,
-			corev1.ResourcePods:   podsQnt,
-		},
-		StorageClasses:      storageClasses,
-		IngressClasses:      ingressClasses,
-		LoadBalancerClasses: loadBalancerClasses,
-		NodeLabels:          o.labels,
-		NodeSelector:        o.nodeSelector,
+		ResourceList:         resourceMap,
+		StorageClasses:       storageClasses,
+		IngressClasses:       ingressClasses,
+		LoadBalancerClasses:  loadBalancerClasses,
+		NodeLabels:           o.labels,
+		NodeSelector:         o.nodeSelector,
 	}, nil
 }
 

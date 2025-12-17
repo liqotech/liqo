@@ -129,7 +129,7 @@ func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode
 
 func setFirewallPodChain(chain *firewall.Chain) {
 	chain.Name = ptr.To(PrePostroutingChainName)
-	chain.Type = ptr.To(firewall.ChainTypeNAT)
+	chain.Type = firewall.ChainTypeNAT
 	chain.Hook = ptr.To(firewall.ChainHookPostrouting)
 	chain.Policy = ptr.To(firewall.ChainPolicyAccept)
 	chain.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)

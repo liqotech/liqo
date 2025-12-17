@@ -15,6 +15,8 @@
 package forge
 
 import (
+	"encoding/pem"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -26,8 +28,9 @@ import (
 // TenantForRemoteCluster forges a Tenant resource to be applied on a remote cluster.
 func TenantForRemoteCluster(localClusterID liqov1beta1.ClusterID,
 	publicKey, csr, signature []byte, namespace, proxyURL *string) *authv1beta1.Tenant {
+	pemPubKey := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicKey})
 	tenant := Tenant(localClusterID, namespace)
-	MutateTenant(tenant, localClusterID, publicKey, csr, signature, proxyURL)
+	MutateTenant(tenant, localClusterID, pemPubKey, csr, signature, proxyURL)
 
 	return tenant
 }

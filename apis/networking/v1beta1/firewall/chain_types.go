@@ -83,7 +83,7 @@ type Chain struct {
 	Rules RulesSet `json:"rules"`
 	// Type defines what this chain will be used for.
 	// +kubebuilder:validation:Enum="filter";"route";"nat"
-	Type *ChainType `json:"type"`
+	Type ChainType `json:"type"`
 	// Policy defines what this chain default policy will be.
 	// +kubebuilder:validation:Enum="drop";"accept"
 	Policy *ChainPolicy `json:"policy"`

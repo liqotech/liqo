@@ -112,7 +112,19 @@ networking:
       name: "ghcr.io/liqotech/fabric"
       # -- Custom version for the fabric image. If not specified, the global tag is used.
       version: ""
-    # -- Extra tolerations for the fabric daemonset.
+    # -- NodeSelector for the fabric pod.
+    nodeSelector: {}
+    # -- Affinity for the fabric pod.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: liqo.io/type
+              operator: NotIn
+              values:
+              - virtual-node
+    # -- Extra tolerations for the fabric pod.
     tolerations: []
     config:
       # -- Enabe/Disable the full masquerade mode for the fabric pod.
@@ -141,6 +153,12 @@ networking:
 authentication:
   # -- Enable/Disable the authentication module.
   enabled: true
+  # -- Enable TLS compatibility mode for client certificates and keys.
+  # If set to true, Liqo will use widely supported algorithm (RSA)
+  # instead of Ed25519 (default) for generating private keys and CSRs.
+  # Enable this option to ensure compatibility with systems that do not yet
+  # support Ed25519 as signature algorithm.
+  tlsCompatibilityMode: false
   # AWS-specific configuration for the local cluster and the Liqo user.
   # This user should be able (1) to create new IAM users, (2) to create new programmatic access
   # credentials, and (3) to describe EKS clusters.
@@ -298,11 +316,11 @@ storage:
   storageNamespace: liqo-storage
 
 common:
-  # -- NodeSelector for all liqo pods, excluding virtual kubelet.
+  # -- NodeSelector for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
   nodeSelector: {}
-  # -- Tolerations for all liqo pods, excluding virtual kubelet.
+  # -- Tolerations for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
   tolerations: []
-  # -- Affinity for all liqo pods, excluding virtual kubelet.
+  # -- Affinity for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
   affinity: {}
   # -- Extra arguments for all liqo pods, excluding virtual kubelet.
   extraArgs: []

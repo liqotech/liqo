@@ -182,6 +182,10 @@ liqoctl generate peering-user [flags]
 
 >The cluster ID of the cluster from which peering will be performed
 
+`--tls-compatibility-mode` _string_:
+
+>TLS compatibility mode for peering-user keys: one of auto,true,false. If set to true keys are generated with a widely supported algorithm (RSA) to ensure compatibility with systems that do not yet support Ed25519 (default) as signature algorithm. When auto, liqoctl attempts to detect the system configuration. **(default "auto")**
+
 
 ### Global options
 

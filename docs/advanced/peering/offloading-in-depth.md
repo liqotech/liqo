@@ -61,6 +61,7 @@ You can specify the resources you want to acquire by adding:
 * `--cpu` to specify the amount of CPU.
 * `--memory` to specify the amount of memory.
 * `--pods` to specify the number of pods.
+* `--resource` other resources can be specified with this flag, which can be even repeated multiple times. (e.g: `--resource=nvidia.com/gpu=2 --resource=my.custom/resource=2Gi`)
 
 To add other resources like `ephemeral-storage`, `gpu`, or any other custom resources, you can use the `-o yaml` flag for the `liqoctl create resourceslice` command and edit the `ResourceSlice` spec manifest before applying it.
 

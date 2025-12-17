@@ -140,7 +140,7 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 			return admission.Denied(err.Error())
 		}
 
-		switch *chain.Type {
+		switch chain.Type {
 		case firewallapi.ChainTypeNAT:
 			if err := checkNatRulesInChain(&chain); err != nil {
 				return admission.Denied(err.Error())

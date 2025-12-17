@@ -632,6 +632,25 @@ affinity:
             operator: DoesNotExist
 ```
 
+#### Device Configuration
+
+When using **advanced Cilium eBPF features** such as eBPF-based host routing, host firewall, or BPF masquerading, Cilium automatically attaches eBPF programs to all network interfaces it detects.
+However, Liqo creates its own network interfaces (e.g., `liqo.*`) that should not be managed by Cilium's eBPF datapath.
+
+```{admonition} Note
+This configuration is **not required** if you are using Cilium with default settings.
+It is only necessary when enabling advanced eBPF features that attach programs directly to network interfaces.
+```
+
+To prevent conflicts and ensure Liqo traffic is handled correctly when using these advanced features, you should explicitly configure which network interfaces Cilium should manage using the `devices` parameter in the cilium values.yaml file.
+
+If the `devices` parameter is not set while using advanced eBPF features, Cilium will auto-detect and attach to all interfaces, including Liqo interfaces.
+This can cause packet drops or unexpected behavior as Cilium's eBPF programs will intercept traffic before it reaches the kernel's network stack where Liqo expects to handle it.
+
+This configuration ensures that Cilium eBPF programs (for NodePort, masquerading, and host firewall) are only attached to the specified devices, leaving Liqo interfaces unmanaged and free to handle cross-cluster traffic.
+
+For more details about the `devices` parameter, refer to the [Cilium Helm Reference](https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml#L854) and [Host Policies documentation](https://docs.cilium.io/en/stable/security/policy/language/#host-policies).
+
 #### Kube-proxy replacement
 
 Liqo networks present a limitation when used with cilium with *kube-proxy replacement*.

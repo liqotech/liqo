@@ -39,10 +39,10 @@ func checkChain(tableFamily firewallapi.TableFamily, chain *firewallapi.Chain) e
 }
 
 func checkAllowedTableFamilyChainTypeHook(tableFamily firewallapi.TableFamily, chain *firewallapi.Chain) error {
-	if !allowedTableFamilyChainTypeHook(tableFamily, *chain.Type, *chain.Hook) {
+	if !allowedTableFamilyChainTypeHook(tableFamily, chain.Type, *chain.Hook) {
 		return fmt.Errorf(`in chain %s, the combination of family %s, chain type %s and hook %s is not allowed. 
 		Please refer to https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks`,
-			*chain.Name, tableFamily, *chain.Type, *chain.Hook,
+			*chain.Name, tableFamily, chain.Type, *chain.Hook,
 		)
 	}
 	return nil
@@ -69,14 +69,14 @@ func totalDefinedRulesSets(rules firewallapi.RulesSet) int {
 	return total
 }
 
-func allowedChainType(chaintype *firewallapi.ChainType, rules firewallapi.RulesSet) error {
-	if rules.NatRules != nil && *chaintype != firewallapi.ChainTypeNAT {
+func allowedChainType(chaintype firewallapi.ChainType, rules firewallapi.RulesSet) error {
+	if rules.NatRules != nil && chaintype != firewallapi.ChainTypeNAT {
 		return fmt.Errorf("NAT rules must be defined only when using NAT chain")
 	}
-	if rules.FilterRules != nil && *chaintype != firewallapi.ChainTypeFilter {
+	if rules.FilterRules != nil && chaintype != firewallapi.ChainTypeFilter {
 		return fmt.Errorf("filter rules must be defined only when using Filter chain")
 	}
-	if rules.RouteRules != nil && *chaintype != firewallapi.ChainTypeRoute {
+	if rules.RouteRules != nil && chaintype != firewallapi.ChainTypeRoute {
 		return fmt.Errorf("route rules must be defined only when using Route chain")
 	}
 
