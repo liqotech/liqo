@@ -47,7 +47,7 @@ jobs:
             echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref_name }}" == "master" ]; then
             echo "master=true" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
             echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
           else
             echo "master=false" >> $GITHUB_OUTPUT
@@ -391,7 +391,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          path: ./liqoctl/
+          path:
+            ./liqoctl/
 
             # we need to upload only helm artifacts first, to make the index updater to work
       - uses: ncipollo/release-action@v1
