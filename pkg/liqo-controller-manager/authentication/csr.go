@@ -130,8 +130,17 @@ func CheckCSRForControlPlane(csr, publicKeyDER []byte, remoteClusterID liqov1bet
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
-func CheckCSRForResourceSlice(publicKeyDER []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
-	return checkCSR(resourceSlice.Spec.CSR, publicKeyDER, checkPublicKey,
+func CheckCSRForResourceSlice(tenantPublicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
+	var parsedPublicKey []byte
+	if checkPublicKey {
+		_, parsedPublicKeyDER, err := ParseTenantPublicKey(tenantPublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse tenant public key: %w", err)
+		}
+		parsedPublicKey = parsedPublicKeyDER
+	}
+
+	return checkCSR(resourceSlice.Spec.CSR, parsedPublicKey, checkPublicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {
 				return fmt.Errorf("invalid common name")
