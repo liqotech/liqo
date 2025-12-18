@@ -6,7 +6,7 @@ The **firewall configuration** is a CRD (Custom Resource Definition) that define
 
 The configurations presented in the following sections were collected from the setup in the picture, specifically from the **Rome cluster**.
 
- ![setup](../../_static/images/architecture/network/firewallconfigurations_example.drawio.png)
+![setup](../../_static/images/architecture/network/firewallconfigurations_example.drawio.png)
 
 ## Before Peering
 
@@ -32,7 +32,7 @@ In the example below, the rule is instantiated only on the `rome-worker` node, w
 ```yaml
 apiVersion: networking.liqo.io/v1beta1
 kind: FirewallConfiguration
-metadata:  
+metadata:
   labels:
     liqo.io/managed: "true"
     networking.liqo.io/firewall-category: fabric
@@ -40,34 +40,34 @@ metadata:
     networking.liqo.io/firewall-unique: rome-worker
     networking.liqo.io/gateway-masquerade-bypass: "true"
   name: rome-worker-gw-masquerade-bypass
-  namespace: liqo  
+  namespace: liqo
 spec:
   table:
     chains:
-    - hook: postrouting
-      name: pre-postrouting
-      policy: accept
-      priority: 99
-      rules:
-        natRules:
-        - match:
-          - ip:
-              position: src
-              value: 10.200.1.8
-            op: eq
-            port:
-              position: dst
-              value: "6091"
-            proto:
-              value: udp
-          name: gw-milan-6b7845f746-s9crd
-          natType: snat
-          targetRef:
-            kind: Pod
-            name: gw-milan-6b7845f746-s9crd
-            namespace: liqo-tenant-milan
-          to: 10.200.1.8
-      type: nat
+      - hook: postrouting
+        name: pre-postrouting
+        policy: accept
+        priority: 99
+        rules:
+          natRules:
+            - match:
+                - ip:
+                    position: src
+                    value: 10.200.1.8
+                  op: eq
+                  port:
+                    position: dst
+                    value: "6091"
+                  proto:
+                    value: udp
+              name: gw-milan-6b7845f746-s9crd
+              natType: snat
+              targetRef:
+                kind: Pod
+                name: gw-milan-6b7845f746-s9crd
+                namespace: liqo-tenant-milan
+              to: 10.200.1.8
+        type: nat
 ```
 
 ### service-nodeport-routing
@@ -79,56 +79,56 @@ Traffic coming from the `rome-control-plane` node is marked with `1`, while traf
 The rule in the `prerouting` hook copies the stored `ctmark` into the packet metadata for return traffic arriving through the `liqo-tunnel` interface. In this way, the gateway can correctly route the traffic back to the corresponding Geneve interface.
 
 ```yaml
- chains:
-    - hook: forward
-      name: mark-to-conntrack
-      policy: accept
-      priority: 0
-      rules:
-        filterRules:
+chains:
+  - hook: forward
+    name: mark-to-conntrack
+    policy: accept
+    priority: 0
+    rules:
+      filterRules:
         - action: ctmark
           match:
-          - ip:
-              position: src
-              value: 10.70.0.0
-            op: eq
-          - dev:
-              position: in
-              value: liqo.vxqh6sgcjw
-            op: eq
+            - ip:
+                position: src
+                value: 10.70.0.0
+              op: eq
+            - dev:
+                position: in
+                value: liqo.vxqh6sgcjw
+              op: eq
           name: rome-control-plane
           value: "1"
         - action: ctmark
           match:
-          - ip:
-              position: src
-              value: 10.70.0.0
-            op: eq
-          - dev:
-              position: in
-              value: liqo.rgsq72drdf
-            op: eq
+            - ip:
+                position: src
+                value: 10.70.0.0
+              op: eq
+            - dev:
+                position: in
+                value: liqo.rgsq72drdf
+              op: eq
           name: rome-worker
           value: "2"
-      type: filter
-    - hook: prerouting
-      name: conntrack-mark-to-meta-mark
-      policy: accept
-      priority: 0
-      rules:
-        filterRules:
+    type: filter
+  - hook: prerouting
+    name: conntrack-mark-to-meta-mark
+    policy: accept
+    priority: 0
+    rules:
+      filterRules:
         - action: metamarkfromctmark
           match:
-          - ip:
-              position: dst
-              value: 10.70.0.0
-            op: eq
-          - dev:
-              position: in
-              value: liqo-tunnel
-            op: eq
+            - ip:
+                position: dst
+                value: 10.70.0.0
+              op: eq
+            - dev:
+                position: in
+                value: liqo-tunnel
+              op: eq
           name: conntrack-mark-to-meta-mark
-      type: filter
+    type: filter
 ```
 
 ## After Peering
@@ -200,12 +200,11 @@ This rule manages CIDR remapping in cases where two clusters share the same Pod 
 
 Before continuing, let's recap how this works:
 
-Imagine we have two clusters from the example above, named Cluster Rome and Cluster Milan, both using the same Pod CIDR (e.g., `10.200.0.0/16`). Each cluster can remap the CIDR of the adjacent one, even if they are the same. 
-Cluster Rome can autonomously assign a new CIDR to identify Cluster Milan's pods. In the example above, Cluster Rome remaps Cluster Milan to `10.61.0.0/16`. When Rome sends traffic to Milan, it will use this remapped CIDR.  
+Imagine we have two clusters from the example above, named Cluster Rome and Cluster Milan, both using the same Pod CIDR (e.g., `10.200.0.0/16`). Each cluster can remap the CIDR of the adjacent one, even if they are the same.
+Cluster Rome can autonomously assign a new CIDR to identify Cluster Milan's pods. In the example above, Cluster Rome remaps Cluster Milan to `10.61.0.0/16`. When Rome sends traffic to Milan, it will use this remapped CIDR.
 
 The purpose of this rule is to translate the "fake" destination IP back to the real IP.  
 Note that this rule **ignores traffic arriving on `eth0` and `liqo-tunnel`**, because traffic from pods will be received on Geneve interfaces (`liqo.xxx`). This rule is inserted in the `prerouting` chain.
-
 
 ```yaml
 - match:
@@ -266,40 +265,40 @@ metadata:
     networking.liqo.io/firewall-category: gateway
     networking.liqo.io/firewall-subcategory: ip-mapping
   name: nginx-ip-mapping-remap-ipmapping-gw
-  namespace: liqo-demo  
+  namespace: liqo-demo
 spec:
   table:
     chains:
-    - hook: prerouting
-      name: prerouting
-      policy: accept
-      priority: -100
-      rules:
-        natRules:
-        - match:
-          - ip:
-              position: dst
-              value: 10.70.0.4
-            op: eq
-          name: nginx-ip-mapping
-          natType: dnat
-          to: 10.200.1.11
-      type: nat
-    - hook: postrouting
-      name: postrouting
-      policy: accept
-      priority: 100
-      rules:
-        natRules:
-        - match:
-          - ip:
-              position: src
-              value: 10.70.0.4
-            op: eq
-          name: nginx-ip-mapping
-          natType: snat
-          to: 10.200.1.11
-      type: nat
+      - hook: prerouting
+        name: prerouting
+        policy: accept
+        priority: -100
+        rules:
+          natRules:
+            - match:
+                - ip:
+                    position: dst
+                    value: 10.70.0.4
+                  op: eq
+              name: nginx-ip-mapping
+              natType: dnat
+              to: 10.200.1.11
+        type: nat
+      - hook: postrouting
+        name: postrouting
+        policy: accept
+        priority: 100
+        rules:
+          natRules:
+            - match:
+                - ip:
+                    position: src
+                    value: 10.70.0.4
+                  op: eq
+              name: nginx-ip-mapping
+              natType: snat
+              to: 10.200.1.11
+        type: nat
     family: IPV4
     name: nginx-ip-mapping-remap-ipmapping-gw-liqo-demo
 ```

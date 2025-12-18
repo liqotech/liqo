@@ -1,6 +1,8 @@
-# Setup
+# Pod-to-Pod Example
 
 Let's analyze and debug the complete path of an ICMP packet sent from a pod in the consumer cluster to a pod in the provider cluster.
+
+## Setup
 
 For this example, we will use two Kubernetes-in-Docker (KinD) clusters with only one worker each and Calico as the CNI.
 
@@ -24,7 +26,8 @@ Since both clusters use `10.200.0.0/16` as the pod CIDR, Liqo remaps the pod CID
 This means that, from the perspective of the local cluster, the remote pod `nginx-remote` will appear to have the IP address `10.201.1.4`.
 
 This examples follows the path of an ICMP Echo Request packet sent from `nginx-local` to `nginx-remote` using the command: `ping 10.201.1.4`.
-# The packet flow
+
+## The packet flow
 
 ### Local Node
 
@@ -45,6 +48,7 @@ In this case, with just one node, the packet is sent directly to the `gw-local` 
 ```{admonition} TIP
 To inspect the policy routing, use the command `ip rule show all` to find the correct table and `ip route show table <table_id>`.
 ```
+
 ### Local Gateway
 
 The encapsulated packet arrives at the gateway's default interface (e.g. `eth0`).

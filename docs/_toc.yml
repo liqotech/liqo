@@ -61,6 +61,7 @@ subtrees:
       - file: architecture/network/main.md
         entries:
           - file: architecture/network/basic.md
+          - file: architecture/network/basic_example.md
           - file: architecture/network/leaftoleaf.md
           - file: architecture/network/nodeport.md
           - file: architecture/network/firewallconfiguration.md
