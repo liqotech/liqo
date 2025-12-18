@@ -15,7 +15,7 @@ The same command is executed for each of the other nodes to get the **remote IP*
 
 Note that the IPs defined in the InternalNode resources are valid for each of the gateways created in the cluster and they are divided into local and remote because each gateway use the local address to create a tunnel between the Gateway pod and the Node where it is running, and the remote address to create a tunnel with all the other nodes.
 
-```
+```text
 kubectl get internalnode -o wide
 NAME                            NODE IP LOCAL   NODE IP REMOTE   AGE
 cheina-cluster1-control-plane                   10.112.0.132     9m36s
@@ -25,7 +25,7 @@ cheina-cluster1-worker3                         10.112.1.2       9m36s
 cheina-cluster1-worker4         10.112.2.188                     9m36s
 ```
 
-```
+```text
 kubectl get pods -l networking.liqo.io/component=gateway -A -o wide
 NAMESPACE                     NAME                                 READY   STATUS    IP             NODE
 liqo-tenant-cheina-cluster2   gw-cheina-cluster2-c5bd76b56-7mxd4   3/3     Running   10.112.2.170   cheina-cluster1-worker4

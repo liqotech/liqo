@@ -106,10 +106,10 @@ The encrypted packet arrives at the `gw-remote`'s default interface (e.g. `eth0`
 
 ### Final Delivery
 
-1.  The GENEVE packet exits the `gw-remote` pod and enters the `milan-worker` node, which in our case is also the node hosting the target pod.
-2.  The node's GENEVE interface (`liqo.33333`) decapsulates the packet, retrieving:
+1. The GENEVE packet exits the `gw-remote` pod and enters the `milan-worker` node, which in our case is also the node hosting the target pod.
+2. The node's GENEVE interface (`liqo.33333`) decapsulates the packet, retrieving:
     > `SRC: 10.201.1.2` > `DST: 10.200.1.4`
-3.  The node's routing table (created by the CNI plugin) directs this packet to the final pod via the appropriate end of the `veth` pair.
-4.  The packet travels across the `veth` and arrives at the default interface of the `nginx-remote` pod.
+3. The node's routing table (created by the CNI plugin) directs this packet to the final pod via the appropriate end of the `veth` pair.
+4. The packet travels across the `veth` and arrives at the default interface of the `nginx-remote` pod.
 
 The `nginx-remote` pod successfully receives the ICMP Echo Request from the (remapped) source `10.201.1.2` and sends an Echo Reply, which follows the entire path in reverse.
