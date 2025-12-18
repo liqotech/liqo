@@ -1,0 +1,38 @@
+---
+all:
+  children:
+    rke2_cluster:
+      children:
+        rke2_servers:
+          hosts:
+            ${CONTROL_PLANE_IP}:
+        rke2_agents:
+          hosts:
+            ${WORKER_1_IP}:
+            ${WORKER_2_IP}:
+
+      # Required Vars
+      vars:
+        ansible_port: 22
+        ansible_user: ubuntu
+        rke2_version: ${K8S_VERSION}+rke2r1
+        # The token should be a random string of reasonable length. You can generate
+        # one with the following commands:
+        # - openssl rand -base64 64
+        # - pwgen -s 64 1
+        # You can use ansible-vault to encrypt this value / keep it secret.
+        rke2_token: "changeme!"
+        rke2_api_ip: "{{ hostvars[groups['rke2_servers'][0]]['ansible_host'] | default(groups['rke2_servers'][0]) }}"
+        rke2_config:
+          cluster-cidr: "${POD_CIDR}"
+          service-cidr: "${SERVICE_CIDR}"
+          tls-san:
+            - "{{ rke2_api_ip }}"
+
+        # Optional vars
+        # rke2_channel: stable
+        # rke2_download_kubeconf: true
+        # rke2_ha_mode: false
+        # rke2_ha_mode_keepalived: true
+        # rke2_keepalived_iface: eth0
+        # rke2_keepalived_vip: 192.168.1.100
