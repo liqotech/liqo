@@ -203,7 +203,7 @@ Before continuing, let's recap how this works:
 Imagine we have two clusters from the example above, named Cluster Rome and Cluster Milan, both using the same Pod CIDR (e.g., `10.200.0.0/16`). Each cluster can remap the CIDR of the adjacent one, even if they are the same.
 Cluster Rome can autonomously assign a new CIDR to identify Cluster Milan's pods. In the example above, Cluster Rome remaps Cluster Milan to `10.61.0.0/16`. When Rome sends traffic to Milan, it will use this remapped CIDR.
 
-The purpose of this rule is to translate the "fake" destination IP back to the real IP.  
+The purpose of this rule is to translate the "fake" destination IP back to the real IP.
 Note that this rule **ignores traffic arriving on `eth0` and `liqo-tunnel`**, because traffic from pods will be received on Geneve interfaces (`liqo.xxx`). This rule is inserted in the `prerouting` chain.
 
 ```yaml

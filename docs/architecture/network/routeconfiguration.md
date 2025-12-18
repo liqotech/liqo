@@ -95,7 +95,7 @@ spec:
           name: rome-control-plane
 ```
 
-`rome-worker-service-nodeport-routing `:
+`rome-worker-service-nodeport-routing`:
 
 ```yaml
 spec:
