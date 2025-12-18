@@ -11,7 +11,7 @@ The two main areas of the Liqo network are:
 
 ## Internal network
 
-In the internal network, every node is connected to a different gateway using a dedicated Geneve tunnel. This architecture ensures that:
+In the internal network, every node is connected to each gateway (one for each peering) using a dedicated Geneve tunnel. This architecture ensures that:
 
 - For each node, there is a dedicated Geneve interface on every gateway.
 - For each gateway, there is a dedicated Geneve interface on every node.
