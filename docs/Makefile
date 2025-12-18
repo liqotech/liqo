@@ -33,7 +33,7 @@ serve: install html
 	@$(PYTHON) -m http.server 8080 --directory $(BUILDDIR)/html
 
 autoserve: install
-	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) --port 8081 $(O)
+	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) --port 8080 $(O)
 
 lint:
 	markdownlint lint -c ../.markdownlint.yml -i usage/liqoctl **/*.md
