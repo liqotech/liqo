@@ -17,3 +17,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - get
+  - list
+  - watch
