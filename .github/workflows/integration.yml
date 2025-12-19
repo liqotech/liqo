@@ -95,7 +95,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -177,7 +177,7 @@ jobs:
           - fabric
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -268,7 +268,7 @@ jobs:
             goos: darwin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -314,7 +314,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # The changelog generation requires the entire history
           fetch-depth: 0
