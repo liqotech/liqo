@@ -28,12 +28,21 @@ const (
 	FirewallSubCategoryTargetValueIPMapping = "ip-mapping"
 )
 
-// ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller
+// ForgeFirewallTargetLabelsUniqueGw returns the labels used by the firewallconfiguration controller
 // to reconcile only resources related to a single gateway.
-func ForgeFirewallTargetLabels(remoteID string) map[string]string {
+func ForgeFirewallTargetLabelsUniqueGw(remoteID string) map[string]string {
 	return map[string]string{
 		firewall.FirewallCategoryTargetKey: FirewallCategoryTargetValueGw,
 		firewall.FirewallUniqueTargetKey:   remoteID,
+	}
+}
+
+// ForgeFirewallTargetLabelsAllGw returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to all gateways.
+func ForgeFirewallTargetLabelsAllGw() map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey: FirewallCategoryTargetValueGw,
+		firewall.FirewallAllTargetKey:      "true",
 	}
 }
 
