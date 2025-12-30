@@ -216,7 +216,6 @@ func run(cmd *cobra.Command, _ []string) error {
 			gateway.ForgeFirewallAllGatewaysTargetLabels(),
 			gateway.ForgeFirewallInternalTargetLabels(),
 			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
-			remapping.ForgeFirewallAllTargetLabels(),
 			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
 		},
 	)
