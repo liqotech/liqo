@@ -32,9 +32,6 @@ func checkRulesInChain(chain *firewallapi.Chain) error {
 	if err := checkUniqueRuleNames(rules); err != nil {
 		return forgeChainError(chain, err)
 	}
-	if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
-		return forgeChainError(chain, err)
-	}
 	return nil
 }
 

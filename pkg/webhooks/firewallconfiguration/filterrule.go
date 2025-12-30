@@ -33,14 +33,10 @@ func checkFilterRules(rules []firewallapi.FilterRule) error {
 }
 
 func checkFilterRule(r *firewallapi.FilterRule) error {
-	if r.Name == nil {
-		return fmt.Errorf("filterrule has nil name")
-	}
-
 	for _, match := range r.Match {
 		if match.IP != nil {
 			if err := checkFilterRuleIPValue(match.IP); err != nil {
-				return fmt.Errorf("filterrule %s err: %w", *r.Name, err)
+				return fmt.Errorf("filterrule ip value: %w", err)
 			}
 		}
 	}
