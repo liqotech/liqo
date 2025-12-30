@@ -91,15 +91,9 @@ func allowedTableFamilyChainTypeHook(family firewallapi.TableFamily, chainType f
 		case firewallapi.ChainTypeFilter:
 			switch hook {
 			case firewallapi.ChainHookIngress:
-				if family == firewallapi.TableFamilyINet {
-					return true
-				}
-				return false
+				return family == firewallapi.TableFamilyINet
 			case firewallapi.ChainHookForward:
-				if family == firewallapi.TableFamilyIPv4 {
-					return true
-				}
-				return false
+				return family == firewallapi.TableFamilyIPv4
 			default:
 				return true
 			}

@@ -81,7 +81,7 @@ func mutateCIDRFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfigurat
 			return fmt.Errorf("configuration %q has no labels", cfg.Name)
 		}
 		remoteClusterID := cfg.Labels[string(consts.RemoteClusterID)]
-		fwcfg.SetLabels(ForgeFirewallTargetLabels(remoteClusterID))
+		fwcfg.SetLabels(ForgeFirewallTargetLabelsUniqueGw(remoteClusterID))
 		fwcfg.Spec = forgeCIDRFirewallConfigurationSpec(cfg, opts, cidrtype)
 		return controllerutil.SetOwnerReference(cfg, fwcfg, scheme)
 	}
