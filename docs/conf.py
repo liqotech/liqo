@@ -26,7 +26,7 @@ from sphinxawesome_theme.postprocess import Icons
 # -- Project information -----------------------------------------------------
 
 project = 'Liqo'
-copyright = '2019-2025, The Liqo Authors'
+copyright = '2019-2026, The Liqo Authors'
 author = 'The Liqo Authors'
 
 
