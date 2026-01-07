@@ -628,3 +628,12 @@ spec:
   # Optional field - included only if .Spec.ExtraConfig is not empty
   ?extraConfig: "{{ .Spec.ExtraConfig }}"
 ```
+
+## IP Traffic Fragmentation
+
+Tunneling technologies, such as Wireguard used to connect two Liqo clusters, introduce extra overhead that reduces the MTU, causing standard-sized Internet packets to exceed the tunnel's capacity and be dropped.
+TCP MSS Clamping resolves this by intercepting the initial TCP connection handshake and dynamically rewriting the Maximum Segment Size (MSS) value to match the smaller available space of the tunnel interface.
+This dynamic adjustment, which is done per each TCP session, forces the remote server to generate smaller data packets that fit inside the inter-cluster tunnel, effectively preventing fragmentation issues and the common _black hole_ phenomenon where connections establish but data transfer hangs indefinitely.
+
+By default, the Liqo Gateway implements TCP MSS Clamping, hence it is able to adjust the maximum size of TCP segments based on the actual MTU of the tunnel.
+However, this mechanism does not work with UDP traffic: UDP packets with the IP `Don't Fragment` flag may be dropped if their size exceeds the maximum allowed value in the tunnel.
