@@ -17,11 +17,11 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // NamespaceMapLister helps list NamespaceMaps.
@@ -29,7 +29,7 @@ import (
 type NamespaceMapLister interface {
 	// List lists all NamespaceMaps in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.NamespaceMap, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.NamespaceMap, err error)
 	// NamespaceMaps returns an object that can list and get NamespaceMaps.
 	NamespaceMaps(namespace string) NamespaceMapNamespaceLister
 	NamespaceMapListerExpansion
@@ -37,17 +37,17 @@ type NamespaceMapLister interface {
 
 // namespaceMapLister implements the NamespaceMapLister interface.
 type namespaceMapLister struct {
-	listers.ResourceIndexer[*v1beta1.NamespaceMap]
+	listers.ResourceIndexer[*offloadingv1beta1.NamespaceMap]
 }
 
 // NewNamespaceMapLister returns a new NamespaceMapLister.
 func NewNamespaceMapLister(indexer cache.Indexer) NamespaceMapLister {
-	return &namespaceMapLister{listers.New[*v1beta1.NamespaceMap](indexer, v1beta1.Resource("namespacemap"))}
+	return &namespaceMapLister{listers.New[*offloadingv1beta1.NamespaceMap](indexer, offloadingv1beta1.Resource("namespacemap"))}
 }
 
 // NamespaceMaps returns an object that can list and get NamespaceMaps.
 func (s *namespaceMapLister) NamespaceMaps(namespace string) NamespaceMapNamespaceLister {
-	return namespaceMapNamespaceLister{listers.NewNamespaced[*v1beta1.NamespaceMap](s.ResourceIndexer, namespace)}
+	return namespaceMapNamespaceLister{listers.NewNamespaced[*offloadingv1beta1.NamespaceMap](s.ResourceIndexer, namespace)}
 }
 
 // NamespaceMapNamespaceLister helps list and get NamespaceMaps.
@@ -55,15 +55,15 @@ func (s *namespaceMapLister) NamespaceMaps(namespace string) NamespaceMapNamespa
 type NamespaceMapNamespaceLister interface {
 	// List lists all NamespaceMaps in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.NamespaceMap, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.NamespaceMap, err error)
 	// Get retrieves the NamespaceMap from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.NamespaceMap, error)
+	Get(name string) (*offloadingv1beta1.NamespaceMap, error)
 	NamespaceMapNamespaceListerExpansion
 }
 
 // namespaceMapNamespaceLister implements the NamespaceMapNamespaceLister
 // interface.
 type namespaceMapNamespaceLister struct {
-	listers.ResourceIndexer[*v1beta1.NamespaceMap]
+	listers.ResourceIndexer[*offloadingv1beta1.NamespaceMap]
 }

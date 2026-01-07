@@ -17,14 +17,14 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,33 +36,34 @@ type NamespaceMapsGetter interface {
 
 // NamespaceMapInterface has methods to work with NamespaceMap resources.
 type NamespaceMapInterface interface {
-	Create(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.CreateOptions) (*v1beta1.NamespaceMap, error)
-	Update(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.UpdateOptions) (*v1beta1.NamespaceMap, error)
+	Create(ctx context.Context, namespaceMap *offloadingv1beta1.NamespaceMap, opts v1.CreateOptions) (*offloadingv1beta1.NamespaceMap, error)
+	Update(ctx context.Context, namespaceMap *offloadingv1beta1.NamespaceMap, opts v1.UpdateOptions) (*offloadingv1beta1.NamespaceMap, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.UpdateOptions) (*v1beta1.NamespaceMap, error)
+	UpdateStatus(ctx context.Context, namespaceMap *offloadingv1beta1.NamespaceMap, opts v1.UpdateOptions) (*offloadingv1beta1.NamespaceMap, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.NamespaceMap, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.NamespaceMapList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*offloadingv1beta1.NamespaceMap, error)
+	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.NamespaceMapList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NamespaceMap, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.NamespaceMap, err error)
 	NamespaceMapExpansion
 }
 
 // namespaceMaps implements NamespaceMapInterface
 type namespaceMaps struct {
-	*gentype.ClientWithList[*v1beta1.NamespaceMap, *v1beta1.NamespaceMapList]
+	*gentype.ClientWithList[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList]
 }
 
 // newNamespaceMaps returns a NamespaceMaps
 func newNamespaceMaps(c *OffloadingV1beta1Client, namespace string) *namespaceMaps {
 	return &namespaceMaps{
-		gentype.NewClientWithList[*v1beta1.NamespaceMap, *v1beta1.NamespaceMapList](
+		gentype.NewClientWithList[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList](
 			"namespacemaps",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1beta1.NamespaceMap { return &v1beta1.NamespaceMap{} },
-			func() *v1beta1.NamespaceMapList { return &v1beta1.NamespaceMapList{} }),
+			func() *offloadingv1beta1.NamespaceMap { return &offloadingv1beta1.NamespaceMap{} },
+			func() *offloadingv1beta1.NamespaceMapList { return &offloadingv1beta1.NamespaceMapList{} },
+		),
 	}
 }

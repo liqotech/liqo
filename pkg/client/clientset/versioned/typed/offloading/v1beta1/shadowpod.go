@@ -17,14 +17,14 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,33 +36,34 @@ type ShadowPodsGetter interface {
 
 // ShadowPodInterface has methods to work with ShadowPod resources.
 type ShadowPodInterface interface {
-	Create(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.CreateOptions) (*v1beta1.ShadowPod, error)
-	Update(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.UpdateOptions) (*v1beta1.ShadowPod, error)
+	Create(ctx context.Context, shadowPod *offloadingv1beta1.ShadowPod, opts v1.CreateOptions) (*offloadingv1beta1.ShadowPod, error)
+	Update(ctx context.Context, shadowPod *offloadingv1beta1.ShadowPod, opts v1.UpdateOptions) (*offloadingv1beta1.ShadowPod, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.UpdateOptions) (*v1beta1.ShadowPod, error)
+	UpdateStatus(ctx context.Context, shadowPod *offloadingv1beta1.ShadowPod, opts v1.UpdateOptions) (*offloadingv1beta1.ShadowPod, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.ShadowPod, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.ShadowPodList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*offloadingv1beta1.ShadowPod, error)
+	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.ShadowPodList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.ShadowPod, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.ShadowPod, err error)
 	ShadowPodExpansion
 }
 
 // shadowPods implements ShadowPodInterface
 type shadowPods struct {
-	*gentype.ClientWithList[*v1beta1.ShadowPod, *v1beta1.ShadowPodList]
+	*gentype.ClientWithList[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList]
 }
 
 // newShadowPods returns a ShadowPods
 func newShadowPods(c *OffloadingV1beta1Client, namespace string) *shadowPods {
 	return &shadowPods{
-		gentype.NewClientWithList[*v1beta1.ShadowPod, *v1beta1.ShadowPodList](
+		gentype.NewClientWithList[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList](
 			"shadowpods",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1beta1.ShadowPod { return &v1beta1.ShadowPod{} },
-			func() *v1beta1.ShadowPodList { return &v1beta1.ShadowPodList{} }),
+			func() *offloadingv1beta1.ShadowPod { return &offloadingv1beta1.ShadowPod{} },
+			func() *offloadingv1beta1.ShadowPodList { return &offloadingv1beta1.ShadowPodList{} },
+		),
 	}
 }
