@@ -614,13 +614,13 @@ Those fields and labels have the following meaning:
 
 ### Cilium
 
-Liqo creates a new node for each remote cluster, however we do not schedule daemonsets on these nodes.
+Liqo creates a new node for each remote cluster, however it does not schedule any daemonset on these nodes.
 
-From version **1.14.2** cilium adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
+From version **1.14.2** Cilium adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
 This taint prevents also Liqo pods from being scheduled on the remote nodes.
 
-To solve this issue we need to specify to cilium daemonsets to ignore the Liqo node.
-This can be done by adding the following helm values to the cilium installation:
+To solve this issue we need to configure Cilium daemonsets to ignore the Liqo node.
+This can be done by adding the following helm values to the Cilium installation:
 
 ```yaml
 affinity:
@@ -634,28 +634,41 @@ affinity:
 
 #### Device Configuration
 
-When using **advanced Cilium eBPF features** such as eBPF-based host routing, host firewall, or BPF masquerading, Cilium automatically attaches eBPF programs to all network interfaces it detects.
-However, Liqo creates its own network interfaces (e.g., `liqo.*`) that should not be managed by Cilium's eBPF datapath.
+In some configurations, Cilium automatically auto-detects all network interfaces for different reasons (see below).
+However, this raises a conflict with the interfaces created by Liqo (e.g., `liqo.*`), which must be kept outside Cilium visibility.
 
-```{admonition} Note
-This configuration is **not required** if you are using Cilium with default settings.
-It is only necessary when enabling advanced eBPF features that attach programs directly to network interfaces.
-```
+To prevent this, you should use the `devices` parameter in the Cilium Helm values to explicitly configure which network interfaces are visible from Cilium.
 
-To prevent conflicts and ensure Liqo traffic is handled correctly when using these advanced features, you should explicitly configure which network interfaces Cilium should manage using the `devices` parameter in the cilium values.yaml file.
+For more details about the `devices` parameter, refer to the [Cilium Helm Reference](https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml#L854).
 
-If the `devices` parameter is not set while using advanced eBPF features, Cilium will auto-detect and attach to all interfaces, including Liqo interfaces.
-This can cause packet drops or unexpected behavior as Cilium's eBPF programs will intercept traffic before it reaches the kernel's network stack where Liqo expects to handle it.
+Here we list some of the reasons why the Cilium network interface autodiscovery conficts with Liqo.
 
-This configuration ensures that Cilium eBPF programs (for NodePort, masquerading, and host firewall) are only attached to the specified devices, leaving Liqo interfaces unmanaged and free to handle cross-cluster traffic.
+<!-- markdownlint-disable MD036 -->
+**Kube-proxy Replacement and eBPF Features**
 
-For more details about the `devices` parameter, refer to the [Cilium Helm Reference](https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml#L854) and [Host Policies documentation](https://docs.cilium.io/en/stable/security/policy/language/#host-policies).
+When using **kube-proxy replacement** or other **advanced Cilium eBPF features** (such as eBPF-based host routing, host firewall, or BPF masquerading), Cilium automatically attaches eBPF programs to all detected network interfaces.
 
-#### Kube-proxy replacement
+If the `devices` parameter is not set, Cilium will attach eBPF programs to Liqo interfaces as well.
+This can cause packet drops or unexpected behavior, as Cilium's eBPF programs will intercept traffic before it reaches the kernel's network stack where Liqo expects to handle it.
+
+To avoid this, explicitly specify the devices Cilium should manage, excluding Liqo interfaces.
+This ensures that Cilium eBPF programs (for NodePort, masquerading, and host firewall) are only attached to the specified devices, leaving Liqo interfaces free to handle cross-cluster traffic.
+
+**MTU Autodiscovery**
+
+<!-- markdownlint-enable MD036 -->
+When using **MTU autodiscovery** (i.e., `mtu: 0` in Cilium Helm values), Cilium probes all detected interfaces to determine the MTU value to use for pod networking.
+
+If the `devices` parameter is not set, Cilium may detect Liqo interfaces and use their MTU value.
+Since Liqo interfaces may have a different MTU than your primary network interfaces, this can result in an incorrect MTU being applied to all pods in the cluster.
+
+To avoid this, explicitly specify the devices Cilium should use for MTU detection, excluding Liqo interfaces.
+
+#### Kube-proxy Replacement Limitations
 
 Liqo networks present a limitation when used with cilium with *kube-proxy replacement*.
-In particular you won't be able to expose an **offloaded pod** with a *NodePort* or *LoadBalancer* service.
-This not limits the ability to expose **not offloaded pods** like you would normally do.
+In particular you will not be able to expose an **offloaded pod** with a *NodePort* or *LoadBalancer* service.
+This does not limits the ability to expose **not offloaded pods** like you would normally do.
 
 ```{admonition} Note
 Please consider that in kubernetes multicluster environments, the use of *NodePort* and *LoadBalancer*
