@@ -16,6 +16,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -248,18 +249,22 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		// Wait for Connections on both cluster to be created.
 		conn2, err := cluster2.waiter.ForConnection(ctx, gwServer.Namespace, cluster1.localClusterID)
 		if err != nil {
+			fmt.Print("GeneveTunnel doasn't exists in provider")
 			return err
 		}
 		conn1, err := cluster1.waiter.ForConnection(ctx, gwClient.Namespace, cluster2.localClusterID)
 		if err != nil {
+			fmt.Print("GeneveTunnel doasn't exists in consumer")
 			return err
 		}
 
 		// Wait for Connections on both cluster cluster to be established
 		if err := cluster1.waiter.ForConnectionEstablished(ctx, conn1); err != nil {
+			fmt.Printf("Connection failed: port %v on cluster %v is closed or unreachable (IP: %v)\n", gwServer.Spec.Endpoint.Port, gwServer.Name, gwClient.Status.InternalEndpoint.IP)
 			return err
 		}
 		if err := cluster2.waiter.ForConnectionEstablished(ctx, conn2); err != nil {
+			fmt.Printf("Connection failed: port %v on cluster %v is closed or unreachable (IP: %v)\n", gwClient.Spec.Endpoint.Port, gwClient.Name, gwClient.Status.InternalEndpoint.IP)
 			return err
 		}
 	}
