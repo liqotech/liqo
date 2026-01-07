@@ -44,7 +44,9 @@ import (
 
 // Reflector represents an object managing the reflection of resources towards a given remote cluster.
 type Reflector struct {
-	mu sync.RWMutex
+	// RemoteReachable indicates whether the remote cluster is reachable or if it is dead and will never come up.
+	RemoteReachable bool
+	mu              sync.RWMutex
 
 	manager        *Manager
 	localNamespace string
@@ -67,8 +69,9 @@ type reflectedResource struct {
 	gvr       schema.GroupVersionResource
 	ownership consts.OwnershipType
 
-	local  cache.GenericNamespaceLister
-	remote cache.GenericNamespaceLister
+	informer cache.SharedIndexInformer
+	local    cache.GenericNamespaceLister
+	remote   cache.GenericNamespaceLister
 
 	cancel      context.CancelFunc
 	initialized bool
@@ -86,6 +89,7 @@ func (r *Reflector) GetSecretHash() string {
 
 // Start starts the reflection towards the remote cluster.
 func (r *Reflector) Start(ctx context.Context) {
+	r.RemoteReachable = true
 	ctx, r.cancel = context.WithCancel(ctx)
 	klog.Infof("[%v] Starting reflection towards remote cluster", r.remoteClusterID)
 	for i := uint(0); i < r.manager.workers; i++ {
@@ -139,8 +143,9 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		gvr:       gvr,
 		ownership: resource.Ownership,
 
-		local:  r.manager.listers[gvr].ByNamespace(r.localNamespace),
-		remote: informer.Lister().ByNamespace(r.remoteNamespace),
+		informer: informer.Informer(),
+		local:    r.manager.listers[gvr].ByNamespace(r.localNamespace),
+		remote:   informer.Lister().ByNamespace(r.remoteNamespace),
 
 		cancel: cancel,
 	}
@@ -152,12 +157,6 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 		// Start the informer, and wait for its caches to sync
 		factory.Start(ctx.Done())
-		synced := factory.WaitForCacheSync(ctx.Done())
-
-		if !synced[gvr] {
-			// The context was closed before the cache was ready, let abort the setup
-			return
-		}
 
 		// The informer has synced, and we are now ready to start te replication
 		klog.Infof("[%v] Reflection of %v correctly started", r.remoteClusterID, gvr)
