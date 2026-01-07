@@ -20,13 +20,18 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
+          go-version: '1.25.5'
+          cache: false
           cache-dependency-path: go.sum
 
       - name: Run the automatic generation
         working-directory: ./
         run: |
+          echo "Installing controller-gen"
+          go version
+          go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
+          echo "Installed controller-gen"
+
           make generate
 
       - name: Gather the differences
