@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/devcontainers/go:1-1.24-bookworm
+
+# CHANGE: Switched from debian-based Go image to Ubuntu Base
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 # Install kubectl
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl \
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
     && install -m 0755 kubectl /usr/local/bin/kubectl \
     && rm kubectl
 

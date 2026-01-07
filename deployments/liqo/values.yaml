@@ -48,6 +48,20 @@ networking:
   clientResources:
     - apiVersion: networking.liqo.io/v1beta1
       resource: wggatewayclients
+  gateway:
+    # -- Enable the TCP MSS clamping on tunnel interfaces.
+    # Tunneling technologies introduce extra overhead that reduces the MTU, causing standard-sized Internet
+    # packets to exceed the tunnel's capacity and be dropped. TCP MSS Clamping resolves this by intercepting
+    # the initial TCP connection handshake and dynamically rewriting the Maximum Segment Size (MSS)
+    # value to match the smaller available space of the tunnel interface. This dynamic adjustment, per
+    # TCP-session, forces the remote server to generate smaller data packets that fit inside the tunnel,
+    # effectively preventing fragmentation issues and the common "black hole" phenomenon where connections
+    # establish but data transfer hangs indefinitely.
+    mssclamp:
+      enabled: true
+      # -- Set the value for the mssclamp rule.
+      # Set to 0 to use automatic value discovery based on the MTU of the tunnel interface.
+      value: 0
   # -- Set the options for the default gateway (server/client) templates.
   # The default templates use a WireGuard implementation to connect the gateway of the clusters.
   # These options are used to configure only the default templates and should not be considered
@@ -119,11 +133,11 @@ networking:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
-          - matchExpressions:
-            - key: liqo.io/type
-              operator: NotIn
-              values:
-              - virtual-node
+            - matchExpressions:
+                - key: liqo.io/type
+                  operator: NotIn
+                  values:
+                    - virtual-node
     # -- Extra tolerations for the fabric pod.
     tolerations: []
     config:
@@ -536,8 +550,7 @@ discovery:
     clusterID: ""
     # -- A set of labels that characterizes the local cluster when exposed remotely as a virtual node.
     # It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster.
-    clusterLabels:
-      {}
+    clusterLabels: {}
       # topology.kubernetes.io/zone: us-east-1
       # liqo.io/provider: your-provider
 

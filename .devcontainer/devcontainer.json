@@ -1,5 +1,5 @@
 {
-  "name": "Go",
+  "name": "Ubuntu Go",
   "dockerFile": "Dockerfile",
   "runArgs": [
     "--privileged",
@@ -15,9 +15,9 @@
       "installOhMyZshConfig": true,
       "upgradePackages": true,
       "nonFreePackages": true,
-      "username": "automatic",
-      "userUid": "automatic",
-      "userGid": "automatic"
+      "username": "root",
+      "userUid": "0",
+      "userGid": "0"
     },
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "version": "latest",
@@ -33,11 +33,15 @@
     "ghcr.io/devcontainers-extra/features/zsh-plugins:0": {
       "plugins": "zsh-autosuggestions zsh-syntax-highlighting kubectl docker docker-compose git-auto-fetch git-commit golang helm",
       "omzPlugins": "https://github.com/zsh-users/zsh-autosuggestions https://github.com/zsh-users/zsh-syntax-highlighting",
-      "username": "vscode"
+      "username": "root"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "latest"
     }
   },
   "mounts": [
     "source=${env:HOME},target=/mnt/hosthome,type=bind,consistency=cached,readonly"
   ],
-  "postStartCommand": "if [ -f /mnt/hosthome/.p10k.zsh ]; then cp /mnt/hosthome/.p10k.zsh /home/vscode/.p10k.zsh; fi && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/vscode/.oh-my-zsh/custom/themes/powerlevel10k && sed -i 's|^ZSH_THEME=.*|ZSH_THEME=\\\"powerlevel10k/powerlevel10k\\\"|' /home/vscode/.zshrc && echo '\nif [[ -r \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh\" ]]; then\n  source \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh\"\nfi\n\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /home/vscode/.zshrc && docker buildx create --name liqo-builder --use --driver-opt network=host"
+  "postStartCommand": "if [ -f /mnt/hosthome/.p10k.zsh ]; then cp /mnt/hosthome/.p10k.zsh /root/.p10k.zsh; fi && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/.oh-my-zsh/custom/themes/powerlevel10k && sed -i 's|^ZSH_THEME=.*|ZSH_THEME=\"powerlevel10k/powerlevel10k\"|' /root/.zshrc && echo '\nif [[ -r \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh\" ]]; then\n  source \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh\"\nfi\n\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /root/.zshrc && docker buildx create --name liqo-builder --use --driver-opt network=host",
+  "remoteUser": "root"
 }
