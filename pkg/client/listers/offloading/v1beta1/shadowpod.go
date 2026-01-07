@@ -17,11 +17,11 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // ShadowPodLister helps list ShadowPods.
@@ -29,7 +29,7 @@ import (
 type ShadowPodLister interface {
 	// List lists all ShadowPods in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ShadowPod, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.ShadowPod, err error)
 	// ShadowPods returns an object that can list and get ShadowPods.
 	ShadowPods(namespace string) ShadowPodNamespaceLister
 	ShadowPodListerExpansion
@@ -37,17 +37,17 @@ type ShadowPodLister interface {
 
 // shadowPodLister implements the ShadowPodLister interface.
 type shadowPodLister struct {
-	listers.ResourceIndexer[*v1beta1.ShadowPod]
+	listers.ResourceIndexer[*offloadingv1beta1.ShadowPod]
 }
 
 // NewShadowPodLister returns a new ShadowPodLister.
 func NewShadowPodLister(indexer cache.Indexer) ShadowPodLister {
-	return &shadowPodLister{listers.New[*v1beta1.ShadowPod](indexer, v1beta1.Resource("shadowpod"))}
+	return &shadowPodLister{listers.New[*offloadingv1beta1.ShadowPod](indexer, offloadingv1beta1.Resource("shadowpod"))}
 }
 
 // ShadowPods returns an object that can list and get ShadowPods.
 func (s *shadowPodLister) ShadowPods(namespace string) ShadowPodNamespaceLister {
-	return shadowPodNamespaceLister{listers.NewNamespaced[*v1beta1.ShadowPod](s.ResourceIndexer, namespace)}
+	return shadowPodNamespaceLister{listers.NewNamespaced[*offloadingv1beta1.ShadowPod](s.ResourceIndexer, namespace)}
 }
 
 // ShadowPodNamespaceLister helps list and get ShadowPods.
@@ -55,15 +55,15 @@ func (s *shadowPodLister) ShadowPods(namespace string) ShadowPodNamespaceLister 
 type ShadowPodNamespaceLister interface {
 	// List lists all ShadowPods in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ShadowPod, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.ShadowPod, err error)
 	// Get retrieves the ShadowPod from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.ShadowPod, error)
+	Get(name string) (*offloadingv1beta1.ShadowPod, error)
 	ShadowPodNamespaceListerExpansion
 }
 
 // shadowPodNamespaceLister implements the ShadowPodNamespaceLister
 // interface.
 type shadowPodNamespaceLister struct {
-	listers.ResourceIndexer[*v1beta1.ShadowPod]
+	listers.ResourceIndexer[*offloadingv1beta1.ShadowPod]
 }

@@ -17,14 +17,14 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,31 +36,32 @@ type VkOptionsTemplatesGetter interface {
 
 // VkOptionsTemplateInterface has methods to work with VkOptionsTemplate resources.
 type VkOptionsTemplateInterface interface {
-	Create(ctx context.Context, vkOptionsTemplate *v1beta1.VkOptionsTemplate, opts v1.CreateOptions) (*v1beta1.VkOptionsTemplate, error)
-	Update(ctx context.Context, vkOptionsTemplate *v1beta1.VkOptionsTemplate, opts v1.UpdateOptions) (*v1beta1.VkOptionsTemplate, error)
+	Create(ctx context.Context, vkOptionsTemplate *offloadingv1beta1.VkOptionsTemplate, opts v1.CreateOptions) (*offloadingv1beta1.VkOptionsTemplate, error)
+	Update(ctx context.Context, vkOptionsTemplate *offloadingv1beta1.VkOptionsTemplate, opts v1.UpdateOptions) (*offloadingv1beta1.VkOptionsTemplate, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.VkOptionsTemplate, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.VkOptionsTemplateList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*offloadingv1beta1.VkOptionsTemplate, error)
+	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.VkOptionsTemplateList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.VkOptionsTemplate, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.VkOptionsTemplate, err error)
 	VkOptionsTemplateExpansion
 }
 
 // vkOptionsTemplates implements VkOptionsTemplateInterface
 type vkOptionsTemplates struct {
-	*gentype.ClientWithList[*v1beta1.VkOptionsTemplate, *v1beta1.VkOptionsTemplateList]
+	*gentype.ClientWithList[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList]
 }
 
 // newVkOptionsTemplates returns a VkOptionsTemplates
 func newVkOptionsTemplates(c *OffloadingV1beta1Client, namespace string) *vkOptionsTemplates {
 	return &vkOptionsTemplates{
-		gentype.NewClientWithList[*v1beta1.VkOptionsTemplate, *v1beta1.VkOptionsTemplateList](
+		gentype.NewClientWithList[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList](
 			"vkoptionstemplates",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1beta1.VkOptionsTemplate { return &v1beta1.VkOptionsTemplate{} },
-			func() *v1beta1.VkOptionsTemplateList { return &v1beta1.VkOptionsTemplateList{} }),
+			func() *offloadingv1beta1.VkOptionsTemplate { return &offloadingv1beta1.VkOptionsTemplate{} },
+			func() *offloadingv1beta1.VkOptionsTemplateList { return &offloadingv1beta1.VkOptionsTemplateList{} },
+		),
 	}
 }

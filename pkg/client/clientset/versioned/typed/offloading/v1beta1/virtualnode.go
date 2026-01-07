@@ -17,14 +17,14 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,33 +36,34 @@ type VirtualNodesGetter interface {
 
 // VirtualNodeInterface has methods to work with VirtualNode resources.
 type VirtualNodeInterface interface {
-	Create(ctx context.Context, virtualNode *v1beta1.VirtualNode, opts v1.CreateOptions) (*v1beta1.VirtualNode, error)
-	Update(ctx context.Context, virtualNode *v1beta1.VirtualNode, opts v1.UpdateOptions) (*v1beta1.VirtualNode, error)
+	Create(ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode, opts v1.CreateOptions) (*offloadingv1beta1.VirtualNode, error)
+	Update(ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode, opts v1.UpdateOptions) (*offloadingv1beta1.VirtualNode, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, virtualNode *v1beta1.VirtualNode, opts v1.UpdateOptions) (*v1beta1.VirtualNode, error)
+	UpdateStatus(ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode, opts v1.UpdateOptions) (*offloadingv1beta1.VirtualNode, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.VirtualNode, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.VirtualNodeList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*offloadingv1beta1.VirtualNode, error)
+	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.VirtualNodeList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.VirtualNode, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.VirtualNode, err error)
 	VirtualNodeExpansion
 }
 
 // virtualNodes implements VirtualNodeInterface
 type virtualNodes struct {
-	*gentype.ClientWithList[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList]
+	*gentype.ClientWithList[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList]
 }
 
 // newVirtualNodes returns a VirtualNodes
 func newVirtualNodes(c *OffloadingV1beta1Client, namespace string) *virtualNodes {
 	return &virtualNodes{
-		gentype.NewClientWithList[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList](
+		gentype.NewClientWithList[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList](
 			"virtualnodes",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1beta1.VirtualNode { return &v1beta1.VirtualNode{} },
-			func() *v1beta1.VirtualNodeList { return &v1beta1.VirtualNodeList{} }),
+			func() *offloadingv1beta1.VirtualNode { return &offloadingv1beta1.VirtualNode{} },
+			func() *offloadingv1beta1.VirtualNodeList { return &offloadingv1beta1.VirtualNodeList{} },
+		),
 	}
 }

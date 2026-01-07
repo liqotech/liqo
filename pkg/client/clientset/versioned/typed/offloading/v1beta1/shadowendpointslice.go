@@ -17,14 +17,14 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,31 +36,32 @@ type ShadowEndpointSlicesGetter interface {
 
 // ShadowEndpointSliceInterface has methods to work with ShadowEndpointSlice resources.
 type ShadowEndpointSliceInterface interface {
-	Create(ctx context.Context, shadowEndpointSlice *v1beta1.ShadowEndpointSlice, opts v1.CreateOptions) (*v1beta1.ShadowEndpointSlice, error)
-	Update(ctx context.Context, shadowEndpointSlice *v1beta1.ShadowEndpointSlice, opts v1.UpdateOptions) (*v1beta1.ShadowEndpointSlice, error)
+	Create(ctx context.Context, shadowEndpointSlice *offloadingv1beta1.ShadowEndpointSlice, opts v1.CreateOptions) (*offloadingv1beta1.ShadowEndpointSlice, error)
+	Update(ctx context.Context, shadowEndpointSlice *offloadingv1beta1.ShadowEndpointSlice, opts v1.UpdateOptions) (*offloadingv1beta1.ShadowEndpointSlice, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.ShadowEndpointSlice, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.ShadowEndpointSliceList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*offloadingv1beta1.ShadowEndpointSlice, error)
+	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.ShadowEndpointSliceList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.ShadowEndpointSlice, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.ShadowEndpointSlice, err error)
 	ShadowEndpointSliceExpansion
 }
 
 // shadowEndpointSlices implements ShadowEndpointSliceInterface
 type shadowEndpointSlices struct {
-	*gentype.ClientWithList[*v1beta1.ShadowEndpointSlice, *v1beta1.ShadowEndpointSliceList]
+	*gentype.ClientWithList[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList]
 }
 
 // newShadowEndpointSlices returns a ShadowEndpointSlices
 func newShadowEndpointSlices(c *OffloadingV1beta1Client, namespace string) *shadowEndpointSlices {
 	return &shadowEndpointSlices{
-		gentype.NewClientWithList[*v1beta1.ShadowEndpointSlice, *v1beta1.ShadowEndpointSliceList](
+		gentype.NewClientWithList[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList](
 			"shadowendpointslices",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1beta1.ShadowEndpointSlice { return &v1beta1.ShadowEndpointSlice{} },
-			func() *v1beta1.ShadowEndpointSliceList { return &v1beta1.ShadowEndpointSliceList{} }),
+			func() *offloadingv1beta1.ShadowEndpointSlice { return &offloadingv1beta1.ShadowEndpointSlice{} },
+			func() *offloadingv1beta1.ShadowEndpointSliceList { return &offloadingv1beta1.ShadowEndpointSliceList{} },
+		),
 	}
 }

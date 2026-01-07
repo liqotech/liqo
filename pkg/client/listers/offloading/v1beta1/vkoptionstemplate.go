@@ -17,11 +17,11 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // VkOptionsTemplateLister helps list VkOptionsTemplates.
@@ -29,7 +29,7 @@ import (
 type VkOptionsTemplateLister interface {
 	// List lists all VkOptionsTemplates in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.VkOptionsTemplate, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.VkOptionsTemplate, err error)
 	// VkOptionsTemplates returns an object that can list and get VkOptionsTemplates.
 	VkOptionsTemplates(namespace string) VkOptionsTemplateNamespaceLister
 	VkOptionsTemplateListerExpansion
@@ -37,17 +37,17 @@ type VkOptionsTemplateLister interface {
 
 // vkOptionsTemplateLister implements the VkOptionsTemplateLister interface.
 type vkOptionsTemplateLister struct {
-	listers.ResourceIndexer[*v1beta1.VkOptionsTemplate]
+	listers.ResourceIndexer[*offloadingv1beta1.VkOptionsTemplate]
 }
 
 // NewVkOptionsTemplateLister returns a new VkOptionsTemplateLister.
 func NewVkOptionsTemplateLister(indexer cache.Indexer) VkOptionsTemplateLister {
-	return &vkOptionsTemplateLister{listers.New[*v1beta1.VkOptionsTemplate](indexer, v1beta1.Resource("vkoptionstemplate"))}
+	return &vkOptionsTemplateLister{listers.New[*offloadingv1beta1.VkOptionsTemplate](indexer, offloadingv1beta1.Resource("vkoptionstemplate"))}
 }
 
 // VkOptionsTemplates returns an object that can list and get VkOptionsTemplates.
 func (s *vkOptionsTemplateLister) VkOptionsTemplates(namespace string) VkOptionsTemplateNamespaceLister {
-	return vkOptionsTemplateNamespaceLister{listers.NewNamespaced[*v1beta1.VkOptionsTemplate](s.ResourceIndexer, namespace)}
+	return vkOptionsTemplateNamespaceLister{listers.NewNamespaced[*offloadingv1beta1.VkOptionsTemplate](s.ResourceIndexer, namespace)}
 }
 
 // VkOptionsTemplateNamespaceLister helps list and get VkOptionsTemplates.
@@ -55,15 +55,15 @@ func (s *vkOptionsTemplateLister) VkOptionsTemplates(namespace string) VkOptions
 type VkOptionsTemplateNamespaceLister interface {
 	// List lists all VkOptionsTemplates in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.VkOptionsTemplate, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.VkOptionsTemplate, err error)
 	// Get retrieves the VkOptionsTemplate from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.VkOptionsTemplate, error)
+	Get(name string) (*offloadingv1beta1.VkOptionsTemplate, error)
 	VkOptionsTemplateNamespaceListerExpansion
 }
 
 // vkOptionsTemplateNamespaceLister implements the VkOptionsTemplateNamespaceLister
 // interface.
 type vkOptionsTemplateNamespaceLister struct {
-	listers.ResourceIndexer[*v1beta1.VkOptionsTemplate]
+	listers.ResourceIndexer[*offloadingv1beta1.VkOptionsTemplate]
 }
