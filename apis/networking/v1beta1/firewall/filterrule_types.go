@@ -24,6 +24,9 @@ const (
 	// ActionSetMetaMarkFromCtMark is the action to be applied to the rule.
 	// It is used to set the meta mark from the conntrack mark.
 	ActionSetMetaMarkFromCtMark FilterAction = "metamarkfromctmark"
+	// ActionTCPMssClamp is the action to be applied to the rule.
+	// It is used to clamp the TCP MSS.
+	ActionTCPMssClamp FilterAction = "tcpmssclamp"
 )
 
 // FilterRule is a rule to be applied to a filter chain.
@@ -35,7 +38,7 @@ type FilterRule struct {
 	// They can be multiple and they are applied with an AND operator.
 	Match []Match `json:"match"`
 	// Action is the action to be applied to the rule.
-	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark
+	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp
 	Action FilterAction `json:"action"`
 	// Value is the value to be used for the action.
 	Value *string `json:"value,omitempty"`

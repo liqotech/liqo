@@ -103,6 +103,7 @@ spec:
                                     enum:
                                     - ctmark
                                     - metamarkfromctmark
+                                    - tcpmssclamp
                                     type: string
                                   match:
                                     description: |-

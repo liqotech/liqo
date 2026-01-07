@@ -42,6 +42,9 @@ const (
 
 	// FirewallSubCategoryFabricTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
 	FirewallSubCategoryFabricTargetValue = "fabric"
+
+	// FirewallSubCategoryAllGatewaysTargetValue is the value used by the firewallconfiguration controller to reconcile a resource on every gateway.
+	FirewallSubCategoryAllGatewaysTargetValue = "all-gateways"
 )
 
 // ForgeActiveGatewayPodLabels returns the labels for the gateway pod.
@@ -86,5 +89,14 @@ func ForgeFirewallInternalTargetLabels() map[string]string {
 	return map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryFabricTargetValue,
+	}
+}
+
+// ForgeFirewallAllGatewaysTargetLabels returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to all gateways.
+func ForgeFirewallAllGatewaysTargetLabels() map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryAllGatewaysTargetValue,
 	}
 }
