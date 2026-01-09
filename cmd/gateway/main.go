@@ -213,6 +213,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{
+			gateway.ForgeFirewallAllGatewaysTargetLabels(),
 			gateway.ForgeFirewallInternalTargetLabels(),
 			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
