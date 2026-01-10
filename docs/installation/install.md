@@ -664,6 +664,8 @@ services to expose directly a remote pod is not a [best practice](https://github
 
 ### Calico
 
+#### Interfaces Whitelisting
+
 Liqo adds several interfaces to the cluster nodes to handle cross-cluster traffic routing.
 Those interfaces are intended to not interfere with the normal CNI job.
 
@@ -703,4 +705,29 @@ spec:
         - name: IP_AUTODETECTION_METHOD
           value: skip-interface=liqo.*
       ...
+```
+
+#### Encapsulation mode
+
+When using Calico in **VXLAN encapsulation mode**, you need to ensure that the encapsulation is enabled for all the traffic, not only for cross-subnet traffic.
+
+This ensures that the GENEVE traffic is not affected by NAT rules that may be applied on the nodes, which would break the encapsulation.
+
+In Calico v3.17 and above, this can be done in the Calico *Installation CR* by setting the `encapsulation` field to `VXLAN` and NOT `VXLANCrossSubnet`.
+
+Example:
+
+```yaml
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+      - encapsulation: VXLAN
+        ...
+      ...
+    ...
+  ...
 ```
