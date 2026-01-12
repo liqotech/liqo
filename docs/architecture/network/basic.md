@@ -27,6 +27,13 @@ The external IP packet has the node's address as its source address and the gate
 Once encapsulated, the packet can be processed by the CNI without issues, as its destination is clearly defined.
 The encapsulated traffic is reintroduced into the CNI and routed to the Gateway. If the Gateway resides on a different node, the traffic may undergo additional encapsulation, resulting in nested encapsulation. This behavior depends on the CNI's handling of inter-node communication and is beyond the scope of Liqo.
 
+#### Known Limitations: Geneve and Kubernetes Services
+
+The use of Kubernetes Services (ClusterIP, NodePort, or LoadBalancer) as endpoints for Geneve tunnels is **not supported**. Kubernetes Services do not represent physical network interfaces but are implemented via DNAT rules and Connection Tracking. 
+This architecture is incompatible with the Geneve protocol, as the modification of IP headers and the lack of a direct physical binding prevent proper tunnel establishment and packet decapsulation. **Geneve Tunnels must be established directly on Pod or Node IPs.**
+
+This is the reason why internal networking does not use ClusterIPs, but instead relies on dedicated controllers that dynamically track the actual Gateway IP, with specific implementations for the [client](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/client-controller/client_controller.go#L130) and [server](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/server-controller/server_controller.go#L130) roles.
+
 ## External network
 
 In the external network, traffic between different clusters is managed.
