@@ -27,6 +27,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/util"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 const (
@@ -49,7 +51,13 @@ const (
 // - the volume binding mode is WaitForFirstConsumer
 // - the selected node is the one the reflector is managing.
 func (npvcr *NamespacedPersistentVolumeClaimReflector) shouldProvision(claim *corev1.PersistentVolumeClaim) (bool, error) {
-	if claim.Spec.VolumeName != "" {
+	if claim.Annotations == nil {
+		return false, nil
+	}
+
+	// If PVC should not provisioned on all the edge nodes, skip if volume is already bound.
+	shouldProvisionOnAllEdges := claim.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
+	if claim.Spec.VolumeName != "" && !shouldProvisionOnAllEdges {
 		return false, nil
 	}
 
@@ -103,11 +111,14 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 	//  the locks. Check that PV (with deterministic name) hasn't been provisioned
 	//  yet.
 	pvName := "pvc-" + string(claim.UID)
-	_, err := npvcr.volumes.Get(pvName)
-	if err == nil {
-		// Volume has been already provisioned, nothing to do.
-		klog.V(4).Infof("Persistentvolume %q already exists, skipping", pvName)
-		return controller.ProvisioningFinished, nil
+	shouldProvisionOnAllEdges := claim.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
+	if !shouldProvisionOnAllEdges {
+		_, err := npvcr.volumes.Get(pvName)
+		if err == nil {
+			// Volume has been already provisioned, nothing to do.
+			klog.V(4).Infof("Persistentvolume %q already exists, skipping", pvName)
+			return controller.ProvisioningFinished, nil
+		}
 	}
 
 	// Prepare a claimRef to the claim early (to fail before a volume is
