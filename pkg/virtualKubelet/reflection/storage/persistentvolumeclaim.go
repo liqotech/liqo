@@ -118,6 +118,11 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	klog.V(4).Infof("Handling reflection of local PersistentVolumeClaim %q (remote: %q)", npvcr.LocalRef(name), npvcr.RemoteRef(name))
 	local, lerr := npvcr.localPersistentVolumeClaims.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(lerr))
+
+	// Check whether the pvc should be provisioned on all the edges
+	shouldProvisionOnAllEdges := local.Annotations != nil &&
+		local.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
+
 	remote, rerr := npvcr.remotePersistentVolumeClaims.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(rerr))
 	tracer.Step("Retrieved the local and remote objects")
@@ -176,8 +181,10 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	// In addition, we use the provisionFunc to ensure the provisioning of the remote PVC.
 	state, err := npvcr.provisionClaimOperation(ctx, local,
 		func(_ context.Context, options controller.ProvisionOptions) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
-			if clusterID, found := utils.GetNodeClusterID(options.SelectedNode); !found || clusterID != string(forge.RemoteCluster) {
-				return nil, controller.ProvisioningFinished, &controller.IgnoredError{Reason: "this provisioner is not provisioning storage on that node"}
+			if !shouldProvisionOnAllEdges {
+				if clusterID, found := utils.GetNodeClusterID(options.SelectedNode); !found || clusterID != string(forge.RemoteCluster) {
+					return nil, controller.ProvisioningFinished, &controller.IgnoredError{Reason: "this provisioner is not provisioning storage on that node"}
+				}
 			}
 
 			pv, state, err := liqostorageprovisioner.ProvisionRemotePVC(ctx,

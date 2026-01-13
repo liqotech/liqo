@@ -41,13 +41,23 @@ func ProvisionRemotePVC(ctx context.Context,
 	forgingOpts *forge.ForgingOpts) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
 	virtualPvc := options.PVC
 
+	// Check whether pvc should be provisione on all the edges, in that case just filter by virtual node.
+	shouldProvisionOnAllEdges := virtualPvc.Annotations != nil &&
+		virtualPvc.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
+	nodeSelectorKey := consts.RemoteClusterID
+	if shouldProvisionOnAllEdges {
+		nodeSelectorKey = consts.TypeLabel
+	}
+
 	labels := options.SelectedNode.GetLabels()
 	if labels == nil {
 		return nil, controller.ProvisioningInBackground, fmt.Errorf("no labels found for node %s", options.SelectedNode.GetName())
 	}
-	remoteClusterID, ok := labels[consts.RemoteClusterID]
+
+	nodeSelectorValue, ok := labels[nodeSelectorKey]
 	if !ok {
-		return nil, controller.ProvisioningInBackground, fmt.Errorf("no remote cluster ID found for node %s", options.SelectedNode.GetName())
+		return nil, controller.ProvisioningInBackground,
+			fmt.Errorf("liqo node selector %q not found on node %s", nodeSelectorKey, options.SelectedNode.GetName())
 	}
 
 	// get the storage class for the remote PVC,
@@ -104,9 +114,9 @@ func ProvisionRemotePVC(ctx context.Context,
 						{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
-									Key:      consts.RemoteClusterID,
+									Key:      nodeSelectorKey,
 									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{remoteClusterID},
+									Values:   []string{nodeSelectorValue},
 								},
 							},
 						},

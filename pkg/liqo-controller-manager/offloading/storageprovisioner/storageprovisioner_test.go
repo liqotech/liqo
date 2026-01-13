@@ -73,8 +73,10 @@ var _ = Describe("Test Storage Provisioner", func() {
 			forgeNode = func(name string, isVirtual bool) *corev1.Node {
 				node := &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: map[string]string{liqoconst.RemoteClusterID: remoteClusterID},
+						Name: name,
+						Labels: map[string]string{
+							liqoconst.RemoteClusterID: remoteClusterID,
+						},
 					},
 				}
 
