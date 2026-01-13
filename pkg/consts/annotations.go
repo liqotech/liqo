@@ -53,4 +53,14 @@ const (
 	// ForeignClusterPermanentlyUnreachableAnnotationKey is the annotation used to signal that the foreign cluster is not reachable and it will
 	// never come up.
 	ForeignClusterPermanentlyUnreachableAnnotationKey = "liqo.io/foreign-cluster-permanently-unreachable"
+
+	// ProvisionPVCOnAllEdgesAnnotationKey by default a PVC with the Liqo storage class is bound to the virtual node,
+	// where the pod is scheduled. If this annotation is set to "true", the PVC can be provisioned on all edge nodes.
+	// WARNING: each edge node will maintain its own version of the PVC. This is useful for avoiding
+	// strict binding between a PVC and a specific cluster ID.
+	ProvisionPVCOnAllEdgesAnnotationKey = "omni.cast.ai/provision-on-all-edge-nodes"
+
+	// ProvisionPVCOnAllEdgesAnnotationValue is the value to set on the ProvisionPVCOnAllEdgesAnnotationKey annotation
+	// to enable the provisioning of a PVC on all edge nodes.
+	ProvisionPVCOnAllEdgesAnnotationValue = "true"
 )
