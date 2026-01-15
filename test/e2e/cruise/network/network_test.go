@@ -136,6 +136,8 @@ var _ = Describe("Liqo E2E", func() {
 					RestartPods(testContext.Clusters[i].ControllerClient)
 				}
 
+				time.Sleep(time.Second * 60)
+
 				// Check if there is only one active gateway pod per remote cluster.
 				for i := range testContext.Clusters {
 					numActiveGateway := testContext.Clusters[i].NumPeeredConsumers + testContext.Clusters[i].NumPeeredProviders

@@ -1,0 +1,31 @@
+{{- if .Values.networking.gateway.mssclamp.enabled }}
+apiVersion: networking.liqo.io/v1beta1
+kind: FirewallConfiguration
+metadata:
+  name: gw-mss-clamping
+  labels:
+    networking.liqo.io/firewall-category: gateway
+    networking.liqo.io/firewall-subcategory: all-gateways
+spec:
+  table:
+    family: IPV4
+    name: mss-clamping
+    chains:
+      - name: mss-clamping
+        type: filter
+        hook: forward
+        policy: accept
+        priority: 0
+        rules:
+          filterRules:
+            - action: tcpmssclamp
+              value: {{ .Values.networking.gateway.mssclamp.value | toString | quote }}
+              match:
+                - op: eq
+                  dev:
+                    position: out
+                    value: liqo-tunnel
+                  proto:
+                    value: tcp
+              name: mss-clamping-out
+{{- end }}
