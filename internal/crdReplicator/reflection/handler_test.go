@@ -29,14 +29,22 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/informers"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/cache"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
+
+func getDummyInformer(ctx context.Context, client dynamic.Interface, namespace string, gvr schema.GroupVersionResource) informers.GenericInformer {
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, namespace, func(lo *metav1.ListOptions) {})
+	informer := factory.ForResource(gvr)
+	factory.Start(ctx.Done())
+	factory.WaitForCacheSync(ctx.Done())
+	return informer
+}
 
 var _ = Describe("Handler tests", func() {
 
@@ -64,13 +72,6 @@ var _ = Describe("Handler tests", func() {
 	)
 
 	Item := func(name string) item { return item{gvr: gvr, name: name} }
-	Lister := func(ctx context.Context, client dynamic.Interface, namespace string, gvr schema.GroupVersionResource) cache.GenericNamespaceLister {
-		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, namespace, func(lo *metav1.ListOptions) {})
-		informer := factory.ForResource(gvr)
-		factory.Start(ctx.Done())
-		factory.WaitForCacheSync(ctx.Done())
-		return informer.Lister().ByNamespace(namespace)
-	}
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
@@ -99,11 +100,14 @@ var _ = Describe("Handler tests", func() {
 		local = fake.NewSimpleDynamicClient(scheme, localBefore.DeepCopy())
 		remote = fake.NewSimpleDynamicClient(scheme, remoteBefore.DeepCopy())
 
+		localInformer := getDummyInformer(ctx, local, localNamespace, gvr)
+		remoteInformer := getDummyInformer(ctx, remote, remoteNamespace, gvr)
 		reflector = Reflector{
 			manager: &Manager{
 				client: local,
 			},
 
+			RemoteReachable: true,
 			remoteClient:    remote,
 			localNamespace:  localNamespace,
 			remoteNamespace: remoteNamespace,
@@ -114,8 +118,9 @@ var _ = Describe("Handler tests", func() {
 				gvr: {
 					gvr:       gvr,
 					ownership: ownership,
-					local:     Lister(ctx, local, localNamespace, gvr),
-					remote:    Lister(ctx, remote, remoteNamespace, gvr),
+					informer:  remoteInformer.Informer(),
+					local:     localInformer.Lister().ByNamespace(localNamespace),
+					remote:    remoteInformer.Lister().ByNamespace(remoteNamespace),
 				},
 			},
 		}
