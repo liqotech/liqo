@@ -39,6 +39,8 @@ import (
 	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
+	getters "github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -51,7 +53,10 @@ var _ manager.NamespacedReflector = (*NamespacedEndpointSliceReflector)(nil)
 
 const (
 	// EndpointSliceReflectorName -> The name associated with the EndpointSlice reflector.
-	EndpointSliceReflectorName = "EndpointSlice"
+	EndpointSliceReflectorName      = "EndpointSlice"
+	maxAnnotationSize               = 256 * 1024 // 256 KiB
+	directConnectionAnnotationLabel = "direct-connections-data"
+	directConnectionServiceLabel    = "use-direct-connections"
 )
 
 // NamespacedEndpointSliceReflector manages the EndpointSlice reflection for a given pair of local and remote namespaces.
@@ -196,11 +201,90 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return translations
 	}
 
+	var marshaledData []byte
+	if ner.ShouldProvideDirectConnectionData(local) {
+		// If the service associated to the local Endpointslice is flagged with the "use-direct-connection": true annotation
+		// then we need to provide all the data needed to make the providers use the direct connections among them (if present!).
+		// 1) host part of the other cluster
+		// 2) External PodCIDR
+		// 3) ClusterID of the cluster on which that endpoint is running
+
+		var remoteConnectionsData directconnectioninfo.InfoList
+
+		for _, endpoint := range local.Endpoints {
+			if endpoint.NodeName == nil {
+				continue
+			}
+			node, err := ner.localNodeClient.Get(*endpoint.NodeName)
+			if err != nil {
+				klog.Errorf("Failed getting the node %q: %v", *endpoint.NodeName, err)
+				continue
+			}
+
+			// No data collection for nodes in the remote cluster or in the central cluster
+			if !directconnectioninfo.ShouldIncludeDataFromNode(node, string(forge.RemoteCluster)) {
+				continue
+			}
+
+			clusterID, err := getters.RetrieveRemoteClusterIDFromNode(node)
+			if err != nil {
+				klog.Errorf("Failed to retrieve remote cluster ID from node %q: %v", *endpoint.NodeName, err)
+				continue
+			}
+
+			objectName := endpoint.TargetRef.Name
+
+			ipsObj, err := ner.localIPs.Get(objectName)
+			if err != nil {
+				klog.Errorf("Failed to get IPs for targetRef %q: %v", objectName, err)
+				continue
+			}
+
+			localIPs, err := ipamutils.GetLocalIPFromObject(ipsObj)
+			if err != nil {
+				klog.Errorf("Failed to get local IPs from object for targetRef %q: %v", objectName, err)
+				continue
+			}
+
+			remappedIPs, err := ipamutils.GetRemappedIPFromObject(ipsObj)
+			if err != nil {
+				klog.Errorf("Failed to get remapped IPs from object for targetRef %q: %v", objectName, err)
+				continue
+			}
+
+			remoteConnectionsData.Add(clusterID, []string{localIPs}, []string{remappedIPs})
+		}
+		if len(remoteConnectionsData.Items) == 0 {
+			klog.Errorf("No direct connection data found for this endpointslice: %s", local.Name)
+		} else {
+			var err error
+
+			marshaledData, err = remoteConnectionsData.ToJSON()
+			if err != nil {
+				klog.Errorf("Failed to marshal direct connection data: %v", err)
+			} else {
+				klog.V(4).Infof("marshaled direct connection data: %s", string(marshaledData))
+			}
+
+			if len(marshaledData)+totalAnnotationsSize(local) >= maxAnnotationSize {
+				// Max size of data in annotations is 256KB
+				klog.Errorf("marshaled direct connection data exceeds maximum size of %d bytes: %d bytes", maxAnnotationSize, len(marshaledData))
+				marshaledData = nil
+			} else {
+				klog.V(4).Infof("Direct connection data for endpointslice %q marshaled successfully", local.Name)
+			}
+		}
+	}
+
 	target := forge.RemoteShadowEndpointSlice(local, remote, ner.localNodeClient, ner.RemoteNamespace(), translator, ner.ForgingOpts)
 	if terr != nil {
 		klog.Errorf("Reflection of local EndpointSlice %q to %q failed: %v", ner.LocalRef(name), ner.RemoteRef(name), terr)
 		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
+	}
+
+	if marshaledData != nil {
+		target.Annotations[directConnectionAnnotationLabel] = string(marshaledData)
 	}
 	tracer.Step("Forged the remote shadowendpointslice")
 
@@ -359,6 +443,37 @@ func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metada
 	}
 
 	return keys
+}
+
+// ShouldProvideDirectConnectionData returns whether the reflector should provide the data to make pods deployed on providers communicate directly
+// (only in case a direct connection is established).
+//
+// It's done by reading an annotation in the Service associated to the given Endpointslice.
+func (ner *NamespacedEndpointSliceReflector) ShouldProvideDirectConnectionData(obj metav1.Object) bool {
+	// Check if a service is associated to the EndpointSlice
+	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
+	if !ok {
+		return false
+	}
+	// Retrieve the service from the local cache, done again after ShouldSkipReflection
+	svc, err := ner.localServices.Get(svcname)
+	if err != nil {
+		return false
+	}
+
+	// Check if the service is marked to provide direct connection data
+	return svc.GetAnnotations()[directConnectionServiceLabel] == "true"
+}
+
+// totalAnnotationsSize computes the total size in bytes of all annotation keys and values in the given object.
+func totalAnnotationsSize(obj metav1.Object) int {
+	annotations := obj.GetAnnotations()
+
+	size := 0
+	for k, v := range annotations {
+		size += len(k) + len(v)
+	}
+	return size
 }
 
 // List returns the list of EndpointSlices managed by informers.
