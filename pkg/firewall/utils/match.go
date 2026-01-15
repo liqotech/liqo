@@ -233,7 +233,7 @@ func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp)
 }
 
 func applyMatchPort(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchPortValueType, err := GetPortValueType(&m.IP.Value)
+	matchPortValueType, err := GetPortValueType(&m.Port.Value)
 	if err != nil {
 		return err
 	}
