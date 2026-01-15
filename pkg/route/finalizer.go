@@ -24,17 +24,21 @@ import (
 
 const (
 	// routeconfigurationControllerFinalizer is the finalizer added to the RouteConfiguration.
-	routeconfigurationControllerFinalizer = "routeconfiguration-controller.liqo.io/finalizer"
+	routeconfigurationControllerFinalizer = "routeconfiguration-controller.liqo.io/"
 )
 
+func forgeFinalizer(name string) string {
+	return routeconfigurationControllerFinalizer + name
+}
+
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
-	ctrlutil.AddFinalizer(fwcfg, routeconfigurationControllerFinalizer)
+	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration, name string) error {
+	ctrlutil.AddFinalizer(fwcfg, forgeFinalizer(name))
 	return r.Client.Update(ctx, fwcfg)
 }
 
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
-	ctrlutil.RemoveFinalizer(fwcfg, routeconfigurationControllerFinalizer)
+	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration, name string) error {
+	ctrlutil.RemoveFinalizer(fwcfg, forgeFinalizer(name))
 	return r.Client.Update(ctx, fwcfg)
 }
