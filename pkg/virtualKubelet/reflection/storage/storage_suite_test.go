@@ -46,8 +46,9 @@ const (
 	LocalNamespace  = "local-namespace"
 	RemoteNamespace = "remote-namespace"
 
-	LocalClusterID  = "local-cluster-id"
-	RemoteClusterID = "remote-cluster-id"
+	LocalClusterID   = "local-cluster-id"
+	RemoteClusterID  = "remote-cluster-id"
+	EdgeLocationName = "fast-edge"
 
 	VirtualStorageClassName    = "liqo"
 	RealRemoteStorageClassName = "other-class"
@@ -142,7 +143,8 @@ var _ = BeforeEach(func() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: VirtualNodeName,
 			Labels: map[string]string{
-				consts.RemoteClusterID: RemoteClusterID,
+				consts.RemoteClusterID:  RemoteClusterID,
+				consts.EdgeLocationName: EdgeLocationName,
 			},
 		},
 	}

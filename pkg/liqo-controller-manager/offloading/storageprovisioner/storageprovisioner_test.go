@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	remoteClusterID = "foreign-cluster-id"
+	remoteClusterID  = "foreign-cluster-id"
+	edgeLocationName = "fast-edge"
 )
 
 var _ = Describe("Test Storage Provisioner", func() {
@@ -75,7 +76,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: name,
 						Labels: map[string]string{
-							liqoconst.RemoteClusterID: remoteClusterID,
+							liqoconst.RemoteClusterID:  remoteClusterID,
+							liqoconst.EdgeLocationName: edgeLocationName,
 						},
 					},
 				}
@@ -308,7 +310,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 						SelectedNode: &corev1.Node{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:   virtualNodeName,
-								Labels: map[string]string{liqoconst.RemoteClusterID: remoteClusterID},
+								Labels: map[string]string{liqoconst.EdgeLocationName: edgeLocationName},
 							},
 						},
 						PVC: &corev1.PersistentVolumeClaim{
@@ -344,9 +346,9 @@ var _ = Describe("Test Storage Provisioner", func() {
 					}
 					Expect(state).To(Equal(controller.ProvisioningFinished))
 					Expect(pv).ToNot(BeNil())
-					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(liqoconst.RemoteClusterID))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(liqoconst.EdgeLocationName))
 					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Operator).To(Equal(corev1.NodeSelectorOpIn))
-					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(remoteClusterID))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(edgeLocationName))
 					Expect(pv.Spec.StorageClassName).To(Equal(virtualStorageClassName))
 
 					_, err = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})
@@ -375,8 +377,66 @@ var _ = Describe("Test Storage Provisioner", func() {
 				Expect(realPvc.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 
-		})
+			It("provision remote pvc with provision-on-all-edge-nodes annotation", func() {
+				pvcWithAnnotation := &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      pvcName + "-with-annotation",
+						Namespace: LocalNamespace,
+						UID:       "uuid-with-annotation",
+						Annotations: map[string]string{
+							liqoconst.ProvisionPVCOnAllEdgesAnnotationKey: liqoconst.ProvisionPVCOnAllEdgesAnnotationValue,
+						},
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						StorageClassName: pointer.String(virtualStorageClassName),
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
+							},
+						},
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					},
+				}
 
+				pv, state, err := ProvisionRemotePVC(ctx, controller.ProvisionOptions{
+					SelectedNode: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   virtualNodeName,
+							Labels: map[string]string{liqoconst.EdgeLocationName: edgeLocationName},
+						},
+					},
+					PVC:    pvcWithAnnotation,
+					PVName: pvName + "-with-annotation",
+					StorageClass: &storagev1.StorageClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: virtualStorageClassName,
+						},
+						ReclaimPolicy: func() *corev1.PersistentVolumeReclaimPolicy {
+							policy := corev1.PersistentVolumeReclaimDelete
+							return &policy
+						}(),
+					},
+				}, RemoteNamespace, realStorageClassName, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(state).To(Equal(controller.ProvisioningFinished))
+				Expect(pv).ToNot(BeNil())
+
+				Expect(pv.Spec.NodeAffinity).ToNot(BeNil())
+				Expect(pv.Spec.NodeAffinity.Required).ToNot(BeNil())
+				Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms).To(HaveLen(1))
+				Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions).To(HaveLen(1))
+
+				matchExpression := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0]
+				Expect(matchExpression.Key).To(Equal(liqoconst.EdgeLocationName))
+				Expect(matchExpression.Operator).To(Equal(corev1.NodeSelectorOpExists))
+				Expect(matchExpression.Values).To(BeEmpty())
+
+				err = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Delete(ctx,
+					pvcWithAnnotation.Name, metav1.DeleteOptions{})
+				Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+			})
+		})
 	})
 
 	Context("utility functions", func() {
