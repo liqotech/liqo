@@ -6,6 +6,7 @@ metadata:
   labels:
     networking.liqo.io/firewall-category: gateway
     networking.liqo.io/firewall-subcategory: all-gateways
+    liqo.io/webhook-skip: "true"
 spec:
   table:
     family: IPV4
