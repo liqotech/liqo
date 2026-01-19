@@ -96,6 +96,11 @@ webhooks:
         resources: ["firewallconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
   - name: tenant.validate.liqo.io
     admissionReviewVersions:
       - v1
