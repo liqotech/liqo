@@ -141,8 +141,11 @@ func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1beta1.ClusterID, 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nsname,
 			Labels: map[string]string{
-				consts.RemoteClusterID:      string(cluster),
-				consts.TenantNamespaceLabel: "true",
+				consts.RemoteClusterID:              string(cluster),
+				consts.TenantNamespaceLabel:         "true",
+				consts.PodSecurityAuditLevelLabel:   consts.PodSecurityLevelPrivileged,
+				consts.PodSecurityEnforceLevelLabel: consts.PodSecurityLevelPrivileged,
+				consts.PodSecurityWarnLevelLabel:    consts.PodSecurityLevelPrivileged,
 			},
 		},
 	}
