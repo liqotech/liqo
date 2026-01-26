@@ -25,6 +25,11 @@ webhooks:
         resources: ["namespaceoffloadings"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
   - name: shadowpod.validate.liqo.io
     admissionReviewVersions:
       - v1
@@ -81,6 +86,11 @@ webhooks:
         resources: ["routeconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
   - name: resourceslice.validate.liqo.io
     admissionReviewVersions:
       - v1
@@ -115,3 +125,8 @@ webhooks:
         resources: ["tenants"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
