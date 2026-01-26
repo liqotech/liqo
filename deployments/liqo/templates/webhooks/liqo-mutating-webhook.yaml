@@ -62,6 +62,11 @@ webhooks:
         resources: ["foreignclusters"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
   - name: virtualnode.mutate.liqo.io
     admissionReviewVersions:
       - v1
@@ -79,6 +84,11 @@ webhooks:
         resources: ["virtualnodes"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
   - name: firewallconfiguration.mutate.liqo.io
     admissionReviewVersions:
       - v1
@@ -118,3 +128,8 @@ webhooks:
         resources: ["tenants"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+    objectSelector:
+      matchExpressions:
+        - key: liqo.io/webhook-skip
+          operator: NotIn
+          values: ["true"]
