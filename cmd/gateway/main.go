@@ -227,19 +227,21 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGatewayStartup(
-		cl,
-		connoptions.GwOptions.PodName,
-		connoptions.GwOptions.Name,
-		connoptions.GwOptions.Namespace,
-		connoptions.GwOptions.ConcurrentContainersNames,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create concurrent runnable: %w", err)
-	}
+	if connoptions.GwOptions.LeaderElection {
+		runnable, err := concurrent.NewRunnableGatewayStartup(
+			cl,
+			connoptions.GwOptions.PodName,
+			connoptions.GwOptions.Name,
+			connoptions.GwOptions.Namespace,
+			connoptions.GwOptions.ConcurrentContainersNames,
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create concurrent runnable: %w", err)
+		}
 
-	if err := mgr.Add(runnable); err != nil {
-		return fmt.Errorf("unable to add concurrent runnable: %w", err)
+		if err := mgr.Add(runnable); err != nil {
+			return fmt.Errorf("unable to add concurrent runnable: %w", err)
+		}
 	}
 
 	// Start the manager.
