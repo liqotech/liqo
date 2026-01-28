@@ -1,4 +1,4 @@
-{{- $templateConfig := (merge (dict "name" "wireguard-client" "module" "networking") .) -}}
+{{- $templateConfig := (merge (dict "name" "wireguard-client" "module" "networking" "isGwTemplate" true) .) -}}
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
 {{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
 {{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
@@ -68,7 +68,11 @@ spec:
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
                 - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 {{- if not .Values.requirements.kernel.enabled }}
                 - --disable-kernel-version-check
                 {{- end }}
@@ -120,6 +124,11 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
+                - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
                 ports:
                 {{- if .Values.metrics.enabled }}
@@ -164,6 +173,11 @@ spec:
                 - --metrics-address=:8086
                 {{- end }}
                 - --health-probe-bind-address=:8087
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
+                - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
