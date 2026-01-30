@@ -1,75 +1,22 @@
 name: Unit Testing
 on:
-  repository_dispatch:
+  push:
+    branches:
+      - "master"
+  issue_comment:
     types:
-      - test-command
+      - created
 
 jobs:
-  configure:
-    name: Preliminary configuration
-    runs-on: ubuntu-latest
-    outputs:
-      commit-ref: ${{ steps.configure.outputs.commit-ref }}
-      repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
-      repo-name: ${{ steps.configure.outputs.repo-name }}
-    steps:
-    - name: Configure
-      id: configure
-      run: |
-        # The ref of the commit to checkout (do not use the merge commit if pull request)
-        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-        elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-        else
-          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-        fi
-
-        if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-           echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
-        else
-           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
-        fi
-
-
-    # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
-    - uses: octokit/request-action@v2.x
-      name: "Initialize run check to 'pending'"
-      with:
-        route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
-        state: "pending"
-        description: "Unit Test status"
-        context:  "Unit Test"
-        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: ${{ github.event_name == 'repository_dispatch' }}
-
   test:
     name: Launch Test
     runs-on: ubuntu-latest
-    needs: configure
+    if: github.event_name == 'push' || (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/test'))
     steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
-      with:
-        ref: "${{ needs.configure.outputs.commit-ref }}"
-        repository: "${{ needs.configure.outputs.repo-name }}"
-        persist-credentials: false
-
-    - name: Launch Test (Docker Container)
-      run: make unit
-
-      # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
-    - uses: octokit/request-action@v2.x
-      name: "Update run check status"
-      with:
-        route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
-        state: "${{ job.status }}"
-        description: "Unit Test status"
-        context: "Unit Test"
-        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
+      - name: Launch Test (Docker Container)
+        run: make unit
