@@ -56,7 +56,7 @@ func NewIPInformer(client versioned.Interface, namespace string, resyncPeriod ti
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredIPInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredIPInformer(client versioned.Interface, namespace string, resyncP
 				}
 				return client.IpamV1alpha1().IPs(namespace).Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisipamv1alpha1.IP{},
 		resyncPeriod,
 		indexers,

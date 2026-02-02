@@ -195,6 +195,7 @@
 | virtualKubelet.extra.args | list | `[]` | Extra arguments virtual kubelet pod. |
 | virtualKubelet.extra.labels | object | `{}` | Labels for the virtual kubelet pod. |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
+| virtualKubelet.extra.tolerations | list | `[]` | Tolerations for the virtual kubelet pod. |
 | virtualKubelet.image.name | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
 | virtualKubelet.image.version | string | `""` | Custom version for the virtual kubelet image. If not specified, the global tag is used. |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
