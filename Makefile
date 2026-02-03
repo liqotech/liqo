@@ -31,7 +31,7 @@ test-container:
 # Run unit tests
 # Run with: make unit PACKAGE_PATH="package path" , to run tests on a single package.
 unit: test-container
-	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test ${PACKAGE_PATH};
+	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo,consistency=delegated -w /go/src/liqo --rm liqo-test ${PACKAGE_PATH};
 
 BINDIR?=.
 TARGET?=kind
