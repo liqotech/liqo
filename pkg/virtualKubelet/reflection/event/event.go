@@ -242,6 +242,10 @@ func (ner *NamespacedEventReflector) getLocalObject(kind, apiVersion, name strin
 		return ner.localPvcs.Get(name)
 	case gv.Group == corev1.GroupName && gv.Version == corev1.SchemeGroupVersion.Version && kind == "Pod":
 		return ner.localPods.Get(name)
+	case gv.Group == offloadingv1beta1.SchemeGroupVersion.Group && gv.Version == offloadingv1beta1.SchemeGroupVersion.Version && kind == "ShadowPod":
+		// Shadowpod and its corresponding pod have the same name.
+		// We can use shadowpod events as pod events.
+		return ner.localPods.Get(name)
 	default:
 		return nil, fmt.Errorf("unable to get local object %q: kind %q and apiVersion %q not supported", name, kind, apiVersion)
 	}

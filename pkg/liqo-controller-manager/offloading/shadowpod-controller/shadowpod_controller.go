@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -45,8 +46,18 @@ import (
 // Reconciler reconciles a ShadowPod object.
 type Reconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
+
+const (
+	// EventReasonFailedUpdatePod is the event reason when failing to update a pod.
+	EventReasonFailedUpdatePod = "FailedUpdatePod"
+	// EventReasonFailedCreatePod is the event reason when failing to create a pod.
+	EventReasonFailedCreatePod = "FailedCreatePod"
+	// EventReasonCreatedPod is the event reason when successfully creating a pod.
+	EventReasonCreatedPod = "CreatedPod"
+)
 
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods,verbs=get;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods/finalizers,verbs=get;update;patch
@@ -94,6 +105,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			WithAnnotations(shadowPod.GetAnnotations())
 
 		if err := r.Patch(ctx, &existingPod, clientutils.Patch(apply), client.ForceOwnership, client.FieldOwner("shadow-pod")); err != nil {
+			r.Recorder.Eventf(&shadowPod, corev1.EventTypeWarning, EventReasonFailedUpdatePod,
+				"Failed to update pod: %v", err)
 			klog.Errorf("unable to update pod %q: %v", klog.KObj(&existingPod), err)
 			return ctrl.Result{}, err
 		}
@@ -136,10 +149,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	utilruntime.Must(ctrl.SetControllerReference(&shadowPod, &newPod, r.Scheme))
 
 	if err := r.Create(ctx, &newPod, client.FieldOwner("shadow-pod")); err != nil {
+		r.Recorder.Eventf(&shadowPod, corev1.EventTypeWarning, EventReasonFailedCreatePod,
+			"Failed to create pod: %v", err)
 		klog.Errorf("unable to create pod for shadowpod %q: %v", klog.KObj(&shadowPod), err)
 		return ctrl.Result{}, err
 	}
 
+	r.Recorder.Event(&shadowPod, corev1.EventTypeNormal, EventReasonCreatedPod,
+		"Successfully created pod from ShadowPod")
 	klog.Infof("created pod %q for shadowpod %q", klog.KObj(&newPod), klog.KObj(&shadowPod))
 
 	return ctrl.Result{}, nil
