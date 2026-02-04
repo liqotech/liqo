@@ -93,3 +93,7 @@ spec:
   nodeExtraLabels:
     {{- toYaml .Values.virtualKubelet.virtualNode.extra.labels | nindent 4 }}
   {{- end }}
+  {{- if .Values.virtualKubelet.extra.tolerations }}
+  tolerations:
+    {{- toYaml .Values.virtualKubelet.extra.tolerations | nindent 4 }}
+  {{- end }}

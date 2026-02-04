@@ -38,6 +38,7 @@ type VkOptionsTemplateSpec struct {
 	Replicas                *int32                        `json:"replicas,omitempty"`
 	ImagePullSecrets        []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	PullPolicy              corev1.PullPolicy             `json:"pullPolicy,omitempty"`
+	Tolerations             []corev1.Toleration           `json:"tolerations,omitempty"`
 }
 
 // ReflectorConfig contains configuration parameters of the reflector.
