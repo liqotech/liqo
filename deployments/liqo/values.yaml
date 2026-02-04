@@ -633,6 +633,8 @@ virtualKubelet:
     resources:
       limits: {}
       requests: {}
+    # -- Tolerations for the virtual kubelet pod.
+    tolerations: []
   virtualNode:
     extra:
       # -- Extra annotations for the virtual node.

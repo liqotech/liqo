@@ -179,6 +179,7 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, local
 			opts),
 		ServiceAccountName: virtualNode.Name,
 		ImagePullSecrets:   opts.Spec.ImagePullSecrets,
+		Tolerations:        opts.Spec.Tolerations,
 	}
 }
 
