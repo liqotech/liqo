@@ -6,5 +6,7 @@
 .golangci.yml
 */**/*.md
 build
+!build/liqo-crd-upgrade
 deployments
+!deployments/liqo/charts/liqo-crds/crds
 docs
