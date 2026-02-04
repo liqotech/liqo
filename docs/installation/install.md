@@ -341,6 +341,52 @@ Alternatively, you can manually specify a desired id with the `--cluster-id` fla
 
 ````
 
+````{tab-item} RKE2
+
+```{warning}
+RKE2 shares limitations with K3s:
+- `kubectl exec` may not work on pods scheduled to virtual nodes
+- For restricted networks, use [out-of-band peering](../usage/rke2-oob-peering)
+```
+
+```{admonition} Note
+RKE2 API server runs on port 9345 (not the standard 6443). Ensure your kubeconfig is properly configured.
+```
+
+**Installation**
+
+Liqo can be installed on an RKE2 cluster with:
+
+```bash
+liqoctl install rke2
+```
+
+Override the API server URL if needed (e.g., NAT, load balancer):
+
+```bash
+liqoctl install rke2 --api-server-url https://rke2.example.com:9345
+```
+
+The cluster ID is auto-generated. Specify a custom ID with `--cluster-id`:
+
+```bash
+liqoctl install rke2 --cluster-id my-rke2-cluster
+```
+
+**Out-of-Band Peering**
+
+For restricted networks where clusters cannot directly communicate, use manual peering:
+
+```bash
+liqoctl install rke2 --cluster-id cluster-1
+# Repeat on second cluster with different ID
+# Then follow the out-of-band peering guide
+```
+
+See [RKE2 out-of-band peering](../usage/rke2-oob-peering) for the complete procedure.
+
+````
+
 ````{tab-item} KinD
 
 **Installation**
