@@ -1,1 +1,15 @@
-# This file is intentionally empty, since the CRDs do not need to be custoized.
+# CRD Upgrade Configuration
+# Controls whether CRDs should be automatically updated during helm upgrade
+crdUpgrade:
+  # enabled determines if the pre-upgrade hook should run to update CRDs
+  enabled: false
+  # keepResources determines if the hook resources (Job, ConfigMap, ServiceAccount, ClusterRole, ClusterRoleBinding)
+  # should be kept after the hook completes. If false, they are deleted on success.
+  keepResources: false
+  # image is the CRD upgrade container image
+  image:
+    name: "ghcr.io/liqotech/liqo-crd-upgrade"
+    # version: REQUIRED when crdUpgrade.enabled is true. The image tag/version to use.
+    # Set using: --set liqo-crds.crdUpgrade.image.version=<version>
+    version: ""
+    pullPolicy: IfNotPresent

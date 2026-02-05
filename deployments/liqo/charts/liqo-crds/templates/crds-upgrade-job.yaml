@@ -1,0 +1,84 @@
+{{- if .Values.crdUpgrade.enabled }}
+{{- if not .Values.crdUpgrade.image.version }}
+{{- fail "liqo-crds.crdUpgrade.image.version must be set when crdUpgrade is enabled. Use --set liqo-crds.crdUpgrade.image.version=<version>" }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "liqo-crds.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    {{- if not .Values.crdUpgrade.keepResources }}
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+  labels:
+    {{- include "liqo-crds.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    {{- if not .Values.crdUpgrade.keepResources }}
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+rules:
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+  labels:
+    {{- include "liqo-crds.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    {{- if not .Values.crdUpgrade.keepResources }}
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+subjects:
+- kind: ServiceAccount
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "liqo-crds.fullname" . }}-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "liqo-crds.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    {{- if not .Values.crdUpgrade.keepResources }}
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ include "liqo-crds.fullname" . }}-upgrade
+      labels:
+        {{- include "liqo-crds.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "liqo-crds.fullname" . }}-upgrade
+      restartPolicy: Never
+      containers:
+      - name: kubectl
+        image: {{ .Values.crdUpgrade.image.name }}{{ include "liqo-crds.suffix" . }}:{{ .Values.crdUpgrade.image.version }}
+        imagePullPolicy: {{ .Values.crdUpgrade.image.pullPolicy }}
+{{- end }}

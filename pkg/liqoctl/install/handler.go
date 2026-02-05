@@ -394,6 +394,14 @@ func (o *Options) preProviderValues() map[string]interface{} {
 		"telemetry": map[string]interface{}{
 			"enabled": !o.DisableTelemetry,
 		},
+
+		"liqo-crds": map[string]interface{}{
+			"crdUpgrade": map[string]interface{}{
+				"image": map[string]interface{}{
+					"version": o.Version,
+				},
+			},
+		},
 	}
 }
 
