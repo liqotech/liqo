@@ -6,7 +6,7 @@ The **Route Configuration** is a Custom Resource Definition (CRD) that specifies
 
 The routes presented in the following sections were collected from the setup in the picture, specifically from the **Rome cluster**.
 
-![setup](../../_static/images/architecture/network/route-example.drawio.png)
+![setup](../../_static/images/architecture/network/route-example.drawio.svg)
 
 ## Before Peering
 

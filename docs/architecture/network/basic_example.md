@@ -8,7 +8,7 @@ For this example, we will use two Kubernetes-in-Docker (KinD) clusters with only
 
 The entire flow of the packet is depicted in the image below
 
-![setup](../../_static/images/architecture/network/doc-example.drawio.png)
+![setup](../../_static/images/architecture/network/doc-example.drawio.svg)
 
 Here are the details of the two clusters:
 
