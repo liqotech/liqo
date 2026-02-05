@@ -40,7 +40,7 @@ To create cross-references within the Liqo documentation:
 
 ## Local testing
 
-In case you want to browse the documentation website on your local computer, the Makefile provides a simple way to do so and make it available at [http://localhost:8080](http://localhost:8080).
+In case you would like to browse the documentation website on your local computer, the `Makefile` provides a simple way to do so and make it available at [http://localhost:8080](http://localhost:8080).
 
 ```bash
 make autoserve
