@@ -6,7 +6,7 @@ The **firewall configuration** is a CRD (Custom Resource Definition) that define
 
 The configurations presented in the following sections were collected from the setup in the picture, specifically from the **Rome cluster**.
 
-![setup](../../_static/images/architecture/network/firewallconfigurations_example.drawio.png)
+![setup](../../_static/images/architecture/network/firewallconfigurations_example.drawio.svg)
 
 ## Before Peering
 
