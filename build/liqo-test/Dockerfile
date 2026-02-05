@@ -1,4 +1,4 @@
-FROM golang:1.25.5
+FROM golang:1.26rc3
 
 ENV K8S_VERSION=1.30.0
 
