@@ -1,12 +1,12 @@
-# Pod-to-Pod Example
+# Pod-to-Pod Packet Journey Example
 
-Let's analyze and debug the complete path of an ICMP packet sent from a pod in the consumer cluster to a pod in the provider cluster.
+This example presents the complete journey of an ICMP packet sent from a pod in a consumer cluster to a pod in a provider cluster.
 
 ## Setup
 
 For this example, we will use two Kubernetes-in-Docker (KinD) clusters with only one worker each and Calico as the CNI.
 
-The entire flow of the packet is depicted in the image below
+The entire journey of the packet is shown in the image below.
 
 ![setup](../../_static/images/architecture/network/doc-example.drawio.svg)
 
@@ -22,7 +22,6 @@ Here are the details of the two clusters:
   - **Node:** `milan-worker` (`172.18.0.3`)
 
 Since both clusters use `10.200.0.0/16` as the pod CIDR, Liqo remaps the pod CIDR of the remote cluster to `10.201.0.0/16` on the local cluster.
-
 This means that, from the perspective of the local cluster, the remote pod `nginx-remote` will appear to have the IP address `10.201.1.4`.
 
 This examples follows the path of an ICMP Echo Request packet sent from `nginx-local` to `nginx-remote` using the command: `ping 10.201.1.4`.
@@ -31,9 +30,10 @@ This examples follows the path of an ICMP Echo Request packet sent from `nginx-l
 
 ### Local Node
 
-The ICMP packet exits the pod's default interface (e.g. `eth0`) and immediately enters the worker node's root network namespace via the other end of the veth pair (e.g., `caliaaaaa`). The node must now decide where to send this packet.
+The ICMP packet exits the pod's default interface (e.g. `eth0`) and immediately enters the worker node's root network namespace via the other end of the `veth` pair (e.g., `caliaaaaa`).
+The node must now decide where to send this packet.
 
-- **Policy Routing:** A custom policy [routing rule](routeconfiguration.md#remote-cluster-id-node-gw-node) matches the destination IP `10.201.0.0/16`. The matching rule is as follows: `10.201.0.0/16 via 10.71.0.3 dev liqo.00000`. This route sends the packet to a special interface named `liqo.00000`, which is a **GENEVE tunnel**.
+- **Policy Routing:** A custom [policy routing rule](routeconfiguration.md#remote-cluster-id-node-gw-node) matches the destination IP `10.201.0.0/16`. The matching rule is as follows: `10.201.0.0/16 via 10.71.0.3 dev liqo.00000`. This route sends the packet to a special interface named `liqo.00000`, which is a **GENEVE tunnel**.
 - **Encapsulation:** This interface encapsulates the _entire L2 Ethernet frame_ (not just the IP packet) inside a new UDP packet.
   - **Inner Packet (Original):** `10.200.1.2` > `10.201.1.4`
   - **Outer Packet (New):**
@@ -43,15 +43,15 @@ The ICMP packet exits the pod's default interface (e.g. `eth0`) and immediately 
 
 This new, larger UDP packet is then sent via the standard CNI network to the `gw-local` pod.
 
-In this case, with just one node, the packet is sent directly to the `gw-local` pod, however in a multi-node cluster, the CNI may route it to another node first.
+In this case, with just one node, the packet is sent directly to the `gw-local` pod, however in a multi-node cluster, the CNI may route it to another node first, actually the node that hosts the gateway pod.
 
 ```{admonition} TIP
-To inspect the policy routing, use the command `ip rule show all` to find the correct table and `ip route show table <table_id>`.
+To inspect the routing rules set by policy routing, use the command `ip rule show all` to find the correct table and then `ip route show table <table_id>`.
 ```
 
 ### Local Gateway
 
-The encapsulated packet arrives at the gateway's default interface (e.g. `eth0`).
+The encapsulated packet arrives at the default interface (e.g. `eth0`) of the gateway pod.
 
 - **Decapsulation:** The gateway's networking stack recognizes the `6091` destination port and directs the packet to its own GENEVE interface (e.g., `liqo.11111`), which is paired with the worker's interface. The gateway strips the outer UDP/IP headers, extracting the original inner packet:
   > `SRC: 10.200.1.2` > `DST: 10.201.1.4`
@@ -63,7 +63,7 @@ The encapsulated packet arrives at the gateway's default interface (e.g. `eth0`)
 - **Routing to WireGuard:** Now that the packet has its _real_ destination, it's routed to the inter-cluster tunnel. The [route](routeconfiguration.md#remote-cluster-id-gw-ext-gateway) is: `10.200.0.0/16 via 169.254.18.1 dev liqo-tunnel`
 
 ```{admonition} TIP
-To know which is the other end of a GENEVE interface, use the command `ip -d link`, both ends must have the same ID.
+To know which is the other end of a GENEVE interface, use the command `ip -d link`; both ends must have the same ID.
 ```
 
 ### WireGuard Tunnel
@@ -112,4 +112,4 @@ The encrypted packet arrives at the `gw-remote`'s default interface (e.g. `eth0`
 3. The node's routing table (created by the CNI plugin) directs this packet to the final pod via the appropriate end of the `veth` pair.
 4. The packet travels across the `veth` and arrives at the default interface of the `nginx-remote` pod.
 
-The `nginx-remote` pod successfully receives the ICMP Echo Request from the (remapped) source `10.201.1.2` and sends an Echo Reply, which follows the entire path in reverse.
+The `nginx-remote` pod successfully receives the ICMP Echo Request from the (remapped) source `10.201.1.2` and sends an Echo Reply, which follows the entire path in the opposite direction.
