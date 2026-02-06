@@ -111,6 +111,10 @@ The return traffic follows the same path in opposite order, ensuring symmetric r
 
 ![Packets flow](../../_static/images/architecture/network/baseflow-v2.excalidraw.svg)
 
+### TCP Clamping
+TODO
+For more information, check the _TCP Clamping_ section on this [documentation](https://www.cloudflare.com/learning/network-layer/what-is-mss/) provided by Cloudflare.
+
 ## CIDR Remapping
 
 Liqo enables two clusters to peer even if they have the same pod CIDR.
