@@ -100,35 +100,48 @@ Hence, also this traffic, tunneled with Wireguard, is handled as normal traffic 
 
 The flow of a packet from a pod in one cluster to a pod in another cluster involves several steps:
 
-1. The packet originates from a pod and reaches its node through a virtual Ethernet interface. This is managed by the CNI and is standard Kubernetes networking behavior (Liqo is not responsible for this part).
-2. From the node, the packet enters a Geneve tunnel using a specific [route](routeconfiguration.md#remote-cluster-id-node-gw-node).The packet arrives at the other end of the Geneve tunnel, inside the gateway pod.
-3. The gateway does DNAT and routes the packet into the WireGuard tunnel([check [this route](routeconfiguration.md#remote-cluster-id-gw-ext-gateway)]).
-4. The traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and reinserted into the stack. It is then routed to the correct Geneve interface to reach the node hosting the target pod.This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). After routing, SNAT is applied.
-5. The packet is then forwarded from the node to the target pod, leveraging the CNI.
+1. The packet originates from a pod and reaches the TCP/IP stack of the node through a virtual Ethernet interface. This step is managed by the CNI and follows the standard behavior of Kubernetes networking (Liqo is not involved in this step).
+2. From the node, the packet enters into a Geneve tunnel using a specific [route](routeconfiguration.md#remote-cluster-id-node-gw-node), added by Liqo. The Liqo route captures all the traffic that goes towards the Pod CIDR of the remote Liqo cluster. The packet arrives at the other end of the Geneve tunnel, inside the gateway pod. 
+3. In case the local and remote clusters have overlapped Pod CIDRs, the gateway applies proper DNAT rules; then, it routes the packet into the WireGuard tunnel ([check [this route](routeconfiguration.md#remote-cluster-id-gw-ext-gateway)]), where is properly encrypted, then passed to the node TCP/IP stack for further processing.
+4. From the node, the packet follows the normal TCP/IP stack processing and exits from the local cluster. This step is managed by the CNI and follows the standard behavior of Kubernetes networking (Liqo is not involved in this step).
+5. The tunneled Wireguard traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and re-injected into the stack, within the pod itself. Then, it is routed to the Geneve interface of the tunnel that terminates on the node hosting the target pod. This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). After routing, and in case the local and remote clusters have overlapped Pod CIDRs, SNAT is applied.
+6. Once reached the target node, the packet exits from the Geneve tunnel and is then forwarded to the target pod. This step is managed by the CNI and follows the standard behavior of Kubernetes networking (Liqo is not involved in this step).
 
-The return traffic follows the same path in reverse, ensuring symmetric routing between the two pods across clusters.
+The return traffic follows the same path in opposite order, ensuring symmetric routing between the two pods across clusters.
 
 ![Packets flow](../../_static/images/architecture/network/baseflow-v2.excalidraw.svg)
 
 ## CIDR Remapping
 
-Liqo enables two clusters to peer even if they have the same pod CIDR. Each cluster can independently remap the remote cluster’s pod CIDR to a different, locally chosen CIDR. This remapped CIDR is decided by each cluster on its own and is not shared with other clusters.
+Liqo enables two clusters to peer even if they have the same pod CIDR.
+Each cluster can independently remap the remote cluster’s pod CIDR to a different, locally chosen CIDR.
+This remapped CIDR is decided locally by each cluster and is not shared, nor need to be negotiated, with other clusters.
 
-For example, if both Cluster A and Cluster B use `10.0.0.0/16` as their pod CIDR, Cluster A can remap Cluster B’s pod CIDR (`10.0.0.0/16`) to a new CIDR, such as `11.0.0.0/16`. As a result, Cluster A will be able to reach a pod in Cluster B with IP `10.0.0.6` using the remapped IP `11.0.0.6`. The same applies in the opposite direction if Cluster B chooses to remap Cluster A’s CIDR.
+For example, if both Cluster A and Cluster B use `10.0.0.0/16` as their pod CIDR, Cluster A can remap Cluster B’s pod CIDR (`10.0.0.0/16`) to a new CIDR, such as `11.0.0.0/16`.
+As a result, Cluster A will be able to reach a pod in Cluster B with IP `10.0.0.6` using the remapped IP `11.0.0.6`.
+The same applies in the opposite direction if Cluster B chooses to remap Cluster A’s CIDR.
 
-When a packet directed to a remote pod enters the gateway, its destination IP is the remapped one. The gateway performs a DNAT operation to replace this remapped address (used only within the local cluster) with the corresponding real IP address used by the remote cluster.
+When a packet directed to a remote pod enters the gateway, its destination IP address is the remapped one.
+The gateway performs a DNAT operation to replace this remapped address (used only within the local cluster) with the corresponding real IP address used by the remote cluster.
+Hence, when the packet enters in the Wireguard tunnel, the destination IP address is the actual one of the remote destination pod.
 ![Packets flow](../../_static/images/architecture/network/SNAT-DNAT.svg)
 
-In the example above a packet originating from a local pod destined for a remote pod enters the Gateway with the IP address `11.0.0.6` and will be translated to `10.0.0.6` by the Gateway before being sent to the remote cluster.
+In the above example, a packet originating from a local pod and directed to a remote pod enters the Gateway with the IP address `11.0.0.6`, which will be translated to `10.0.0.6` by the Gateway before sending it to the remote cluster.
 
-In a similar way, when the gateway receives incoming traffic, its source IP is the real one used by the remote cluster, so it is SNATed to the remapped one before being sent to the appropriate pod.
+However, the DNAT on the outgoing traffic is not enough to guarantee a successful communication to the remote pod.
+In fact, when the gateway on the other side of the Wireguard tunnel receives the above packet as an incoming traffic, it applies a SNAT rule to the packet, hence remapping the source address (which still belongs to the Pod CIDR of the first cluster) into the proper remapped Pod CIDR of the first cluster.
+Then, the packet continues its journey to the final pod.
 
-All the remapping logic is managed by the IPAM component of liqo, which tracks the used IPs and CIDRs inside the cluster.
+Liqo clearly splits the responsibilities of the DNAT and SNAT steps (which are both required when two networks with overlapped IP addresses needs to be connected seamlessly without IP renumbering) into the two involved gateway pods: the _exiting_ gateway performs DNAT, the _entering_ gateway performs SNAT.
+This splitting of responsibilities allow both gateways to run independently, without having to coordinate themselves about the addresses used in the IP remapping process, hence simplifying the overall management of this process.
+In fact, all the remapping logic is managed locally by the Liqo IPAM component, which tracks the used IPs and CIDRs inside the cluster, and therefore can simply decide which IP address ranges could be used in the remapping process.
 
 All the firewall rules for managing this remapping is handled inside the gateway pods, ensuring seamless communication even in the presence of overlapping CIDRs.
 
-The same logic is applied also to the **external CIDR**. This means that every cluster will be able to remap its neighboring cluster's external CIDR to a different, locally chosen CIDR. Pay attention that if you don't change the default external CIDR used by Liqo (check the helm values), every cluster will use the same external CIDR and neighbour's external CIDRs will appear always remapped.
+The same logic is applied also to the **External CIDR**.
+This means that each cluster will be able to remap its neighboring cluster's External CIDR to a different, locally chosen CIDR.
+Pay attention that if you do not change the default External CIDR used by Liqo (check the Helm values), each cluster will use the same External CIDR, hence neighbour's external CIDRs will appear always remapped.
 
 ## Example
 
-A full example of the entire path can be found [here](./basic_example.md)
+A complete example of the entire journey of a packet can be found [here](./basic_example.md)
