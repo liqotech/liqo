@@ -54,11 +54,13 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt']
+exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt', '.venv']
 
 linkcheck_ignore = [
     r'http://localhost:\d+/?',  # Localhost links
     'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider',  # This anchor is not found by the linter, but it works
+    'https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/client-controller/client_controller.go#L130', # This anchor is not found by the linter, but it works
+    'https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/server-controller/server_controller.go#L130', # This anchor is not found by the linter, but it works
     'https://www.wireguard.com/', # knwon recurrent error 500
     'https://medium.com/', # often rate-limited
     'https://github.com/kubernetes/enhancements/tree/master/keps/sig-multicluster/1645-multi-cluster-services-api#service-types',
