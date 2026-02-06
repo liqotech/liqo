@@ -47,16 +47,18 @@ The reason can be found on the [RFC 7348](https://www.rfc-editor.org/rfc/rfc7348
 In other words, Linux performs _source port hashing_ when encapsulating the pod traffic in the Geneve tunnel, meaning the source port in the UDP header is ephemeral and is calculated per-packet based on 5-tuple of the internal packet.
 Therefore, traffic tunneled in UDP cannot traverse the NAT because the UDP 5-tuple in the incoming/outgoing directions are not equal (due to the UDP source port hashing), hence the tuple cannot be found in the connection tracking table of the NAT.
 
-Since Kubernetes Services are implemented with DNAT rules and Connection Tracking (hence, are not associated to any network interface), Geneve tunnels cannot support any kind of Kubernetes Service as endpoints (ClusterIP, NodePort, or LoadBalancer), but must be directed to a _physical_ IP of the pod/node, which is guaranteed to handled by the CNI without any NAT mechanism.
-This architecture is incompatible with the Geneve protocol, as the modification of IP headers and the lack of a direct physical binding prevent proper tunnel establishment and packet decapsulation. **Geneve Tunnels must be established directly on Pod or Node IPs.**
-
-This is the reason why internal networking does not use ClusterIPs, but instead relies on dedicated controllers that dynamically track the actual Gateway IP, with specific implementations for the [client](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/client-controller/client_controller.go#L130) and [server](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/server-controller/server_controller.go#L130) roles.
+Since Kubernetes Services are implemented with DNAT rules and Connection Tracking (hence, are not associated to any network interface), Geneve tunnels cannot support any kind of Kubernetes Service as endpoint (ClusterIP, NodePort, or LoadBalancer), but must be directed to the _real_ IP of the pod/node, which is guaranteed to handled by the CNI without any NAT mechanism.
+This is the reason why **Liqo creates Geneve tunnels that are established directly on Pod or Node IPs**.
+As a consequence, the Liqo internal network relies on dedicated controllers that dynamically track the actual Gateway IP, with specific implementations for the [client](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/client-controller/client_controller.go#L130) and [server](https://github.com/liqotech/liqo/blob/8543b7ff7c34e601b60cde3f1666f3146ed29b71/pkg/liqo-controller-manager/networking/internal-network/server-controller/server_controller.go#L130) roles.
 
 ## External network
 
-In the external network, traffic between different clusters is managed.
+The external network handles the traffic between two different clusters peered with Liqo.
 
-Each WireGuard tunnel is created inside a dedicated gateway pod. For every peering, a dedicated gateway pod is deployed in both clusters involved in the connection. Each gateway pod establishes a secure WireGuard tunnel that connects only to a single remote cluster. This means that every gateway can point to just one remote cluster, ensuring isolation and security for each inter-cluster connection.
+Although Liqo provides extensibility mechanisms that facilitate the adoption of different inter-cluster technologies, at the current stage only Wireguard is implemented.
+
+Each cluster has a dedicated gateway pod per each peering; a point-to-point Wireguard tunnel with the remote cluster is terminated inside this gateway pod.
+Hence, each gateway pod handles only a single, secure WireGuard tunnel, which is connected to the remote cluster, ensuring isolation and security for each inter-cluster connection.
 
 There are two types of gateway pods: **gateway-client** and **gateway-server**.
 
@@ -65,25 +67,33 @@ There are two types of gateway pods: **gateway-client** and **gateway-server**.
 
 ### Gateway Details
 
-Each gateway in Liqo is equipped with at least three distinct interfaces:
+Each gateway in Liqo handles at least three distinct interfaces:
 
 - The default interface, which serves as the direct link to external networks.
-- A GENEVE interface for each node within the cluster (at least one in the case of a single-node cluster).
-- A tunnel interface for communication with the remote Gateway, WireGuard by default.
+- A GENEVE interface to each node within the cluster (at least one in the case of a single-node cluster).
+- A tunnel interface to the remote Gateway, using WireGuard by default.
 
-The Gateway is also responsible for performing DNAT and SNAT to support the remapping of the remote cluster.
+The gateway pod is also responsible for performing DNAT and SNAT to support the remapping of the pod addresses used in the remote cluster, which is enabled automatically by Liqo in case both clusters use the same Pod CIDR.
+More details on the [CIDR Remapping](#cidr-remapping) section below.
 
-#### Further details about GENEVE
+#### Routing traffic inside the gateway
 
-GENEVE-encapsulated traffic arrives at the gateway via the default interface. A GENEVE socket listens on port 6091. Here, the traffic is processed, decapsulated, and reintroduced into the gateway through the GENEVE interface itself. Once the packets are ready for transmission to the remote cluster, they are directed through the WireGuard interface using policy routing.
+The traffic generated by user pods, and directed to the remote cluster, arrives at the gateway pod via the default interface, encapsulated in a GENEVE tunnel.
+This traffic is transported by the underlying CNI, as it appears a normal traffic from the IP address of a Node, and the IP address of the gateway pod; hence, the CNI does not have any glue that this traffic is actually a GENEVE tunnel.
+This traffic arrives at the gateway via the default interface, directed to a GENEVE socket listening on port 6091.
+Here, the traffic is processed, decapsulated, and reintroduced into the gateway through the GENEVE interface itself.
+Once the packets are ready for transmission to the remote cluster, they are redirected to the WireGuard interface using policy routing.
 
 _Note_: Within the Gateway, a route is also configured to direct all traffic arriving from the tunnel and destined for a local pod back to the appropriate GENEVE interface.
 
 #### Details on Wireguard
 
-[WireGuard](https://www.wireguard.com/) is a secure protocol that encapsulates IP packets within UDP, ensuring encryption of the inner content. Unlike GENEVE, WireGuard operates at Layer 3 (L3), meaning its interface does not possess a MAC address.
+[WireGuard](https://www.wireguard.com/) is a secure protocol that encapsulates IP packets within UDP, ensuring encryption of the inner content.
+Unlike GENEVE, WireGuard operates at Layer 3 (L3), meaning its interface does not have a MAC address.
 In Liqo, during configuration, the local WireGuard interface is set to contact the appropriate endpoint, which in this case is the address of the node hosting the remote Gateway.
-Once encapsulated, the traffic is reintroduced into the Gateway and exits via the default interface. It then traverses the node and exits through its primary interface to reach the remote endpoint.
+Once encapsulated, the traffic is re-injected into the Gateway and exits via the default interface of the pod.
+It then traverses the node and exits through its primary interface to reach the remote endpoint.
+Hence, also this traffic, tunneled with Wireguard, is handled as normal traffic by the underlying CNI, and it appears as generated by a local pod and directed to an IP address outside the cluster.
 ![basic](../../_static/images/architecture/network/doc-Wireguard.drawio.svg)
 
 ### Recap of Packets flow
