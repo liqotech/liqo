@@ -268,7 +268,7 @@ func (r *LocalRenewerReconciler) enforceRenew(ctx context.Context, identity *aut
 		switch identity.Spec.Type {
 		case authv1beta1.ControlPlaneIdentityType:
 			// Generate a CSR for the remote cluster.
-			CSR, err := authentication.GenerateCSRForControlPlane(privateKey, identity.Spec.ClusterID)
+			CSR, err := authentication.GenerateCSRForControlPlane(privateKey, r.LocalClusterID)
 			if err != nil {
 				return fmt.Errorf("unable to generate CSR: %w", err)
 			}
