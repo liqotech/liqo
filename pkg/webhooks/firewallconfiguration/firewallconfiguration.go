@@ -143,9 +143,12 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 		switch chain.Type {
 		case firewallapi.ChainTypeNAT:
 			if err := checkNatRulesInChain(&chain); err != nil {
-				return admission.Denied(err.Error())
+				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
-		default:
+		case firewallapi.ChainTypeFilter:
+			if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
+				return admission.Denied(forgeChainError(&chain, err).Error())
+			}
 		}
 	}
 	return admission.Allowed("")

@@ -104,7 +104,15 @@ spec:
                                     - ctmark
                                     - metamarkfromctmark
                                     - tcpmssclamp
+                                    - accept
+                                    - drop
+                                    - reject
                                     type: string
+                                  counter:
+                                    default: true
+                                    description: Counter enables the counter for the
+                                      rule, updated every time the rule is hit.
+                                    type: boolean
                                   match:
                                     description: |-
                                       Match is the match to be applied to the rule.
@@ -204,6 +212,7 @@ spec:
                                     type: string
                                 required:
                                 - action
+                                - counter
                                 - match
                                 type: object
                               type: array

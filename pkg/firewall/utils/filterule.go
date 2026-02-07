@@ -114,6 +114,10 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		}
 	}
 
+	if fr.Counter {
+		applyCounter(rule)
+	}
+
 	switch fr.Action {
 	case firewallv1beta1.ActionCtMark:
 		err := applyCtMarkAction(fr.Value, rule)
@@ -126,8 +130,15 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		if err := applyTCPMssClampAction(fr.Value, rule); err != nil {
 			return nil, fmt.Errorf("cannot apply tcpmssclamp action: %w", err)
 		}
+	case firewallv1beta1.ActionAccept:
+		applyAcceptAction(rule)
+	case firewallv1beta1.ActionDrop:
+		applyDropAction(rule)
+	case firewallv1beta1.ActionReject:
+		applyRejectAction(rule)
 	default:
 	}
+
 	return rule, nil
 }
 
@@ -239,4 +250,20 @@ func applyTCPMssClampAction(value *string, rule *nftables.Rule) error {
 	)
 
 	return nil
+}
+
+func applyAcceptAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictAccept})
+}
+
+func applyDropAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictDrop})
+}
+
+func applyRejectAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Reject{})
+}
+
+func applyCounter(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Counter{Bytes: 1, Packets: 1})
 }
