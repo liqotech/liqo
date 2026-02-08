@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package remoterenwercontroller implements the controller for handling certificate renewal requests
-// from remote clusters. It watches the Tenant resources and update the status of the Renew resources accordingly.
-package remoterenwercontroller
+// Package localrenewercontroller contains the logic of the LocalRenewer controller, in charge of making sure to update the AuthParams
+// of the Identity resource in the local cluster, whenever the certificate is renewed.
+package localrenewercontroller
