@@ -108,6 +108,8 @@ networking:
     pod:
       # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the gateway pods.
       priorityClassName: ""
+      # -- Additional tolerations for gateway pods
+      tolerations: []
     container:
       gateway:
         image:
@@ -350,13 +352,13 @@ storage:
   storageNamespace: liqo-storage
 
 common:
-  # -- NodeSelector for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- NodeSelector for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   nodeSelector: {}
-  # -- Tolerations for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- Tolerations for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   tolerations: []
-  # -- Affinity for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- Affinity for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   affinity: {}
-  # -- Extra arguments for all liqo pods, excluding virtual kubelet.
+  # -- Extra arguments for all liqo pods, excluding virtual kubelet and gateway pods.
   extraArgs: []
   # -- Global labels to be added to all resources created by Liqo controllers
   globalLabels:
