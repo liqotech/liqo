@@ -88,6 +88,8 @@ networking:
         allocateLoadBalancerNodePorts: ""
         # -- Annotations for the server service.
         annotations: {}
+    # -- Additional tolerations for gateway pods
+    tolerations: []
     container:
       gateway:
         image:

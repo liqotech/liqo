@@ -38,6 +38,10 @@ spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
               {{- include "liqo.imagePullSecrets" . | nindent 14 }}
+              {{- if .Values.networking.gatewayTemplates.tolerations }}
+              tolerations:
+              {{- toYaml .Values.networking.gatewayTemplates.tolerations | nindent 14 }}
+              {{- end }}
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
