@@ -17,6 +17,7 @@ package tenantcontroller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -34,6 +35,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -215,6 +217,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	tenant.Status.TenantNamespace = tenantNamespace.Name
 
+	shouldRenew := false
 	defer func() {
 		errDef := r.Client.Status().Update(ctx, tenant)
 		if errDef != nil {
@@ -224,13 +227,29 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 
 		if err == nil {
+			if shouldRenew {
+				r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "CertificateRenewed", "Certificate for Tenant renewed successfully")
+			}
 			r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "Reconciled", "Tenant reconciled")
 		}
 	}()
 
+	requeueIn := time.Duration(0)
 	// If no handshake is performed, then the user is charge of creating the authentication params and bind the right permissions.
 	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
 		// create the CSR and forge the AuthParams
+		if tenant.Status.AuthParams != nil && len(tenant.Status.AuthParams.SignedCRT) > 0 {
+			shouldRenew, requeueIn, err = utils.ShouldRenewCertificate(tenant.Status.AuthParams.SignedCRT)
+			if err != nil {
+				klog.Errorf("Unable to check if the certificate should be renewed for the Tenant %q: %s", req.Name, err)
+				r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "CertificateRenewalCheckFailed", err.Error())
+				return ctrl.Result{}, err
+			}
+
+			if shouldRenew {
+				klog.Infof("Certificate for Tenant %q needs to be renewed, resigning CSR...", req.Name)
+			}
+		}
 
 		authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
 			Cluster:         tenant.Spec.ClusterID,
@@ -243,6 +262,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			CAOverride:               r.CAOverride,
 			TrustedCA:                r.TrustedCA,
 			ProxyURL:                 tenant.Spec.ProxyURL,
+			IsRenew:                  shouldRenew,
 		})
 		if err != nil {
 			klog.Errorf("Unable to forge the AuthParams for the Tenant %q: %s", req.Name, err)
@@ -272,7 +292,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: requeueIn}, nil
 }
 
 // getCusterRoles returns the ClusterRoles having the `app.kubernetes.io/name` equals to the provided strings.
