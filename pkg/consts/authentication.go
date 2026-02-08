@@ -52,9 +52,6 @@ const (
 	// CordonTenantAnnotation is the value of the annotation that enables the cordon of a tenant.
 	CordonTenantAnnotation = "liqo.io/cordon-tenant"
 
-	// RenewAnnotation is the value of the annotation that enables the renewal of a resource.
-	RenewAnnotation = "liqo.io/renew"
-
 	// PeeringUserNameLabelKey labels all the resources created to grant peering permissions to the user doing a pering toward this cluster.
 	PeeringUserNameLabelKey = "liqo.io/peering-user-name"
 )
