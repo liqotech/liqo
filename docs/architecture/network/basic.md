@@ -112,7 +112,17 @@ The return traffic follows the same path in opposite order, ensuring symmetric r
 ![Packets flow](../../_static/images/architecture/network/baseflow-v2.excalidraw.svg)
 
 ### TCP Clamping
-TODO
+
+When the IP traffic traverses a tunnel, there is always the risk that large IP packets need to be fragmented before encapsulating them into the tunnel.
+Unfortunately, not all the packets can be fragmented (e.g., the ones that have the IP _Don't Fragment_ flag turned on), and in this case the packet is dropped.
+	
+Although Liqo does it best to limit this problem, e.g., by reducing the MTU at the traffic source, this is not always effective.
+Therefore, starting from version 1.1, Liqo implements the TCP Clamping mechanism on all the traffic traversing the Wireguard tunnel.
+This behavior is controlled by a new flag that is active by default, although it can be changed in the [Helm values file](https://github.com/liqotech/liqo/blob/6b287acbfe0c2bb2ea065aa6f4ae7928b00a4d95/deployments/liqo/values.yaml#L60).
+	
+In a nutshell, when the TCP handshake mechanism establishes a new TCP session, the two TCP endpoints agree on the maximum chunk of data that can be exchanged on that connection, the so called Maximum Segment Size (MSS).
+The TCP clamping mechanism acts as a _bump in the wire_ and it intercepts this negotiation, adapting the MSS value to the MTU of the Wireguard tunnel, so that the TCP endpoints will never generate a chunk of data that requires the IP packet to be fragmented.
+
 For more information, check the _TCP Clamping_ section on this [documentation](https://www.cloudflare.com/learning/network-layer/what-is-mss/) provided by Cloudflare.
 
 ## CIDR Remapping
