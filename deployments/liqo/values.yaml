@@ -88,6 +88,9 @@ networking:
         allocateLoadBalancerNodePorts: ""
         # -- Annotations for the server service.
         annotations: {}
+    pod:
+      # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the gateway pods.
+      priorityClassName: ""
     container:
       gateway:
         image:

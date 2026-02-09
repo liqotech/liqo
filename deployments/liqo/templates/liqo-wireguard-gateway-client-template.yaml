@@ -208,8 +208,9 @@ spec:
                     add:
                     - NET_ADMIN
                     - NET_RAW
-              # Uncomment to set a priorityClassName
-              # priorityClassName: ""
+              {{- if .Values.networking.gatewayTemplates.pod.priorityClassName }}
+              priorityClassName: {{ .Values.networking.gatewayTemplates.pod.priorityClassName }}
+              {{- end }}
               volumes:
               - name: wireguard-config
                 secret:
