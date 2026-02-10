@@ -22,39 +22,46 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, error) {
+func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []byte, error) {
 	if dataType == nil {
 		if data != nil {
-			return nil, fmt.Errorf("set element has data but no data type is specified")
+			return nil, nil, fmt.Errorf("set element has data but no data type is specified")
 		}
-		return []byte{}, nil
+		return []byte{}, nil, nil
 	}
 
 	if data == nil {
-		return nil, fmt.Errorf("set element has nil data for data type %s", *dataType)
+		return nil, nil, fmt.Errorf("set element has nil data for data type %s", *dataType)
 	}
 
 	switch *dataType {
 	case firewallapi.SetDataTypeIPAddr:
 		ip := net.ParseIP(*data)
 		if ip == nil {
-			return nil, fmt.Errorf("set element has invalid IP value %s", *data)
+			return nil, nil, fmt.Errorf("set element has invalid IP value %s", *data)
 		}
-		return ip.To4(), nil
+		return ip.To4(), nil, nil
+
+	case firewallapi.SetDataTypeIPCIDR:
+		startIP, endIP, err := GetCIDRRange(*data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("set element has invalid CIDR value %s: %v", *data, err)
+		}
+		return startIP.To4(), endIP.To4(), nil
 
 	case firewallapi.SetDataTypeInteger:
 		intValue, err := strconv.Atoi(*data)
 		if err != nil {
-			return nil, fmt.Errorf("set element has invalid integer value %s", *data)
+			return nil, nil, fmt.Errorf("set element has invalid integer value %s", *data)
 		}
 		return []byte{
 			byte((intValue >> 24) & 0xFF),
 			byte((intValue >> 16) & 0xFF),
 			byte((intValue >> 8) & 0xFF),
 			byte(intValue & 0xFF),
-		}, nil
+		}, nil, nil
 
 	default:
-		return nil, fmt.Errorf("invalid set value type %s", *dataType)
+		return nil, nil, fmt.Errorf("invalid set value type %s", *dataType)
 	}
 }

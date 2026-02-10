@@ -172,12 +172,12 @@ func addSets(nftconn *nftables.Conn, sets []firewallapi.Set, nftTable *nftables.
 
 // addSet adds a new set to the nftables configuration.
 func addSet(nftconn *nftables.Conn, table *nftables.Table, set *firewallapi.Set) (*nftables.Set, error) {
-	dataType, err := getSetDataType(set.DataType)
+	dataType, _, err := getSetDataType(set.DataType)
 	if err != nil {
 		return nil, err
 	}
 
-	keyType, err := getSetDataType(&set.KeyType)
+	keyType, interval, err := getSetDataType(&set.KeyType)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +187,7 @@ func addSet(nftconn *nftables.Conn, table *nftables.Table, set *firewallapi.Set)
 		Name:     set.Name,
 		KeyType:  keyType,
 		DataType: dataType,
+		Interval: interval,
 	}
 
 	setData, err := genSetElements(set)
@@ -205,36 +206,42 @@ func addSet(nftconn *nftables.Conn, table *nftables.Table, set *firewallapi.Set)
 func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
 	setData := make([]nftables.SetElement, len(set.Elements))
 	for i, element := range set.Elements {
-		data, err := utils.ConvertSetData(element.Data, set.DataType)
+		data, dataEnd, err := utils.ConvertSetData(element.Data, set.DataType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to convert set element data: %v", err)
 		}
+		if dataEnd != nil {
+			return nil, fmt.Errorf("data type %s does not support end value, but got %v", *set.DataType, dataEnd)
+		}
 
-		key, err := utils.ConvertSetData(&element.Key, &set.KeyType)
+		key, keyEnd, err := utils.ConvertSetData(&element.Key, &set.KeyType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to convert set element key: %v", err)
 		}
 
 		setData[i] = nftables.SetElement{
-			Key: key,
-			Val: data,
+			Key:    key,
+			KeyEnd: keyEnd,
+			Val:    data,
 		}
 	}
 
 	return setData, nil
 }
 
-func getSetDataType(dataType *firewallapi.SetDataType) (nftables.SetDatatype, error) {
+func getSetDataType(dataType *firewallapi.SetDataType) (nftables.SetDatatype, bool, error) {
 	if dataType == nil {
-		return nftables.SetDatatype{}, nil
+		return nftables.SetDatatype{}, false, nil
 	}
 
 	switch *dataType {
 	case firewallapi.SetDataTypeIPAddr:
-		return nftables.TypeIPAddr, nil
+		return nftables.TypeIPAddr, false, nil
+	case firewallapi.SetDataTypeIPCIDR:
+		return nftables.TypeIPAddr, true, nil
 	case firewallapi.SetDataTypeInteger:
-		return nftables.TypeInteger, nil
+		return nftables.TypeInteger, false, nil
 	default:
-		return nftables.SetDatatype{}, fmt.Errorf("unsupported set data type: %s", *dataType)
+		return nftables.SetDatatype{}, false, fmt.Errorf("unsupported set data type: %s", *dataType)
 	}
 }
