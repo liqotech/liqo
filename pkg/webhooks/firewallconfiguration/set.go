@@ -59,7 +59,7 @@ func checkSetElements(set *firewallapi.Set) error {
 	for i := range set.Elements {
 		element := set.Elements[i]
 
-		if _, err := firewallutils.ConvertSetData(&element.Key, &set.KeyType); err != nil {
+		if _, _, err := firewallutils.ConvertSetData(&element.Key, &set.KeyType); err != nil {
 			return err
 		}
 
@@ -68,7 +68,7 @@ func checkSetElements(set *firewallapi.Set) error {
 				return fmt.Errorf("set element with key %s has nil data", element.Key)
 			}
 
-			if _, err := firewallutils.ConvertSetData(element.Data, set.DataType); err != nil {
+			if _, _, err := firewallutils.ConvertSetData(element.Data, set.DataType); err != nil {
 				return err
 			}
 		} else {
