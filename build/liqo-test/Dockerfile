@@ -1,16 +1,19 @@
 FROM golang:1.25.5
 
-ENV K8S_VERSION=1.30.0
+ARG ENVTEST_VERSION=release-0.21
+ARG ENVTEST_K8S_VERSION=1.30.x
 
 WORKDIR /go/src/github.com/liqotech/liqo
 COPY go.mod ./go.mod
 COPY go.sum ./go.sum
 RUN  go mod download
 
-# Install kubebuilder
-RUN curl --fail -sSLo envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/$(go env GOOS)/$(go env GOARCH)"
-RUN mkdir /usr/local/kubebuilder/
-RUN tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.gz
+# Install setup-envtest and envtest binaries
+RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@${ENVTEST_VERSION}
+RUN mkdir -p /usr/local/kubebuilder/bin && \
+    ASSETS_PATH=$($(go env GOPATH)/bin/setup-envtest use ${ENVTEST_K8S_VERSION} \
+      --bin-dir=/usr/local/kubebuilder/bin -p path) && \
+    ln -sf ${ASSETS_PATH}/* /usr/local/kubebuilder/bin/
 
 # Install iptables
 RUN apt-get update && apt-get install iptables iproute2 -y
