@@ -204,14 +204,11 @@ func addSet(nftconn *nftables.Conn, table *nftables.Table, set *firewallapi.Set)
 }
 
 func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
-	setData := make([]nftables.SetElement, len(set.Elements))
-	for i, element := range set.Elements {
-		data, dataEnd, err := utils.ConvertSetData(element.Data, set.DataType)
+	setData := make([]nftables.SetElement, 0)
+	for _, element := range set.Elements {
+		data, _, err := utils.ConvertSetData(element.Data, set.DataType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to convert set element data: %v", err)
-		}
-		if dataEnd != nil {
-			return nil, fmt.Errorf("data type %s does not support end value, but got %v", *set.DataType, dataEnd)
 		}
 
 		key, keyEnd, err := utils.ConvertSetData(&element.Key, &set.KeyType)
@@ -219,10 +216,16 @@ func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
 			return nil, fmt.Errorf("unable to convert set element key: %v", err)
 		}
 
-		setData[i] = nftables.SetElement{
-			Key:    key,
-			KeyEnd: keyEnd,
-			Val:    data,
+		setData = append(setData, nftables.SetElement{
+			Key: key,
+			Val: data,
+		})
+		if keyEnd != nil {
+			setData = append(setData, nftables.SetElement{
+				Key:         keyEnd,
+				Val:         data,
+				IntervalEnd: true,
+			})
 		}
 	}
 
