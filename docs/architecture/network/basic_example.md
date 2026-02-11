@@ -1,7 +1,7 @@
 # Pod-to-Pod Packet Journey Example
-
 This example presents the complete journey of an ICMP packet sent from a pod in a consumer cluster to a pod in a provider cluster.
 
+Before reading this example, see the [Basic Concepts](basic.md) section
 ## Setup
 
 For this example, we will use two Kubernetes-in-Docker (KinD) clusters with only one worker each and Calico as the CNI.
@@ -57,6 +57,10 @@ The encapsulated packet arrives at the default interface (e.g. `eth0`) of the ga
   > `SRC: 10.200.1.2` > `DST: 10.201.1.4`
 - **DNAT (Destination NAT):** This packet's destination (`10.201.1.4`) is meaningless to the remote cluster. The gateway must translate it back to the pod's _real_ IP. This is done using **`nftables`**. A rule in the `remap-podcidr` table performs a Destination NAT:
   > `ip daddr 10.201.0.0/16 ... dnat prefix to 10.200.0.0/16`
+```{admonition} TIP
+It is possible to see this rule, together with the SNAT rule for incoming traffic, using the command:
+nft list table ip remap-podcidr
+```
 - **Packet Transformation:**
   - **Before DNAT:** `10.200.1.2` > `10.201.1.4`
   - **After DNAT:** `10.200.1.2` > `10.200.1.4`
@@ -75,7 +79,8 @@ The packet is sent to the `liqo-tunnel` interface, which is (by default) a **Wir
   - **Outer Packet:**
     - **Source IP:** `10.200.1.3` (the `gw-local` pod)
     - **Destination IP:** `172.18.0.3` (the `milan-worker` node, where `gw-remote` runs)
-- **Node-Level SNAT:** This encrypted packet exits the `gw-local` pod and goes back to the `rome-worker` node. The node performs _another_ SNAT (Source NAT) to make the packet routable on the external network.
+- **Node-Level SNAT:** This encrypted packet exits the `gw-local` pod and goes back to the `rome-worker` node. The node performs _another_ SNAT (Source NAT) to make the packet routable on the external network.This SNAT is performed by the CNI and is not done by Liqo. It is applied to all packets leaving the cluster towards the external network.
+
   - **Before SNAT:** `10.200.1.3:36252` > `172.18.0.3:31864`
   - **After SNAT:** `172.18.0.2:17806` > `172.18.0.3:31864`
 
@@ -85,7 +90,7 @@ This final, encrypted, and twice-NATted packet now travels "across the internet"
 
 The encrypted packet arrives at the `milan-worker`'s default interface (e.g. `eth0`).
 
-- **Node-Level DNAT:** Since the packet is addressed to the node itself, the node's kube-proxy intercepts it and performs a Destination NAT to send it to the `gw-remote` pod.
+- **Node-Level DNAT:** Since the packet is addressed to the node itself, the node's kube-proxy intercepts it and performs a Destination NAT to send it to the `gw-remote` pod.This DNAT is part of the standard Kubernetes networking behavior and is not performed by Liqo. It occurs because the Gateway is exposed on the remote node through a Kubernetes Service (e.g., a NodePort).
   - **Before DNAT:** `172.18.0.2:17806` > `172.18.0.3:31864`
   - **After DNAT:** `172.18.0.3:44207` > `10.200.1.5:51840`
 - **Routing:** The packet is sent to the pod according to the CNI routing rules. In our example the rule is: `10.200.1.5 dev caliccccc scope link`
