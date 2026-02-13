@@ -18,39 +18,37 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 )
 
 // getInternalFabric retrieves the InternalFabric resource associated with the given GatewayServer.
 // WARNING: this function contains 2 calls to the Kubernetes API using 2 different names.
 // This is intended to avoid breaking changes, since the InternalFabric name has changed from GatewayServer name to the GatewayServer cluster ID.
 func getInternalFabric(ctx context.Context, cl client.Client, gatewayName, remoteID, ns string) (*networkingv1beta1.InternalFabric, error) {
-	internalFabric := &networkingv1beta1.InternalFabric{}
-	err := cl.Get(ctx, client.ObjectKey{
-		Name:      remoteID,
-		Namespace: ns,
-	}, internalFabric)
-	if client.IgnoreNotFound(err) != nil {
-		return nil, fmt.Errorf("unable to get the internal fabric %q: %w", remoteID, err)
-	}
-
-	if err == nil {
-		return internalFabric, nil
-	}
-
-	err = cl.Get(ctx, client.ObjectKey{
+	name, err := utils.ForgeInternalFabricName(ctx, cl, &metav1.ObjectMeta{
 		Name:      gatewayName,
 		Namespace: ns,
-	}, internalFabric)
+		Labels: map[string]string{
+			consts.RemoteClusterID: remoteID,
+		},
+	})
 
-	switch {
-	case errors.IsNotFound(err):
-		return nil, fmt.Errorf("could not find internal fabric with names %q and %q: %w", gatewayName, remoteID, err)
-	case err != nil:
-		return nil, fmt.Errorf("unable to get the internal fabric %q: %w", gatewayName, err)
+	if err != nil {
+		return nil, fmt.Errorf("unable to forge internal fabric name: %w", err)
+	}
+
+	internalFabric := &networkingv1beta1.InternalFabric{}
+	err = cl.Get(ctx, client.ObjectKey{
+		Name:      name,
+		Namespace: ns,
+	}, internalFabric)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get the internal fabric %q: %w", name, err)
 	}
 
 	return internalFabric, nil
