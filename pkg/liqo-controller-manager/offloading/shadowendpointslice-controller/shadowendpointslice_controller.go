@@ -102,27 +102,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	apiServerReady := foreigncluster.IsAPIServerReadyOrDisabled(fc)
 
 	// Check if direct connections data is provided
-	var remoteConnectionsData directconnectioninfo.InfoList
+	var remoteConnectionsData directconnectioninfo.DirectConnectionData
 	if val, ok := shadowEps.Annotations[directConnectionAnnotationLabel]; ok {
 		err := remoteConnectionsData.FromJSON([]byte(val))
 
 		if err != nil {
 			klog.Errorf("failed to unmarshal direct connection data for shadowendpointslice %q: %v", nsName, err)
 		}
-		// JSON is not propagated to the EndpointSlice
-		delete(shadowEps.Annotations, directConnectionAnnotationLabel)
 	}
-
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
 	// If the networking module is disabled, we do not need to remap the endpoints.
 	remappedEndpoints := shadowEps.Spec.Template.Endpoints
 	if foreigncluster.IsNetworkingModuleEnabled(fc) {
+
+		rcindex := remoteConnectionsData.BuildIndex()
+
 		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
-		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints, remoteConnectionsData); err != nil {
+		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints, rcindex); err != nil {
 			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
 			return ctrl.Result{}, err
 		}
 	}
+
+	// Direct connections data annotation is not propagated to the EndpointSlice
+	annotations := forge.ForgeEndpointSliceAnnotations(&shadowEps, []string{directConnectionAnnotationLabel})
 
 	// Forge the endpointslice given the shadowendpointslice
 	newEps := discoveryv1.EndpointSlice{
@@ -131,7 +134,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Namespace: shadowEps.Namespace,
 			Labels: labels.Merge(shadowEps.Labels, labels.Set{
 				consts.ManagedByLabelKey: consts.ManagedByShadowEndpointSliceValue}),
-			Annotations: shadowEps.Annotations,
+			Annotations: annotations,
 		},
 		AddressType: shadowEps.Spec.Template.AddressType,
 		Endpoints:   remappedEndpoints,

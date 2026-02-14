@@ -178,22 +178,22 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 //
 // In case of failure returns the address unchanged.
 func ForceMapAddressWithConfiguration(ctx context.Context, cl client.Client,
-	clusterID liqov1beta1.ClusterID, address string) (net.IP, error) {
+	clusterID liqov1beta1.ClusterID, address string) (string, error) {
 	// This address is used only to get its host part!
 	addr := net.ParseIP(address)
 
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID, corev1.NamespaceAll)
 	if err != nil {
-		return addr, err
+		return addr.String(), err
 	}
 
 	podCidr := cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
 	_, podnet, err := net.ParseCIDR(podCidr)
 	if err != nil {
-		return addr, err
+		return addr.String(), err
 	}
 
-	return RemapMask(addr, *podnet), nil
+	return RemapMask(addr, *podnet).String(), nil
 }
 
 // RemapMask take an IP address and a network mask and remap the address to the network.

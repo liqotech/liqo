@@ -18,52 +18,46 @@ import (
 	"context"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
-	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
+
+	klog "k8s.io/klog/v2"
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
+// 
+// It also maps the addresses using a different clusterID in case address is found in the DirectConnectionIndex.
 func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
-	clusterID liqov1beta1.ClusterID, endpoints []discoveryv1.Endpoint,
-	list directconnectioninfo.InfoList,
+	localClusterID liqov1beta1.ClusterID, endpoints []discoveryv1.Endpoint,
+	index *directconnectioninfo.DirectConnectionIndex,
 ) error {
 	for i := range endpoints {
 		for j := range endpoints[i].Addresses {
 			addr := endpoints[i].Addresses[j]
 
-			addrHasBeenRemapped := false
-
-			// If data is passed, check if mapping can be made manually
-			if len(list.Items) != 0 {
-				clusterID, ip, addressFound := list.GetConnectionDataByIP(addr)
-
-				if addressFound {
-					rAddr, err := ipamips.ForceMapAddressWithConfiguration(ctx, cl, liqov1beta1.ClusterID(clusterID), ip)
-
-					if err == nil {
-						endpoints[i].Addresses[j] = rAddr.String()
-						addrHasBeenRemapped = true
-					} else {
-						klog.Errorf("error while mapping address %q using the cidr from clusterID %q: %v", ip, clusterID, err)
-					}
-				}
-				if addrHasBeenRemapped {
-					break
+			mappingClusterID := localClusterID
+			if index != nil {
+				if directClusterID, found := index.LookupClusterID(addr); found {
+					mappingClusterID = liqov1beta1.ClusterID(directClusterID)
 				}
 			}
 
-			// Regular mapping is performed
-			if !addrHasBeenRemapped {
-				rAddr, err := ipamips.MapAddress(ctx, cl, clusterID, addr)
-				if err != nil {
-					return err
-				}
-				endpoints[i].Addresses[j] = rAddr
+			var rAddr string
+			var err error
+			// if address is found, then the remapping is forced using the clusterID instead of the local one.
+			if mappingClusterID != localClusterID {
+				rAddr, err = ipamips.ForceMapAddressWithConfiguration(ctx, cl, mappingClusterID, addr)
+			} else{
+				rAddr, err = ipamips.MapAddress(ctx, cl, localClusterID, addr)
 			}
+			klog.V(4).Infof("Mapped address %q using clusterID %q; result is: %q", addr, mappingClusterID, rAddr)
+			if err != nil {
+				return err
+			}
+			endpoints[i].Addresses[j] = rAddr
 		}
 	}
 
