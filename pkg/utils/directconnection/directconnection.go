@@ -12,84 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// package directconnection manages data related to endpoints that can leverage a direct connection.
 package directconnection
 
 import (
 	"encoding/json"
 )
 
-// Info contains the IPs (both local and remapped) of the pods deployed on a remote cluster
+// DirectConnectionData is a struct representing the addresses of the pods deployed on a remote cluster
 // for which there may be a direct connection that can be used.
 //
-// ClusterID is the ID of the remote cluster where the pods are located.
-// IPs are the Addresses in the Endpoint as seen by the consumer cluster BEFORE REMAPPING -> needed to extract the host part to remap correctly.
-// RemappedIPs are the same IPs AFTER the remapping of the consumer -> needed to identify which IPs to replace.
-type Info struct {
-	ClusterID   string   `json:"ID"`
-	IPs         []string `json:"IPs"`
-	RemappedIPs []string `json:"rIPs"`
+// Used to collect data and marshal to an annotation on the ShadowEndpointSlice.
+//
+// Key: clusterID. Value: list of IPs associated to that cluster.
+type DirectConnectionData struct {
+	ByCluster map[string][]string `json:"clstrIDtoAddrs"`
 }
 
-// InfoList is a collection if elements of type Info.
+// DirectConnectionIndex is an in-memory lookup table from IP to clusterID. 
 //
-// There will be an item per ClusterID.
-type InfoList struct {
-	Items []Info `json:"items"`
+// It is used to store the data relative to direct connections, for efficient retrieval of the clusterID.
+//
+// Key: IP address, value: ClusterID of the cluster where that address is.
+type DirectConnectionIndex struct {
+	IPToCluster map[string]string
 }
 
-// GetConnectionDataByIP retrieves the cluster ID and original IP address for a given remapped IP.
-//
-// NOTE: RemappedIP is used to identify the IP address to remap;
-//
-// IP is used to extract the host part;
-//
-// clusterID is used to retrieve the right podCIDR.
-func (l *InfoList) GetConnectionDataByIP(ip string) (clusterID, originalIP string, found bool) {
-	for _, entry := range l.Items {
-		for i, remappedIP := range entry.RemappedIPs {
-			if ip == remappedIP {
-				return entry.ClusterID, entry.IPs[i], true
-			}
+// Add inserts IPs associated with the given clusterID.
+func (c *DirectConnectionData) Add(clusterID string, ips ...string) {
+	if c.ByCluster == nil {
+		c.ByCluster = make(map[string][]string)
+	}
+	c.ByCluster[clusterID] = append(c.ByCluster[clusterID], ips...)
+}
+
+// BuildIndex creates an IP-based lookup table from the marshaled data.
+func (c *DirectConnectionData) BuildIndex() *DirectConnectionIndex {
+	if c == nil || len(c.ByCluster) == 0 {
+		return nil
+	}
+
+	index := &DirectConnectionIndex{IPToCluster: make(map[string]string)}
+	for clusterID, ips := range c.ByCluster {
+		for _, ip := range ips {
+			index.IPToCluster[ip] = clusterID
 		}
 	}
-	return "", "", false
+
+	return index
 }
 
-// Add inserts new elements to the List.
-// A new entry is created only if the clusterID is not already present.
-func (l *InfoList) Add(clusterID string, ips, remappedIPs []string) {
-	for i := range l.Items {
-		if l.Items[i].ClusterID == clusterID {
-			// ClusterID already exists, update the existing entry.
-			l.Items[i].IPs = append(l.Items[i].IPs, ips...)
-			l.Items[i].RemappedIPs = append(l.Items[i].RemappedIPs, remappedIPs...)
-			return
-		}
+// LookupClusterID retrieves the cluster ID associated with a given IP.
+func (i *DirectConnectionIndex) LookupClusterID(ip string) (clusterID string, found bool) {
+	if i == nil || i.IPToCluster == nil {
+		return "", false
 	}
-	// ClusterID not found, create a new entry.
-	l.Items = append(l.Items, Info{
-		ClusterID:   clusterID,
-		IPs:         ips,
-		RemappedIPs: remappedIPs,
-	})
+	clusterID, found = i.IPToCluster[ip]
+	return clusterID, found
 }
 
-// ToJSON serializes the Info to JSON.
-func (d *Info) ToJSON() ([]byte, error) {
-	return json.Marshal(d)
+// ToJSON serializes the DirectConnectionData to JSON.
+func (c *DirectConnectionData) ToJSON() ([]byte, error) {
+	return json.Marshal(c)
 }
 
-// FromJSON deserializes JSON data into the Info.
-func (d *Info) FromJSON(data []byte) error {
-	return json.Unmarshal(data, d)
-}
-
-// ToJSON serializes the InfoList to JSON.
-func (l *InfoList) ToJSON() ([]byte, error) {
-	return json.Marshal(l)
-}
-
-// FromJSON deserializes JSON data into the InfoList.
-func (l *InfoList) FromJSON(data []byte) error {
-	return json.Unmarshal(data, l)
+// FromJSON deserializes JSON data into the DirectConnectionData.
+func (c *DirectConnectionData) FromJSON(data []byte) error {
+	return json.Unmarshal(data, c)
 }

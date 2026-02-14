@@ -188,6 +188,8 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return nil
 	}
 
+	directConnectionsEnabled := ner.ShouldProvideDirectConnectionData(local)
+
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
 	translator := func(originals []string) []string {
@@ -197,22 +199,25 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		var translations []string
-		translations, terr = ner.MapEndpointIPs(name, originals)
+		translations, terr = ner.MapEndpointIPs(name, originals, directConnectionsEnabled)
 		return translations
 	}
 
 	var marshaledData []byte
-	if ner.ShouldProvideDirectConnectionData(local) {
+	if directConnectionsEnabled {
 		// If the service associated to the local Endpointslice is flagged with the "use-direct-connection": true annotation
-		// then we need to provide all the data needed to make the providers use the direct connections among them (if present!).
-		// 1) host part of the other cluster
-		// 2) External PodCIDR
-		// 3) ClusterID of the cluster on which that endpoint is running
+		// then gather the data needed to make the providers use the direct connections among them.
+		// 1) The address that needs to be remapped.
+		// 2) ClusterID of the cluster on which that endpoint is running.
 
-		var remoteConnectionsData directconnectioninfo.InfoList
+		var remoteConnectionsData directconnectioninfo.DirectConnectionData
 
 		for _, endpoint := range local.Endpoints {
 			if endpoint.NodeName == nil {
+				continue
+			}
+			if endpoint.TargetRef == nil {
+				klog.Errorf("Endpoint with IP %q has no targetRef, skipping direct connection data collection for it", endpoint.Addresses)
 				continue
 			}
 			node, err := ner.localNodeClient.Get(*endpoint.NodeName)
@@ -231,6 +236,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 				klog.Errorf("Failed to retrieve remote cluster ID from node %q: %v", *endpoint.NodeName, err)
 				continue
 			}
+			/*
 
 			objectName := endpoint.TargetRef.Name
 
@@ -240,22 +246,17 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 				continue
 			}
 
-			localIPs, err := ipamutils.GetLocalIPFromObject(ipsObj)
-			if err != nil {
-				klog.Errorf("Failed to get local IPs from object for targetRef %q: %v", objectName, err)
-				continue
-			}
-
-			remappedIPs, err := ipamutils.GetRemappedIPFromObject(ipsObj)
+			IPs, err := ipamutils.GetLocalIPFromObject(ipsObj)
 			if err != nil {
 				klog.Errorf("Failed to get remapped IPs from object for targetRef %q: %v", objectName, err)
 				continue
 			}
-
-			remoteConnectionsData.Add(clusterID, []string{localIPs}, []string{remappedIPs})
+			*/
+			IPs := endpoint.Addresses
+			remoteConnectionsData.Add(clusterID, IPs...)
 		}
-		if len(remoteConnectionsData.Items) == 0 {
-			klog.Errorf("No direct connection data found for this endpointslice: %s", local.Name)
+		if len(remoteConnectionsData.ByCluster) == 0 {
+			klog.Errorf("Service is set for direct connections but no data found for this endpointslice: %s", local.Name)
 		} else {
 			var err error
 
@@ -282,7 +283,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
 	}
-
+	
 	if marshaledData != nil {
 		target.Annotations[directConnectionAnnotationLabel] = string(marshaledData)
 	}
@@ -361,7 +362,13 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(origina
 }
 
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
-func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string) ([]string, error) {
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string, skipTranslation bool) ([]string, error) {
+	
+	if skipTranslation {
+		klog.V(4).Infof("Skipping translation of endpoint IPs for EndpointSlice %q, beacuse direct connections are enabled.", ner.LocalRef(endpointslice))
+		return originals, nil
+	}
+	
 	var translations []string
 	var err error
 
@@ -375,17 +382,17 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string
 		translation, found := cache[original]
 
 		if !found {
-			if !ner.localPodCIDR.Contains(net.ParseIP(original)) {
-				// Cache miss -> we need to interact with the IPAM to request the translation.
-				translation, err = ner.MapEndpointIPFromIPResource(original)
-				if err != nil {
-					return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
-				}
-			} else {
-				// If the IP is in the local podCIDR we don't need to ask  for a translation.
-				translation = original
-			}
-			cache[original] = translation
+			// Skip IPAM translation if direct connections are enabled
+            if ner.localPodCIDR.Contains(net.ParseIP(original)) {
+                translation = original
+            } else {
+                // Cache miss -> interact with IPAM for translation
+                translation, err = ner.MapEndpointIPFromIPResource(original)
+                if err != nil {
+                    return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
+                }
+            }
+            cache[original] = translation
 		}
 
 		translations = append(translations, translation)
