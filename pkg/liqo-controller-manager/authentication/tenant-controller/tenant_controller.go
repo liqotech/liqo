@@ -158,50 +158,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 	}
 
-	clusterID := tenant.Spec.ClusterID
-
 	// If no handshake is tolerated, then do not perform the checks on the exchanged keys.
 	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
-		// get the nonce for the tenant
-
-		nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID, corev1.NamespaceAll)
+		ok, err := r.verifyHandshake(ctx, tenant)
 		if err != nil {
-			klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
-			return ctrl.Result{}, err
-		}
-
-		nonce, err := authgetters.GetNonceFromSecret(nonceSecret)
-		if err != nil {
-			klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
-			return ctrl.Result{}, err
-		}
-
-		publicKey, publicKeyDER, err := authentication.ParseTenantPublicKey(tenant.Spec.PublicKey)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to parse public key in Tenant resource %q: %w", req.Name, err)
-		}
-
-		// check the signature using the PKIX-encoded public key bytes
-		ok, err := authentication.VerifyNonce(publicKey, nonce, tenant.Spec.Signature)
-		if err != nil {
-			klog.Errorf("Unable to verify signature for Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
 			return ctrl.Result{}, err
 		}
 		if !ok {
-			err = fmt.Errorf("signature verification failed for Tenant %q", req.Name)
-			klog.Error(err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
-			return ctrl.Result{}, nil
-		}
-
-		// check that the CSR is created with the same public key
-		if err = authentication.CheckCSRForControlPlane(
-			tenant.Spec.CSR, publicKeyDER, tenant.Spec.ClusterID); err != nil {
-			klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 			return ctrl.Result{}, nil
 		}
 	}
@@ -293,6 +256,53 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	return ctrl.Result{RequeueAfter: requeueIn}, nil
+}
+
+// verifyHandshake verifies the nonce signature and CSR for the tenant.
+// It returns true if the handshake is valid and reconciliation should continue.
+func (r *TenantReconciler) verifyHandshake(ctx context.Context, tenant *authv1beta1.Tenant) (bool, error) {
+	nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, tenant.Spec.ClusterID, corev1.NamespaceAll)
+	if err != nil {
+		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", tenant.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
+		return false, err
+	}
+
+	nonce, err := authgetters.GetNonceFromSecret(nonceSecret)
+	if err != nil {
+		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", tenant.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
+		return false, err
+	}
+
+	publicKey, publicKeyDER, err := authentication.ParseTenantPublicKey(tenant.Spec.PublicKey)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse public key in Tenant resource %q: %w", tenant.Name, err)
+	}
+
+	// check the signature using the PKIX-encoded public key bytes
+	ok, err := authentication.VerifyNonce(publicKey, nonce, tenant.Spec.Signature)
+	if err != nil {
+		klog.Errorf("Unable to verify signature for Tenant %q: %s", tenant.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
+		return false, err
+	}
+	if !ok {
+		err = fmt.Errorf("signature verification failed for Tenant %q", tenant.Name)
+		klog.Error(err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
+		return false, nil
+	}
+
+	// check that the CSR is created with the same public key
+	if err = authentication.CheckCSRForControlPlane(
+		tenant.Spec.CSR, publicKeyDER, tenant.Spec.ClusterID); err != nil {
+		klog.Errorf("Invalid CSR for the Tenant %q: %s", tenant.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // getCusterRoles returns the ClusterRoles having the `app.kubernetes.io/name` equals to the provided strings.
