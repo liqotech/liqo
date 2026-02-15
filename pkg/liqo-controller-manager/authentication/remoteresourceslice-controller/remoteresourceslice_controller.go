@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -165,7 +167,8 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// Handle the ResourceSlice authentication status
-	if err = r.handleAuthenticationStatus(ctx, &resourceSlice, tenant); err != nil {
+	var requeueIn time.Duration
+	if requeueIn, err = r.handleAuthenticationStatus(ctx, &resourceSlice, tenant); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -174,11 +177,11 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: requeueIn}, nil
 }
 
 func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.Context,
-	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
+	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) (requeueIn time.Duration, err error) {
 	// check that the CSR is valid
 	shouldCheckPublicKey := authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake
 
@@ -186,7 +189,23 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
 		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		denyAuthentication(resourceSlice, r.eventRecorder)
-		return nil
+		return requeueIn, nil
+	}
+
+	shouldRenew := false
+	if resourceSlice.Status.AuthParams != nil && len(resourceSlice.Status.AuthParams.SignedCRT) > 0 {
+		var err error
+		// Check if the certificate needs to be renewed and if so, generate a new CSR.
+		shouldRenew, requeueIn, err = utils.ShouldRenewCertificate(resourceSlice.Status.AuthParams.SignedCRT)
+		if err != nil {
+			klog.Errorf("unable to check if certificate should be renewed for ResourceSlice %q: %v", client.ObjectKeyFromObject(resourceSlice), err)
+			r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "FailedCheckCertificateRenewal", err.Error())
+			return requeueIn, err
+		}
+
+		if shouldRenew {
+			klog.Infof("Certificate for ResourceSlice %q needs to be renewed, resigning CSR...", client.ObjectKeyFromObject(resourceSlice))
+		}
 	}
 
 	// forge the AuthParams
@@ -202,20 +221,25 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 		TrustedCA:                r.trustedCA,
 		ResourceSlice:            resourceSlice,
 		ProxyURL:                 tenant.Spec.ProxyURL,
+		IsRenew:                  shouldRenew,
 	})
 	if err != nil {
 		klog.Errorf("Unable to forge the AuthParams for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
 		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
 		denyAuthentication(resourceSlice, r.eventRecorder)
-		return err
+		return requeueIn, err
 	}
 
 	resourceSlice.Status.AuthParams = authParams
 
 	// accept the authentication
 	acceptAuthentication(resourceSlice, r.eventRecorder)
+	if shouldRenew {
+		klog.Infof("Certificate for ResourceSlice %q renewed successfully", client.ObjectKeyFromObject(resourceSlice))
+		r.eventRecorder.Event(resourceSlice, corev1.EventTypeNormal, "CertificateRenewed", "Certificate for ResourceSlice renewed successfully")
+	}
 
-	return nil
+	return requeueIn, nil
 }
 
 func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Context,
