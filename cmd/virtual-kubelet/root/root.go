@@ -144,6 +144,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	restcfg.UpdateCfgCertOnSecretChange(ctx, remoteConfig, localClient, c.TenantNamespace, c.RemoteKubeconfigSecretName)
 	restcfg.SetRateLimiter(remoteConfig)
 
 	// Get reflectors configurations
