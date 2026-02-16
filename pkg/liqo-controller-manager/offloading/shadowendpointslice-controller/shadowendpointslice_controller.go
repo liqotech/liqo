@@ -108,6 +108,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		if err != nil {
 			klog.Errorf("failed to unmarshal direct connection data for shadowendpointslice %q: %v", nsName, err)
+			return ctrl.Result{}, err
 		}
 	}
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
