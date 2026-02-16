@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ type Options struct {
 	namespaceManager tenantnamespace.Manager
 
 	clusterID args.ClusterIDFlags
+	// tlsCompatibilityMode controls key type selection for the generated user.
+	// Accepted values: "auto", "true", "false".
+	tlsCompatibilityMode string
 }
 
 var _ rest.API = &Options{}

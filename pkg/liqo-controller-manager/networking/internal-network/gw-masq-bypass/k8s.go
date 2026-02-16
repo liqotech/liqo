@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -129,7 +129,7 @@ func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode
 
 func setFirewallPodChain(chain *firewall.Chain) {
 	chain.Name = ptr.To(PrePostroutingChainName)
-	chain.Type = ptr.To(firewall.ChainTypeNAT)
+	chain.Type = firewall.ChainTypeNAT
 	chain.Hook = ptr.To(firewall.ChainHookPostrouting)
 	chain.Policy = ptr.To(firewall.ChainPolicyAccept)
 	chain.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)

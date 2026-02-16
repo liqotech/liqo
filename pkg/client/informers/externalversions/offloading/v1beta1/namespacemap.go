@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,17 +25,17 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 
-	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	apisoffloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	versioned "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/liqotech/liqo/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 )
 
 // NamespaceMapInformer provides access to a shared informer and lister for
 // NamespaceMaps.
 type NamespaceMapInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.NamespaceMapLister
+	Lister() offloadingv1beta1.NamespaceMapLister
 }
 
 type namespaceMapInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredNamespaceMapInformer(client versioned.Interface, namespace strin
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().NamespaceMaps(namespace).List(context.TODO(), options)
+				return client.OffloadingV1beta1().NamespaceMaps(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().NamespaceMaps(namespace).Watch(context.TODO(), options)
+				return client.OffloadingV1beta1().NamespaceMaps(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.OffloadingV1beta1().NamespaceMaps(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.OffloadingV1beta1().NamespaceMaps(namespace).Watch(ctx, options)
 			},
 		},
-		&offloadingv1beta1.NamespaceMap{},
+		&apisoffloadingv1beta1.NamespaceMap{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *namespaceMapInformer) defaultInformer(client versioned.Interface, resyn
 }
 
 func (f *namespaceMapInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&offloadingv1beta1.NamespaceMap{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisoffloadingv1beta1.NamespaceMap{}, f.defaultInformer)
 }
 
-func (f *namespaceMapInformer) Lister() v1beta1.NamespaceMapLister {
-	return v1beta1.NewNamespaceMapLister(f.Informer().GetIndexer())
+func (f *namespaceMapInformer) Lister() offloadingv1beta1.NamespaceMapLister {
+	return offloadingv1beta1.NewNamespaceMapLister(f.Informer().GetIndexer())
 }

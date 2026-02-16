@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,9 +29,10 @@ type Options struct {
 	Class                      string
 	DisableVirtualNodeCreation bool
 
-	CPU    string
-	Memory string
-	Pods   string
+	CPU            string
+	Memory         string
+	Pods           string
+	OtherResources map[string]string
 }
 
 var _ rest.API = &Options{}

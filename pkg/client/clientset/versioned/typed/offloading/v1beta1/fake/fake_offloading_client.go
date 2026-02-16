@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,23 +28,23 @@ type FakeOffloadingV1beta1 struct {
 }
 
 func (c *FakeOffloadingV1beta1) NamespaceMaps(namespace string) v1beta1.NamespaceMapInterface {
-	return &FakeNamespaceMaps{c, namespace}
+	return newFakeNamespaceMaps(c, namespace)
 }
 
 func (c *FakeOffloadingV1beta1) ShadowEndpointSlices(namespace string) v1beta1.ShadowEndpointSliceInterface {
-	return &FakeShadowEndpointSlices{c, namespace}
+	return newFakeShadowEndpointSlices(c, namespace)
 }
 
 func (c *FakeOffloadingV1beta1) ShadowPods(namespace string) v1beta1.ShadowPodInterface {
-	return &FakeShadowPods{c, namespace}
+	return newFakeShadowPods(c, namespace)
 }
 
 func (c *FakeOffloadingV1beta1) VirtualNodes(namespace string) v1beta1.VirtualNodeInterface {
-	return &FakeVirtualNodes{c, namespace}
+	return newFakeVirtualNodes(c, namespace)
 }
 
 func (c *FakeOffloadingV1beta1) VkOptionsTemplates(namespace string) v1beta1.VkOptionsTemplateInterface {
-	return &FakeVkOptionsTemplates{c, namespace}
+	return newFakeVkOptionsTemplates(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,8 +114,9 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	}
 
 	shadowPodReconciler := &shadowpodctrl.Reconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("shadowpod-controller"),
 	}
 	if err = shadowPodReconciler.SetupWithManager(mgr, opts.ShadowPodWorkers); err != nil {
 		klog.Errorf("Unable to setup the shadowpod reconciler: %v", err)

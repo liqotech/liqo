@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package tenantcontroller
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -177,9 +176,19 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			return ctrl.Result{}, err
 		}
 
-		// check the signature
+		publicKey, publicKeyDER, err := authentication.ParseTenantPublicKey(tenant.Spec.PublicKey)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to parse public key in Tenant resource %q: %w", req.Name, err)
+		}
 
-		if !authentication.VerifyNonce(ed25519.PublicKey(tenant.Spec.PublicKey), nonce, tenant.Spec.Signature) {
+		// check the signature using the PKIX-encoded public key bytes
+		ok, err := authentication.VerifyNonce(publicKey, nonce, tenant.Spec.Signature)
+		if err != nil {
+			klog.Errorf("Unable to verify signature for Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
+			return ctrl.Result{}, err
+		}
+		if !ok {
 			err = fmt.Errorf("signature verification failed for Tenant %q", req.Name)
 			klog.Error(err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
@@ -187,9 +196,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 
 		// check that the CSR is created with the same public key
-
 		if err = authentication.CheckCSRForControlPlane(
-			tenant.Spec.CSR, tenant.Spec.PublicKey, tenant.Spec.ClusterID); err != nil {
+			tenant.Spec.CSR, publicKeyDER, tenant.Spec.ClusterID); err != nil {
 			klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 			return ctrl.Result{}, nil
@@ -252,13 +260,16 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
 			return ctrl.Result{}, err
 		}
+	}
 
-		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
-		if err != nil {
-			klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
-			return ctrl.Result{}, err
-		}
+	// Bind cluster roles with cluster-wide scope to the tenant group.
+	// We do this even with TolerateNoHandshake since these clusterrole are tied to the tenant Group and
+	// will be used by the virtual kubelet to access cluster-wide resources (e.g., scraping remote metrics server)
+	_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
+	if err != nil {
+		klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

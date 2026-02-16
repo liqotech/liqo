@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -96,6 +96,11 @@ var _ = Describe("Liqo E2E", func() {
 			By("Creating the different resources")
 			_, err := util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, namespaceName)
 			Expect(err).ToNot(HaveOccurred())
+
+			By("Ensuring virtual nodes are ready")
+			Eventually(func() bool {
+				return util.CheckVirtualNodes(ctx, testContext.Clusters[0].NativeClient, testContext.ClustersNumber)
+			}, timeout, interval).Should(BeTrue())
 
 			Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName,
 				"--pod-offloading-strategy", "Remote")).To(Succeed())

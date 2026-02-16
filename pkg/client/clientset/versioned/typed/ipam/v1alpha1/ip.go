@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
 
-	v1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -36,33 +36,34 @@ type IPsGetter interface {
 
 // IPInterface has methods to work with IP resources.
 type IPInterface interface {
-	Create(ctx context.Context, iP *v1alpha1.IP, opts v1.CreateOptions) (*v1alpha1.IP, error)
-	Update(ctx context.Context, iP *v1alpha1.IP, opts v1.UpdateOptions) (*v1alpha1.IP, error)
+	Create(ctx context.Context, iP *ipamv1alpha1.IP, opts v1.CreateOptions) (*ipamv1alpha1.IP, error)
+	Update(ctx context.Context, iP *ipamv1alpha1.IP, opts v1.UpdateOptions) (*ipamv1alpha1.IP, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, iP *v1alpha1.IP, opts v1.UpdateOptions) (*v1alpha1.IP, error)
+	UpdateStatus(ctx context.Context, iP *ipamv1alpha1.IP, opts v1.UpdateOptions) (*ipamv1alpha1.IP, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.IP, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.IPList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*ipamv1alpha1.IP, error)
+	List(ctx context.Context, opts v1.ListOptions) (*ipamv1alpha1.IPList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.IP, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *ipamv1alpha1.IP, err error)
 	IPExpansion
 }
 
 // iPs implements IPInterface
 type iPs struct {
-	*gentype.ClientWithList[*v1alpha1.IP, *v1alpha1.IPList]
+	*gentype.ClientWithList[*ipamv1alpha1.IP, *ipamv1alpha1.IPList]
 }
 
 // newIPs returns a IPs
 func newIPs(c *IpamV1alpha1Client, namespace string) *iPs {
 	return &iPs{
-		gentype.NewClientWithList[*v1alpha1.IP, *v1alpha1.IPList](
+		gentype.NewClientWithList[*ipamv1alpha1.IP, *ipamv1alpha1.IPList](
 			"ips",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.IP { return &v1alpha1.IP{} },
-			func() *v1alpha1.IPList { return &v1alpha1.IPList{} }),
+			func() *ipamv1alpha1.IP { return &ipamv1alpha1.IP{} },
+			func() *ipamv1alpha1.IPList { return &ipamv1alpha1.IPList{} },
+		),
 	}
 }

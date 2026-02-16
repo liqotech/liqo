@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		// If node has been deleted we need to remove the InternalNode resource
 		klog.Infof("Deleting InternalNode %v as there is no corresponding Node resource", req.Name)
 
-		if err := r.Client.Delete(ctx, internalNode); err != nil {
+		err := r.Delete(ctx, internalNode)
+
+		if client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to delete InternalNode %v: %w", req.Name, err)
 		}
 
@@ -90,7 +92,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		return ctrl.Result{}, err
 	}
 	if cmDep.Annotations != nil && cmDep.Annotations[consts.UninstallingAnnotationKey] == consts.UninstallingAnnotationValue {
-		klog.V(4).Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
+		klog.Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
 		return ctrl.Result{}, nil
 	}
 

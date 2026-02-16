@@ -36,8 +36,8 @@ To perform a peering without having access to both clusters, you need to manuall
 The peering command enables all 3 liqo modules and performs the following steps:
 
 1. **enables networking**.
-Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.  
-The location of the client/server gateway can be customized when creating the peering using the `--gw-server-service-location` flag in `liqoctl`.  
+Exchanges network configurations and creates the two **gateways** (one acting as _server_ and located in the provider cluster, another acting as _client_ in the consumer cluster) to let the two clusters communicate over a secure tunnel.
+The location of the client/server gateway can be customized when creating the peering using the `--gw-server-service-location` flag in `liqoctl`.
 2. **enables authentication**.
 Authenticates the consumer with the provider.
 In this step, the consumer obtains an `Identity` (*kubeconfig*) to replicate resources to the provider cluster.
@@ -115,6 +115,34 @@ You should see the following output:
  INFO   (local) ResourceSlice created
  INFO   (local) ResourceSlice authentication: Accepted
  INFO   (local) ResourceSlice resources: Accepted
+```
+
+#### MTU
+
+Liqo uses a **WireGuard tunnel** to securely connect two clusters.
+The tunnel introduces additional overhead due to encapsulation, which reduces the effective Maximum Transmission Unit (MTU) available for application traffic.
+You can configure the MTU used by the Liqo network interfaces that handle the WireGuard tunnel with the `--mtu` flag in the `liqoctl peer` command.
+
+If not specified, Liqo uses a **default MTU of 1340 bytes**, which is a conservative value designed to work in most network environments, including those with additional encapsulation (e.g., cloud providers, VPNs).
+
+The MTU value should be set to the **(physical) link MTU minus the WireGuard overhead** (typically **60 bytes** for IPv4 or **80 bytes** for IPv6):
+
+```text
+WireGuard MTU = Link MTU - WireGuard Overhead
+```
+
+**Example**: If the network link between the two clusters has an MTU of **1500 bytes** (standard Ethernet), the WireGuard MTU should be:
+
+- **IPv4**: `1500 - 60 = 1440`
+- **IPv6**: `1500 - 80 = 1420`
+
+To set the MTU when setting up a new peering:
+
+```bash
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH \
+  --mtu 1440
 ```
 
 (UsagePeeringInBand)=
@@ -235,6 +263,18 @@ liqoctl peer \
   --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
   --cpu=2 \
   --memory=2Gi
+```
+
+Other non-standard resources can be defined via the `--resource` flag:
+
+```bash
+liqoctl peer \
+  --kubeconfig=$CONSUMER_KUBECONFIG_PATH \
+  --remote-kubeconfig=$PROVIDER_KUBECONFIG_PATH \
+  --cpu=2 \
+  --memory=2Gi \
+  --resource=nvidia.com/gpu=2 \
+  --resource=custom=2Gi
 ```
 
 ```{warning}

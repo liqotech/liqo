@@ -1,4 +1,4 @@
-{{- $templateConfig := (merge (dict "name" "wireguard-server" "module" "networking") .) -}}
+{{- $templateConfig := (merge (dict "name" "wireguard-server" "module" "networking" "isGwTemplate" true) .) -}}
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
 {{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
 {{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
@@ -65,6 +65,10 @@ spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
               {{- include "liqo.imagePullSecrets" . | nindent 14 }}
+              {{- if .Values.networking.gatewayTemplates.pod.tolerations }}
+              tolerations:
+              {{- toYaml .Values.networking.gatewayTemplates.pod.tolerations | nindent 14 }}
+              {{- end }}
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
@@ -95,7 +99,11 @@ spec:
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
                 - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 {{- if not .Values.requirements.kernel.enabled }}
                 - --disable-kernel-version-check
                 {{- end }}
@@ -146,6 +154,11 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
+                - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
                 ports:
                 {{- if .Values.metrics.enabled }}
@@ -190,6 +203,11 @@ spec:
                 - --metrics-address=:8086
                 {{- end }}
                 - --health-probe-bind-address=:8087
+                {{- if gt (int .Values.networking.gatewayTemplates.replicas) 1 }}
+                - --leader-election=true
+                {{- else }}
+                - --leader-election=false
+                {{- end }}
                 volumeMounts: 
                 - name: ipc 
                   mountPath: /ipc
@@ -222,8 +240,9 @@ spec:
                     - NET_RAW
               - name: tcp-healthcheck
                 image: nginx
-              # Uncomment to set a priorityClassName
-              # priorityClassName: ""
+              {{- if .Values.networking.gatewayTemplates.pod.priorityClassName }}
+              priorityClassName: {{ .Values.networking.gatewayTemplates.pod.priorityClassName }}
+              {{- end }}
               volumes:
               - name: wireguard-config
                 secret:

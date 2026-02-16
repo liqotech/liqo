@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -181,6 +181,7 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
 	// check that the CSR is valid
 	shouldCheckPublicKey := authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake
+
 	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice, shouldCheckPublicKey); err != nil {
 		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
 		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -50,10 +51,11 @@ var _ = Describe("Reconcile", func() {
 				Namespace: shadowPodNamespace,
 			},
 		}
-		ctx    context.Context
-		res    ctrl.Result
-		err    error
-		buffer *bytes.Buffer
+		ctx      context.Context
+		res      ctrl.Result
+		err      error
+		buffer   *bytes.Buffer
+		recorder *record.FakeRecorder
 
 		testShadowPod        offloadingv1beta1.ShadowPod
 		testShadowPodSuccess offloadingv1beta1.ShadowPod
@@ -131,9 +133,11 @@ var _ = Describe("Reconcile", func() {
 	})
 
 	JustBeforeEach(func() {
+		recorder = record.NewFakeRecorder(100)
 		r := &shadowpodctrl.Reconciler{
-			Client: k8sClient,
-			Scheme: scheme.Scheme,
+			Client:   k8sClient,
+			Scheme:   scheme.Scheme,
+			Recorder: recorder,
 		}
 
 		res, err = r.Reconcile(ctx, req)
@@ -233,6 +237,30 @@ var _ = Describe("Reconcile", func() {
 		It("should not create pod because shadowpod status is success", func() {
 			pod := corev1.Pod{}
 			Expect(k8sClient.Get(ctx, req.NamespacedName, &pod)).To(BeNil())
+		})
+	})
+
+	When("verifying events", func() {
+		BeforeEach(func() {
+			Expect(k8sClient.Create(ctx, &testShadowPod)).To(Succeed())
+		})
+
+		It("should record a CreatedPod event when pod is successfully created", func() {
+			Eventually(recorder.Events, "5s").Should(Receive(ContainSubstring("Successfully created pod from ShadowPod")))
+		})
+
+		It("should record a Normal event type when pod is successfully created", func() {
+			Eventually(recorder.Events, "5s").Should(Receive(ContainSubstring("Normal")))
+		})
+
+		It("should record CreatedPod event reason", func() {
+			Eventually(recorder.Events, "5s").Should(Receive(ContainSubstring("CreatedPod")))
+		})
+
+		It("should record event with correct format", func() {
+			var event string
+			Eventually(recorder.Events, "5s").Should(Receive(&event))
+			Expect(event).To(MatchRegexp("Normal.*CreatedPod.*Successfully created pod from ShadowPod"))
 		})
 	})
 })

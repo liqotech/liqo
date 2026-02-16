@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,6 +114,10 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		}
 	}
 
+	if fr.Counter {
+		applyCounter(rule)
+	}
+
 	switch fr.Action {
 	case firewallv1beta1.ActionCtMark:
 		err := applyCtMarkAction(fr.Value, rule)
@@ -122,8 +126,19 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		}
 	case firewallv1beta1.ActionSetMetaMarkFromCtMark:
 		applySetMetaMarkFromCtMarkAction(rule)
+	case firewallv1beta1.ActionTCPMssClamp:
+		if err := applyTCPMssClampAction(fr.Value, rule); err != nil {
+			return nil, fmt.Errorf("cannot apply tcpmssclamp action: %w", err)
+		}
+	case firewallv1beta1.ActionAccept:
+		applyAcceptAction(rule)
+	case firewallv1beta1.ActionDrop:
+		applyDropAction(rule)
+	case firewallv1beta1.ActionReject:
+		applyRejectAction(rule)
 	default:
 	}
+
 	return rule, nil
 }
 
@@ -158,4 +173,97 @@ func applySetMetaMarkFromCtMarkAction(rule *nftables.Rule) {
 			Register:       1,
 		},
 	)
+}
+
+func applyTCPMssClampAction(value *string, rule *nftables.Rule) error {
+	var (
+		err  error
+		size int
+	)
+
+	if value != nil {
+		size, err = strconv.Atoi(*value)
+		if err != nil {
+			return fmt.Errorf("cannot convert value to int: %w", err)
+		}
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		// Match TCP SYN flag
+		// Load TCP flags byte (offset 13 in TCP header)
+		&expr.Payload{
+			DestRegister: 1,
+			Base:         expr.PayloadBaseTransportHeader,
+			Offset:       13, // TCP flags offset
+			Len:          1,
+		},
+		// Apply bitmask to check SYN flag (0x02)
+		&expr.Bitwise{
+			DestRegister:   1,
+			SourceRegister: 1,
+			Len:            1,
+			Mask:           []byte{0x02}, // SYN flag mask
+			Xor:            []byte{0x00},
+		},
+		// Check if SYN flag is set (not equal to 0)
+		&expr.Cmp{
+			Op:       expr.CmpOpNeq,
+			Register: 1,
+			Data:     []byte{0x00},
+		})
+
+	if size == 0 {
+		rule.Exprs = append(rule.Exprs, // Load route MTU into register 1
+			&expr.Rt{
+				Register: 1,
+				Key:      expr.RtTCPMSS,
+			},
+
+			// Convert to network byte order (host to network)
+			&expr.Byteorder{
+				DestRegister:   1,
+				SourceRegister: 1,
+				Op:             expr.ByteorderHton,
+				Len:            2,
+				Size:           2,
+			})
+	} else {
+		rule.Exprs = append(rule.Exprs,
+			// Load fixed MSS value into register 1
+			&expr.Immediate{
+				Register: 1,
+				Data:     []byte{byte(size >> 8), byte(size)},
+			},
+		)
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		// Write the MSS value to TCP option maxseg
+		// TCP option type 2 = MSS, offset 2, length 2 bytes
+		&expr.Exthdr{
+			SourceRegister: 1,
+			Type:           2, // TCP option MSS
+			Offset:         2, // Offset within the option
+			Len:            2, // 2 bytes for MSS value
+			Op:             expr.ExthdrOpTcpopt,
+		},
+	)
+
+	return nil
+}
+
+func applyAcceptAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictAccept})
+}
+
+func applyDropAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Verdict{Kind: expr.VerdictDrop})
+}
+
+func applyRejectAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Reject{})
+}
+
+func applyCounter(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Counter{Bytes: 1, Packets: 1})
 }

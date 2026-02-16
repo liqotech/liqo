@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,9 +24,10 @@ package consts
 // with the prefix "Ctrl".
 const (
 	// Core.
-	CtrlForeignCluster      = "foreigncluster"
-	CtrlSecretCRDReplicator = "secret_crdreplicator" //nolint:gosec // not a credential
-	CtrlSecretWebhook       = "secret_webhook"
+	CtrlForeignCluster                   = "foreigncluster"
+	CtrlSecretCRDReplicator              = "secret_crdreplicator" //nolint:gosec // not a credential
+	CtrlForeignClusterStateCRDReplicator = "foreignclusterstate_crdreplicator"
+	CtrlSecretWebhook                    = "secret_webhook"
 
 	// Networking.
 	CtrlConfigurationExternal  = "configuration_external"

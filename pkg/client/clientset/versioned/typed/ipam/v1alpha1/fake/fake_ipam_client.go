@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ type FakeIpamV1alpha1 struct {
 }
 
 func (c *FakeIpamV1alpha1) IPs(namespace string) v1alpha1.IPInterface {
-	return &FakeIPs{c, namespace}
+	return newFakeIPs(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

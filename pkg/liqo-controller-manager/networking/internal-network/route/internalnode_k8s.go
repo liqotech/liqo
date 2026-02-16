@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -126,7 +126,7 @@ func enforceFirewallConfigurationForwardChain(fwcfg *networkingv1beta1.FirewallC
 		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
 	}
 	fwcfg.Spec.Table.Chains[0].Name = ptr.To("mark-to-conntrack")
-	fwcfg.Spec.Table.Chains[0].Type = ptr.To(firewall.ChainTypeFilter)
+	fwcfg.Spec.Table.Chains[0].Type = firewall.ChainTypeFilter
 	fwcfg.Spec.Table.Chains[0].Policy = ptr.To(firewall.ChainPolicyAccept)
 	fwcfg.Spec.Table.Chains[0].Hook = &firewall.ChainHookForward
 	fwcfg.Spec.Table.Chains[0].Priority = &firewall.ChainPriorityFilter
@@ -171,7 +171,7 @@ func enforceFirewallConfigurationPreroutingChain(fwcfg *networkingv1beta1.Firewa
 		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
 	}
 	fwcfg.Spec.Table.Chains[1].Name = ptr.To("conntrack-mark-to-meta-mark")
-	fwcfg.Spec.Table.Chains[1].Type = ptr.To(firewall.ChainTypeFilter)
+	fwcfg.Spec.Table.Chains[1].Type = firewall.ChainTypeFilter
 	fwcfg.Spec.Table.Chains[1].Policy = ptr.To(firewall.ChainPolicyAccept)
 	fwcfg.Spec.Table.Chains[1].Hook = ptr.To(firewall.ChainHookPrerouting)
 	fwcfg.Spec.Table.Chains[1].Priority = ptr.To(firewall.ChainPriorityFilter)

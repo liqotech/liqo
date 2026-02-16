@@ -9,8 +9,10 @@ endif
 
 ifeq ($(shell uname),Darwin)
 SED_COMMAND=sed -i '' -n '/rules/,$$p'
+SED_INPLACE=sed -i ''
 else
 SED_COMMAND=sed -i -n '/rules/,$$p'
+SED_INPLACE=sed -i
 endif
 
 generate: generate-groups rbacs manifests fmt
@@ -29,7 +31,7 @@ test-container:
 # Run unit tests
 # Run with: make unit PACKAGE_PATH="package path" , to run tests on a single package.
 unit: test-container
-	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test ${PACKAGE_PATH};
+	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo,consistency=delegated -w /go/src/liqo --rm liqo-test ${PACKAGE_PATH};
 
 BINDIR?=.
 TARGET?=kind
@@ -103,7 +105,7 @@ fmt: gci addlicense docs
 	go fmt ./...
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) write -s standard -s default -s "prefix(github.com/liqotech/liqo)" {} \;
 	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" {} \;
-	find . -type f -name "*.go" -exec sed -i "s/Copyright 2019-[0-9]\{4\} The Liqo Authors/Copyright 2019-$(shell date +%Y) The Liqo Authors/" {} +
+	find . -type f -name "*.go" -exec $(SED_INPLACE) "s/Copyright 2019-[0-9]\{4\} The Liqo Authors/Copyright 2019-$(shell date +%Y) The Liqo Authors/" {} +
 
 # Install golangci-lint if not available
 golangci-lint:
@@ -153,7 +155,7 @@ staticcheck: nilaway
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
-		git clone --depth 1 -b v0.31.1 https://github.com/kubernetes/code-generator.git hack/code-generator; \
+		git clone --depth 1 -b v0.34.3 https://github.com/kubernetes/code-generator.git hack/code-generator; \
 	fi
 	rm -rf pkg/client
 	mkdir -p pkg/client/informers pkg/client/listers pkg/client/clientset
@@ -187,7 +189,7 @@ PROTOC=$(shell which protoc)
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3
+	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)

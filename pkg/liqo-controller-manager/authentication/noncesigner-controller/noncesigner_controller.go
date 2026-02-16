@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,7 +116,11 @@ func (r *NonceSignerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Sign the nonce using the private key.
-	signedNonce := authentication.SignNonce(privateKey, nonce)
+	signedNonce, err := authentication.SignNonce(privateKey, nonce)
+	if err != nil {
+		klog.Errorf("unable to sign nonce for secret %q: %v", req.NamespacedName, err)
+		return ctrl.Result{}, err
+	}
 
 	// Check if the secret is already signed and the signature is the same.
 	existingSignedNonce, found := secret.Data[consts.SignedNonceSecretField]

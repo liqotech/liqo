@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ type Options struct {
 	CPU               string
 	Memory            string
 	Pods              string
+	OtherResources    map[string]string
 }
 
 // NewOptions returns a new Options struct.
@@ -195,9 +196,10 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		Class:                      o.ResourceSliceClass,
 		DisableVirtualNodeCreation: !o.CreateVirtualNode,
 
-		CPU:    o.CPU,
-		Memory: o.Memory,
-		Pods:   o.Pods,
+		CPU:            o.CPU,
+		Memory:         o.Memory,
+		Pods:           o.Pods,
+		OtherResources: o.OtherResources,
 	}
 
 	if err := rsOptions.HandleCreate(ctx); err != nil {

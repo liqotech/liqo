@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1beta1.Configuratio
 	return firewall.Chain{
 		Name:     &DNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
-		Type:     ptr.To(firewall.ChainTypeNAT),
+		Type:     firewall.ChainTypeNAT,
 		Hook:     &firewall.ChainHookPrerouting,
 		Priority: &firewall.ChainPriorityNATDest,
 		Rules: firewall.RulesSet{
@@ -127,7 +127,7 @@ func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1beta1.Configuratio
 	return firewall.Chain{
 		Name:     &SNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
-		Type:     ptr.To(firewall.ChainTypeNAT),
+		Type:     firewall.ChainTypeNAT,
 		Hook:     &firewall.ChainHookPostrouting,
 		Priority: &firewall.ChainPriorityNATSource,
 		Rules: firewall.RulesSet{

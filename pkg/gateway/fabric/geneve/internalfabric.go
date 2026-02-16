@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,10 @@ func getInternalFabric(ctx context.Context, cl client.Client, gatewayName, remot
 	}, internalFabric)
 	if client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("unable to get the internal fabric %q: %w", remoteID, err)
+	}
+
+	if err == nil {
+		return internalFabric, nil
 	}
 
 	err = cl.Get(ctx, client.ObjectKey{

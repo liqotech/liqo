@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,7 +83,7 @@ type Chain struct {
 	Rules RulesSet `json:"rules"`
 	// Type defines what this chain will be used for.
 	// +kubebuilder:validation:Enum="filter";"route";"nat"
-	Type *ChainType `json:"type"`
+	Type ChainType `json:"type"`
 	// Policy defines what this chain default policy will be.
 	// +kubebuilder:validation:Enum="drop";"accept"
 	Policy *ChainPolicy `json:"policy"`

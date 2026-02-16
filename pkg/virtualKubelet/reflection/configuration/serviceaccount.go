@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,8 +101,8 @@ func RemoteSASecretNamespacedKeyer(namespace, nodename string) func(metadata met
 			return []types.NamespacedName{}
 		}
 
-		// The label is certainly present, since it matched the selector.
-		po := metadata.GetLabels()[forge.LiqoSASecretForPodNameKey]
+		// The annotation is certainly present, since it matched the selector.
+		po := metadata.GetAnnotations()[forge.LiqoSASecretForPodNameKey]
 		return []types.NamespacedName{{Namespace: namespace, Name: po}}
 	}
 }

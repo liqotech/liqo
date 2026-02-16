@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,17 +25,17 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 
-	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	apisoffloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	versioned "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/liqotech/liqo/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 )
 
 // VkOptionsTemplateInformer provides access to a shared informer and lister for
 // VkOptionsTemplates.
 type VkOptionsTemplateInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.VkOptionsTemplateLister
+	Lister() offloadingv1beta1.VkOptionsTemplateLister
 }
 
 type vkOptionsTemplateInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredVkOptionsTemplateInformer(client versioned.Interface, namespace 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).List(context.TODO(), options)
+				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).Watch(context.TODO(), options)
+				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).Watch(ctx, options)
 			},
 		},
-		&offloadingv1beta1.VkOptionsTemplate{},
+		&apisoffloadingv1beta1.VkOptionsTemplate{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *vkOptionsTemplateInformer) defaultInformer(client versioned.Interface, 
 }
 
 func (f *vkOptionsTemplateInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&offloadingv1beta1.VkOptionsTemplate{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisoffloadingv1beta1.VkOptionsTemplate{}, f.defaultInformer)
 }
 
-func (f *vkOptionsTemplateInformer) Lister() v1beta1.VkOptionsTemplateLister {
-	return v1beta1.NewVkOptionsTemplateLister(f.Informer().GetIndexer())
+func (f *vkOptionsTemplateInformer) Lister() offloadingv1beta1.VkOptionsTemplateLister {
+	return offloadingv1beta1.NewVkOptionsTemplateLister(f.Informer().GetIndexer())
 }

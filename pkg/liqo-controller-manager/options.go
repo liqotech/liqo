@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ type Options struct {
 	APIServerAddressOverride string
 	CAOverride               string
 	TrustedCA                bool
+	TLSCompatibilityMode     bool
 	AWSConfig                *identitymanager.LocalAwsConfig
 	ClusterLabels            args.StringMap
 	IngressClasses           args.ClassNameList

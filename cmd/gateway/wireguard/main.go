@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -166,14 +166,16 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to register prometheus collector: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
-	if err != nil {
-		return fmt.Errorf("unable to create runnable guest: %w", err)
+	if options.GwOptions.LeaderElection {
+		runnable, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
+		if err != nil {
+			return fmt.Errorf("unable to create runnable guest: %w", err)
+		}
+		if err := runnable.Start(cmd.Context()); err != nil {
+			return fmt.Errorf("unable to start runnable guest: %w", err)
+		}
+		defer runnable.Close()
 	}
-	if err := runnable.Start(cmd.Context()); err != nil {
-		return fmt.Errorf("unable to start runnable guest: %w", err)
-	}
-	defer runnable.Close()
 
 	// Start the manager.
 	return mgr.Start(cmd.Context())

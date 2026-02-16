@@ -38,9 +38,9 @@ The approach is schematized at a high level in the figure below.
 
 ```{warning}
 The standard *liqoctl* peer command requires the machine running it to have simultaneous access to both cluster API servers, through their *kubeconfigs*.
-If this is not possible, refer to the advanced guide to learn how to perform the [peering manually](/advanced/manual-peering) without having contemporary access to both clusters.
+If this is not possible, refer to the advanced guide to learn how to perform the [peering manually](/advanced/manual-peering) without having simultaneous access to both clusters.
 ```
 
 ```{admonition} Note
-The user can adopt different peering approaches depending if it has contemporary access to both clusters or not, as described in the [dedicated page](/advanced/peering-strategies.md). 
+The user can adopt different peering approaches depending if it has simultaneous access to both clusters or not, as described in the [dedicated page](/advanced/peering-strategies.md). 
 ```

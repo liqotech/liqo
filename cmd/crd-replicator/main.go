@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,8 @@ var scheme = runtime.NewScheme()
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+
+	_ = liqov1beta1.AddToScheme(scheme)
 }
 
 func main() {
@@ -88,6 +90,7 @@ func main() {
 	reflectionManager := reflection.NewManager(dynClient, clusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
+	reflectors := make(map[liqov1beta1.ClusterID]*reflection.Reflector)
 	d := &crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
@@ -95,7 +98,7 @@ func main() {
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[liqov1beta1.ClusterID]*reflection.Reflector),
+		Reflectors:          reflectors,
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(ctx,
 			mgr.GetClient(), k8sClient, mgr.GetConfig(),
@@ -103,6 +106,16 @@ func main() {
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdReplicator controller")
+		os.Exit(1)
+	}
+
+	// Set up ForeignClusterStateController
+	fcStateController := &crdreplicator.ForeignClusterStateController{
+		Client:     mgr.GetClient(),
+		Reflectors: reflectors,
+	}
+	if err = fcStateController.SetupWithManager(mgr); err != nil {
+		klog.Error(err, "unable to setup the ForeignClusterState controller")
 		os.Exit(1)
 	}
 

@@ -37,6 +37,7 @@ liqoctl peer [flags]
   $ liqoctl peer --remote-kubeconfig <provider>
   $ liqoctl peer --remote-kubeconfig <provider> --gw-server-service-type NodePort
   $ liqoctl peer --remote-kubeconfig <provider> --cpu 2 --memory 4Gi --pods 10
+  $ liqoctl peer --remote-kubeconfig <provider> --cpu 2 --memory 4Gi --pods 10 --resource nvidia.com/gpu=2
   $ liqoctl peer --remote-kubeconfig <provider> --create-resource-slice false
   $ liqoctl peer --remote-kubeconfig <provider> --create-virtual-node false
 ```
@@ -145,6 +146,10 @@ liqoctl peer [flags]
 `--remote-user` _string_:
 
 >The name of the kubeconfig user to use (in the remote cluster)
+
+`--resource` _stringToString_:
+
+>Other resources requested for the VirtualNode (e.g., '--resource=nvidia.com/gpu=2')
 
 `--resource-slice-class` _string_:
 

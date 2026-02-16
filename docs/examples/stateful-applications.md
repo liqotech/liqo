@@ -109,7 +109,7 @@ kubectl run db-mariadb-galera-client --rm --tty -i \
     --restart='Never' --namespace default \
     --image docker.io/bitnami/mariadb-galera:11.4.5-debian-12-r6 \
     --command \
-    -- mysql -h db-mariadb-galera.liqo-demo -uuser -ppassword my_database
+      -- mariadb -h db-mariadb-galera.liqo-demo -uuser -p'password' my_database
 ```
 
 And then create an example table and insert some data:
@@ -159,9 +159,9 @@ And querying again for your data:
 ```bash
 kubectl run db-mariadb-galera-client --rm --tty -i \
     --restart='Never' --namespace default \
-    --image docker.io/bitnami/mariadb-galera:10.6.7-debian-10-r56 \
+    --image docker.io/bitnami/mariadb-galera:11.4.5-debian-12-r6 \
     --command \
-      -- mysql -h db-mariadb-galera.liqo-demo -uuser -ppassword my_database \
+      -- mariadb -h db-mariadb-galera.liqo-demo -uuser -p'password' my_database \
       --execute "SELECT * FROM People;"
 ```
 

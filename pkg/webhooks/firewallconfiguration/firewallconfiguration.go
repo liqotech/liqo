@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,12 +140,15 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 			return admission.Denied(err.Error())
 		}
 
-		switch *chain.Type {
+		switch chain.Type {
 		case firewallapi.ChainTypeNAT:
 			if err := checkNatRulesInChain(&chain); err != nil {
-				return admission.Denied(err.Error())
+				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
-		default:
+		case firewallapi.ChainTypeFilter:
+			if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
+				return admission.Denied(forgeChainError(&chain, err).Error())
+			}
 		}
 	}
 	return admission.Allowed("")

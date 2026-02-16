@@ -18,9 +18,9 @@
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 error() {
    local sourcefile=$1
@@ -43,3 +43,5 @@ install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
 install_helm "${OS}" "${ARCH}"
 
 install_clusterctl "${OS}" "${ARCH}"
+
+generate_kubeconfig

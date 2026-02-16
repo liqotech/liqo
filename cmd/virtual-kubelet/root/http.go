@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -189,7 +189,6 @@ func newCertificateRetriever(kubeClient kubernetes.Interface, signer, nodeName s
 			certificates.UsageServerAuth,
 		},
 		CertificateStore: certificateStore,
-		Logf:             klog.V(2).Infof,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize server certificate manager: %w", err)

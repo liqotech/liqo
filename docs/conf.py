@@ -26,7 +26,7 @@ from sphinxawesome_theme.postprocess import Icons
 # -- Project information -----------------------------------------------------
 
 project = 'Liqo'
-copyright = '2019-2025, The Liqo Authors'
+copyright = '2019-2026, The Liqo Authors'
 author = 'The Liqo Authors'
 
 
@@ -65,7 +65,8 @@ linkcheck_ignore = [
     'https://ieeexplore.ieee.org',
     'https://dl.acm.org', # often 403
     'https://scholar.google.com',
-    'https://kubernetes.io/docs/*'
+    'https://kubernetes.io/docs/*',
+    'https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml'
 ]
 
 

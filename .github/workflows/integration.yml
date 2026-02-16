@@ -80,6 +80,7 @@ jobs:
       matrix:
         component:
           - cert-creator
+          - liqo-crd-upgrade
     steps:
       - name: Set architectures
         id: set-architectures

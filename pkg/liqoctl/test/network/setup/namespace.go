@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ func RemoveNamespace(ctx context.Context, cl *client.Client) error {
 	if err := cl.Consumer.Delete(ctx, ns); err != nil {
 		return err
 	}
-	timeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	timeout, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	if err := wait.PollUntilContextCancel(timeout, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		if err := cl.Consumer.Get(ctx, ctrlclient.ObjectKeyFromObject(ns), ns); err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,8 +88,8 @@ func (r *PodReconciler) processFirewallConfiguration(ctx context.Context, fwcfgl
 
 		chain := fwcfglist.Items[i].Spec.Table.Chains[0]
 
-		if chain.Type == nil || *chain.Type != firewall.ChainTypeNAT {
-			return fmt.Errorf("firewall configuration table chain should be of type NAT, not %s", *chain.Type)
+		if chain.Type != firewall.ChainTypeNAT {
+			return fmt.Errorf("firewall configuration table chain should be of type NAT, not %s", chain.Type)
 		}
 
 		if err := r.processRules(ctx, &chain, getNodeFromFirewallConfigurationName(fwcfglist.Items[i].Name)); err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,13 +16,17 @@ package authentication
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
@@ -33,7 +37,7 @@ import (
 type CSRChecker func(*x509.CertificateRequest) error
 
 // GenerateCSRForResourceSlice generates a new CSR given a private key and a resource slice.
-func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
+func GenerateCSRForResourceSlice(key crypto.PrivateKey,
 	resourceSlice *authv1beta1.ResourceSlice) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameResourceSliceCSR(resourceSlice), OrganizationResourceSliceCSR(resourceSlice))
 }
@@ -64,12 +68,12 @@ func OrganizationResourceSliceCSR(resourceSlice *authv1beta1.ResourceSlice) stri
 }
 
 // GenerateCSRForControlPlane generates a new CSR given a private key and a subject.
-func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, err error) {
+func GenerateCSRForControlPlane(key crypto.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameControlPlaneCSR(clusterID), OrganizationControlPlaneCSR())
 }
 
 // GenerateCSRForPeerUser generates a new CSR given a private key and the clusterID from which the peering will start.
-func GenerateCSRForPeerUser(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, userCN string, err error) {
+func GenerateCSRForPeerUser(key crypto.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, userCN string, err error) {
 	userCN, err = commonNamePeerUser(clusterID)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to generate user CN: %w", err)
@@ -109,8 +113,8 @@ func IsControlPlaneUser(groups []string) bool {
 }
 
 // CheckCSRForControlPlane checks a CSR for a control plane.
-func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.ClusterID) error {
-	return checkCSR(csr, publicKey, true,
+func CheckCSRForControlPlane(csr, publicKeyDER []byte, remoteClusterID liqov1beta1.ClusterID) error {
+	return checkCSR(csr, publicKeyDER, true,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterID) {
 				return fmt.Errorf("invalid common name")
@@ -126,8 +130,17 @@ func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
-func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
-	return checkCSR(resourceSlice.Spec.CSR, publicKey, checkPublicKey,
+func CheckCSRForResourceSlice(tenantPublicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
+	var parsedPublicKey []byte
+	if checkPublicKey {
+		_, parsedPublicKeyDER, err := ParseTenantPublicKey(tenantPublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse tenant public key: %w", err)
+		}
+		parsedPublicKey = parsedPublicKeyDER
+	}
+
+	return checkCSR(resourceSlice.Spec.CSR, parsedPublicKey, checkPublicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {
 				return fmt.Errorf("invalid common name")
@@ -142,7 +155,7 @@ func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.Resou
 		})
 }
 
-func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
+func checkCSR(csr, publicKeyDER []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
 	pemCsr, rst := pem.Decode(csr)
 	if pemCsr == nil || len(rst) != 0 {
 		return fmt.Errorf("invalid CSR")
@@ -162,40 +175,56 @@ func checkCSR(csr, publicKey []byte, checkPublicKey bool, commonName, organizati
 	}
 
 	if checkPublicKey {
-		// Check the length of the public key and return an error if invalid
-		if len(publicKey) == 0 {
+		// Validate provided public key bytes
+		if len(publicKeyDER) == 0 {
 			return fmt.Errorf("invalid public key")
 		}
 
-		// if the pub key is 0-terminated, drop it
-		if publicKey[len(publicKey)-1] == 0 {
-			publicKey = publicKey[:len(publicKey)-1]
+		// Marshal CSR public key to PKIX DER and compare with provided PKIX public key bytes
+		csrPubDER, err := x509.MarshalPKIXPublicKey(x509Csr.PublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to marshal CSR public key: %w", err)
 		}
 
-		// Check that the public key used the expected algorithm and verify that the CSR has been
-		// signed with the key provided by the peer at peering time.
-		switch crtKey := x509Csr.PublicKey.(type) {
-		case ed25519.PublicKey:
-			if !bytes.Equal(crtKey, publicKey) {
-				return fmt.Errorf("invalid public key")
-			}
-		default:
-			return fmt.Errorf("invalid public key type %T", crtKey)
+		if !bytes.Equal(csrPubDER, publicKeyDER) {
+			return fmt.Errorf("invalid public key")
 		}
 	}
 
 	return nil
 }
 
-func generateCSR(key ed25519.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {
+func generateCSR(key crypto.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {
 	asn1Subj, err := asn1.Marshal(pkix.Name{CommonName: commonName, Organization: []string{organization}}.ToRDNSequence())
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal subject information: %w", err)
 	}
 
+	// Select appropriate signature algorithm based on private key type
+	var sigAlg x509.SignatureAlgorithm
+	switch k := key.(type) {
+	case ed25519.PrivateKey:
+		sigAlg = x509.PureEd25519
+	case *rsa.PrivateKey:
+		// Default to SHA256 for RSA keys
+		sigAlg = x509.SHA256WithRSA
+	case *ecdsa.PrivateKey:
+		// Choose hash based on curve size
+		switch k.Curve.Params().BitSize {
+		case 521:
+			sigAlg = x509.ECDSAWithSHA512
+		case 384:
+			sigAlg = x509.ECDSAWithSHA384
+		default:
+			sigAlg = x509.ECDSAWithSHA256
+		}
+	default:
+		return nil, fmt.Errorf("unsupported private key type %T", key)
+	}
+
 	template := x509.CertificateRequest{
 		RawSubject:         asn1Subj,
-		SignatureAlgorithm: x509.PureEd25519,
+		SignatureAlgorithm: sigAlg,
 	}
 
 	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)
@@ -204,4 +233,32 @@ func generateCSR(key ed25519.PrivateKey, commonName, organization string) (csrBy
 	}
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes}), nil
+}
+
+// ParseTenantPublicKey parses the public key from the tenant resource.
+// To keep the back-compatibility to the version before 1.0.2 which encodes the public key in the tenant in the
+// PEM format, this function tries to decode the PEM file and if it fails, it tries to read the key
+// as ed25519 public key format, used before 1.0.2.
+func ParseTenantPublicKey(publicKey []byte) (crypto.PublicKey, []byte, error) {
+	block, _ := pem.Decode(publicKey)
+	if block == nil {
+		// failed to parse PEM try to cast to ed25519 public key
+		if ed25519.PublicKeySize == len(publicKey) {
+			parsedKey := ed25519.PublicKey(publicKey)
+			derBytes, err := x509.MarshalPKIXPublicKey(parsedKey)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to marshal ed25519 public key to DER: %w", err)
+			}
+			return parsedKey, derBytes, nil
+		}
+
+		return nil, nil, errors.New("invalid public key format")
+	}
+
+	parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to parse PEM public key: %w", err)
+	}
+
+	return parsedKey, block.Bytes, nil
 }
