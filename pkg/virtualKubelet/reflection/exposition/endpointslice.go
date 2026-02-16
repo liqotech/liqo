@@ -236,22 +236,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 				klog.Errorf("Failed to retrieve remote cluster ID from node %q: %v", *endpoint.NodeName, err)
 				continue
 			}
-			/*
 
-			objectName := endpoint.TargetRef.Name
-
-			ipsObj, err := ner.localIPs.Get(objectName)
-			if err != nil {
-				klog.Errorf("Failed to get IPs for targetRef %q: %v", objectName, err)
-				continue
-			}
-
-			IPs, err := ipamutils.GetLocalIPFromObject(ipsObj)
-			if err != nil {
-				klog.Errorf("Failed to get remapped IPs from object for targetRef %q: %v", objectName, err)
-				continue
-			}
-			*/
 			IPs := endpoint.Addresses
 			remoteConnectionsData.Add(clusterID, IPs...)
 		}
