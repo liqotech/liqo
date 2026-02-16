@@ -44,6 +44,9 @@ type Options struct {
 	MetricsAddress string
 	ProbeAddr      string
 
+	EnableNftMonitor   bool
+	EnableRouteMonitor bool
+
 	DisableKernelVersionCheck bool
 	MinimumKernelVersion      kernelversion.KernelVersion
 }

@@ -179,21 +179,27 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 // SetupWithManager register the RouteConfigurationReconciler to the manager.
-func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableRouteMonitor bool) error {
 	klog.Infof("Starting RouteConfiguration controller with labels %v", r.LabelsSets)
 
 	src := make(chan event.GenericEvent)
-	go func() {
-		utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Route: &netmonitor.OptionsRoute{Delete: true}}))
-	}()
+	if enableRouteMonitor {
+		klog.Info("Starting route monitor")
+		go func() {
+			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Route: &netmonitor.OptionsRoute{Delete: true}}))
+		}()
+	} else {
+		klog.Info("Route monitor disabled")
+	}
 
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
 	}
 
+	predicates := predicate.And(filterByLabelsPredicate, predicate.GenerationChangedPredicate{})
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlRouteConfiguration).
-		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(predicates)).
 		WatchesRawSource(NewRouteWatchSource(src, NewRouteWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)
 }
@@ -240,9 +246,12 @@ func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er reco
 	} else {
 		conditionRef.Status = metav1.ConditionFalse
 	}
-	if oldStatus != conditionRef.Status {
-		conditionRef.LastTransitionTime = metav1.Now()
+
+	if oldStatus == conditionRef.Status {
+		return nil
 	}
+
+	conditionRef.LastTransitionTime = metav1.Now()
 
 	er.Eventf(routeconfiguration, "Normal", "RouteConfigurationUpdate", "RouteConfiguration %s: %s", conditionRef.Type, conditionRef.Status)
 	if clerr := r.Client.Status().Update(ctx, routeconfiguration); clerr != nil {

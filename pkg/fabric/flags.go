@@ -42,6 +42,8 @@ const (
 
 	// FlagNameEnableNftMonitor is the flag to enable the nftables monitor.
 	FlagNameEnableNftMonitor FlagName = "enable-nft-monitor"
+	// FlagNameEnableRouteMonitor is the flag to enable the route monitor.
+	FlagNameEnableRouteMonitor FlagName = "enable-route-monitor"
 
 	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
@@ -67,6 +69,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")
+	flagset.BoolVar(&opts.EnableRouteMonitor, FlagNameEnableRouteMonitor.String(), true, "Enable route monitor")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")
