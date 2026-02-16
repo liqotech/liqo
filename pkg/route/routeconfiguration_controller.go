@@ -182,14 +182,12 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableRouteMonitor bool) error {
 	klog.Infof("Starting RouteConfiguration controller with labels %v", r.LabelsSets)
 
+	klog.Infof("route monitor enabled: %t", enableRouteMonitor)
 	src := make(chan event.GenericEvent)
 	if enableRouteMonitor {
-		klog.Info("Starting route monitor")
 		go func() {
 			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Route: &netmonitor.OptionsRoute{Delete: true}}))
 		}()
-	} else {
-		klog.Info("Route monitor disabled")
 	}
 
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
@@ -197,9 +195,8 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 		return err
 	}
 
-	predicates := predicate.And(filterByLabelsPredicate, predicate.GenerationChangedPredicate{})
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlRouteConfiguration).
-		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(predicates)).
+		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewRouteWatchSource(src, NewRouteWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)
 }
