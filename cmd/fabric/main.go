@@ -197,7 +197,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create route configuration reconciler: %w", err)
 	}
 
-	if err := rcr.SetupWithManager(cmd.Context(), mgr); err != nil {
+	if err := rcr.SetupWithManager(cmd.Context(), mgr, options.EnableRouteMonitor); err != nil {
 		return fmt.Errorf("unable to setup route configuration reconciler: %w", err)
 	}
 

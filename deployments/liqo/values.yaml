@@ -129,6 +129,9 @@ networking:
           name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
+    monitor:
+      enableNftMonitor: false
+      enableRouteMonitor: false
   fabric:
     pod:
       # -- Annotations for the fabric pod.
@@ -179,6 +182,9 @@ networking:
       # In some cases (like K3S), this monitor can cause a huge amount of CPU usage.
       # If you are experiencing high CPU usage, you can disable this feature.
       nftablesMonitor: false
+      # -- Enable/Disable the route monitor for the fabric pod.
+      # It means that the fabric pod will monitor the routing rules and will restore them in case of changes.
+      routeMonitor: false
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
       healthProbeBindAddressPort: "8081"

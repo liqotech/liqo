@@ -26,8 +26,9 @@ type Options struct {
 	MetricsAddress string
 	ProbeAddr      string
 
-	DisableARP       bool
-	EnableNftMonitor bool
+	DisableARP         bool
+	EnableNftMonitor   bool
+	EnableRouteMonitor bool
 
 	DisableKernelVersionCheck bool
 	MinimumKernelVersion      kernelversion.KernelVersion
