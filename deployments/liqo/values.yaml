@@ -129,9 +129,12 @@ networking:
           name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
-    monitor:
-      enableNftMonitor: false
-      enableRouteMonitor: false
+    # -- Enable/Disable the nftables monitor for the gateway pods.
+    # It means that the gateway pods will monitor the nftables rules and will restore them in case of changes.
+    nftablesMonitor: true
+    # -- Enable/Disable the route monitor for the gateway pods.
+    # It means that the gateway pods will monitor the routing rules and will restore them in case of changes.
+    routeMonitor: true
   fabric:
     pod:
       # -- Annotations for the fabric pod.
@@ -184,7 +187,7 @@ networking:
       nftablesMonitor: false
       # -- Enable/Disable the route monitor for the fabric pod.
       # It means that the fabric pod will monitor the routing rules and will restore them in case of changes.
-      routeMonitor: false
+      routeMonitor: true
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
       healthProbeBindAddressPort: "8081"

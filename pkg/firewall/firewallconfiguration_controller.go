@@ -169,19 +169,16 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 		return err
 	}
 
+	klog.Infof("nftables monitor enabled: %t", enableNftMonitor)
 	src := make(chan event.GenericEvent)
 	if enableNftMonitor {
-		klog.Info("Starting nftables monitor")
 		go func() {
 			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
 		}()
-	} else {
-		klog.Info("Nftables monitor disabled")
 	}
 
-	predicates := predicate.And(filterByLabelsPredicate, predicate.GenerationChangedPredicate{})
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfiguration).
-		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(predicates)).
+		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)
 }
