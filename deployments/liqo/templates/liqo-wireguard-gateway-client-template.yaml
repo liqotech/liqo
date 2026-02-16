@@ -50,9 +50,9 @@ spec:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
-                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
                 - --pod-name={{"$(POD_NAME)"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=client
                 - --container-name=gateway
                 - --concurrent-containers-names=wireguard,geneve
@@ -80,8 +80,8 @@ spec:
                 {{- if not .Values.requirements.kernel.enabled }}
                 - --disable-kernel-version-check
                 {{- end }}
-                volumeMounts: 
-                - name: ipc 
+                volumeMounts:
+                - name: ipc
                   mountPath: /ipc
                 ports:
                 {{- if .Values.metrics.enabled }}
@@ -156,7 +156,7 @@ spec:
                   privileged: true
                   {{ end }}
                 volumeMounts:
-                - name: ipc 
+                - name: ipc
                   mountPath: /ipc
                 - name: wireguard-config
                   mountPath: /etc/wireguard/keys
@@ -167,9 +167,9 @@ spec:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
-                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
                 - --pod-name={{"$(POD_NAME)"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 - --container-name=geneve
                 - --geneve-port={{ .Values.networking.genevePort }}
@@ -182,14 +182,14 @@ spec:
                 {{- else }}
                 - --leader-election=false
                 {{- end }}
-                volumeMounts: 
-                - name: ipc 
+                volumeMounts:
+                - name: ipc
                   mountPath: /ipc
                 ports:
                 {{- if .Values.metrics.enabled }}
                 - containerPort: 8086
                   name: gv-metrics
-                {{- end }} 
+                {{- end }}
                 - containerPort: 8087
                   name: healthz
                 # ATTENTION: uncomment the readinessProbe section if you are aware of the consequences.
@@ -219,6 +219,6 @@ spec:
               - name: wireguard-config
                 secret:
                   secretName: "{{"{{ .SecretName }}"}}"
-              - name: ipc 
-                emptyDir: {}   
+              - name: ipc
+                emptyDir: {}
 {{- end }}
