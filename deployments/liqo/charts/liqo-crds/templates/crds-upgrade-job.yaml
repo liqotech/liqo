@@ -1,7 +1,4 @@
 {{- if .Values.crdUpgrade.enabled }}
-{{- if not .Values.crdUpgrade.image.version }}
-{{- fail "liqo-crds.crdUpgrade.image.version must be set when crdUpgrade is enabled. Use --set liqo-crds.crdUpgrade.image.version=<version>" }}
-{{- end }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -79,6 +76,6 @@ spec:
       restartPolicy: Never
       containers:
       - name: kubectl
-        image: {{ .Values.crdUpgrade.image.name }}{{ include "liqo-crds.suffix" . }}:{{ .Values.crdUpgrade.image.version }}
+        image: {{ .Values.crdUpgrade.image.name }}{{ include "liqo-crds.suffix" . }}:{{ include "liqo-crds.version" . }}
         imagePullPolicy: {{ .Values.crdUpgrade.image.pullPolicy }}
 {{- end }}
