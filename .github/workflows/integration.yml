@@ -358,6 +358,21 @@ jobs:
         run: |
           curl -sSL "https://github.com/helm/chart-releaser/releases/download/v1.4.0/chart-releaser_1.4.0_linux_amd64.tar.gz" | tar -xz
 
+      - name: Update liqo-crds subchart appVersion
+        run: |
+          # Install yq for YAML manipulation
+          YQ_VERSION="v4.40.5"
+          wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          chmod +x /usr/local/bin/yq
+
+          # Update the subchart's appVersion to match the release version
+          yq eval ".appVersion = \"${{ needs.configure.outputs.commit-ref }}\"" \
+            -i deployments/liqo/charts/liqo-crds/Chart.yaml
+
+          # Verify the change
+          echo "Updated liqo-crds Chart.yaml appVersion:"
+          yq eval '.appVersion' deployments/liqo/charts/liqo-crds/Chart.yaml
+
       - name: Package helm chart
         run: |
           # the output should be in the .cr-release-packages since cr index expects to find it there to create the helm index

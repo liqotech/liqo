@@ -49,12 +49,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Create version used for the CRD upgrade image.
+*/}}
+{{- define "liqo-crds.version" -}}
+{{- if .Values.crdUpgrade.image.version }}
+{{- .Values.crdUpgrade.image.version }}
+{{- else if .Chart.AppVersion }}
+{{- .Chart.AppVersion }}
+{{- else }}
+{{- fail "At least one between .Values.crdUpgrade.image.version and .Chart.AppVersion should be set" }}
+{{- end }}
+{{- end }}
+
+{{/*
 The suffix added to the CRD upgrade image, to identify CI builds.
 */}}
 {{- define "liqo-crds.suffix" -}}
 {{/* https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string */}}
 {{- $semverregex := "^v(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)(?:-(?P<prerelease>(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$" }}
-{{- if or (eq .Values.crdUpgrade.image.version "") (mustRegexMatch $semverregex .Values.crdUpgrade.image.version) }}
+{{- $version := include "liqo-crds.version" . }}
+{{- if or (eq $version "") (mustRegexMatch $semverregex $version) }}
 {{- print "" }}
 {{- else }}
 {{- print "-ci" }}
