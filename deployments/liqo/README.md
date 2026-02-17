@@ -72,7 +72,7 @@
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | liqo-crds | object | `{"crdUpgrade":{"enabled":false,"image":{"name":"ghcr.io/liqotech/liqo-crd-upgrade","pullPolicy":"IfNotPresent","version":""},"keepResources":false}}` | Liqo CRD subchart configuration Since Liqo contains a lot of CRDs, we decided to separate them from the main chart These values override the ones in the liqo-crds subchart |
 | liqo-crds.crdUpgrade.enabled | bool | `false` | Enable/Disable the CRD upgrade job. When enabled, a pre-upgrade hook will automatically update CRDs during helm upgrade. |
-| liqo-crds.crdUpgrade.image.name | string | `"ghcr.io/liqotech/liqo-crd-upgrade"` | Image repository for the CRD upgrade job. |
+| liqo-crds.crdUpgrade.image.name | string | `"ghcr.io/liqotech/liqo-crd-upgrade"` | Image repository for the CRD upgrade job. NOTE: This image only supports linux/amd64 and linux/arm64 platforms (arm/v7 is not supported). |
 | liqo-crds.crdUpgrade.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the CRD upgrade job. |
 | liqo-crds.crdUpgrade.image.version | string | `""` | Image version for the CRD upgrade job. Required when crdUpgrade.enabled is true. |
 | liqo-crds.crdUpgrade.keepResources | bool | `false` | Keep the CRD upgrade resources (Job, ConfigMap, ServiceAccount, ClusterRole, ClusterRoleBinding) after completion. If false, they are deleted on success. |
