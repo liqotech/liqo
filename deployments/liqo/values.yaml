@@ -28,6 +28,7 @@ liqo-crds:
     keepResources: false
     image:
       # -- Image repository for the CRD upgrade job.
+      # NOTE: This image only supports linux/amd64 and linux/arm64 platforms (arm/v7 is not supported).
       name: "ghcr.io/liqotech/liqo-crd-upgrade"
       # -- Image version for the CRD upgrade job. Required when crdUpgrade.enabled is true.
       version: ""

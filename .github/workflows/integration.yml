@@ -86,6 +86,10 @@ jobs:
         id: set-architectures
         run: |
           ARCHITECTURES=${{ needs.configure.outputs.architectures }}
+          # liqo-crd-upgrade uses alpine/k8s which doesn't support arm/v7
+          if [ "${{ matrix.component }}" == "liqo-crd-upgrade" ]; then
+            ARCHITECTURES="${ARCHITECTURES//,linux\/arm\/v7/}"
+          fi
           echo "ARCHITECTURES=${ARCHITECTURES}" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.4.0
