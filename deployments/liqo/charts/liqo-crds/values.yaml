@@ -9,7 +9,7 @@ crdUpgrade:
   # image is the CRD upgrade container image
   # NOTE: This image only supports linux/amd64 and linux/arm64 platforms (arm/v7 is not supported).
   image:
-    name: "ghcr.io/liqotech/liqo-crd-upgrade"
+    name: "us-docker.pkg.dev/castai-hub/library/liqo/liqo-crd-upgrade"
     # version: REQUIRED when crdUpgrade.enabled is true. The image tag/version to use.
     # Set using: --set liqo-crds.crdUpgrade.image.version=<version>
     version: ""
