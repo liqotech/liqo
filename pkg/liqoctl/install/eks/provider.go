@@ -125,15 +125,6 @@ func (o *Options) Initialize(_ context.Context) error {
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"networking": map[string]interface{}{
-			"gatewayTemplates": map[string]interface{}{
-				"server": map[string]interface{}{
-					"service": map[string]interface{}{
-						"annotations": map[string]interface{}{
-							"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-						},
-					},
-				},
-			},
 			"fabric": map[string]interface{}{
 				"config": map[string]interface{}{
 					"fullMasquerade": true,

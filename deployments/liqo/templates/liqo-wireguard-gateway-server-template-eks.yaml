@@ -8,7 +8,7 @@
 apiVersion: networking.liqo.io/v1beta1
 kind: WgGatewayServerTemplate
 metadata:
-  name: {{ $templateConfig.name  }}
+  name: {{ $templateConfig.name }}
   labels:
     {{- include "liqo.labels" $templateConfig | nindent 4 }}
 spec:
@@ -24,9 +24,7 @@ spec:
       service:
         metadata:
           {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
-          {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
           annotations:
-            {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
             service.beta.kubernetes.io/aws-load-balancer-type: external
             service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "80"
@@ -36,7 +34,9 @@ spec:
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "10"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"   
             service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-          {{- end }}
+            {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
+            {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
+            {{- end }}
         spec:
           selector:
             {{- include "liqo.selectorTemplate" (merge (dict "isService" true) $templateConfig) | nindent 12 }}
@@ -212,8 +212,8 @@ spec:
                 {{- else }}
                 - --leader-election=false
                 {{- end }}
-                volumeMounts: 
-                - name: ipc 
+                volumeMounts:
+                - name: ipc
                   mountPath: /ipc
                 ports:
                 {{- if .Values.metrics.enabled }}
