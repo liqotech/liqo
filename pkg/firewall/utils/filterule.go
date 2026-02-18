@@ -15,7 +15,6 @@
 package utils
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 
@@ -23,7 +22,6 @@ import (
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/userdata"
-	"k8s.io/klog/v2"
 
 	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
@@ -72,32 +70,8 @@ func (fr *FilterRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 	if err != nil {
 		return false
 	}
-	if len(currentrule.Exprs) != len(newrule.Exprs) {
-		return false
-	}
-	for i := range currentrule.Exprs {
-		foundEqual := false
-		currentbytes, err := expr.Marshal(byte(currentrule.Table.Family), currentrule.Exprs[i])
-		if err != nil {
-			klog.Errorf("Error while marshaling current rule %s", err.Error())
-			return false
-		}
-		for j := range newrule.Exprs {
-			newbytes, err := expr.Marshal(byte(newrule.Table.Family), newrule.Exprs[j])
-			if err != nil {
-				klog.Errorf("Error while marshaling new rule %s", err.Error())
-				return false
-			}
-			if bytes.Equal(currentbytes, newbytes) {
-				foundEqual = true
-				break
-			}
-		}
-		if !foundEqual {
-			return false
-		}
-	}
-	return true
+
+	return compareRuleExpressions(*fr.Name, currentrule, newrule)
 }
 
 // forgeFilterRule forges a nftables rule from a FilterRule.

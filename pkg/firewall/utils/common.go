@@ -15,10 +15,15 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
+	"k8s.io/klog/v2"
 
 	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/utils/network/port"
@@ -98,4 +103,93 @@ func GetPortValueType(value *string) (firewallv1beta1.PortValueType, error) {
 	}
 
 	return firewallv1beta1.PortValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
+}
+
+// filterUnstableExprs removes expression types that the nftables library doesn't preserve
+// when reading rules back from the kernel. These expressions are used during rule creation
+// but are optimized away or transformed by the kernel, causing false positives in equality checks.
+//
+// Filtered expression types:
+// - Counter: Values change over time (handled by filterCounterExprs)
+// - Rt: Route lookups (e.g., TCPMSS) are compiled into the rule but not preserved
+// - Byteorder: Byte order conversions are applied but not stored as separate expressions
+//
+// This prevents infinite delete-recreate loops when nftables monitoring is enabled.
+func filterUnstableExprs(exprs []expr.Any) []expr.Any {
+	filtered := make([]expr.Any, 0, len(exprs))
+	for i := range exprs {
+		switch exprs[i].(type) {
+		case *expr.Counter:
+			// Skip: counter values change over time
+			continue
+		case *expr.Rt:
+			// Skip: route lookups are compiled but not preserved by nftables library
+			continue
+		case *expr.Byteorder:
+			// Skip: byte order conversions are applied but not stored
+			continue
+		default:
+			filtered = append(filtered, exprs[i])
+		}
+	}
+	return filtered
+}
+
+// logExpressionDetails logs expression details with the provided log function.
+func logExpressionDetails(label string, exprs []expr.Any, logFunc func(format string, args ...interface{})) {
+	logFunc("%s:", label)
+	for i, e := range exprs {
+		logFunc("  [%d] %T: %+v", i, e, e)
+	}
+}
+
+// compareRuleExpressions compares the expressions of two nftables rules for equality.
+// It filters out unstable expressions, logs the comparison details, and performs
+// byte-by-byte comparison of marshaled expressions.
+func compareRuleExpressions(ruleName string, currentrule, newrule *nftables.Rule) bool {
+	// Filter out unstable expressions that the nftables library doesn't preserve
+	// when reading rules back from the kernel (Counter, Rt, Byteorder).
+	currentExprs := filterUnstableExprs(currentrule.Exprs)
+	newExprs := filterUnstableExprs(newrule.Exprs)
+
+	klog.Infof("Rule comparison: %s - current exprs: %d (filtered from %d), new exprs: %d (filtered from %d)",
+		ruleName, len(currentExprs), len(currentrule.Exprs), len(newExprs), len(newrule.Exprs))
+
+	// Log detailed expression comparison for debugging
+	logExpressionDetails(fmt.Sprintf("Current expressions for rule %s", ruleName), currentExprs, klog.V(4).Infof)
+	logExpressionDetails(fmt.Sprintf("New expressions for rule %s", ruleName), newExprs, klog.V(4).Infof)
+
+	if len(currentExprs) != len(newExprs) {
+		klog.Warningf("Rule %s: expression count mismatch (current: %d, new: %d)", ruleName, len(currentExprs), len(newExprs))
+		logExpressionDetails("Current expressions", currentExprs, klog.Infof)
+		logExpressionDetails("New expressions", newExprs, klog.Infof)
+		return false
+	}
+
+	for i := range currentExprs {
+		foundEqual := false
+		currentbytes, err := expr.Marshal(byte(currentrule.Table.Family), currentExprs[i])
+		if err != nil {
+			klog.Errorf("Error while marshaling current rule %s", err.Error())
+			return false
+		}
+		for j := range newExprs {
+			newbytes, err := expr.Marshal(byte(newrule.Table.Family), newExprs[j])
+			if err != nil {
+				klog.Errorf("Error while marshaling new rule %s", err.Error())
+				return false
+			}
+			if bytes.Equal(currentbytes, newbytes) {
+				foundEqual = true
+				break
+			}
+		}
+		if !foundEqual {
+			klog.Infof("Rule %s: expression %d/%d not found in new rule - %T: %+v", ruleName, i+1, len(currentExprs), currentExprs[i], currentExprs[i])
+			logExpressionDetails("Available new expressions", newExprs, klog.Infof)
+			return false
+		}
+	}
+	klog.V(4).Infof("Rule %s: all expressions match, rules are equal", ruleName)
+	return true
 }
