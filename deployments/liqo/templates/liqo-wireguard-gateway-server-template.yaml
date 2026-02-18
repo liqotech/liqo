@@ -8,7 +8,7 @@
 apiVersion: networking.liqo.io/v1beta1
 kind: WgGatewayServerTemplate
 metadata:
-  name: {{ $templateConfig.name  }}
+  name: {{ $templateConfig.name }}
   labels:
     {{- include "liqo.labels" $templateConfig | nindent 4 }}
 spec:
