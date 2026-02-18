@@ -3,7 +3,7 @@
 {{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
 {{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
 
-{{- if and .Values.networking.enabled (not .Values.authentication.awsConfig.accessKeyId) }}
+{{- if .Values.networking.enabled }}
 
 apiVersion: networking.liqo.io/v1beta1
 kind: WgGatewayServerTemplate
