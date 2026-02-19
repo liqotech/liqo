@@ -158,7 +158,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	klog.Infof("Applying routeconfiguration %s", req.String())
+	klog.V(4).Infof("Applying routeconfiguration %s", req.String())
 
 	if err = EnsureTablePresence(routeconfiguration, tableID); err != nil {
 		return ctrl.Result{}, err
