@@ -53,31 +53,31 @@ function check_requirements() {
         error "Docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
         exit 1
     fi
-
+    
     if ! docker info &> /dev/null;
     then
         error "Docker is not running. Please start it to continue."
         exit 1
     fi
-
+    
     if ! command -v kubectl &> /dev/null;
     then
         error "Kubectl could not be found on your system. Please install kubectl to continue: https://kubernetes.io/docs/tasks/tools/#kubectl"
         exit 1
     fi
-
+    
     if ! command -v kind &> /dev/null;
     then
         error "Kind could not be found on your system. Please install kind to continue: https://kind.sigs.k8s.io/docs/user/quick-start/#installation"
         exit 1
     fi
-
+    
     if ! command -v liqoctl &> /dev/null;
     then
         error "Liqoctl could not be found on your system. Please install liqoctl to continue"
         exit 1
     fi
-
+    
     # check for extra requirements
     for cmd in "$@"; do
         if ! command -v "$cmd" &> /dev/null;
@@ -99,23 +99,48 @@ function delete_clusters() {
 function create_cluster() {
     local name="$1"
     local kubeconfig="$2"
-    local config="$3"
+    local cgroup_driver="${CGROUP_DRIVER:-systemd}"
 
-    info "Creating cluster \"$name\"..."
-    fail_on_error "kind create cluster --name $name \
-        --kubeconfig $kubeconfig --config $config --wait 5m" "Failed to create cluster \"$name\""
+    info "Creating cluster \"$name\" (cgroupDriver: $cgroup_driver)..."
+
+    local config_file
+    config_file=$(mktemp)
+
+    cat <<EOF > "$config_file"
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ${name}
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: KubeletConfiguration
+        apiVersion: kubelet.config.k8s.io/v1beta1
+        cgroupDriver: ${cgroup_driver}
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+      SystemdCgroup = $([[ "$cgroup_driver" == "systemd" ]] && echo true || echo false)
+EOF
+
+    fail_on_error "kind create cluster --name $name --kubeconfig $kubeconfig --config $config_file --wait 5m" \
+    "Failed to create cluster \"$name\""
+
+    rm -f "$config_file"
     success_clear_line "Cluster \"$name\" has been created."
 }
+
+
 
 function install_liqo() {
     local cluster_name="$1"
     local kubeconfig="$2"
-
+    
     info "Installing liqo on cluster \"$cluster_name\"..."
-
+    
     shift 2
     labels="$*"
-
+    
     fail_on_error "liqoctl install kind --cluster-id $cluster_name \
         --cluster-labels=$(join_by , "${labels[@]}") \
         --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"$cluster_name\""
@@ -144,12 +169,12 @@ function install_liqo_k3d() {
     api_server_address=$(kubectl get nodes --kubeconfig "$kubeconfig" --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}')
 
     fail_on_error "liqoctl install k3s --cluster-id $cluster_name \
-        --cluster-labels=$(join_by , "${labels[@]}") \
-        --pod-cidr $pod_cidr \
-        --service-cidr $service_cidr \
-        --api-server-url https://$api_server_address:6443 \
-        --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"${cluster_name}\""
-
+    --cluster-labels=$(join_by , "${labels[@]}") \
+    --pod-cidr $pod_cidr \
+    --service-cidr $service_cidr \
+    --api-server-url https://$api_server_address:6443 \
+    --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"${cluster_name}\""
+    
     success_clear_line "Liqo has been installed on cluster \"$cluster_name\"."
 }
 
@@ -164,7 +189,7 @@ function delete_k3d_clusters() {
 function create_k3d_cluster() {
     local name="$1"
     local config="$2"
-
+    
     info "Creating cluster \"$name\"..."
     fail_on_error "k3d cluster create -c $config --kubeconfig-update-default=false" "Failure to create cluster \"${name}\""
     success_clear_line "Cluster \"$name\" has been created."
@@ -172,7 +197,7 @@ function create_k3d_cluster() {
 
 function get_k3d_kubeconfig() {
     local name="$1"
-
+    
     k3d kubeconfig write "$name"
 }
 
@@ -181,12 +206,12 @@ function install_k8gb() {
     local cluster_geo_tag="$2"
     local cluster_ext_geo_tag="$3"
     local dns_ip="$4"
-
+    
     info "Installing k8gb on cluster..."
-
+    
     fail_on_error "kubectl create namespace k8gb --kubeconfig $kubeconfig" "Failed to create namespace k8gb"
     fail_on_error "kubectl -n k8gb create secret generic rfc2136 --kubeconfig $kubeconfig --from-literal=secret=96Ah/a2g0/nLeFGK+d/0tzQcccf9hCEIy34PoXX2Qg8=" "Failed to create secret"
-
+    
     fail_on_error "helm -n k8gb upgrade -i k8gb k8gb/k8gb --kubeconfig $kubeconfig \
         --set k8gb.clusterGeoTag=$cluster_geo_tag \
         --set k8gb.extGslbClustersGeoTags=$cluster_ext_geo_tag \
@@ -198,8 +223,8 @@ function install_k8gb() {
         --set rfc2136.enabled=true \
         --set k8gb.edgeDNSServers[0]=${dns_ip}:30053 \
         --set externaldns.image=absaoss/external-dns:rfc-ns1 \
-        --wait --timeout=2m0s" "Failed to install k8gb"
-
+    --wait --timeout=2m0s" "Failed to install k8gb"
+    
     success_clear_line "K8gb has been installed on cluster."
 }
 
@@ -208,23 +233,23 @@ function install_ingress_nginx() {
     local namespace="$2"
     local values="$3"
     local version="$4"
-
+    
     if [ -z "$version" ]; then
         version="4.0.15"
     fi
-
+    
     info "Installing ingress-nginx on cluster..."
-
+    
     fail_on_error "helm -n $namespace upgrade --kubeconfig $kubeconfig -i nginx-ingress nginx-stable/ingress-nginx \
-	    --version $version -f $values" "Failed to install ingress-nginx"
-
+    --version $version -f $values" "Failed to install ingress-nginx"
+    
     success_clear_line "Ingress-nginx has been installed on cluster."
 }
 
 function fail_on_error() {
     local cmd="$1"
     local msg="$2"
-
+    
     set +e
     output=$($cmd 2>&1)
     # shellcheck disable=SC2181
