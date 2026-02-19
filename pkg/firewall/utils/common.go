@@ -31,7 +31,7 @@ import (
 
 // GetIPValueType parses the match value and returns the type of the value.
 func GetIPValueType(value *string) (firewallv1beta1.IPValueType, error) {
-	if value == nil {
+	if value == nil || *value == "" {
 		return firewallv1beta1.IPValueTypeVoid, nil
 	}
 
@@ -152,7 +152,7 @@ func compareRuleExpressions(ruleName string, currentrule, newrule *nftables.Rule
 	currentExprs := filterUnstableExprs(currentrule.Exprs)
 	newExprs := filterUnstableExprs(newrule.Exprs)
 
-	klog.Infof("Rule comparison: %s - current exprs: %d (filtered from %d), new exprs: %d (filtered from %d)",
+	klog.V(4).Infof("Rule comparison: %s - current exprs: %d (filtered from %d), new exprs: %d (filtered from %d)",
 		ruleName, len(currentExprs), len(currentrule.Exprs), len(newExprs), len(newrule.Exprs))
 
 	// Log detailed expression comparison for debugging
@@ -185,7 +185,7 @@ func compareRuleExpressions(ruleName string, currentrule, newrule *nftables.Rule
 			}
 		}
 		if !foundEqual {
-			klog.Infof("Rule %s: expression %d/%d not found in new rule - %T: %+v", ruleName, i+1, len(currentExprs), currentExprs[i], currentExprs[i])
+			klog.Warningf("Rule %s: expression %d/%d not found in new rule - %T: %+v", ruleName, i+1, len(currentExprs), currentExprs[i], currentExprs[i])
 			logExpressionDetails("Available new expressions", newExprs, klog.Infof)
 			return false
 		}
