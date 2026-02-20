@@ -23,10 +23,22 @@ import (
 )
 
 // EnsureCertificate ensures that the certificate is present with the identity provider.
+// When IsUpdate is true, it skips the cache entirely and directly approves a new signing request,
+// which is used to force certificate renewal when the provider detects an expiring certificate.
 func EnsureCertificate(ctx context.Context, idp IdentityProvider, options *SigningRequestOptions) (*responsetypes.SigningRequestResponse, error) {
+	if options.IsRenew {
+		// Skip cache entirely, directly approve a new signing request.
+		resp, err := idp.ApproveSigningRequest(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	}
+
 	resp, err := idp.GetRemoteCertificate(ctx, options)
 	switch {
 	case apierrors.IsNotFound(err):
+		// Certificate not found or CSR changed — generate new cert.
 		resp, err = idp.ApproveSigningRequest(ctx, options)
 		if err != nil {
 			return nil, err
