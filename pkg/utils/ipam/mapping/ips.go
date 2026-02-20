@@ -174,6 +174,28 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 	return address, nil
 }
 
+// ForceMapAddressWithConfiguration forces the mapping of the provided address using the podCIDR of the remote cluster, retrieved using its clusterID.
+//
+// In case of failure returns the address unchanged.
+func ForceMapAddressWithConfiguration(ctx context.Context, cl client.Client,
+	clusterID liqov1beta1.ClusterID, address string) (string, error) {
+	// This address is used only to get its host part!
+	addr := net.ParseIP(address)
+
+	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID, corev1.NamespaceAll)
+	if err != nil {
+		return addr.String(), err
+	}
+
+	podCidr := cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
+	_, podnet, err := net.ParseCIDR(podCidr)
+	if err != nil {
+		return addr.String(), err
+	}
+
+	return RemapMask(addr, *podnet).String(), nil
+}
+
 // RemapMask take an IP address and a network mask and remap the address to the network.
 // This means that the host part of the address is preserved, while the network part is replaced with the one in the mask.
 //
