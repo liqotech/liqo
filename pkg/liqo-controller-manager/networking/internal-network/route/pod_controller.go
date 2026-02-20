@@ -82,7 +82,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	if err = r.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no pod %s", req.String())
+			klog.V(6).Infof("There is no pod %s", req.String())
 			return ctrl.Result{}, enforceRoutePodAbsence(ctx, r.Client, r.Options, pod)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the pod %q: %w", req.NamespacedName, err)
@@ -90,11 +90,13 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
 
-	if pod.Spec.NodeName != "" {
-		PopulatePodKeyToNodeMap(pod)
-	} else {
-		return ctrl.Result{Requeue: true}, nil
+	if pod.Spec.NodeName == "" || pod.Status.PodIP == "" {
+		// If the pod is not yet scheduled or does not have an IP address, we cannot enforce its route configuration.
+		// It will be reconciled again when available.
+		return ctrl.Result{}, nil
 	}
+
+	PopulatePodKeyToNodeMap(pod)
 
 	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
 	if err != nil {
@@ -106,7 +108,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	if op != controllerutil.OperationResultNone {
-		klog.Infof("Added route for pod %s", req.String())
+		klog.Infof("Enforced gw-node route rule for pod %s", req.String())
 	}
 
 	return ctrl.Result{}, nil
