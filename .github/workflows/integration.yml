@@ -92,7 +92,7 @@ jobs:
           fi
           echo "ARCHITECTURES=${ARCHITECTURES}" >> $GITHUB_ENV
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3.4.0
+        uses: docker/setup-qemu-action@v3.6.0
         with:
           platforms: all
 
