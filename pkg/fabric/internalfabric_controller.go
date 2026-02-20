@@ -26,6 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -105,7 +107,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("internalfabriccontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("geneve tunnel for internalfabric %s and internalnode %s not created yet.", internalfabric.Name, r.Options.NodeName)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting geneve tunnel (internalfabric %s, internalnode %s): %w", internalfabric.Name, r.Options.NodeName, err)
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
@@ -129,5 +135,14 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalFabricFabric).
 		For(&networkingv1beta1.InternalFabric{}).
+		Watches(&networkingv1beta1.GeneveTunnel{}, handler.EnqueueRequestsFromMapFunc(geneveToInternalFabricEnqueuer)).
 		Complete(r)
+}
+
+func geneveToInternalFabricEnqueuer(_ context.Context, obj client.Object) []reconcile.Request {
+	v, ok := obj.GetLabels()[consts.InternalFabricName]
+	if !ok {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: v, Namespace: obj.GetNamespace()}}}
 }
