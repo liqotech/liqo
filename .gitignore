@@ -50,3 +50,11 @@ docs/_build
 /tmp
 /graphviz
 /k3s-ansible
+/rke2-ansible
+
+# Local Claude Code development files
+.claude/
+.claude-flow/
+CLAUDE.md
+*.claude-test.*
+.claude-cache/

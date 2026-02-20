@@ -20,6 +20,7 @@ While the following list includes providers that we have specifically tested, Li
 | Kubeadm (Cilium) | ✅ | No known issues |
 | Kubeadm (Cilium with kube-proxy replacement) | 🟢 | `NodePortExposition` and `LoadBalancerExposition` |
 | K3s | 🟢 | `RemoteExec` |
+| RKE2 | 🟢 | Supports out-of-band peering for restricted networks; `RemoteExec` similar to K3s |
 | K0s | ✅ | No known issues |
 | AKS (Azure CNI Overlay) | 🟢 | `CrossClusterAPIServerInteraction` and `ExternalIPRemapping` |
 | AKS (Azure CNI (Legacy)) | 🟢 | `CrossClusterAPIServerInteraction` and `NodePortExposition` |
