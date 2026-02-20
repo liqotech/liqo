@@ -17,14 +17,16 @@ package geneve
 import (
 	"context"
 	"fmt"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -78,7 +80,11 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("internalnodecontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("geneve tunnel for internalfabric %s and internalnode %s not created yet.", internalFabric.Name, internalnode.Name)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting geneve tunnel (internalfabric %s, internalnode %s): %w", internalFabric.Name, internalnode.Name, err)
 	}
 
 	var remoteIP *networkingv1beta1.IP
@@ -90,8 +96,8 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if remoteIP == nil {
-		klog.Infof("The remote IP of internalnode %s is not set yet.", internalnode.Name)
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+		klog.V(4).Infof("The remote IP of internalnode %s is not set yet.", internalnode.Name)
+		return ctrl.Result{}, nil
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
@@ -115,5 +121,14 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalNodeGeneve).
 		For(&networkingv1beta1.InternalNode{}).
+		Watches(&networkingv1beta1.GeneveTunnel{}, handler.EnqueueRequestsFromMapFunc(geneveToInternalNodeEnqueuer)).
 		Complete(r)
+}
+
+func geneveToInternalNodeEnqueuer(_ context.Context, obj client.Object) []reconcile.Request {
+	v, ok := obj.GetLabels()[consts.InternalNodeName]
+	if !ok {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: v}}}
 }
