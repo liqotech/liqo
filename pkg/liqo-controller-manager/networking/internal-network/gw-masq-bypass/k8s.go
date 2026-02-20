@@ -20,6 +20,7 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -68,25 +69,33 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 		return err
 	}
 	if nodeName == "" {
-		return fmt.Errorf("unable to get node name from pod %s/%s", pod.GetNamespace(), pod.GetName())
+		// Entry not present or empty value, skip deletion as already done in previous reconciliation.
+		return nil
 	}
-	fwcfg := networkingv1beta1.FirewallConfiguration{ObjectMeta: metav1.ObjectMeta{
-		Name: generateFirewallConfigurationName(nodeName), Namespace: opts.Namespace,
-	}}
+
+	fwcfg := networkingv1beta1.FirewallConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(nodeName), Namespace: opts.Namespace},
+	}
 	if err := cl.Get(ctx, client.ObjectKeyFromObject(&fwcfg), &fwcfg); err != nil {
+		if apierrors.IsNotFound(err) {
+			// Firewall configuration not found, nothing to delete on the cluster. Remove the pod entry from the map and return.
+			DeletePodKeyFromMap(client.ObjectKeyFromObject(pod))
+			return nil
+		}
 		return fmt.Errorf("unable to get firewall configuration %s: %w", fwcfg.GetName(), err)
 	}
 
+	// Update the firewall configuration to remove the pod entry.
 	if _, err := resource.CreateOrUpdate(ctx, cl, &fwcfg, forgeFirewallPodDeleteFunction(pod, &fwcfg)); err != nil {
 		return fmt.Errorf("unable to update firewall configuration %s: %w", fwcfg.GetName(), err)
 	}
 
-	klog.Infof("Removed gw-masquerade-bypass for pod %s/%s from firewallconfiguration %s", pod.GetNamespace(), pod.GetName(), fwcfg.GetName())
+	klog.V(4).Infof("Removed gw-masquerade-bypass for pod %s/%s from firewallconfiguration %s", pod.GetNamespace(), pod.GetName(), fwcfg.GetName())
 
 	DeletePodKeyFromMap(client.ObjectKeyFromObject(pod))
 
 	if len(fwcfg.Spec.Table.Chains[0].Rules.NatRules) == 0 {
-		if err := cl.Delete(ctx, &fwcfg); err != nil {
+		if err := client.IgnoreNotFound(cl.Delete(ctx, &fwcfg)); err != nil {
 			return err
 		}
 	}

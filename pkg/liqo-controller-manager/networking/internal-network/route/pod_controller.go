@@ -82,7 +82,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	if err = r.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no pod %s", req.String())
+			klog.V(6).Infof("There is no pod %s", req.String())
 			return ctrl.Result{}, enforceRoutePodAbsence(ctx, r.Client, r.Options, pod)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the pod %q: %w", req.NamespacedName, err)
