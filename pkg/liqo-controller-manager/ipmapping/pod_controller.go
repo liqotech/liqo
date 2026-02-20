@@ -57,7 +57,7 @@ func (r *OffloadedPodReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	pod := &corev1.Pod{}
 	if err := r.Client.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no pod %s", req.String())
+			klog.V(6).Infof("There is no pod %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to fetch Pod %s: %w", req.String(), err)

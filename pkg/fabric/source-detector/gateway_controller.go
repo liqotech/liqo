@@ -17,7 +17,6 @@ package sourcedetector
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -73,6 +72,13 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("unable to get the gateway pod %q: %w", req.NamespacedName, err)
 	}
 
+	if pod.Status.PodIP == "" {
+		// If the pod does not have an IP address, we cannot determine the source IP for the internal node.
+		// It will be reconciled again when the IP becomes available.
+		klog.V(4).Infof("Gateway pod %s has no IP. Checking later", req.String())
+		return ctrl.Result{}, nil
+	}
+
 	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -83,11 +89,6 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	klog.V(4).Infof("Reconciling gateway pod %s", req.String())
-
-	if pod.Status.PodIP == "" {
-		klog.Infof("Gateway pod %s has no IP", req.String())
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
 
 	src, err := GetSrcIPFromDstIP(pod.Status.PodIP)
 	if err != nil {
