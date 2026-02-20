@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -40,8 +42,7 @@ func GetGeneveTunnelID(ctx context.Context, cl client.Client,
 
 	switch len(list.Items) {
 	case 0:
-		return 0, fmt.Errorf("no geneve tunnel found for internalfabric %s and internalnode %s",
-			internalFabricName, internalNodeName)
+		return 0, kerrors.NewNotFound(networkingv1beta1.GeneveTunnelGroupResource, networkingv1beta1.GeneveTunnelResource)
 	case 1:
 		return list.Items[0].Spec.ID, nil
 	default:
