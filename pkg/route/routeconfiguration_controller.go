@@ -42,39 +42,26 @@ import (
 //
 //nolint:revive // We usually use the name of the reconciled resource in the controller name.
 type RouteConfigurationReconciler struct {
-	PodName string
+	Name string
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	// Labels used to filter the reconciled resources.
 	LabelsSets []labels.Set
-	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
-	EnableFinalizer bool
+	// ValueFinalizer is the name of the finalizer used to delete the resources.
+	ValueFinalizer string
 }
 
 // newRouteConfigurationReconciler returns a new RouteConfigurationReconciler.
-func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*RouteConfigurationReconciler, error) {
+func NewRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme, name string,
+	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
 	return &RouteConfigurationReconciler{
-		PodName:         podname,
-		Client:          cl,
-		Scheme:          s,
-		EventsRecorder:  er,
-		LabelsSets:      labelsSets,
-		EnableFinalizer: enableFinalizer,
+		Name:           name,
+		Client:         cl,
+		Scheme:         s,
+		EventsRecorder: er,
+		LabelsSets:     labelsSets,
 	}, nil
-}
-
-// NewRouteConfigurationReconcilerWithFinalizer initializes a reconciler that uses finalizers on routeconfigurations.
-func NewRouteConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, true)
-}
-
-// NewRouteConfigurationReconcilerWithoutFinalizer initializes a reconciler that doesn't use finalizers on routeconfigurations.
-func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, false)
 }
 
 // cluster-role
@@ -98,7 +85,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	klog.V(4).Infof("Reconciling routeconfiguration %s", req.String())
 
 	defer func() {
-		err = r.UpdateStatus(ctx, r.EventsRecorder, routeconfiguration, r.PodName, err)
+		err = r.UpdateStatus(ctx, r.EventsRecorder, routeconfiguration, r.Name, err)
 	}()
 
 	var tableID uint32
@@ -109,30 +96,30 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// Manage Finalizers and routeconfiguration deletion.
 	deleting := !routeconfiguration.ObjectMeta.DeletionTimestamp.IsZero()
-	containsFinalizer := ctrlutil.ContainsFinalizer(routeconfiguration, routeconfigurationControllerFinalizer)
+	containsFinalizer := ctrlutil.ContainsFinalizer(routeconfiguration, forgeFinalizer(r.Name))
 	switch {
-	case !deleting && !containsFinalizer && r.EnableFinalizer:
-		if err = r.ensureRouteConfigurationFinalizerPresence(ctx, routeconfiguration); err != nil {
+	case !deleting && !containsFinalizer:
+		if err = r.ensureRouteConfigurationFinalizerPresence(ctx, routeconfiguration, r.Name); err != nil {
 			return ctrl.Result{}, err
 		}
 
 		return ctrl.Result{}, nil
 
-	case deleting && containsFinalizer && r.EnableFinalizer:
+	case deleting && containsFinalizer:
 		for i := range routeconfiguration.Spec.Table.Rules {
 			if err = EnsureRuleAbsence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("unable to delete rule: %w", err)
 			}
 			if err = EnsureRoutesAbsence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("unable to delete routes: %w", err)
 			}
 		}
 
 		if err = EnsureTableAbsence(tableID); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("unable to delete table %d: %w", tableID, err)
 		}
 
-		if err = r.ensureRouteConfigurationFinalizerAbsence(ctx, routeconfiguration); err != nil {
+		if err = r.ensureRouteConfigurationFinalizerAbsence(ctx, routeconfiguration, r.Name); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -213,17 +200,17 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
-func getConditionRef(rcfg *networkingv1beta1.RouteConfiguration, podname string) *networkingv1beta1.RouteConfigurationStatusCondition {
+func getConditionRef(rcfg *networkingv1beta1.RouteConfiguration, name string) *networkingv1beta1.RouteConfigurationStatusCondition {
 	var conditionRef *networkingv1beta1.RouteConfigurationStatusCondition
 	for i := range rcfg.Status.Conditions {
-		if rcfg.Status.Conditions[i].Host == podname {
+		if rcfg.Status.Conditions[i].Host == name {
 			conditionRef = &rcfg.Status.Conditions[i]
 			break
 		}
 	}
 	if conditionRef == nil {
 		conditionRef = &networkingv1beta1.RouteConfigurationStatusCondition{
-			Host: podname,
+			Host: name,
 		}
 		rcfg.Status.Conditions = append(rcfg.Status.Conditions, *conditionRef)
 	}
@@ -232,9 +219,9 @@ func getConditionRef(rcfg *networkingv1beta1.RouteConfiguration, podname string)
 
 // UpdateStatus updates the status of the given RouteConfiguration.
 func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	routeconfiguration *networkingv1beta1.RouteConfiguration, podname string, err error) error {
-	conditionRef := getConditionRef(routeconfiguration, podname)
-	conditionRef.Host = podname
+	routeconfiguration *networkingv1beta1.RouteConfiguration, name string, err error) error {
+	conditionRef := getConditionRef(routeconfiguration, name)
+	conditionRef.Host = name
 	conditionRef.Type = networkingv1beta1.RouteConfigurationStatusConditionTypeApplied
 
 	oldStatus := conditionRef.Status
