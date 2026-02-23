@@ -89,7 +89,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	routeconfiguration := &networkingv1beta1.RouteConfiguration{}
 	if err = r.Get(ctx, req.NamespacedName, routeconfiguration); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no routeconfiguration %s", req.String())
+			klog.V(6).Infof("There is no routeconfiguration %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the routeconfiguration %q: %w", req.NamespacedName, err)

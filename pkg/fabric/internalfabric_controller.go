@@ -64,7 +64,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	internalfabric := &networkingv1beta1.InternalFabric{}
 	if err = r.Get(ctx, req.NamespacedName, internalfabric); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalfabric %s", req.String())
+			klog.V(6).Infof("There is no internalfabric %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)

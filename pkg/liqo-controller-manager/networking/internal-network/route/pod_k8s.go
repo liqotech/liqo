@@ -52,7 +52,11 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 	routecfg := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generatePodRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
-	return resource.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
+	op, err := resource.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
+	if err != nil {
+		return "", fmt.Errorf("enforcing route configuration %s: %w", routecfg.GetName(), err)
+	}
+	return op, nil
 }
 
 func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options, pod *corev1.Pod) error {
