@@ -67,7 +67,7 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	publicKey := &networkingv1beta1.PublicKey{}
 	if err := r.Client.Get(ctx, req.NamespacedName, publicKey); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no publicKey %s", req.String())
+			klog.V(6).Infof("There is no publicKey %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the publicKey %q: %w", req.NamespacedName, err)

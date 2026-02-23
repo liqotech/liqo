@@ -56,7 +56,11 @@ func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *r
 	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
-	return resource.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
+	op, err := resource.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
+	if err != nil {
+		return "", fmt.Errorf("enforcing firewall configuration %s: %w", fwcfg.GetName(), err)
+	}
+	return op, nil
 }
 
 func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Options, pod *corev1.Pod) error {

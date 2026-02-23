@@ -62,11 +62,10 @@ func NewGatewayReconciler(cl client.Client, s *runtime.Scheme,
 
 // Reconcile manage Gateways.
 func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var err error
 	pod := &corev1.Pod{}
-	if err = r.Get(ctx, req.NamespacedName, pod); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no gateway pod %s", req.String())
+			klog.V(6).Infof("There is no gateway pod %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the gateway pod %q: %w", req.NamespacedName, err)
@@ -80,10 +79,9 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	internalnode := &networkingv1beta1.InternalNode{}
-	if err = r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Errorf("There is no internalnode %s", r.Options.NodeName)
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("internalnode %q not found yet: %w", r.Options.NodeName, err)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internal node %q: %w", r.Options.NodeName, err)
 	}

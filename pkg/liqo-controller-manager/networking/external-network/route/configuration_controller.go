@@ -68,7 +68,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	conf := &networkingv1beta1.Configuration{}
 	if err = r.Get(ctx, req.NamespacedName, conf); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no configuration %s", req.String())
+			klog.V(6).Infof("There is no configuration %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the configuration %q: %w", req.NamespacedName, err)

@@ -56,7 +56,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	ip := &ipamv1alpha1.IP{}
 	if err = r.Get(ctx, req.NamespacedName, ip); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no IP %s", req.String())
+			klog.V(6).Infof("There is no IP %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the IP %q: %w", req.NamespacedName, err)

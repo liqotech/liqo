@@ -65,7 +65,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalnode %s", req.String())
+			klog.V(6).Infof("There is no internalnode %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
@@ -81,7 +81,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("geneve tunnel for internalfabric %s and internalnode %s not created yet.", internalFabric.Name, internalnode.Name)
+			klog.Infof("waiting for geneve tunnel (internalfabric %s, internalnode %s) to be created...", internalFabric.Name, internalnode.Name)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("getting geneve tunnel (internalfabric %s, internalnode %s): %w", internalFabric.Name, internalnode.Name, err)
@@ -96,7 +96,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if remoteIP == nil {
-		klog.V(4).Infof("The remote IP of internalnode %s is not set yet.", internalnode.Name)
+		klog.Infof("waiting for remote IP of internalnode %s to be set...", internalnode.Name)
 		return ctrl.Result{}, nil
 	}
 

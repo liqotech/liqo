@@ -75,7 +75,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalnode %s", req.String())
+			klog.V(6).Infof("There is no internalnode %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
