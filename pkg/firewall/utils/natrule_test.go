@@ -203,4 +203,142 @@ var _ = Describe("NatRuleWrapper", func() {
 
 		Expect(wrapper.Equal(rule)).To(BeFalse())
 	})
+
+	It("GetName should return the rule name", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name: ptr.To("test-nat-name"),
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+		Expect(wrapper.GetName()).To(Equal(ptr.To("test-nat-name")))
+	})
+
+	It("SetName should set the rule name", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name: ptr.To("old-nat-name"),
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+		wrapper.SetName("new-nat-name")
+		Expect(wrapper.GetName()).To(Equal(ptr.To("new-nat-name")))
+	})
+
+	It("Add should add rule to chain", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name:    ptr.To("test-add-nat-rule"),
+			NatType: firewallv1beta1.NatTypeMasquerade,
+			To:      ptr.To(""),
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+
+		conn, err := nftables.New(nftables.AsLasting())
+		Expect(err).NotTo(HaveOccurred())
+
+		err = wrapper.Add(conn, chain)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("Equal should return true for SNAT with subnet", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name:    ptr.To("snat-subnet-rule"),
+			NatType: firewallv1beta1.NatTypeSource,
+			To:      ptr.To("10.0.0.0/24"),
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+
+		expectedRule, err := forgeNatRule(nr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for DNAT with subnet", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name:    ptr.To("dnat-subnet-rule"),
+			NatType: firewallv1beta1.NatTypeDestination,
+			To:      ptr.To("192.168.0.0/16"),
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+
+		expectedRule, err := forgeNatRule(nr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	Context("Error handling", func() {
+		It("should error when 'to' is empty string for SNAT (IP type)", func() {
+			nr := &firewallv1beta1.NatRule{
+				Name:    ptr.To("invalid-snat"),
+				NatType: firewallv1beta1.NatTypeSource,
+				To:      ptr.To("invalid-ip"),
+			}
+			_, err := forgeNatRule(nr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should error when 'to' is empty string for DNAT (IP type)", func() {
+			nr := &firewallv1beta1.NatRule{
+				Name:    ptr.To("invalid-dnat"),
+				NatType: firewallv1beta1.NatTypeDestination,
+				To:      ptr.To("not-valid-ip"),
+			}
+			_, err := forgeNatRule(nr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should error on invalid subnet for SNAT", func() {
+			nr := &firewallv1beta1.NatRule{
+				Name:    ptr.To("invalid-subnet-snat"),
+				NatType: firewallv1beta1.NatTypeSource,
+				To:      ptr.To("192.168.1.0/invalid"),
+			}
+			_, err := forgeNatRule(nr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should error on invalid match in forgeNatRule", func() {
+			nr := &firewallv1beta1.NatRule{
+				Name: ptr.To("invalid-match-nat"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op: "invalid-operation",
+						IP: &firewallv1beta1.MatchIP{
+							Value:    "192.168.1.1",
+							Position: firewallv1beta1.MatchPositionSrc,
+						},
+					},
+				},
+				NatType: firewallv1beta1.NatTypeMasquerade,
+				To:      ptr.To(""),
+			}
+			_, err := forgeNatRule(nr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Equal should return false when forgeNatRule fails", func() {
+			nr := &firewallv1beta1.NatRule{
+				Name: ptr.To("invalid-nat-rule"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op: "invalid-operation",
+						IP: &firewallv1beta1.MatchIP{
+							Value:    "192.168.1.1",
+							Position: firewallv1beta1.MatchPositionSrc,
+						},
+					},
+				},
+				NatType: firewallv1beta1.NatTypeMasquerade,
+				To:      ptr.To(""),
+			}
+			wrapper := &NatRuleWrapper{NatRule: nr}
+
+			rule := &nftables.Rule{
+				Table: table,
+				Chain: chain,
+			}
+
+			Expect(wrapper.Equal(rule)).To(BeFalse())
+		})
+	})
 })

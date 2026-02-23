@@ -251,4 +251,185 @@ var _ = Describe("FilterRuleWrapper", func() {
 
 		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
 	})
+
+	It("GetName should return the rule name", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name: ptr.To("test-rule-name"),
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+		Expect(wrapper.GetName()).To(Equal(ptr.To("test-rule-name")))
+	})
+
+	It("SetName should set the rule name", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name: ptr.To("old-name"),
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+		wrapper.SetName("new-name")
+		Expect(wrapper.GetName()).To(Equal(ptr.To("new-name")))
+	})
+
+	It("Add should add rule to chain", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:   ptr.To("test-add-rule"),
+			Action: firewallv1beta1.ActionAccept,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		conn, err := nftables.New(nftables.AsLasting())
+		Expect(err).NotTo(HaveOccurred())
+
+		err = wrapper.Add(conn, chain)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("Equal should return true for ActionReject", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:   ptr.To("reject-rule"),
+			Action: firewallv1beta1.ActionReject,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for rule with Counter", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:    ptr.To("counter-rule"),
+			Action:  firewallv1beta1.ActionAccept,
+			Counter: true,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for ActionSetMetaMarkFromCtMark", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:   ptr.To("meta-mark-rule"),
+			Action: firewallv1beta1.ActionSetMetaMarkFromCtMark,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for complex rule with single IP match", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name: ptr.To("single-ip-rule"),
+			Match: []firewallv1beta1.Match{
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					IP: &firewallv1beta1.MatchIP{
+						Value:    "192.168.1.1",
+						Position: firewallv1beta1.MatchPositionSrc,
+					},
+				},
+			},
+			Action: firewallv1beta1.ActionAccept,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	Context("Error handling", func() {
+		It("should handle invalid CtMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("invalid-ctmark"),
+				Action: firewallv1beta1.ActionCtMark,
+				Value:  ptr.To("not-a-number"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should handle invalid TCPMssClamp value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("invalid-mss"),
+				Action: firewallv1beta1.ActionTCPMssClamp,
+				Value:  ptr.To("not-a-number"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should handle invalid match in forgeFilterRule", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name: ptr.To("invalid-match"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op: "invalid-operation",
+						IP: &firewallv1beta1.MatchIP{
+							Value:    "192.168.1.1",
+							Position: firewallv1beta1.MatchPositionSrc,
+						},
+					},
+				},
+				Action: firewallv1beta1.ActionAccept,
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Equal should return false when forgeFilterRule fails", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name: ptr.To("invalid-rule"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op: "invalid-operation",
+						IP: &firewallv1beta1.MatchIP{
+							Value:    "192.168.1.1",
+							Position: firewallv1beta1.MatchPositionSrc,
+						},
+					},
+				},
+				Action: firewallv1beta1.ActionAccept,
+			}
+			wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+			rule := &nftables.Rule{
+				Table: table,
+				Chain: chain,
+			}
+
+			Expect(wrapper.Equal(rule)).To(BeFalse())
+		})
+
+		It("should handle TCPMssClamp with nil value (auto-detect)", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("mss-auto"),
+				Action: firewallv1beta1.ActionTCPMssClamp,
+				Value:  nil,
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should handle TCPMssClamp with zero value (auto-detect)", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("mss-zero"),
+				Action: firewallv1beta1.ActionTCPMssClamp,
+				Value:  ptr.To("0"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
 })
