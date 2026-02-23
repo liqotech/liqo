@@ -100,9 +100,10 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	klog.V(4).Infof("Reconciling routeconfiguration %s", req.String())
 
-	defer func() {
+	//nolint:gocritic // keeping commented code for reference
+	/* defer func() {
 		err = r.UpdateStatus(ctx, r.EventsRecorder, routeconfiguration, r.PodName, err)
-	}()
+	}() */
 
 	var tableID uint32
 	tableID, err = GetTableID(routeconfiguration.Spec.Table.Name)

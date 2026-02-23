@@ -107,9 +107,10 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
 
-	defer func() {
+	//nolint:gocritic // keeping commented code for reference
+	/* defer func() {
 		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, r.PodName, err)
-	}()
+	}() */
 
 	// Manage Finalizers and Table deletion.
 	// In nftables, table deletion automatically delete contained chains and rules.
