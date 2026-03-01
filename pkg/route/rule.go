@@ -16,6 +16,7 @@ package route
 
 import (
 	"fmt"
+	"math"
 	"net"
 
 	"github.com/vishvananda/netlink"
@@ -88,7 +89,10 @@ func AddRule(rule *networkingv1beta1.Rule, tableID uint32) error {
 	}
 
 	if rule.FwMark != nil {
-		newrule.Mark = *rule.FwMark
+		if *rule.FwMark < 0 || *rule.FwMark > math.MaxUint32 {
+			return fmt.Errorf("fwmark value out of uint32 range: %d", *rule.FwMark)
+		}
+		newrule.Mark = uint32(*rule.FwMark)
 	}
 
 	err := netlink.RuleAdd(newrule)
@@ -159,8 +163,10 @@ func RuleIsEqual(rule *networkingv1beta1.Rule, netlinkRule *netlink.Rule) bool {
 		return false
 	}
 
-	if rule.FwMark != nil && *rule.FwMark != netlinkRule.Mark {
-		return false
+	if rule.FwMark != nil {
+		if *rule.FwMark < 0 || *rule.FwMark > math.MaxUint32 || uint32(*rule.FwMark) != netlinkRule.Mark {
+			return false
+		}
 	}
 	return true
 }
