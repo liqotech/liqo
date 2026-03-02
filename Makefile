@@ -155,7 +155,7 @@ staticcheck: nilaway
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
-		git clone --depth 1 -b v0.34.3 https://github.com/kubernetes/code-generator.git hack/code-generator; \
+		git clone --depth 1 -b v0.35.2 https://github.com/kubernetes/code-generator.git hack/code-generator; \
 	fi
 	rm -rf pkg/client
 	mkdir -p pkg/client/informers pkg/client/listers pkg/client/clientset
@@ -189,7 +189,7 @@ PROTOC=$(shell which protoc)
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
+	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
