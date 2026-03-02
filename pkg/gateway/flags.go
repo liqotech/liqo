@@ -51,6 +51,9 @@ const (
 	// FlagConcurrentContainersNames is the names of the containers that the gateway container must wait for.
 	FlagConcurrentContainersNames FlagName = "concurrent-containers-names"
 
+	// FlagNameReconcileTimeout is the reconciliation timeout.
+	FlagNameReconcileTimeout FlagName = "reconcile-timeout"
+
 	// FlagNameLeaderElection is the flag to enable leader election.
 	FlagNameLeaderElection FlagName = "leader-election"
 	// FlagNameLeaderElectionLeaseDuration is the lease duration for the leader election.
@@ -103,6 +106,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.StringSliceVar(&opts.ConcurrentContainersNames, FlagConcurrentContainersNames.String(),
 		[]string{}, "the container list that gateway container must wait for")
+
+	flagset.DurationVar(&opts.ReconcileTimeout, FlagNameReconcileTimeout.String(), 10*time.Second, "Reconciliation timeout")
 
 	flagset.BoolVar(&opts.LeaderElection, FlagNameLeaderElection.String(), false, "Enable leader election")
 	flagset.DurationVar(&opts.LeaderElectionLeaseDuration, FlagNameLeaderElectionLeaseDuration.String(), 15*time.Second,

@@ -15,6 +15,8 @@
 package fabric
 
 import (
+	"time"
+
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
 
@@ -25,6 +27,8 @@ type Options struct {
 
 	MetricsAddress string
 	ProbeAddr      string
+
+	ReconcileTimeout time.Duration
 
 	DisableARP         bool
 	EnableNftMonitor   bool

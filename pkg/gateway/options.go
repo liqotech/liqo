@@ -36,6 +36,8 @@ type Options struct {
 
 	ConcurrentContainersNames []string
 
+	ReconcileTimeout time.Duration
+
 	LeaderElection              bool
 	LeaderElectionLeaseDuration time.Duration
 	LeaderElectionRenewDeadline time.Duration
