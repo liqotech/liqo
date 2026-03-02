@@ -202,7 +202,8 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
 	}
 
-	if err := rcr.SetupWithManager(cmd.Context(), mgr, connoptions.GwOptions.EnableRouteMonitor); err != nil {
+	if err := rcr.SetupWithManager(cmd.Context(), mgr,
+		connoptions.GwOptions.EnableRouteMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
@@ -223,7 +224,8 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
 	}
 
-	if err := fwcr.SetupWithManager(cmd.Context(), mgr, connoptions.GwOptions.EnableNftMonitor); err != nil {
+	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
+		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 

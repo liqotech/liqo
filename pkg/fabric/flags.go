@@ -15,6 +15,8 @@
 package fabric
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -36,6 +38,9 @@ const (
 	FlagNameMetricsAddress FlagName = "metrics-address"
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
+
+	// FlagNameReconcileTimeout is the reconciliation timeout.
+	FlagNameReconcileTimeout FlagName = "reconcile-timeout"
 
 	// FlagNameDisableARP is the flag to enable ARP.
 	FlagNameDisableARP FlagName = "disable-arp"
@@ -66,6 +71,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8082", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
+
+	flagset.DurationVar(&opts.ReconcileTimeout, FlagNameReconcileTimeout.String(), 10*time.Second, "Reconciliation timeout")
 
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")

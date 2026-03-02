@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -162,7 +164,8 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
-func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableNftMonitor bool) error {
+func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
+	enableNftMonitor bool, reconcileTimeout time.Duration) error {
 	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.LabelsSets)
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
@@ -180,6 +183,9 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfiguration).
 		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
+		WithOptions(controller.Options{
+			ReconciliationTimeout: reconcileTimeout,
+		}).
 		Complete(r)
 }
 

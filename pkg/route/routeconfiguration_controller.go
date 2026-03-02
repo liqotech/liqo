@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -179,7 +181,8 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 // SetupWithManager register the RouteConfigurationReconciler to the manager.
-func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableRouteMonitor bool) error {
+func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
+	enableRouteMonitor bool, reconcileTimeout time.Duration) error {
 	klog.Infof("Starting RouteConfiguration controller with labels %v", r.LabelsSets)
 
 	klog.Infof("route monitor enabled: %t", enableRouteMonitor)
@@ -198,6 +201,9 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlRouteConfiguration).
 		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewRouteWatchSource(src, NewRouteWatchEventHandler(r.Client, r.LabelsSets))).
+		WithOptions(controller.Options{
+			ReconciliationTimeout: reconcileTimeout,
+		}).
 		Complete(r)
 }
 
