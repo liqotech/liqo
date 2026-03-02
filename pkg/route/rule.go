@@ -89,7 +89,7 @@ func AddRule(rule *networkingv1beta1.Rule, tableID uint32) error {
 	}
 
 	if rule.FwMark != nil {
-		if *rule.FwMark < 0 || *rule.FwMark > math.MaxUint32 {
+		if *rule.FwMark < 0 || int64(*rule.FwMark) > math.MaxUint32 {
 			return fmt.Errorf("fwmark value out of uint32 range: %d", *rule.FwMark)
 		}
 		newrule.Mark = uint32(*rule.FwMark)
@@ -164,7 +164,7 @@ func RuleIsEqual(rule *networkingv1beta1.Rule, netlinkRule *netlink.Rule) bool {
 	}
 
 	if rule.FwMark != nil {
-		if *rule.FwMark < 0 || *rule.FwMark > math.MaxUint32 || uint32(*rule.FwMark) != netlinkRule.Mark {
+		if *rule.FwMark < 0 || int64(*rule.FwMark) > math.MaxUint32 || uint32(*rule.FwMark) != netlinkRule.Mark {
 			return false
 		}
 	}
