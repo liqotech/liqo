@@ -280,7 +280,7 @@ var _ = Describe("Sync routine tests", func() {
 				// Run sync.
 				// Add the network with the preallocated IP to the cluster (i.e., inject to the client),
 				// so that the sync routine does not delete it.
-				cl := fakeClientBuilder.WithObjects(
+				cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
 					addPreAllocated(testutil.FakeNetwork("net1", testNamespace, "10.0.0.0/24", nil), 3),
 				).Build()
 				fakeIpamServer.Client = cl
