@@ -634,7 +634,7 @@ var _ = Describe("IPAM integration tests", func() {
 				// Run sync.
 				// Add the network with the preallocated IP to the cluster (i.e., inject to the client),
 				// so that the sync routine does not delete it.
-				cl := fakeClientBuilder.WithObjects(
+				cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
 					addPreAllocated(testutil.FakeNetwork("net1", testNamespace, "10.20.0.0/16", nil), 1),
 				).Build()
 				ipamServer.Client = cl
