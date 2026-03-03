@@ -16,6 +16,7 @@ package internalfabriccontroller
 
 import (
 	"context"
+	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,13 +90,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err = ensureGeneveTunnels(ctx, r.Client, r.Scheme, internalFabric, &internalNodeList); err != nil {
-		klog.Errorf("Unable to ensure GeneveTunnels: %s", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("ensuring GeneveTunnels: %w", err)
 	}
 
 	if err = cleanupGeneveTunnels(ctx, r.Client, internalFabric, &internalNodeList); err != nil {
-		klog.Errorf("Unable to cleanup GeneveTunnels: %s", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("cleaning up GeneveTunnels: %w", err)
 	}
 
 	return ctrl.Result{}, nil
