@@ -88,8 +88,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 
 	cmDep, err := getters.GetControllerManagerDeployment(ctx, r.Client, r.liqoNamespace)
 	if err != nil {
-		klog.Errorf("Unable to get the ControllerManager deployment: %s", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting the ControllerManager deployment: %w", err)
 	}
 	if cmDep.Annotations != nil && cmDep.Annotations[consts.UninstallingAnnotationKey] == consts.UninstallingAnnotationValue {
 		klog.Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
@@ -98,7 +97,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 
 	ipam, err := fabricipam.Get(ctx, r.Client)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
+		return ctrl.Result{}, fmt.Errorf("initializing the IPAM: %w", err)
 	}
 
 	if _, err = resource.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
@@ -114,8 +113,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 
 		return nil
 	}); err != nil {
-		klog.Errorf("Unable to create or update InternalNode %q: %s", internalNode.Name, err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("creating or updating InternalNode %q: %w", internalNode.Name, err)
 	}
 
 	return ctrl.Result{}, nil

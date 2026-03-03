@@ -76,7 +76,7 @@ func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Clien
 		retry++
 	}
 	if !ok {
-		return "", fmt.Errorf("cannot find a free  interface name")
+		return "", fmt.Errorf("cannot find a free interface name")
 	}
 	return name, nil
 }
@@ -102,7 +102,7 @@ func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client)
 		retry++
 	}
 	if !ok {
-		return "", fmt.Errorf("cannot find a free  interface name")
+		return "", fmt.Errorf("cannot find a free interface name")
 	}
 	return name, nil
 }
