@@ -187,7 +187,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
+	rcr, err := route.NewRouteConfigurationReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
@@ -208,7 +208,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
+	fwcr, err := firewall.NewFirewallConfigurationReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
