@@ -28,6 +28,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -101,7 +102,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 			klog.V(6).Infof("There is no firewallconfiguration %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("unable to get the firewallconfiguration %q: %w", req.NamespacedName, err)
+		return ctrl.Result{}, fmt.Errorf("getting firewallconfiguration: %w", err)
 	}
 
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
@@ -116,7 +117,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	if fwcfg.DeletionTimestamp.IsZero() && r.EnableFinalizer {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("adding finalizer: %w", err)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -124,10 +125,10 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		if ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			delTable(r.NftConnection, &fwcfg.Spec.Table)
 			if err = r.NftConnection.Flush(); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 			}
 			if err = r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
 			}
 			klog.V(2).Infof("FirewallConfiguration %s deleted", req.String())
 		}
@@ -137,12 +138,12 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	// If table exists, it delete chains and rules which are not contained anymore in firewallconfiguration resource.
 	// It also deletes chains and rules which has been updated and need to be recreated.
 	if err = cleanTable(r.NftConnection, &fwcfg.Spec.Table); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("cleaning table %s: %w", ptr.Deref(fwcfg.Spec.Table.Name, ""), err)
 	}
 
 	// We need to flush the updates to allow the recreation of updated chains/rules.
 	if err = r.NftConnection.Flush(); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
 	klog.V(4).Infof("Applying firewallconfiguration %s", req.String())
@@ -151,11 +152,11 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 
 	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("adding chains to table %s: %w", ptr.Deref(fwcfg.Spec.Table.Name, ""), err)
 	}
 
 	if err = r.NftConnection.Flush(); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
 	klog.Infof("Applied firewallconfiguration %s", req.String())
