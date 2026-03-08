@@ -289,10 +289,7 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 }
 
 func applyMatchIPNamedSet(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	invert := false
-	if op == expr.CmpOpNeq {
-		invert = true
-	}
+	invert := op == expr.CmpOpNeq
 
 	posOffset, err := getMatchIPPositionOffset(m)
 	if err != nil {
