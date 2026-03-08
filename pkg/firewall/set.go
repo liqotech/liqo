@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@ import (
 	"fmt"
 
 	"github.com/google/nftables"
+
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
-// cleanSets removes the sets that are no longer used in the firewall configuration and updates the existing ones if their elements differ from the wanted elements.
+// cleanSets removes the sets that are no longer used in the firewall configuration
+// and updates the existing ones if their elements differ from the wanted elements.
 func cleanSets(nftconn *nftables.Conn, table *firewallapi.Table) error {
 	// Find the table by name and family
 	nftTables, err := nftconn.ListTablesOfFamily(getTableFamily(*table.Family))
@@ -125,7 +127,7 @@ func updateSetElements(nftconn *nftables.Conn, nftSets []*nftables.Set, table *f
 }
 
 // isSetOutdated checks if the existing set elements differ from the wanted set elements.
-func isSetOutdated(existingElements []nftables.SetElement, wantedElements []nftables.SetElement) bool {
+func isSetOutdated(existingElements, wantedElements []nftables.SetElement) bool {
 	// If the lengths differ, the set is outdated.
 	if len(existingElements) != len(wantedElements) {
 		return true
@@ -133,14 +135,14 @@ func isSetOutdated(existingElements []nftables.SetElement, wantedElements []nfta
 
 	// Build a map of existing elements for quick lookup.
 	existingElementsMap := make(map[string]string)
-	for _, element := range existingElements {
-		existingElementsMap[string(element.Key)] = string(element.Val)
+	for i := range existingElements {
+		existingElementsMap[string(existingElements[i].Key)] = string(existingElements[i].Val)
 	}
 
 	// Check if any wanted element is missing or differs in value.
-	for _, wantedElement := range wantedElements {
-		val, exists := existingElementsMap[string(wantedElement.Key)]
-		if !exists || val != string(wantedElement.Val) {
+	for i := range wantedElements {
+		val, exists := existingElementsMap[string(wantedElements[i].Key)]
+		if !exists || val != string(wantedElements[i].Val) {
 			return true
 		}
 	}
@@ -208,12 +210,12 @@ func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
 	for _, element := range set.Elements {
 		data, _, err := utils.ConvertSetData(element.Data, set.DataType)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert set element data: %v", err)
+			return nil, fmt.Errorf("unable to convert set element data: %w", err)
 		}
 
 		key, keyEnd, err := utils.ConvertSetData(&element.Key, &set.KeyType)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert set element key: %v", err)
+			return nil, fmt.Errorf("unable to convert set element key: %w", err)
 		}
 
 		setData = append(setData, nftables.SetElement{

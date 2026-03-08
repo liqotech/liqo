@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
+// ConvertSetData converts the set element data to the appropriate byte representation based on the set data type.
 func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []byte, error) {
 	if dataType == nil {
 		if data != nil {
@@ -45,7 +46,7 @@ func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []
 	case firewallapi.SetDataTypeIPCIDR:
 		startIP, endIP, err := GetCIDRRange(*data)
 		if err != nil {
-			return nil, nil, fmt.Errorf("set element has invalid CIDR value %s: %v", *data, err)
+			return nil, nil, fmt.Errorf("set element has invalid CIDR value %s: %w", *data, err)
 		}
 		return startIP.To4(), endIP.To4(), nil
 
