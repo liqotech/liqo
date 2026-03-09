@@ -28,7 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
 	identitycreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identitycreator-controller"
-	localrenwercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/localrenwer-controller"
+	localrenwercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/localrenewer-controller"
 	localresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/localresourceslice-controller"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
@@ -161,7 +161,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 
 	// Configure controllers that handle the certificate rotation.
 	localRenewerReconciler := localrenwercontroller.NewLocalRenewerReconciler(mgr.GetClient(), mgr.GetScheme(),
-		opts.LiqoNamespace, opts.LocalClusterID,
+		opts.LocalClusterID,
 		mgr.GetEventRecorderFor("local-renewer-controller"))
 	if err := localRenewerReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the local renewer reconciler: %v", err)
@@ -169,8 +169,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	}
 
 	remoteRenewerReconciler := remoterenwercontroller.NewRemoteRenewerReconciler(mgr.GetClient(), mgr.GetScheme(),
-		opts.IdentityProvider, opts.NamespaceManager,
-		opts.APIServerAddressOverride, caOverride, opts.TrustedCA,
+		opts.NamespaceManager,
 		mgr.GetEventRecorderFor("remote-renewer-controller"))
 	if err := remoteRenewerReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the remote renewer reconciler: %v", err)

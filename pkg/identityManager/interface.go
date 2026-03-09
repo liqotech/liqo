@@ -18,6 +18,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
@@ -26,6 +27,9 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
+
+// NotMatchingCSRError is returned when the previously stored and CSR provided to the identity manager do not match.
+var NotMatchingCSRError = kerrors.NewBadRequest("the stored and the provided CSR do not match")
 
 // IdentityReader provides the interface to retrieve the identities for the remote clusters.
 type IdentityReader interface {
@@ -57,7 +61,7 @@ type SigningRequestOptions struct {
 	TrustedCA                bool
 	ResourceSlice            *authv1beta1.ResourceSlice
 	ProxyURL                 *string
-	IsUpdate                 bool
+	IsRenew                  bool
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.

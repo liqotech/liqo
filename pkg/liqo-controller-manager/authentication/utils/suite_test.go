@@ -12,6 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package remoterenwercontroller implements the controller for handling certificate renewal requests
-// from remote clusters. It watches the Tenant resources and update the status of the Renew resources accordingly.
-package remoterenwercontroller
+package utils
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
+)
+
+func TestUtils(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Authentication Utils Suite")
+}
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})
