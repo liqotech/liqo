@@ -50,6 +50,11 @@ func GetIPValueType(value *string) (firewallv1beta1.IPValueType, error) {
 		return firewallv1beta1.IPValueTypeRange, nil
 	}
 
+	// Check if the value is a named set.
+	if _, err := GetIPValueNamedSet(*value); err == nil {
+		return firewallv1beta1.IPValueTypeNamedSet, nil
+	}
+
 	return firewallv1beta1.IPValueTypeVoid, fmt.Errorf("invalid match value IP %s", *value)
 }
 
@@ -84,6 +89,20 @@ func GetIPValueRange(s string) (address1, address2 net.IP, err error) {
 	}
 
 	return startIP, endIP, nil
+}
+
+// GetIPValueNamedSet parses the match value and returns the set name.
+func GetIPValueNamedSet(s string) (string, error) {
+	if !strings.HasPrefix(s, "@") {
+		return "", fmt.Errorf("invalid named set format: %s", s)
+	}
+
+	setName := strings.TrimPrefix(s, "@")
+	if setName == "" {
+		return "", fmt.Errorf("empty named set name in value: %s", s)
+	}
+
+	return setName, nil
 }
 
 // GetPortValueType parses the match value and returns the type of the value.
@@ -192,4 +211,22 @@ func compareRuleExpressions(ruleName string, currentrule, newrule *nftables.Rule
 	}
 	klog.V(4).Infof("Rule %s: all expressions match, rules are equal", ruleName)
 	return true
+}
+
+// GetCIDRRange calculates the start and end IP addresses of a CIDR block.
+func GetCIDRRange(cidr string) (start net.IP, end net.IP, err error) {
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid CIDR format: %s", cidr)
+	}
+
+	start = ip.Mask(ipNet.Mask)
+	end = make(net.IP, len(start))
+	copy(end, start)
+
+	for i := range end {
+		end[i] |= ^ipNet.Mask[i]
+	}
+
+	return start, end, nil
 }
