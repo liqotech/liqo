@@ -36,6 +36,7 @@ type LiqoNodeProvider struct {
 	localClient           kubernetes.Interface
 	remoteDiscoveryClient discovery.DiscoveryInterface
 	dynClient             dynamic.Interface
+	remoteDynClient       dynamic.Interface
 
 	node                   *corev1.Node
 	terminating            bool
@@ -53,6 +54,8 @@ type LiqoNodeProvider struct {
 
 	networkModuleEnabled bool
 	networkReady         bool
+	watchRemoteNode      bool
+	remoteNodeStatus     corev1.NodeStatus
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex

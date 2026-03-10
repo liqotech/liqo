@@ -62,18 +62,20 @@ type InitConfig struct {
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
-func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
+func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo) *LiqoNodeProvider {
 	return &LiqoNodeProvider{
 		localClient:           kubernetes.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(cfg.RemoteConfig),
 		dynClient:             dynamic.NewForConfigOrDie(cfg.HomeConfig),
+		remoteDynClient:       dynamic.NewForConfigOrDie(cfg.RemoteConfig),
 
-		node:              node(cfg),
+		node:              node(cfg, remoteNodeInfo),
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
 		networkModuleEnabled: false,
 		networkReady:         false,
+		watchRemoteNode:      remoteNodeInfo != nil, // watch the remote node only if we were able to retrieve its info
 		resyncPeriod:         cfg.InformerResyncPeriod,
 		pingDisabled:         cfg.PingDisabled,
 		checkNetworkStatus:   cfg.CheckNetworkStatus,
@@ -85,13 +87,23 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 	}
 }
 
-func node(cfg *InitConfig) *corev1.Node {
+func node(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo) *corev1.Node {
+	// Default values for the NodeInfo fields if they cannot be retrieved from the remote cluster.
+	nodeInfo := corev1.NodeSystemInfo{
+		KubeletVersion:  cfg.Version,
+		Architecture:    architecture,
+		OperatingSystem: linuxos,
+	}
+	if remoteNodeInfo != nil {
+		nodeInfo = *remoteNodeInfo
+	}
+
 	lbls := map[string]string{
 		corev1.LabelHostname: cfg.NodeName,
 		roleLabelKey:         roleLabelValue,
 
-		corev1.LabelOSStable:   strings.ToLower(linuxos),
-		corev1.LabelArchStable: architecture,
+		corev1.LabelOSStable:   strings.ToLower(nodeInfo.OperatingSystem),
+		corev1.LabelArchStable: nodeInfo.Architecture,
 
 		liqoconst.TypeLabel:       liqoconst.TypeNode,
 		liqoconst.RemoteClusterID: string(cfg.RemoteClusterID),
@@ -114,11 +126,7 @@ func node(cfg *InitConfig) *corev1.Node {
 			}},
 		},
 		Status: corev1.NodeStatus{
-			NodeInfo: corev1.NodeSystemInfo{
-				KubeletVersion:  cfg.Version,
-				Architecture:    architecture,
-				OperatingSystem: linuxos,
-			},
+			NodeInfo:        nodeInfo,
 			Addresses:       []corev1.NodeAddress{{Type: corev1.NodeInternalIP, Address: cfg.InternalIP}},
 			DaemonEndpoints: corev1.NodeDaemonEndpoints{KubeletEndpoint: corev1.DaemonEndpoint{Port: int32(cfg.DaemonPort)}},
 			Capacity:        corev1.ResourceList{},
