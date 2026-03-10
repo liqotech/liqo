@@ -63,7 +63,7 @@ var _ = Describe("Liqo node conditions generation", func() {
 				return status, "reason", "message"
 			}
 			UpdateNodeCondition(&node, corev1.NodeReady, updater)
-			modified = lookupCondition(&node, corev1.NodeReady)
+			modified = lookupCondition(node.Status.Conditions, corev1.NodeReady)
 		})
 
 		DescribeBodyUpdated := func() func() {
@@ -229,13 +229,13 @@ var _ = Describe("Liqo node conditions generation", func() {
 
 		When("the condition exists", func() {
 			It("should return the expected value", func() {
-				Expect(*lookupCondition(&node, corev1.NodeReady)).To(Equal(desired))
+				Expect(*lookupCondition(node.Status.Conditions, corev1.NodeReady)).To(Equal(desired))
 			})
 		})
 
 		When("the condition does not exist", func() {
 			It("should return return nil", func() {
-				Expect(lookupCondition(&node, corev1.NodeNetworkUnavailable)).To(BeNil())
+				Expect(lookupCondition(node.Status.Conditions, corev1.NodeNetworkUnavailable)).To(BeNil())
 			})
 		})
 	})
@@ -256,7 +256,7 @@ var _ = Describe("Liqo node conditions generation", func() {
 		})
 
 		JustBeforeEach(func() {
-			retrieved, found = lookupConditionOrCreateUnknown(&node, key)
+			retrieved, found = lookupConditionOrCreateUnknown(node.Status.Conditions, key)
 		})
 
 		When("the condition exists", func() {

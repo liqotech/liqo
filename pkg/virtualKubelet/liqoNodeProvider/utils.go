@@ -117,11 +117,27 @@ func (p *LiqoNodeProvider) recomputeNodeState() {
 	// check the network status only if we have to set the network condition, otherwise consider it ready
 	networkReady := p.networkReady || !shouldSetNetworkCond
 
-	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
-	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
+	if p.watchRemoteNode {
+		conditionStatus := func(condType v1.NodeConditionType) func() (v1.ConditionStatus, string, string) {
+			cond, _ := lookupConditionOrCreateUnknown(p.remoteNodeStatus.Conditions, condType)
+			return func() (status v1.ConditionStatus, reason, message string) {
+				return cond.Status, cond.Reason, cond.Message
+			}
+		}
+
+		remoteReadyStatus, _, _ := conditionStatus(v1.NodeReady)()
+		UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(remoteReadyStatus == v1.ConditionTrue && networkReady))
+		UpdateNodeCondition(p.node, v1.NodeMemoryPressure, conditionStatus(v1.NodeMemoryPressure))
+		UpdateNodeCondition(p.node, v1.NodeDiskPressure, conditionStatus(v1.NodeDiskPressure))
+		UpdateNodeCondition(p.node, v1.NodePIDPressure, conditionStatus(v1.NodePIDPressure))
+	} else {
+		// Legacy resource setter.
+		resourcesReady := areResourcesReady(p.node.Status.Allocatable)
+		UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
+		UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
+		UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
+		UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
+	}
 
 	if shouldSetNetworkCond {
 		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
