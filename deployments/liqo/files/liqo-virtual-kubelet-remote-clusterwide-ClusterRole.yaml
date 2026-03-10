@@ -1,5 +1,13 @@
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - metrics.liqo.io
   resources:
   - scrape/metrics

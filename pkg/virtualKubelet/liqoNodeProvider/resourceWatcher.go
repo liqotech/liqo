@@ -65,12 +65,25 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 		runtime.Must(err)
 	}
 
+	var remoteNodeInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	if p.watchRemoteNode {
+		remoteNodeInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			p.remoteDynClient, p.resyncPeriod, corev1.NamespaceAll, func(opt *metav1.ListOptions) {
+				opt.FieldSelector = "metadata.name=" + p.nodeName
+			})
+		remoteNodeInformer := remoteNodeInformerFactory.ForResource(corev1.SchemeGroupVersion.WithResource("nodes")).Informer()
+		_, err = remoteNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromRemoteNode))
+		runtime.Must(err)
+	}
 	ready = make(chan struct{}, 1)
 	go func() {
 		<-ready
 		go virtualNodeInformerFactory.Start(ctx.Done())
 		if p.checkNetworkStatus {
 			go fcInformerFactory.Start(ctx.Done())
+		}
+		if p.watchRemoteNode {
+			go remoteNodeInformerFactory.Start(ctx.Done())
 		}
 		klog.Info("Liqo informers started")
 	}()
