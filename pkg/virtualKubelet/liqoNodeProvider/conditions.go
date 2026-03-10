@@ -42,7 +42,7 @@ func UnknownNodeConditions(cfg *InitConfig) []corev1.NodeCondition {
 
 // UpdateNodeCondition updates the specified node condition, depending on the outcome of the specified function.
 func UpdateNodeCondition(node *corev1.Node, conditionType corev1.NodeConditionType, conditionStatus func() (corev1.ConditionStatus, string, string)) {
-	condition, found := lookupConditionOrCreateUnknown(node, conditionType)
+	condition, found := lookupConditionOrCreateUnknown(node.Status.Conditions, conditionType)
 
 	now := metav1.Now()
 	condition.LastHeartbeatTime = now
@@ -120,10 +120,10 @@ func unknownCondition(desired corev1.NodeConditionType) *corev1.NodeCondition {
 }
 
 // lookupCondition retrieves a desired condition from a node object, or nil if not found.
-func lookupCondition(node *corev1.Node, desired corev1.NodeConditionType) *corev1.NodeCondition {
-	for i := range node.Status.Conditions {
-		if node.Status.Conditions[i].Type == desired {
-			return &node.Status.Conditions[i]
+func lookupCondition(conditions []corev1.NodeCondition, desired corev1.NodeConditionType) *corev1.NodeCondition {
+	for i := range conditions {
+		if conditions[i].Type == desired {
+			return &conditions[i]
 		}
 	}
 
@@ -132,8 +132,8 @@ func lookupCondition(node *corev1.Node, desired corev1.NodeConditionType) *corev
 
 // lookupConditionOrCreateUnknown retrieves a desired condition from a node object, or create a new one (with unknown status)
 // if not found. An additional boolean field specifies whether the condition was found or not.
-func lookupConditionOrCreateUnknown(node *corev1.Node, desired corev1.NodeConditionType) (*corev1.NodeCondition, bool) {
-	if condition := lookupCondition(node, desired); condition != nil {
+func lookupConditionOrCreateUnknown(conditions []corev1.NodeCondition, desired corev1.NodeConditionType) (*corev1.NodeCondition, bool) {
+	if condition := lookupCondition(conditions, desired); condition != nil {
 		return condition, true
 	}
 

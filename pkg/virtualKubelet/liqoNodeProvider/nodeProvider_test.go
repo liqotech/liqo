@@ -91,7 +91,7 @@ var _ = Describe("NodeProvider", func() {
 			PodProviderStopper: podStopper,
 
 			CheckNetworkStatus: true,
-		})
+		}, nil)
 
 		_, err = client.CoreV1().Nodes().Create(ctx, nodeProvider.GetNode(), metav1.CreateOptions{})
 		Expect(err).To(BeNil())

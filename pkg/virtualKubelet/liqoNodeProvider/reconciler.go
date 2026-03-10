@@ -37,10 +37,12 @@ import (
 
 func (p *LiqoNodeProvider) reconcileNodeFromNode(_ watch.Event) error {
 	// enforce the node to be the same as the one we are managing
+	klog.V(4).Info("reconciling node from local node event")
 	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error {
+	klog.V(4).Info("reconciling node from virtual node event")
 	ctx := context.Background()
 	var virtualNode offloadingv1beta1.VirtualNode
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
@@ -56,11 +58,11 @@ func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error
 		klog.Errorf("node update from VirtualNode %v failed for reason %v; retry...", virtualNode.Name, err)
 		return err
 	}
-	klog.Info("node correctly updated from VirtualNode")
 	return nil
 }
 
 func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) error {
+	klog.V(4).Info("reconciling node from foreigncluster event")
 	var fc liqov1beta1.ForeignCluster
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
@@ -85,6 +87,25 @@ func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) er
 
 	if err := p.updateFromForeignCluster(&fc); err != nil {
 		klog.Errorf("node update from foreigncluster %v failed for reason %v; retry...", fc.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (p *LiqoNodeProvider) reconcileNodeFromRemoteNode(event watch.Event) error {
+	klog.V(4).Info("reconciling node from remote node event")
+	var remoteNode v1.Node
+	unstruct, ok := event.Object.(*unstructured.Unstructured)
+	if !ok {
+		return errors.New("error in casting Remote Node")
+	}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &remoteNode); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	if err := p.updateFromRemoteNode(&remoteNode); err != nil {
+		klog.Errorf("node update from remote node %v failed for reason %v; retry...", remoteNode.Name, err)
 		return err
 	}
 	return nil
@@ -160,6 +181,15 @@ func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *liqov1beta1.
 	return p.updateNode()
 }
 
+func (p *LiqoNodeProvider) updateFromRemoteNode(remoteNode *v1.Node) error {
+	p.updateMutex.Lock()
+	defer p.updateMutex.Unlock()
+
+	p.remoteNodeStatus = remoteNode.Status
+
+	return p.updateNode()
+}
+
 func (p *LiqoNodeProvider) updateNode() error {
 	// we assume the networking module to be enabled until confirmed otherwise (p.networkModuleEnabled == false),
 	// to avoid transient states where the node is ready but the network condition is not set
@@ -172,11 +202,28 @@ func (p *LiqoNodeProvider) updateNode() error {
 	// check the network status only if we have to set the network condition, otherwise consider it ready
 	networkReady := p.networkReady || !shouldSetNetworkCond
 
-	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
-	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
+	if p.watchRemoteNode {
+		conditionStatus := func(condType v1.NodeConditionType) func() (v1.ConditionStatus, string, string) {
+			cond, _ := lookupConditionOrCreateUnknown(p.remoteNodeStatus.Conditions, condType)
+			return func() (status v1.ConditionStatus, reason, message string) {
+				return cond.Status, cond.Reason, cond.Message
+			}
+		}
+
+		remoteReadyStatus, _, _ := conditionStatus(v1.NodeReady)()
+		UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(remoteReadyStatus == v1.ConditionTrue && networkReady))
+		UpdateNodeCondition(p.node, v1.NodeMemoryPressure, conditionStatus(v1.NodeMemoryPressure))
+		UpdateNodeCondition(p.node, v1.NodeDiskPressure, conditionStatus(v1.NodeDiskPressure))
+		UpdateNodeCondition(p.node, v1.NodePIDPressure, conditionStatus(v1.NodePIDPressure))
+	} else {
+		// Legacy resource setter.
+		resourcesReady := areResourcesReady(p.node.Status.Allocatable)
+		UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
+		UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
+		UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
+		UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
+	}
+
 	if shouldSetNetworkCond {
 		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
 	} else {
@@ -184,6 +231,9 @@ func (p *LiqoNodeProvider) updateNode() error {
 	}
 
 	p.node.Status.Addresses = []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: p.nodeIP}}
+	if p.watchRemoteNode {
+		p.node.Status.NodeInfo = p.remoteNodeStatus.NodeInfo
+	}
 
 	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil

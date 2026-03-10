@@ -281,7 +281,27 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	var nodeRunner *node.NodeController
 
 	if c.CreateNode {
-		nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
+		remoteCl, err := client.New(remoteConfig, client.Options{Scheme: scheme})
+		if err != nil {
+			return fmt.Errorf("creating remote client: %w", err)
+		}
+		var remoteNode corev1.Node
+		err = remoteCl.Get(ctx, client.ObjectKey{Name: c.NodeName}, &remoteNode) // local node name matches with remote node name
+		if err != nil && !k8serrors.IsForbidden(err) {
+			return fmt.Errorf("getting remote node: %w", err)
+		}
+		// If the error is forbidden, it means that the virtual kubelet does not have permissions to get the remote node.
+		// This can happen if remote cluster is running a older liqo version. In such cases, we keep legacy behavior (defaulting
+		// node info fields) and we do not watch the remote node for updates.
+		if k8serrors.IsForbidden(err) {
+			klog.Warning("Unable to get remote node due to missing permissions; defaulting node info fields and skipping remote node watching")
+		}
+		var remoteNodeInfo *corev1.NodeSystemInfo
+		if err == nil {
+			remoteNodeInfo = &remoteNode.Status.NodeInfo
+		}
+
+		nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg, remoteNodeInfo)
 		nodeReady = nodeProvider.StartProvider(ctx)
 
 		nodeRunner, err = node.NewNodeController(
@@ -299,8 +319,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 						klog.Errorf("Restartining the pod")
 						if newNode == nil {
 							klog.Errorf("newNode is nil")
-						}
-						if newNode.Name == "" {
+						} else if newNode.Name == "" {
 							klog.Errorf("newNode.Name is empty")
 						}
 						klog.Flush() // Force flush before exit
