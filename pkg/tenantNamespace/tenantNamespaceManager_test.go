@@ -37,7 +37,7 @@ var _ = Describe("TenantNamespace", func() {
 		ns, err := namespaceManager.CreateNamespace(ctx, homeCluster)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
+		Expect(strings.HasPrefix(ns.Name, NamePrefix+"-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
 		_, ok := ns.Labels[consts.TenantNamespaceLabel]
@@ -65,7 +65,7 @@ var _ = Describe("TenantNamespace", func() {
 		ns, err := namespaceManager.GetNamespace(ctx, homeCluster)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
+		Expect(strings.HasPrefix(ns.Name, NamePrefix+"-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
 		_, ok := ns.Labels[consts.TenantNamespaceLabel]
