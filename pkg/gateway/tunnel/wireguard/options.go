@@ -75,6 +75,9 @@ type Options struct {
 	DNSCheckInterval time.Duration
 
 	Implementation WgImplementation
+
+	ListenPorts   []int
+	EndpointPorts []int
 }
 
 // NewOptions returns a new Options struct.
