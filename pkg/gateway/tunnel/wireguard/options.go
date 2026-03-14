@@ -76,6 +76,9 @@ type Options struct {
 
 	Implementation         WgImplementation
 	PreserveClientEndpoint bool
+	
+	ListenPorts   []int
+	EndpointPorts []int
 }
 
 // NewOptions returns a new Options struct.
