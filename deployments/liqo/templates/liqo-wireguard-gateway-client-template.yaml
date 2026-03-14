@@ -94,6 +94,7 @@ spec:
                 {{- end }}
                 - --enable-nft-monitor={{ .Values.networking.gatewayTemplates.nftablesMonitor }}
                 - --enable-route-monitor={{ .Values.networking.gatewayTemplates.routeMonitor }}
+                - --enable-multipath-hash-policy={{ printf "{{ if gt (len .Spec.Endpoint.Ports) 1 }}true{{ else }}false{{ end }}" }}
                 volumeMounts:
                 - name: ipc
                   mountPath: /ipc
@@ -141,7 +142,7 @@ spec:
                 - --container-name=wireguard
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
-                - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
+                - --endpoint-ports={{ printf "{{ if .Spec.Endpoint.Ports }}{{ range $i, $p := .Spec.Endpoint.Ports }}{{ if $i }},{{ end }}{{ $p }}{{ end }}{{ else }}{{ .Spec.Endpoint.Port }}{{ end }}" }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
                 {{- end }}
@@ -170,6 +171,7 @@ spec:
                     add:
                     - NET_ADMIN
                     - NET_RAW
+                    - "{{ "{{ if gt (len .Spec.Endpoint.Ports) 1 }}SYS_ADMIN{{ else }}NET_RAW{{ end }}" }}"
                   {{ if .Values.networking.gatewayTemplates.wireguard.implementation | eq "userspace" }}
                   privileged: true
                   {{ end }}

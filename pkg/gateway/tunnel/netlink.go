@@ -23,10 +23,24 @@ import (
 )
 
 const (
-	// ServerInterfaceIP is the IP address of the Wireguard interface in server mode.
-	ServerInterfaceIP = "169.254.18.1/30"
-	// ClientInterfaceIP is the IP address of the Wireguard interface in client mode.
-	ClientInterfaceIP = "169.254.18.2/30"
+	// wireguardNetworkBase is the base prefix of the /24 subnet reserved for Wireguard interfaces (169.254.18.0/24).
+	// Each tunnel is assigned a /30 block within this subnet.
+	wireguardNetworkBase = "169.254.18"
+	// serverOctetOffset is the offset of the server IP within each /30 block.
+	serverOctetOffset = 1
+	// clientOctetOffset is the offset of the client IP within each /30 block.
+	clientOctetOffset = 2
+	// subnetSize is the number of addresses in each /30 block, used to compute per-tunnel IP offsets.
+	subnetSize = 4
+	// MaxWireguardInterfaces is the maximum number of Wireguard interfaces that can be created,
+	// derived from the available /30 blocks in the 169.254.18.0/24 subnet.
+	MaxWireguardInterfaces = 64
+	// ServerInterfaceIP (169.254.18.1/30) is the IP address of the Wireguard interface
+	// in server mode for tunnel index 0.
+	ServerInterfaceIP = wireguardNetworkBase + ".1/30"
+	// ClientInterfaceIP (169.254.18.2/30) is the IP address of the Wireguard interface
+	// in client mode for tunnel index 0.
+	ClientInterfaceIP = wireguardNetworkBase + ".2/30"
 )
 
 // AddAddress adds an IP address to the Wireguard interface.
@@ -45,14 +59,29 @@ func GetLink(name string) (netlink.Link, error) {
 }
 
 // GetInterfaceIP returns the IP address of the Wireguard interface.
-func GetInterfaceIP(mode gateway.Mode) string {
+func GetInterfaceIP(mode gateway.Mode, idx int) string {
+	var fourthOctet int
+
 	switch mode {
 	case gateway.ModeServer:
-		return ServerInterfaceIP
+		fourthOctet = (subnetSize * idx) + serverOctetOffset
+
 	case gateway.ModeClient:
-		return ClientInterfaceIP
+		fourthOctet = (subnetSize * idx) + clientOctetOffset
+
+	default:
+		return ""
 	}
-	return ""
+
+	return fmt.Sprintf("%s.%d/30", wireguardNetworkBase, fourthOctet)
+}
+
+// GetTunnelName returns the name of the Wireguard interface for the given index.
+func GetTunnelName(idx int) string {
+	if idx == 0 {
+		return TunnelInterfaceName
+	}
+	return fmt.Sprintf("%s%d", TunnelInterfaceName, idx)
 }
 
 // GetRemoteInterfaceIP returns the IP address of the remote Wireguard interface.
