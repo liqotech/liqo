@@ -108,26 +108,26 @@ func ProvisionRemotePVC(ctx context.Context,
 
 func buildPvNodeAffinity(options controller.ProvisionOptions) (*corev1.VolumeNodeAffinity, error) {
 	nodeAffinitySelectorKey := consts.EdgeLocationName
-	labels := options.SelectedNode.GetLabels()
-	if labels == nil {
-		return nil, fmt.Errorf("no labels found for node %s", options.SelectedNode.GetName())
-	}
-	nodeSelectorValue, ok := labels[nodeAffinitySelectorKey]
-	if !ok {
-		return nil,
-			fmt.Errorf("liqo node selector %q not found on node %s", nodeAffinitySelectorKey, options.SelectedNode.GetName())
-	}
+
+	// Check whether pvc should be provisioned on all the edges, in that case just filter by virtual node.
+	shouldProvisionOnAllEdges := options.PVC.Annotations != nil &&
+		options.PVC.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
 
 	nodeAffinityOperator := corev1.NodeSelectorOpIn
 	var nodeAffinityValues []string
 
-	// Check whether pvc should be provisione on all the edges, in that case just filter by virtual node.
-	shouldProvisionOnAllEdges := options.PVC.Annotations != nil &&
-		options.PVC.Annotations[consts.ProvisionPVCOnAllEdgesAnnotationKey] == consts.ProvisionPVCOnAllEdgesAnnotationValue
-
 	if shouldProvisionOnAllEdges {
 		nodeAffinityOperator = corev1.NodeSelectorOpExists
 	} else {
+		labels := options.SelectedNode.GetLabels()
+		if labels == nil {
+			return nil, fmt.Errorf("no labels found for node %s", options.SelectedNode.GetName())
+		}
+		nodeSelectorValue, ok := labels[nodeAffinitySelectorKey]
+		if !ok {
+			return nil,
+				fmt.Errorf("liqo node selector %q not found on node %s", nodeAffinitySelectorKey, options.SelectedNode.GetName())
+		}
 		nodeAffinityValues = []string{nodeSelectorValue}
 	}
 
