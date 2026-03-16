@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
@@ -81,6 +82,15 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) shouldProvision(claim *co
 				// annSelectedNode to notify scheduler to reschedule again.
 				if selectedNode, ok := claim.Annotations[annSelectedNode]; ok && selectedNode != "" {
 					return true, nil
+				}
+				// For provision-on-all-edges PVCs, annSelectedNode is removed once the PVC is bound.
+				// Still trigger provisioning if the remote PVC is missing on this cluster.
+				if shouldProvisionOnAllEdges && claim.Spec.VolumeName != "" {
+					_, err := npvcr.remotePersistentVolumeClaims.Get(claim.Name)
+					if kerrors.IsNotFound(err) {
+						return true, nil
+					}
+					return false, err
 				}
 				return false, nil
 			}
@@ -187,6 +197,12 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 	volume.Spec.StorageClassName = claimClass
 
 	_, err = npvcr.localPersistentVolumesClient.Create(ctx, volume, metav1.CreateOptions{})
+	if kerrors.IsAlreadyExists(err) && shouldProvisionOnAllEdges {
+		// For "provision on all edges" PVCs another VK may have already created the local PV.
+		// The remote PVC was provisioned successfully on this cluster, so this is not an error.
+		klog.V(4).Infof("Persistentvolume %q already exists, created by another VK (provision-on-all-edges)", pvName)
+		err = nil
+	}
 	return controller.ProvisioningFinished, err
 }
 
