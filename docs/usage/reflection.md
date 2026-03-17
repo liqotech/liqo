@@ -163,6 +163,12 @@ Upon this event, the **PVC is propagated verbatim** to the remote cluster, repla
 Once created, the **resulting PV is reflected backwards** (i.e., from the remote to the local cluster), and the proper **affinity selectors** are added to **bind it to the virtual node**.
 Hence, subsequent pods mounting that *PV* will be scheduled on that virtual node, and eventually offloaded to the same remote cluster.
 
+When offloading a pod to a remote cluster, Liqo allows to override the **StorageClass** and **AccessModes** used for the remote PVC.
+This can be achieved by adding the following annotations to the local PVC:
+
+* `liqo.io/remote-storage-class`: overrides the StorageClass of the remote PVC. If not set, the StorageClass configured in the Liqo storage class is used.
+* `liqo.io/remote-access-modes`: overrides the AccessModes of the remote PVC. The value must be a comma-separated list of Kubernetes access modes (e.g., `ReadWriteOnce` or `ReadWriteOnce,ReadOnlyMany`). If not set, the AccessModes of the local PVC are used.
+
 (UsageReflectionConfiguration)=
 
 ## Configuration data
