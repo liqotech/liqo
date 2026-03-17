@@ -45,14 +45,35 @@ func GetLink(name string) (netlink.Link, error) {
 }
 
 // GetInterfaceIP returns the IP address of the Wireguard interface.
-func GetInterfaceIP(mode gateway.Mode) string {
+func GetInterfaceIP(mode gateway.Mode, idx int) string {
+	var base int
+
 	switch mode {
 	case gateway.ModeServer:
-		return ServerInterfaceIP
+		if idx == 0 {
+			return ServerInterfaceIP
+		}
+		base = 1
 	case gateway.ModeClient:
-		return ClientInterfaceIP
+		if idx == 0 {
+			return ClientInterfaceIP
+		}
+		base = 2
+	default:
+		return ""
 	}
-	return ""
+
+	totalOffset := (4 * idx) + base
+	thirdOctet := 18 + (totalOffset / 256)
+	fourthOctet := totalOffset % 256
+	return fmt.Sprintf("169.254.%d.%d/30", thirdOctet, fourthOctet)
+}
+
+func GetTunnelName(idx int) string {
+	if idx == 0 {
+		return TunnelInterfaceName
+	}
+	return fmt.Sprintf("%s%d", TunnelInterfaceName, idx)
 }
 
 // GetRemoteInterfaceIP returns the IP address of the remote Wireguard interface.
