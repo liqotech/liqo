@@ -33,7 +33,6 @@ spec:
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "3"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "10"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"   
-            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
             {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
             {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
             {{- end }}
