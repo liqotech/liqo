@@ -164,6 +164,13 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              serviceAnnotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  ServiceAnnotations specifies custom annotations to be added to the service created by the gateway server.
+                  These annotations take precedence over any annotations defined in the server template.
+                type: object
             type: object
           status:
             description: GatewayServerStatus defines the observed state of GatewayServer.
