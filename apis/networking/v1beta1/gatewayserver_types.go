@@ -63,6 +63,10 @@ type GatewayServerSpec struct {
 	// SecretRef specifies the reference to the secret containing configurations.
 	// Leave it empty to let the operator create a new secret.
 	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	// ServiceAnnotations specifies custom annotations to be added to the service created by the gateway server.
+	// These annotations take precedence over any annotations defined in the server template.
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 }
 
 // EndpointStatus defines the observed state of the endpoint.
