@@ -74,7 +74,7 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disable
 	var geneveLink *netlink.Geneve
 	link, err := ExistGeneveInterface(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("checking geneve link existence: %w", err)
 	}
 
 	if link == nil {
