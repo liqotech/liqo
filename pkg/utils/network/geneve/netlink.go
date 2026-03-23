@@ -45,7 +45,10 @@ func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id u
 
 // EnsureGeneveInterfaceAbsence ensures that a geneve interface does not exist for the given internal node.
 func EnsureGeneveInterfaceAbsence(interfaceName string) error {
-	link := ExistGeneveInterface(interfaceName)
+	link, err := ExistGeneveInterface(interfaceName)
+	if err != nil {
+		return fmt.Errorf("checking geneve link existence: %w", err)
+	}
 	if link == nil {
 		return nil
 	}
@@ -69,7 +72,10 @@ func ForgeGeneveInterface(name string, remote net.IP, id uint32, mtu int, port u
 // CreateGeneveInterface creates a geneve interface with the given name, remote IP and ID.
 func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disableARP bool, mtu int, port uint16) error {
 	var geneveLink *netlink.Geneve
-	link := ExistGeneveInterface(name)
+	link, err := ExistGeneveInterface(name)
+	if err != nil {
+		return fmt.Errorf("checking geneve link existence: %w", err)
+	}
 
 	if link == nil {
 		geneveLink = ForgeGeneveInterface(name, remote, id, mtu, port)
@@ -117,16 +123,17 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disable
 }
 
 // ExistGeneveInterface checks if a geneve interface with the given name exists.
-// If it exists, it returns the link, otherwise it returns nil.
-func ExistGeneveInterface(name string) netlink.Link {
+// If it exists, it returns the link, otherwise it returns nil link.
+// If an error occurs during the check, it returns the error.
+func ExistGeneveInterface(name string) (netlink.Link, error) {
 	link, err := netlink.LinkByName(name)
 	if err != nil {
-		if !errors.As(err, &netlink.LinkNotFoundError{}) {
-			klog.Warningf("geneve interface check failed: %v", err)
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return nil, nil
 		}
-		return nil
+		return nil, fmt.Errorf("getting geneve link by name: %w", err)
 	}
-	return link
+	return link, nil
 }
 
 // ExistGeneveInterfaceAddr checks if a geneve interface with the given name has the given address.
