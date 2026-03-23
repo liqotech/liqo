@@ -38,7 +38,7 @@ func GetGeneveTunnelManager(ctx context.Context, cl client.Client) *Manager[uint
 
 		for i := range tunnelList.Items {
 			tunnel := &tunnelList.Items[i]
-			err = geneveTunnelManager.Configure(tunnel.Name, tunnel.Spec.ID)
+			err = geneveTunnelManager.Configure(client.ObjectKeyFromObject(tunnel).String(), tunnel.Spec.ID)
 			runtime.Must(err)
 		}
 	})
