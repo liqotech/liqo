@@ -129,7 +129,7 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 		return fmt.Errorf("missing label %q on GatewayClient %q", consts.RemoteClusterID, gwClient.Name)
 	}
 
-	modified, err := r.EnsurePortsCoherence(ctx, gwClient)
+	modified, err := r.ensurePortsCoherence(ctx, gwClient)
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ClientReconciler) EnsurePortsCoherence(ctx context.Context, gw *networkingv1beta1.GatewayClient) (bool, error) {
+func (r *ClientReconciler) ensurePortsCoherence(ctx context.Context, gw *networkingv1beta1.GatewayClient) (bool, error) {
 
 	if len(gw.Spec.Endpoint.Ports) > 0 && gw.Spec.Endpoint.Port == gw.Spec.Endpoint.Ports[0] {
 		return false, nil
