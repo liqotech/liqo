@@ -74,6 +74,9 @@ type EndpointStatus struct {
 	// Protocol specifies the protocol of the endpoint.
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
+	// Ports specifies the ports of the endpoint.
+	// This field is preferred over the legacy Port field, which is kept for backward compatibility.
+	Ports []int32 `json:"ports,omitempty"`
 }
 
 // InternalGatewayEndpoint defines the endpoint for the internal network.
