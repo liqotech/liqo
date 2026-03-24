@@ -301,20 +301,16 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ClientReconciler) ensurePortsCoherence(ctx context.Context, gw *networkingv1beta1.GatewayClient) (bool, error) {
-
 	if len(gw.Spec.Endpoint.Ports) > 0 && gw.Spec.Endpoint.Port == gw.Spec.Endpoint.Ports[0] {
 		return false, nil
 	}
 
 	switch {
 	case gw.Spec.Endpoint.Port != 0 && len(gw.Spec.Endpoint.Ports) == 0:
-
 		gw.Spec.Endpoint.Ports = []int32{gw.Spec.Endpoint.Port}
 	case len(gw.Spec.Endpoint.Ports) > 0:
-
 		gw.Spec.Endpoint.Port = gw.Spec.Endpoint.Ports[0]
 	default:
-
 		gw.Spec.Endpoint.Port = int32(forge.DefaultGwServerPort)
 		gw.Spec.Endpoint.Ports = []int32{forge.DefaultGwServerPort}
 	}
