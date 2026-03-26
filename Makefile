@@ -228,6 +228,7 @@ E2E_TARGETS = e2e-dir \
 	telemetry \
 	installer/liqo/peer \
 	e2e/postinstall \
+	node-rotation \
 	e2e/cruise \
 	metrics \
 	installer/liqo/unpeer \
@@ -268,6 +269,9 @@ installer/%:
 
 telemetry:
 	${PWD}/test/e2e/pipeline/telemetry/telemetry.sh
+
+node-rotation:
+	${PWD}/test/e2e/pipeline/infra/kubeadm/node-rotation.sh
 
 metrics:
 	chmod +x ${PWD}/test/e2e/pipeline/metrics/metrics.sh
