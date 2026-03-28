@@ -39,6 +39,9 @@ var GatewayServerGroupVersionResource = GroupVersion.WithResource(GatewayServerR
 type Endpoint struct {
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
+	// Ports specifies the ports of the endpoint.
+	// This field is preferred over the legacy Port field, which is kept for backward compatibility.
+	Ports []int32 `json:"ports,omitempty"`
 	// ServiceType specifies the type of the service.
 	// +kubebuilder:default=ClusterIP
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;ExternalName
@@ -46,6 +49,10 @@ type Endpoint struct {
 	// NodePort allocates a static port for the NodePort service.
 	// +optional
 	NodePort *int32 `json:"nodePort,omitempty"`
+	// NodePort allocates a list of static ports for the NodePort service.
+	// This field is preferred over the legacy NodePort field, which is kept for backward compatibility.
+	// +optional
+	NodePorts []int32 `json:"nodePorts,omitempty"`
 	// LoadBalancerIP override the LoadBalancer IP to use a specific IP address (e.g., static LB). It is used only if service type is LoadBalancer.
 	// LoadBalancer provider must support this feature.
 	// +optional

@@ -87,10 +87,26 @@ spec:
                       service.
                     format: int32
                     type: integer
+                  nodePorts:
+                    description: |-
+                      NodePort allocates a list of static ports for the NodePort service.
+                      This field is preferred over the legacy NodePort field, which is kept for backward compatibility.
+                    items:
+                      format: int32
+                      type: integer
+                    type: array
                   port:
                     description: Port specifies the port of the endpoint.
                     format: int32
                     type: integer
+                  ports:
+                    description: |-
+                      Ports specifies the ports of the endpoint.
+                      This field is preferred over the legacy Port field, which is kept for backward compatibility.
+                    items:
+                      format: int32
+                      type: integer
+                    type: array
                   serviceType:
                     default: ClusterIP
                     description: ServiceType specifies the type of the service.

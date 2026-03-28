@@ -37,6 +37,7 @@ import (
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	"github.com/liqotech/liqo/pkg/utils/resource"
+	forge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 )
 
 // ServerReconciler manage GatewayServer lifecycle.
@@ -126,6 +127,13 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 	remoteClusterID, ok := gwServer.Labels[consts.RemoteClusterID]
 	if !ok {
 		return fmt.Errorf("missing label %q on GatewayServer %q", consts.RemoteClusterID, gwServer.Name)
+	}
+	modified, err := r.ensurePortsCoherence(ctx, gwServer)
+	if err != nil {
+		return err
+	}
+	if modified {
+		return nil
 	}
 
 	templateGV, err := schema.ParseGroupVersion(gwServer.Spec.ServerTemplateRef.APIVersion)
@@ -293,4 +301,40 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
 		For(&networkingv1beta1.GatewayServer{}).
 		Complete(r)
+}
+
+func (r *ServerReconciler) ensurePortsCoherence(ctx context.Context, gw *networkingv1beta1.GatewayServer) (bool, error) {
+    portsCoherent := len(gw.Spec.Endpoint.Ports) > 0 && 
+        gw.Spec.Endpoint.Port == gw.Spec.Endpoint.Ports[0]
+    
+    nodePortsCoherent := (gw.Spec.Endpoint.NodePort == nil && len(gw.Spec.Endpoint.NodePorts) == 0) ||
+        (gw.Spec.Endpoint.NodePort != nil && len(gw.Spec.Endpoint.NodePorts) > 0 && 
+            *gw.Spec.Endpoint.NodePort == gw.Spec.Endpoint.NodePorts[0])
+
+    if portsCoherent && nodePortsCoherent {
+        return false, nil
+    }
+    // Ports coherence
+    switch {
+    case gw.Spec.Endpoint.Port != 0 && len(gw.Spec.Endpoint.Ports) == 0:
+        gw.Spec.Endpoint.Ports = []int32{gw.Spec.Endpoint.Port}
+    case len(gw.Spec.Endpoint.Ports) > 0:
+        gw.Spec.Endpoint.Port = gw.Spec.Endpoint.Ports[0]
+    default:
+        gw.Spec.Endpoint.Port = int32(forge.DefaultGwServerPort)
+        gw.Spec.Endpoint.Ports = []int32{forge.DefaultGwServerPort}
+    }
+
+    // NodePorts coherence
+    switch {
+    case gw.Spec.Endpoint.NodePort != nil && len(gw.Spec.Endpoint.NodePorts) == 0:
+        gw.Spec.Endpoint.NodePorts = []int32{*gw.Spec.Endpoint.NodePort}
+    case len(gw.Spec.Endpoint.NodePorts) > 0:
+        gw.Spec.Endpoint.NodePort = &gw.Spec.Endpoint.NodePorts[0]
+    }
+
+    if err := r.Update(ctx, gw); err != nil {
+        return false, err
+    }
+    return true, nil
 }
