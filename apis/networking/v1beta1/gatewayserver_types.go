@@ -49,7 +49,7 @@ type Endpoint struct {
 	// NodePort allocates a static port for the NodePort service.
 	// +optional
 	NodePort *int32 `json:"nodePort,omitempty"`
-	// NodePort allocates a list of static ports for the NodePort service.
+	// NodePorts allocates a list of static ports for the NodePort service.
 	// This field is preferred over the legacy NodePort field, which is kept for backward compatibility.
 	// +optional
 	NodePorts []int32 `json:"nodePorts,omitempty"`
