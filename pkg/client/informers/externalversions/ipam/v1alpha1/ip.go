@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,17 +25,17 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	apisipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	versioned "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/liqotech/liqo/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 )
 
 // IPInformer provides access to a shared informer and lister for
 // IPs.
 type IPInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.IPLister
+	Lister() ipamv1alpha1.IPLister
 }
 
 type iPInformer struct {
@@ -56,21 +56,33 @@ func NewIPInformer(client versioned.Interface, namespace string, resyncPeriod ti
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredIPInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IpamV1alpha1().IPs(namespace).List(context.TODO(), options)
+				return client.IpamV1alpha1().IPs(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IpamV1alpha1().IPs(namespace).Watch(context.TODO(), options)
+				return client.IpamV1alpha1().IPs(namespace).Watch(context.Background(), options)
 			},
-		},
-		&ipamv1alpha1.IP{},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.IpamV1alpha1().IPs(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.IpamV1alpha1().IPs(namespace).Watch(ctx, options)
+			},
+		}, client),
+		&apisipamv1alpha1.IP{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *iPInformer) defaultInformer(client versioned.Interface, resyncPeriod ti
 }
 
 func (f *iPInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&ipamv1alpha1.IP{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisipamv1alpha1.IP{}, f.defaultInformer)
 }
 
-func (f *iPInformer) Lister() v1alpha1.IPLister {
-	return v1alpha1.NewIPLister(f.Informer().GetIndexer())
+func (f *iPInformer) Lister() ipamv1alpha1.IPLister {
+	return ipamv1alpha1.NewIPLister(f.Informer().GetIndexer())
 }

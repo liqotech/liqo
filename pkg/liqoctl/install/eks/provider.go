@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -125,15 +125,6 @@ func (o *Options) Initialize(_ context.Context) error {
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"networking": map[string]interface{}{
-			"gatewayTemplates": map[string]interface{}{
-				"server": map[string]interface{}{
-					"service": map[string]interface{}{
-						"annotations": map[string]interface{}{
-							"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-						},
-					},
-				},
-			},
 			"fabric": map[string]interface{}{
 				"config": map[string]interface{}{
 					"fullMasquerade": true,

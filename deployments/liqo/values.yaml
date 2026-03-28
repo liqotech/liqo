@@ -17,6 +17,24 @@ pullPolicy: IfNotPresent
 imagePullSecrets: []
 # - name: regcred
 
+# -- Liqo CRD subchart configuration
+# Since Liqo contains a lot of CRDs, we decided to separate them from the main chart
+# These values override the ones in the liqo-crds subchart
+liqo-crds:
+  crdUpgrade:
+    # -- Enable/Disable the CRD upgrade job. When enabled, a pre-upgrade hook will automatically update CRDs during helm upgrade.
+    enabled: false
+    # -- Keep the CRD upgrade resources (Job, ConfigMap, ServiceAccount, ClusterRole, ClusterRoleBinding) after completion. If false, they are deleted on success.
+    keepResources: false
+    image:
+      # -- Image repository for the CRD upgrade job.
+      # NOTE: This image only supports linux/amd64 and linux/arm64 platforms (arm/v7 is not supported).
+      name: "ghcr.io/liqotech/liqo-crd-upgrade"
+      # -- Image version for the CRD upgrade job. Required when crdUpgrade.enabled is true.
+      version: ""
+      # -- Image pull policy for the CRD upgrade job.
+      pullPolicy: IfNotPresent
+
 metrics:
   # -- Enable/Disable the metrics server in every liqo component.
   enabled: false
@@ -48,6 +66,20 @@ networking:
   clientResources:
     - apiVersion: networking.liqo.io/v1beta1
       resource: wggatewayclients
+  gateway:
+    # -- Enable the TCP MSS clamping on tunnel interfaces.
+    # Tunneling technologies introduce extra overhead that reduces the MTU, causing standard-sized Internet
+    # packets to exceed the tunnel's capacity and be dropped. TCP MSS Clamping resolves this by intercepting
+    # the initial TCP connection handshake and dynamically rewriting the Maximum Segment Size (MSS)
+    # value to match the smaller available space of the tunnel interface. This dynamic adjustment, per
+    # TCP-session, forces the remote server to generate smaller data packets that fit inside the tunnel,
+    # effectively preventing fragmentation issues and the common "black hole" phenomenon where connections
+    # establish but data transfer hangs indefinitely.
+    mssclamp:
+      enabled: true
+      # -- Set the value for the mssclamp rule.
+      # Set to 0 to use automatic value discovery based on the MTU of the tunnel interface.
+      value: 0
   # -- Set the options for the default gateway (server/client) templates.
   # The default templates use a WireGuard implementation to connect the gateway of the clusters.
   # These options are used to configure only the default templates and should not be considered
@@ -77,6 +109,11 @@ networking:
         allocateLoadBalancerNodePorts: ""
         # -- Annotations for the server service.
         annotations: {}
+    pod:
+      # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the gateway pods.
+      priorityClassName: ""
+      # -- Additional tolerations for gateway pods
+      tolerations: []
     container:
       gateway:
         image:
@@ -96,6 +133,12 @@ networking:
           name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
+    # -- Enable/Disable the nftables monitor for the gateway pods.
+    # It means that the gateway pods will monitor the nftables rules and will restore them in case of changes.
+    nftablesMonitor: true
+    # -- Enable/Disable the route monitor for the gateway pods.
+    # It means that the gateway pods will monitor the routing rules and will restore them in case of changes.
+    routeMonitor: true
   fabric:
     pod:
       # -- Annotations for the fabric pod.
@@ -122,11 +165,11 @@ networking:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
-          - matchExpressions:
-            - key: liqo.io/type
-              operator: NotIn
-              values:
-              - virtual-node
+            - matchExpressions:
+                - key: liqo.io/type
+                  operator: NotIn
+                  values:
+                    - virtual-node
     # -- Extra tolerations for the fabric pod.
     tolerations: []
     config:
@@ -146,6 +189,9 @@ networking:
       # In some cases (like K3S), this monitor can cause a huge amount of CPU usage.
       # If you are experiencing high CPU usage, you can disable this feature.
       nftablesMonitor: false
+      # -- Enable/Disable the route monitor for the fabric pod.
+      # It means that the fabric pod will monitor the routing rules and will restore them in case of changes.
+      routeMonitor: true
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
       healthProbeBindAddressPort: "8081"
@@ -319,13 +365,13 @@ storage:
   storageNamespace: liqo-storage
 
 common:
-  # -- NodeSelector for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- NodeSelector for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   nodeSelector: {}
-  # -- Tolerations for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- Tolerations for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   tolerations: []
-  # -- Affinity for all liqo pods, excluding virtual kubelet pod and fabric daemonset.
+  # -- Affinity for all liqo pods, excluding virtual kubelet, gateway and fabric pods.
   affinity: {}
-  # -- Extra arguments for all liqo pods, excluding virtual kubelet.
+  # -- Extra arguments for all liqo pods, excluding virtual kubelet and gateway pods.
   extraArgs: []
   # -- Global labels to be added to all resources created by Liqo controllers
   globalLabels:
@@ -539,8 +585,7 @@ discovery:
     clusterID: ""
     # -- A set of labels that characterizes the local cluster when exposed remotely as a virtual node.
     # It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster.
-    clusterLabels:
-      {}
+    clusterLabels: {}
       # topology.kubernetes.io/zone: us-east-1
       # liqo.io/provider: your-provider
 
@@ -623,6 +668,8 @@ virtualKubelet:
     resources:
       limits: {}
       requests: {}
+    # -- Tolerations for the virtual kubelet pod.
+    tolerations: []
   virtualNode:
     extra:
       # -- Extra annotations for the virtual node.

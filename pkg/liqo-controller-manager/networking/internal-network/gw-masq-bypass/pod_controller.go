@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -82,7 +83,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	if err = r.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no pod %s", req.String())
+			klog.V(6).Infof("There is no pod %s", req.String())
 			return ctrl.Result{}, enforceFirewallPodAbsence(ctx, r.Client, r.Options, pod)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the pod %q: %w", req.NamespacedName, err)
@@ -90,19 +91,25 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
 
-	if pod.Spec.NodeName != "" {
-		PopulatePodKeyToNodeMap(pod)
-	} else {
+	if pod.Spec.NodeName == "" || pod.Status.PodIP == "" {
+		// If the pod is not yet scheduled or does not have an IP address, we cannot enforce its firewall configuration.
+		// It will be reconciled again when available.
 		return ctrl.Result{}, nil
 	}
 
+	PopulatePodKeyToNodeMap(pod)
+
 	op, err := enforceFirewallPodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(3).Infof("there is no internalnode %s. Retrying later...", pod.Spec.NodeName)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
 	if op != controllerutil.OperationResultNone {
-		klog.Infof("Updated gw-masquerade-bypass for pod %s", req.String())
+		klog.Infof("Enforced gw-masquerade-bypass firewall rule for pod %s", req.String())
 	}
 
 	return ctrl.Result{}, nil

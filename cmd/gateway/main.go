@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -202,7 +202,8 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
 	}
 
-	if err := rcr.SetupWithManager(cmd.Context(), mgr); err != nil {
+	if err := rcr.SetupWithManager(cmd.Context(), mgr,
+		connoptions.GwOptions.EnableRouteMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
@@ -213,6 +214,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{
+			gateway.ForgeFirewallAllGatewaysTargetLabels(),
 			gateway.ForgeFirewallInternalTargetLabels(),
 			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
@@ -222,23 +224,26 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
 	}
 
-	if err := fwcr.SetupWithManager(cmd.Context(), mgr, true); err != nil {
+	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
+		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
-	runnable, err := concurrent.NewRunnableGatewayStartup(
-		cl,
-		connoptions.GwOptions.PodName,
-		connoptions.GwOptions.Name,
-		connoptions.GwOptions.Namespace,
-		connoptions.GwOptions.ConcurrentContainersNames,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create concurrent runnable: %w", err)
-	}
+	if connoptions.GwOptions.LeaderElection {
+		runnable, err := concurrent.NewRunnableGatewayStartup(
+			cl,
+			connoptions.GwOptions.PodName,
+			connoptions.GwOptions.Name,
+			connoptions.GwOptions.Namespace,
+			connoptions.GwOptions.ConcurrentContainersNames,
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create concurrent runnable: %w", err)
+		}
 
-	if err := mgr.Add(runnable); err != nil {
-		return fmt.Errorf("unable to add concurrent runnable: %w", err)
+		if err := mgr.Add(runnable); err != nil {
+			return fmt.Errorf("unable to add concurrent runnable: %w", err)
+		}
 	}
 
 	// Start the manager.

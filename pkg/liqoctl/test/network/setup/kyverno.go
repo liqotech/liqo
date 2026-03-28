@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
+	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 )
 
 // KyvernoPolicyGroupVersionResource specifies the group version resource used to register the objects.
@@ -32,31 +34,57 @@ var KyvernoPolicyGroupVersionResource = schema.GroupVersionResource{Group: "kyve
 // KyvernoPolicyKind is the kind of the Kyverno policy.
 const KyvernoPolicyKind = "Policy"
 
-// CreatePolicy creates the Kyverno policies.
-func CreatePolicy(ctx context.Context, cl *client.Client) error {
-	policy := ForgeKyvernoPodAntiaffinityPolicy(cl.ConsumerName, false)
-	if _, err := cl.ConsumerDynamic.Resource(KyvernoPolicyGroupVersionResource).
+// IsKyvernoAvailable checks if Kyverno is available.
+func IsKyvernoAvailable(ctx context.Context, cl *dynamic.DynamicClient) bool {
+	_, err := cl.Resource(KyvernoPolicyGroupVersionResource).
+		Namespace(NamespaceName).List(ctx, metav1.ListOptions{})
+	return err == nil
+}
+
+// createPolicyForCluster creates Kyverno policies for a specific cluster.
+func createPolicyForCluster(ctx context.Context, dynClient dynamic.Interface, clusterName, clusterType string) error {
+	policy := ForgeKyvernoPodAntiaffinityPolicy(clusterName, false)
+	if _, err := dynClient.Resource(KyvernoPolicyGroupVersionResource).
 		Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("consumer failed to create policy: %w", err)
+		return fmt.Errorf("%s failed to create policy: %w", clusterType, err)
 	}
 
-	policy = ForgeKyvernoPodAntiaffinityPolicy(cl.ConsumerName, true)
-	if _, err := cl.ConsumerDynamic.Resource(KyvernoPolicyGroupVersionResource).
+	policy = ForgeKyvernoPodAntiaffinityPolicy(clusterName, true)
+	if _, err := dynClient.Resource(KyvernoPolicyGroupVersionResource).
 		Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("consumer failed to create policy: %w", err)
+		return fmt.Errorf("%s failed to create policy: %w", clusterType, err)
+	}
+
+	return nil
+}
+
+// CreatePolicy creates the Kyverno policies.
+func CreatePolicy(ctx context.Context, cl *client.Client, opts *flags.Options) error {
+	var kyvernoNotInstalled bool
+	printer := opts.Topts.LocalFactory.Printer
+
+	if IsKyvernoAvailable(ctx, cl.ConsumerDynamic) {
+		if err := createPolicyForCluster(ctx, cl.ConsumerDynamic, cl.ConsumerName, "consumer"); err != nil {
+			return err
+		}
+	} else {
+		kyvernoNotInstalled = true
+		printer.Logger.Warn("Kyverno not available on consumer, skipping policy creation.")
 	}
 
 	for k := range cl.Providers {
-		policy := ForgeKyvernoPodAntiaffinityPolicy(k, false)
-		if _, err := cl.ProvidersDynamic[k].Resource(KyvernoPolicyGroupVersionResource).
-			Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("provider %q failed to create policy: %w", k, err)
+		if IsKyvernoAvailable(ctx, cl.ProvidersDynamic[k]) {
+			if err := createPolicyForCluster(ctx, cl.ProvidersDynamic[k], k, fmt.Sprintf("provider %q", k)); err != nil {
+				return err
+			}
+		} else {
+			kyvernoNotInstalled = true
+			printer.Logger.Warn(fmt.Sprintf("Kyverno not available on provider %q, skipping policy creation.", k))
 		}
-		policy = ForgeKyvernoPodAntiaffinityPolicy(k, true)
-		if _, err := cl.ProvidersDynamic[k].Resource(KyvernoPolicyGroupVersionResource).
-			Namespace(NamespaceName).Create(ctx, policy, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("provider %q failed to create policy: %w", k, err)
-		}
+	}
+
+	if kyvernoNotInstalled {
+		printer.Logger.Warn("Pods may not be scheduled on every node. Install Kyverno on all clusters for comprehensive tests.")
 	}
 	return nil
 }

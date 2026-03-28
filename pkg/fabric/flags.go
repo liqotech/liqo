@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 package fabric
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -37,11 +39,16 @@ const (
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
 
+	// FlagNameReconcileTimeout is the reconciliation timeout.
+	FlagNameReconcileTimeout FlagName = "reconcile-timeout"
+
 	// FlagNameDisableARP is the flag to enable ARP.
 	FlagNameDisableARP FlagName = "disable-arp"
 
 	// FlagNameEnableNftMonitor is the flag to enable the nftables monitor.
 	FlagNameEnableNftMonitor FlagName = "enable-nft-monitor"
+	// FlagNameEnableRouteMonitor is the flag to enable the route monitor.
+	FlagNameEnableRouteMonitor FlagName = "enable-route-monitor"
 
 	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
@@ -65,8 +72,11 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8082", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
 
+	flagset.DurationVar(&opts.ReconcileTimeout, FlagNameReconcileTimeout.String(), 10*time.Second, "Reconciliation timeout")
+
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")
+	flagset.BoolVar(&opts.EnableRouteMonitor, FlagNameEnableRouteMonitor.String(), true, "Enable route monitor")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")

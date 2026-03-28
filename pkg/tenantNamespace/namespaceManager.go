@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,8 +141,11 @@ func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1beta1.ClusterID, 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nsname,
 			Labels: map[string]string{
-				consts.RemoteClusterID:      string(cluster),
-				consts.TenantNamespaceLabel: "true",
+				consts.RemoteClusterID:              string(cluster),
+				consts.TenantNamespaceLabel:         "true",
+				consts.PodSecurityAuditLevelLabel:   consts.PodSecurityLevelPrivileged,
+				consts.PodSecurityEnforceLevelLabel: consts.PodSecurityLevelPrivileged,
+				consts.PodSecurityWarnLevelLabel:    consts.PodSecurityLevelPrivileged,
 			},
 		},
 	}

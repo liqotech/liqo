@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,17 +84,16 @@ func allowedChainType(chaintype firewallapi.ChainType, rules firewallapi.RulesSe
 }
 
 // refer to https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks
-func allowedTableFamilyChainTypeHook(familiy firewallapi.TableFamily, chainType firewallapi.ChainType, hook firewallapi.ChainHook) bool {
-	switch familiy {
+func allowedTableFamilyChainTypeHook(family firewallapi.TableFamily, chainType firewallapi.ChainType, hook firewallapi.ChainHook) bool {
+	switch family {
 	case firewallapi.TableFamilyINet, firewallapi.TableFamilyIPv4, firewallapi.TableFamilyIPv6:
 		switch chainType {
 		case firewallapi.ChainTypeFilter:
 			switch hook {
 			case firewallapi.ChainHookIngress:
-				if familiy == firewallapi.TableFamilyINet {
-					return true
-				}
-				return false
+				return family == firewallapi.TableFamilyINet
+			case firewallapi.ChainHookForward:
+				return family == firewallapi.TableFamilyIPv4
 			default:
 				return true
 			}
@@ -176,7 +175,7 @@ func allowedTableFamilyChainTypeHook(familiy firewallapi.TableFamily, chainType 
 			return false
 		}
 	default:
-		klog.Warningf("unknown table family %v", familiy)
+		klog.Warningf("unknown table family %v", family)
 		return false
 	}
 }

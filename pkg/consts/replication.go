@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,4 +87,13 @@ const (
 
 	// RemoteRuntimeClassNameAnnotKey is the annotation key used to store the name of the remote pod runtimeclass.
 	RemoteRuntimeClassNameAnnotKey = "liqo.io/remote-runtime-class-name"
+
+	// RemotePVCAccessModeAnnotKey is the annotation key used to override the access modes of the remote PVC.
+	// The value must be a comma-separated list of Kubernetes access modes (e.g. "ReadWriteOnce" or "ReadWriteOnce,ReadOnlyMany").
+	// If not set, the access modes of the local PVC are used.
+	RemotePVCAccessModeAnnotKey = "liqo.io/remote-access-modes"
+
+	// RemotePVCStorageClassAnnotKey is the annotation key used to override the storage class of the remote PVC.
+	// If not set, the storage class configured in the liqo storage class is used.
+	RemotePVCStorageClassAnnotKey = "liqo.io/remote-storage-class"
 )

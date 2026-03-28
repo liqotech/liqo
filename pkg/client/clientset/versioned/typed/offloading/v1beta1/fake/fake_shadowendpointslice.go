@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,117 +17,35 @@
 package fake
 
 import (
-	"context"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	gentype "k8s.io/client-go/gentype"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 )
 
-// FakeShadowEndpointSlices implements ShadowEndpointSliceInterface
-type FakeShadowEndpointSlices struct {
+// fakeShadowEndpointSlices implements ShadowEndpointSliceInterface
+type fakeShadowEndpointSlices struct {
+	*gentype.FakeClientWithList[*v1beta1.ShadowEndpointSlice, *v1beta1.ShadowEndpointSliceList]
 	Fake *FakeOffloadingV1beta1
-	ns   string
 }
 
-var shadowendpointslicesResource = v1beta1.SchemeGroupVersion.WithResource("shadowendpointslices")
-
-var shadowendpointslicesKind = v1beta1.SchemeGroupVersion.WithKind("ShadowEndpointSlice")
-
-// Get takes name of the shadowEndpointSlice, and returns the corresponding shadowEndpointSlice object, and an error if there is any.
-func (c *FakeShadowEndpointSlices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.ShadowEndpointSlice, err error) {
-	emptyResult := &v1beta1.ShadowEndpointSlice{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(shadowendpointslicesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeShadowEndpointSlices(fake *FakeOffloadingV1beta1, namespace string) offloadingv1beta1.ShadowEndpointSliceInterface {
+	return &fakeShadowEndpointSlices{
+		gentype.NewFakeClientWithList[*v1beta1.ShadowEndpointSlice, *v1beta1.ShadowEndpointSliceList](
+			fake.Fake,
+			namespace,
+			v1beta1.SchemeGroupVersion.WithResource("shadowendpointslices"),
+			v1beta1.SchemeGroupVersion.WithKind("ShadowEndpointSlice"),
+			func() *v1beta1.ShadowEndpointSlice { return &v1beta1.ShadowEndpointSlice{} },
+			func() *v1beta1.ShadowEndpointSliceList { return &v1beta1.ShadowEndpointSliceList{} },
+			func(dst, src *v1beta1.ShadowEndpointSliceList) { dst.ListMeta = src.ListMeta },
+			func(list *v1beta1.ShadowEndpointSliceList) []*v1beta1.ShadowEndpointSlice {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1beta1.ShadowEndpointSliceList, items []*v1beta1.ShadowEndpointSlice) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1beta1.ShadowEndpointSlice), err
-}
-
-// List takes label and field selectors, and returns the list of ShadowEndpointSlices that match those selectors.
-func (c *FakeShadowEndpointSlices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.ShadowEndpointSliceList, err error) {
-	emptyResult := &v1beta1.ShadowEndpointSliceList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(shadowendpointslicesResource, shadowendpointslicesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1beta1.ShadowEndpointSliceList{ListMeta: obj.(*v1beta1.ShadowEndpointSliceList).ListMeta}
-	for _, item := range obj.(*v1beta1.ShadowEndpointSliceList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested shadowEndpointSlices.
-func (c *FakeShadowEndpointSlices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(shadowendpointslicesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a shadowEndpointSlice and creates it.  Returns the server's representation of the shadowEndpointSlice, and an error, if there is any.
-func (c *FakeShadowEndpointSlices) Create(ctx context.Context, shadowEndpointSlice *v1beta1.ShadowEndpointSlice, opts v1.CreateOptions) (result *v1beta1.ShadowEndpointSlice, err error) {
-	emptyResult := &v1beta1.ShadowEndpointSlice{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(shadowendpointslicesResource, c.ns, shadowEndpointSlice, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.ShadowEndpointSlice), err
-}
-
-// Update takes the representation of a shadowEndpointSlice and updates it. Returns the server's representation of the shadowEndpointSlice, and an error, if there is any.
-func (c *FakeShadowEndpointSlices) Update(ctx context.Context, shadowEndpointSlice *v1beta1.ShadowEndpointSlice, opts v1.UpdateOptions) (result *v1beta1.ShadowEndpointSlice, err error) {
-	emptyResult := &v1beta1.ShadowEndpointSlice{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(shadowendpointslicesResource, c.ns, shadowEndpointSlice, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.ShadowEndpointSlice), err
-}
-
-// Delete takes name of the shadowEndpointSlice and deletes it. Returns an error if one occurs.
-func (c *FakeShadowEndpointSlices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(shadowendpointslicesResource, c.ns, name, opts), &v1beta1.ShadowEndpointSlice{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeShadowEndpointSlices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(shadowendpointslicesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1beta1.ShadowEndpointSliceList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched shadowEndpointSlice.
-func (c *FakeShadowEndpointSlices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.ShadowEndpointSlice, err error) {
-	emptyResult := &v1beta1.ShadowEndpointSlice{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(shadowendpointslicesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.ShadowEndpointSlice), err
 }

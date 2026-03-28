@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,12 +55,11 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Namespace: shadowEpsNamespace,
 			},
 		}
-		ctx               context.Context
-		res               ctrl.Result
-		err               error
-		buffer            *bytes.Buffer
-		fakeClientBuilder *fake.ClientBuilder
-		fakeClient        client.WithWatch
+		ctx        context.Context
+		res        ctrl.Result
+		err        error
+		buffer     *bytes.Buffer
+		fakeClient client.WithWatch
 
 		testShadowEps *offloadingv1beta1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
@@ -211,8 +210,6 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		ctx = context.TODO()
 		buffer = &bytes.Buffer{}
 		klog.SetOutput(buffer)
-
-		fakeClientBuilder = fake.NewClientBuilder().WithScheme(scheme.Scheme)
 	})
 
 	JustBeforeEach(func() {
@@ -230,7 +227,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 
 	When("shadowendpointslice is not found", func() {
 		BeforeEach(func() {
-			fakeClient = fakeClientBuilder.Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 		})
 
 		It("should ignore it", func() {
@@ -245,7 +242,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testEps = newEps()
 			testFc = newFc(true, true)
 			testConf = newConfiguration(false)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testEps, testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps, testEps, testFc, testConf).Build()
 		})
 
 		It("should output the correct log", func() {
@@ -298,7 +295,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(true, true)
 			testConf = newConfiguration(false)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
 		})
 
 		It("should output the correct log", func() {
@@ -344,7 +341,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(true, true)
 			testConf = newConfiguration(true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
 		})
 
 		It("should remap ep ip", func() {
@@ -362,7 +359,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(false, true)
 			testConf = newConfiguration(true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {
@@ -379,7 +376,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(true, false)
 			testConf = newConfiguration(true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {
@@ -396,7 +393,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(false, false)
 			testConf = newConfiguration(true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {

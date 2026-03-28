@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,18 @@ const (
 	// ActionSetMetaMarkFromCtMark is the action to be applied to the rule.
 	// It is used to set the meta mark from the conntrack mark.
 	ActionSetMetaMarkFromCtMark FilterAction = "metamarkfromctmark"
+	// ActionTCPMssClamp is the action to be applied to the rule.
+	// It is used to clamp the TCP MSS.
+	ActionTCPMssClamp FilterAction = "tcpmssclamp"
+	// ActionAccept is the action to be applied to the rule.
+	// ActionAccept accepts the packet.
+	ActionAccept FilterAction = "accept"
+	// ActionDrop is the action to be applied to the rule.
+	// ActionDrop drops the packet.
+	ActionDrop FilterAction = "drop"
+	// ActionReject is the action to be applied to the rule.
+	// ActionReject reject the packet with response.
+	ActionReject FilterAction = "reject"
 )
 
 // FilterRule is a rule to be applied to a filter chain.
@@ -31,11 +43,14 @@ const (
 type FilterRule struct {
 	// Name is the name of the rule.
 	Name *string `json:"name,omitempty"`
+	// Counter enables the counter for the rule, updated every time the rule is hit.
+	// +kubebuilder:default=true
+	Counter bool `json:"counter"`
 	// Match is the match to be applied to the rule.
 	// They can be multiple and they are applied with an AND operator.
 	Match []Match `json:"match"`
 	// Action is the action to be applied to the rule.
-	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark
+	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp;accept;drop;reject
 	Action FilterAction `json:"action"`
 	// Value is the value to be used for the action.
 	Value *string `json:"value,omitempty"`

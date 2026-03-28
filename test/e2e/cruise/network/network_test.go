@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -135,6 +135,8 @@ var _ = Describe("Liqo E2E", func() {
 				for i := range testContext.Clusters {
 					RestartPods(testContext.Clusters[i].ControllerClient)
 				}
+
+				time.Sleep(time.Second * 60)
 
 				// Check if there is only one active gateway pod per remote cluster.
 				for i := range testContext.Clusters {

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -104,8 +103,7 @@ func ensureGeneveTunnels(ctx context.Context, cl client.Client, s *runtime.Schem
 
 		if _, err := resource.CreateOrUpdate(ctx, cl, tunnel, func() error {
 			if err := mutateGeneveTunnel(ctx, cl, tunnel, internalFabric, node); err != nil {
-				klog.Errorf("Unable to mutate GeneveTunnel %q: %s", client.ObjectKeyFromObject(tunnel).String(), err)
-				return err
+				return fmt.Errorf("mutating GeneveTunnel %q: %w", client.ObjectKeyFromObject(tunnel), err)
 			}
 			return controllerutil.SetControllerReference(internalFabric, tunnel, s)
 		}); err != nil {
@@ -117,8 +115,7 @@ func ensureGeneveTunnels(ctx context.Context, cl client.Client, s *runtime.Schem
 		updated := controllerutil.AddFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer)
 		if updated {
 			if err := cl.Update(ctx, internalFabric); err != nil {
-				klog.Errorf("Unable to update InternalFabric %q: %s", client.ObjectKeyFromObject(internalFabric).String(), err)
-				return err
+				return fmt.Errorf("adding finalizer: %w", err)
 			}
 			return nil
 		}
@@ -134,24 +131,21 @@ func deleteGeneveTunnels(ctx context.Context, cl client.Client,
 	if err := cl.List(ctx, &geneveTunnelList, client.InNamespace(internalFabric.Namespace), client.MatchingLabels{
 		consts.InternalFabricName: internalFabric.Name,
 	}); err != nil {
-		klog.Errorf("Unable to list GeneveTunnels: %s", err)
-		return err
+		return fmt.Errorf("listing GeneveTunnels: %w", err)
 	}
 
 	for i := range geneveTunnelList.Items {
 		tunnel := &geneveTunnelList.Items[i]
 		id.GetGeneveTunnelManager(ctx, cl).Release(client.ObjectKeyFromObject(tunnel).String())
 		if err := client.IgnoreNotFound(cl.Delete(ctx, tunnel)); err != nil {
-			klog.Errorf("Unable to delete GeneveTunnel %q: %s", client.ObjectKeyFromObject(tunnel), err)
-			return err
+			return fmt.Errorf("deleting GeneveTunnel %q: %w", client.ObjectKeyFromObject(tunnel), err)
 		}
 	}
 
 	updated := controllerutil.RemoveFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer)
 	if updated {
 		if err := cl.Update(ctx, internalFabric); err != nil {
-			klog.Errorf("Unable to update InternalFabric %q: %s", client.ObjectKeyFromObject(internalFabric).String(), err)
-			return err
+			return fmt.Errorf("removing finalizer: %w", err)
 		}
 	}
 

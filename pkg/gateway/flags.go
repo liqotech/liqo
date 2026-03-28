@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,6 +51,9 @@ const (
 	// FlagConcurrentContainersNames is the names of the containers that the gateway container must wait for.
 	FlagConcurrentContainersNames FlagName = "concurrent-containers-names"
 
+	// FlagNameReconcileTimeout is the reconciliation timeout.
+	FlagNameReconcileTimeout FlagName = "reconcile-timeout"
+
 	// FlagNameLeaderElection is the flag to enable leader election.
 	FlagNameLeaderElection FlagName = "leader-election"
 	// FlagNameLeaderElectionLeaseDuration is the lease duration for the leader election.
@@ -64,6 +67,11 @@ const (
 	FlagNameMetricsAddress FlagName = "metrics-address"
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
+
+	// FlagNameEnableNftMonitor is the flag to enable the nftables monitor.
+	FlagNameEnableNftMonitor FlagName = "enable-nft-monitor"
+	// FlagNameEnableRouteMonitor is the flag to enable the route monitor.
+	FlagNameEnableRouteMonitor FlagName = "enable-route-monitor"
 
 	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
@@ -99,6 +107,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringSliceVar(&opts.ConcurrentContainersNames, FlagConcurrentContainersNames.String(),
 		[]string{}, "the container list that gateway container must wait for")
 
+	flagset.DurationVar(&opts.ReconcileTimeout, FlagNameReconcileTimeout.String(), 10*time.Second, "Reconciliation timeout")
+
 	flagset.BoolVar(&opts.LeaderElection, FlagNameLeaderElection.String(), false, "Enable leader election")
 	flagset.DurationVar(&opts.LeaderElectionLeaseDuration, FlagNameLeaderElectionLeaseDuration.String(), 15*time.Second,
 		"LeaseDuration for the leader election")
@@ -109,6 +119,9 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), "0", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), "0", "Address for the health probe endpoint")
+
+	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")
+	flagset.BoolVar(&opts.EnableRouteMonitor, FlagNameEnableRouteMonitor.String(), true, "Enable route monitor")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, FlagNameMinimumKernelVersion.String(), "Minimum kernel version required by Liqo")

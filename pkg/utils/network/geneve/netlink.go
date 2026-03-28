@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package geneve
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -77,9 +78,10 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disable
 		}
 	} else {
 		geneveLink = link.(*netlink.Geneve)
-		if !geneveLink.Remote.Equal(remote) || geneveLink.MTU != mtu || geneveLink.Dport != port {
-			klog.Warningf("geneve link already exists with different remote IP (%s -> %s), modifyng it",
-				geneveLink.Remote.String(), remote.String())
+		if !geneveLink.Remote.Equal(remote) || geneveLink.MTU != mtu || geneveLink.Dport != port || geneveLink.ID != id {
+			klog.Warningf("geneve link already exists with different parameters "+
+				"(remote: %s -> %s, id: %d -> %d, mtu: %d -> %d, dport: %d -> %d), modifying it",
+				geneveLink.Remote.String(), remote.String(), geneveLink.ID, id, geneveLink.MTU, mtu, geneveLink.Dport, port)
 			if err := netlink.LinkDel(geneveLink); err != nil {
 				return fmt.Errorf("cannot delete geneve link: %w", err)
 			}
@@ -119,6 +121,9 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disable
 func ExistGeneveInterface(name string) netlink.Link {
 	link, err := netlink.LinkByName(name)
 	if err != nil {
+		if !errors.As(err, &netlink.LinkNotFoundError{}) {
+			klog.Warningf("geneve interface check failed: %v", err)
+		}
 		return nil
 	}
 	return link

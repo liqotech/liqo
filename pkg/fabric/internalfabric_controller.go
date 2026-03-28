@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -62,7 +64,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	internalfabric := &networkingv1beta1.InternalFabric{}
 	if err = r.Get(ctx, req.NamespacedName, internalfabric); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalfabric %s", req.String())
+			klog.V(6).Infof("There is no internalfabric %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)
@@ -105,7 +107,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("internalfabriccontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("geneve tunnel for internalfabric %s and internalnode %s not created yet.", internalfabric.Name, r.Options.NodeName)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting geneve tunnel (internalfabric %s, internalnode %s): %w", internalfabric.Name, r.Options.NodeName, err)
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
@@ -129,5 +135,14 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalFabricFabric).
 		For(&networkingv1beta1.InternalFabric{}).
+		Watches(&networkingv1beta1.GeneveTunnel{}, handler.EnqueueRequestsFromMapFunc(geneveToInternalFabricEnqueuer)).
 		Complete(r)
+}
+
+func geneveToInternalFabricEnqueuer(_ context.Context, obj client.Object) []reconcile.Request {
+	v, ok := obj.GetLabels()[consts.InternalFabricName]
+	if !ok {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: v, Namespace: obj.GetNamespace()}}}
 }

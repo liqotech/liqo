@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package storageprovisioner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +64,20 @@ func ProvisionRemotePVC(ctx context.Context,
 	default:
 	}
 
-	mutation := remotePersistentVolumeClaim(virtualPvc, remoteStorageClass, remoteNamespace, forgingOpts)
+	if v, ok := virtualPvc.Annotations[consts.RemotePVCStorageClassAnnotKey]; ok && v != "" {
+		remoteStorageClass = v
+	}
+
+	remoteAccessModes := virtualPvc.Spec.AccessModes
+	if v, ok := virtualPvc.Annotations[consts.RemotePVCAccessModeAnnotKey]; ok && v != "" {
+		var err error
+		remoteAccessModes, err = parseAccessModes(v)
+		if err != nil {
+			return nil, controller.ProvisioningNoChange, err
+		}
+	}
+
+	mutation := remotePersistentVolumeClaim(virtualPvc, remoteStorageClass, remoteNamespace, forgingOpts, remoteAccessModes)
 	_, err = remotePvcClient.Apply(ctx, mutation, forge.ApplyOptions())
 	if err != nil {
 		return nil, controller.ProvisioningInBackground, err
@@ -111,18 +125,19 @@ func ProvisionRemotePVC(ctx context.Context,
 
 // remotePersistentVolumeClaim forges the apply patch for the reflected PersistentVolumeClaim, given the local one.
 func remotePersistentVolumeClaim(virtualPvc *corev1.PersistentVolumeClaim,
-	storageClass, namespace string, forgingOpts *forge.ForgingOpts) *v1apply.PersistentVolumeClaimApplyConfiguration {
+	storageClass, namespace string, forgingOpts *forge.ForgingOpts,
+	accessModes []corev1.PersistentVolumeAccessMode) *v1apply.PersistentVolumeClaimApplyConfiguration {
 	return v1apply.PersistentVolumeClaim(virtualPvc.Name, namespace).
 		WithLabels(forge.FilterNotReflected(virtualPvc.GetLabels(), forgingOpts.LabelsNotReflected)).
 		WithLabels(forge.ReflectionLabels()).
 		WithAnnotations(forge.FilterNotReflected(filterAnnotations(virtualPvc.GetAnnotations()), forgingOpts.AnnotationsNotReflected)).
-		WithSpec(remotePersistentVolumeClaimSpec(virtualPvc, storageClass))
+		WithSpec(remotePersistentVolumeClaimSpec(virtualPvc, storageClass, accessModes))
 }
 
 func remotePersistentVolumeClaimSpec(virtualPvc *corev1.PersistentVolumeClaim,
-	storageClass string) *v1apply.PersistentVolumeClaimSpecApplyConfiguration {
+	storageClass string, accessModes []corev1.PersistentVolumeAccessMode) *v1apply.PersistentVolumeClaimSpecApplyConfiguration {
 	res := v1apply.PersistentVolumeClaimSpec().
-		WithAccessModes(virtualPvc.Spec.AccessModes...).
+		WithAccessModes(accessModes...).
 		WithVolumeMode(func() corev1.PersistentVolumeMode {
 			if virtualPvc.Spec.VolumeMode != nil {
 				return *virtualPvc.Spec.VolumeMode
@@ -142,6 +157,32 @@ func persistentVolumeClaimResources(resources corev1.VolumeResourceRequirements)
 	return v1apply.VolumeResourceRequirements().
 		WithLimits(resources.Limits).
 		WithRequests(resources.Requests)
+}
+
+var knownAccessModes = map[corev1.PersistentVolumeAccessMode]struct{}{
+	corev1.ReadWriteOnce:    {},
+	corev1.ReadOnlyMany:     {},
+	corev1.ReadWriteMany:    {},
+	corev1.ReadWriteOncePod: {},
+}
+
+// parseAccessModes parses a comma-separated list of Kubernetes access mode strings.
+// Returns an error if any value is not a known PersistentVolumeAccessMode.
+func parseAccessModes(s string) ([]corev1.PersistentVolumeAccessMode, error) {
+	parts := strings.Split(s, ",")
+	modes := make([]corev1.PersistentVolumeAccessMode, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		mode := corev1.PersistentVolumeAccessMode(p)
+		if _, ok := knownAccessModes[mode]; !ok {
+			return nil, fmt.Errorf("unknown PersistentVolumeAccessMode %q", p)
+		}
+		modes = append(modes, mode)
+	}
+	return modes, nil
 }
 
 var controllerAnnotations = []string{

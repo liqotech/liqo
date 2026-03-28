@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package sourcedetector
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,31 +62,31 @@ func NewGatewayReconciler(cl client.Client, s *runtime.Scheme,
 
 // Reconcile manage Gateways.
 func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var err error
 	pod := &corev1.Pod{}
-	if err = r.Get(ctx, req.NamespacedName, pod); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no gateway pod %s", req.String())
+			klog.V(6).Infof("There is no gateway pod %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the gateway pod %q: %w", req.NamespacedName, err)
 	}
 
+	if pod.Status.PodIP == "" {
+		// If the pod does not have an IP address, we cannot determine the source IP for the internal node.
+		// It will be reconciled again when the IP becomes available.
+		klog.V(4).Infof("Gateway pod %s has no IP. Checking later", req.String())
+		return ctrl.Result{}, nil
+	}
+
 	internalnode := &networkingv1beta1.InternalNode{}
-	if err = r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Errorf("There is no internalnode %s", r.Options.NodeName)
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("internalnode %q not found yet: %w", r.Options.NodeName, err)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internal node %q: %w", r.Options.NodeName, err)
 	}
 
 	klog.V(4).Infof("Reconciling gateway pod %s", req.String())
-
-	if pod.Status.PodIP == "" {
-		klog.Infof("Gateway pod %s has no IP", req.String())
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
 
 	src, err := GetSrcIPFromDstIP(pod.Status.PodIP)
 	if err != nil {

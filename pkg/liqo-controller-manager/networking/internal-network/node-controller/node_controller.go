@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		// If node has been deleted we need to remove the InternalNode resource
 		klog.Infof("Deleting InternalNode %v as there is no corresponding Node resource", req.Name)
 
-		if err := r.Client.Delete(ctx, internalNode); err != nil {
+		err := r.Delete(ctx, internalNode)
+
+		if client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to delete InternalNode %v: %w", req.Name, err)
 		}
 
@@ -86,17 +88,16 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 
 	cmDep, err := getters.GetControllerManagerDeployment(ctx, r.Client, r.liqoNamespace)
 	if err != nil {
-		klog.Errorf("Unable to get the ControllerManager deployment: %s", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting the ControllerManager deployment: %w", err)
 	}
 	if cmDep.Annotations != nil && cmDep.Annotations[consts.UninstallingAnnotationKey] == consts.UninstallingAnnotationValue {
-		klog.V(4).Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
+		klog.Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
 		return ctrl.Result{}, nil
 	}
 
 	ipam, err := fabricipam.Get(ctx, r.Client)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
+		return ctrl.Result{}, fmt.Errorf("initializing the IPAM: %w", err)
 	}
 
 	if _, err = resource.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
@@ -112,8 +113,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 
 		return nil
 	}); err != nil {
-		klog.Errorf("Unable to create or update InternalNode %q: %s", internalNode.Name, err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("creating or updating InternalNode %q: %w", internalNode.Name, err)
 	}
 
 	return ctrl.Result{}, nil

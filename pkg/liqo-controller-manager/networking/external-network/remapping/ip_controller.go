@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	ip := &ipamv1alpha1.IP{}
 	if err = r.Get(ctx, req.NamespacedName, ip); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no IP %s", req.String())
+			klog.V(6).Infof("There is no IP %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the IP %q: %w", req.NamespacedName, err)

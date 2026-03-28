@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@ package geneve
 import (
 	"context"
 	"fmt"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -63,7 +65,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalnode %s", req.String())
+			klog.V(6).Infof("There is no internalnode %s", req.String())
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
@@ -78,7 +80,11 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("internalnodecontroller waiting for geneve tunnel creation (with id %q): %w", id, err)
+		if apierrors.IsNotFound(err) {
+			klog.Infof("waiting for geneve tunnel (internalfabric %s, internalnode %s) to be created...", internalFabric.Name, internalnode.Name)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting geneve tunnel (internalfabric %s, internalnode %s): %w", internalFabric.Name, internalnode.Name, err)
 	}
 
 	var remoteIP *networkingv1beta1.IP
@@ -90,8 +96,8 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if remoteIP == nil {
-		klog.Infof("The remote IP of internalnode %s is not set yet.", internalnode.Name)
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+		klog.Infof("waiting for remote IP of internalnode %s to be set...", internalnode.Name)
+		return ctrl.Result{}, nil
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
@@ -115,5 +121,14 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalNodeGeneve).
 		For(&networkingv1beta1.InternalNode{}).
+		Watches(&networkingv1beta1.GeneveTunnel{}, handler.EnqueueRequestsFromMapFunc(geneveToInternalNodeEnqueuer)).
 		Complete(r)
+}
+
+func geneveToInternalNodeEnqueuer(_ context.Context, obj client.Object) []reconcile.Request {
+	v, ok := obj.GetLabels()[consts.InternalNodeName]
+	if !ok {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: v}}}
 }

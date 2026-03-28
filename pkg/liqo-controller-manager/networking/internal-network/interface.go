@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Clien
 		retry++
 	}
 	if !ok {
-		return "", fmt.Errorf("cannot find a free  interface name")
+		return "", fmt.Errorf("cannot find a free interface name")
 	}
 	return name, nil
 }
@@ -102,7 +102,7 @@ func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client)
 		retry++
 	}
 	if !ok {
-		return "", fmt.Errorf("cannot find a free  interface name")
+		return "", fmt.Errorf("cannot find a free interface name")
 	}
 	return name, nil
 }

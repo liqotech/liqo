@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,26 @@ package port
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // ParsePortRange parses the port range and returns the start and end of the range.
 func ParsePortRange(value string) (start, end uint16, err error) {
-	_, err = fmt.Sscanf(value, "%d-%d", start, end)
-	if err != nil {
+	parts := strings.Split(value, "-")
+	if len(parts) != 2 {
 		return 0, 0, fmt.Errorf("invalid port range %s", value)
 	}
 
-	return start, end, nil
+	s, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid start port: %w", err)
+	}
+
+	e, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid end port: %w", err)
+	}
+
+	return uint16(s), uint16(e), nil
 }

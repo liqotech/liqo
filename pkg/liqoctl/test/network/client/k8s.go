@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ func initConfigAndClient(ctx context.Context, kubeconfig string, cl *Client, cfg
 	sname := string(name)
 
 	cfg[sname] = cfgtmp
-	if cl.ConsumerName == "" {
+	if kubeconfig == "" {
 		cl.ConsumerName = sname
 		cl.Consumer = cltmp
 		cl.ConsumerDynamic = cldyntmp

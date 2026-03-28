@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 
-	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // ShadowEndpointSliceLister helps list ShadowEndpointSlices.
@@ -29,7 +29,7 @@ import (
 type ShadowEndpointSliceLister interface {
 	// List lists all ShadowEndpointSlices in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ShadowEndpointSlice, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.ShadowEndpointSlice, err error)
 	// ShadowEndpointSlices returns an object that can list and get ShadowEndpointSlices.
 	ShadowEndpointSlices(namespace string) ShadowEndpointSliceNamespaceLister
 	ShadowEndpointSliceListerExpansion
@@ -37,17 +37,17 @@ type ShadowEndpointSliceLister interface {
 
 // shadowEndpointSliceLister implements the ShadowEndpointSliceLister interface.
 type shadowEndpointSliceLister struct {
-	listers.ResourceIndexer[*v1beta1.ShadowEndpointSlice]
+	listers.ResourceIndexer[*offloadingv1beta1.ShadowEndpointSlice]
 }
 
 // NewShadowEndpointSliceLister returns a new ShadowEndpointSliceLister.
 func NewShadowEndpointSliceLister(indexer cache.Indexer) ShadowEndpointSliceLister {
-	return &shadowEndpointSliceLister{listers.New[*v1beta1.ShadowEndpointSlice](indexer, v1beta1.Resource("shadowendpointslice"))}
+	return &shadowEndpointSliceLister{listers.New[*offloadingv1beta1.ShadowEndpointSlice](indexer, offloadingv1beta1.Resource("shadowendpointslice"))}
 }
 
 // ShadowEndpointSlices returns an object that can list and get ShadowEndpointSlices.
 func (s *shadowEndpointSliceLister) ShadowEndpointSlices(namespace string) ShadowEndpointSliceNamespaceLister {
-	return shadowEndpointSliceNamespaceLister{listers.NewNamespaced[*v1beta1.ShadowEndpointSlice](s.ResourceIndexer, namespace)}
+	return shadowEndpointSliceNamespaceLister{listers.NewNamespaced[*offloadingv1beta1.ShadowEndpointSlice](s.ResourceIndexer, namespace)}
 }
 
 // ShadowEndpointSliceNamespaceLister helps list and get ShadowEndpointSlices.
@@ -55,15 +55,15 @@ func (s *shadowEndpointSliceLister) ShadowEndpointSlices(namespace string) Shado
 type ShadowEndpointSliceNamespaceLister interface {
 	// List lists all ShadowEndpointSlices in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ShadowEndpointSlice, err error)
+	List(selector labels.Selector) (ret []*offloadingv1beta1.ShadowEndpointSlice, err error)
 	// Get retrieves the ShadowEndpointSlice from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.ShadowEndpointSlice, error)
+	Get(name string) (*offloadingv1beta1.ShadowEndpointSlice, error)
 	ShadowEndpointSliceNamespaceListerExpansion
 }
 
 // shadowEndpointSliceNamespaceLister implements the ShadowEndpointSliceNamespaceLister
 // interface.
 type shadowEndpointSliceNamespaceLister struct {
-	listers.ResourceIndexer[*v1beta1.ShadowEndpointSlice]
+	listers.ResourceIndexer[*offloadingv1beta1.ShadowEndpointSlice]
 }

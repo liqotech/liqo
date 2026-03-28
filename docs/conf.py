@@ -26,7 +26,7 @@ from sphinxawesome_theme.postprocess import Icons
 # -- Project information -----------------------------------------------------
 
 project = 'Liqo'
-copyright = '2019-2025, The Liqo Authors'
+copyright = '2019-2026, The Liqo Authors'
 author = 'The Liqo Authors'
 
 
@@ -54,7 +54,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt']
+exclude_patterns = ['_build', '_legacy', '.venv', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt']
 
 linkcheck_ignore = [
     r'http://localhost:\d+/?',  # Localhost links

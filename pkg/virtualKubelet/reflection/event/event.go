@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -241,6 +241,10 @@ func (ner *NamespacedEventReflector) getLocalObject(kind, apiVersion, name strin
 	case gv.Group == corev1.GroupName && gv.Version == corev1.SchemeGroupVersion.Version && kind == "PersistentVolumeClaim":
 		return ner.localPvcs.Get(name)
 	case gv.Group == corev1.GroupName && gv.Version == corev1.SchemeGroupVersion.Version && kind == "Pod":
+		return ner.localPods.Get(name)
+	case gv.Group == offloadingv1beta1.SchemeGroupVersion.Group && gv.Version == offloadingv1beta1.SchemeGroupVersion.Version && kind == "ShadowPod":
+		// Shadowpod and its corresponding pod have the same name.
+		// We can use shadowpod events as pod events.
 		return ner.localPods.Get(name)
 	default:
 		return nil, fmt.Errorf("unable to get local object %q: kind %q and apiVersion %q not supported", name, kind, apiVersion)

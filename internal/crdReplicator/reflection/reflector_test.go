@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,6 +73,7 @@ var _ = Describe("Reflector tests", func() {
 		manager = NewManager(local, localClusterID, workers, 0)
 		manager.Start(ctx, []resources.Resource{res})
 		reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace, "")
+		reflector.RemoteReachable.Store(true)
 	})
 
 	AfterEach(func() { cancel() })

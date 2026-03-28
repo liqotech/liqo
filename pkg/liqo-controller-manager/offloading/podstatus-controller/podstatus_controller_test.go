@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,14 +46,13 @@ var _ = Describe("PodStatusController", func() {
 	)
 
 	var (
-		ctx               context.Context
-		err               error
-		buffer            *bytes.Buffer
-		fakeClient        client.WithWatch
-		fakeClientBuilder *fake.ClientBuilder
-		localPod          *corev1.Pod
-		localPod2         *corev1.Pod
-		liqoNode2         *corev1.Node
+		ctx        context.Context
+		err        error
+		buffer     *bytes.Buffer
+		fakeClient client.WithWatch
+		localPod   *corev1.Pod
+		localPod2  *corev1.Pod
+		liqoNode2  *corev1.Node
 
 		reqLiqoNode = ctrl.Request{NamespacedName: types.NamespacedName{Name: liqoNodeName}}
 
@@ -122,10 +121,6 @@ var _ = Describe("PodStatusController", func() {
 		buffer = &bytes.Buffer{}
 		klog.SetOutput(buffer)
 
-		fakeClientBuilder = fake.NewClientBuilder().
-			WithScheme(scheme.Scheme).
-			WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName)
-
 		// Pod scheduled on reconciled liqo node
 		localPod = newLocalPod()
 		localPod.Name = localPodName
@@ -152,13 +147,11 @@ var _ = Describe("PodStatusController", func() {
 	})
 
 	When("liqo node not ready", func() {
-		BeforeEach(func() {
-			fakeClient = fakeClientBuilder.WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionFalse), liqoNode2).Build()
-		})
-
 		When("remote unavailable label not present", func() {
 			BeforeEach(func() {
-				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName).
+					WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionFalse), liqoNode2, localPod, localPod2).Build()
 			})
 
 			It("should add remote unavailable label to local offloaded pods", func() {
@@ -174,7 +167,9 @@ var _ = Describe("PodStatusController", func() {
 		When("remote unavailable label present", func() {
 			BeforeEach(func() {
 				localPod.Labels = labels.Merge(localPod.Labels, labels.Set{consts.RemoteUnavailableKey: consts.RemoteUnavailableValue})
-				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName).
+					WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionFalse), liqoNode2, localPod, localPod2).Build()
 			})
 
 			It("should keep remote unavailable label to local offloaded pods", func() {
@@ -189,13 +184,11 @@ var _ = Describe("PodStatusController", func() {
 	})
 
 	When("liqo node ready", func() {
-		BeforeEach(func() {
-			fakeClient = fakeClientBuilder.WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionTrue), liqoNode2).Build()
-		})
-
 		When("remote unavailable label not present", func() {
 			BeforeEach(func() {
-				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName).
+					WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionTrue), liqoNode2, localPod, localPod2).Build()
 			})
 
 			It("should not add remote unavailable label to local offloaded pods", func() {
@@ -211,7 +204,9 @@ var _ = Describe("PodStatusController", func() {
 		When("remote unavailable label present", func() {
 			BeforeEach(func() {
 				localPod.Labels = labels.Merge(localPod.Labels, labels.Set{consts.RemoteUnavailableKey: consts.RemoteUnavailableValue})
-				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName).
+					WithObjects(newLiqoNode(liqoNodeName, corev1.ConditionTrue), liqoNode2, localPod, localPod2).Build()
 			})
 
 			It("should remove remote unavailable label to local offloaded pods", func() {

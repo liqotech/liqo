@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -119,14 +119,16 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
 	}
 
-	runnableGuest, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
-	if err != nil {
-		return fmt.Errorf("unable to create runnable guest: %w", err)
+	if options.GwOptions.LeaderElection {
+		runnableGuest, err := concurrent.NewRunnableGuest(options.GwOptions.ContainerName)
+		if err != nil {
+			return fmt.Errorf("unable to create runnable guest: %w", err)
+		}
+		if err := runnableGuest.Start(cmd.Context()); err != nil {
+			return fmt.Errorf("unable to start runnable guest: %w", err)
+		}
+		defer runnableGuest.Close()
 	}
-	if err := runnableGuest.Start(cmd.Context()); err != nil {
-		return fmt.Errorf("unable to start runnable guest: %w", err)
-	}
-	defer runnableGuest.Close()
 
 	runnableGeneveCleanup, err := cleanup.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
 	if err != nil {

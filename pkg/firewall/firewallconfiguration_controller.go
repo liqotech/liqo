@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,9 +28,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -96,10 +99,10 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	fwcfg := &networkingv1beta1.FirewallConfiguration{}
 	if err = r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no firewallconfiguration %s", req.String())
+			klog.V(6).Infof("There is no firewallconfiguration %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("unable to get the firewallconfiguration %q: %w", req.NamespacedName, err)
+		return ctrl.Result{}, fmt.Errorf("getting firewallconfiguration: %w", err)
 	}
 
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
@@ -114,7 +117,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	if fwcfg.DeletionTimestamp.IsZero() && r.EnableFinalizer {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("adding finalizer: %w", err)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -122,10 +125,10 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		if ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			delTable(r.NftConnection, &fwcfg.Spec.Table)
 			if err = r.NftConnection.Flush(); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 			}
 			if err = r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
 			}
 			klog.V(2).Infof("FirewallConfiguration %s deleted", req.String())
 		}
@@ -135,12 +138,12 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	// If table exists, it delete chains and rules which are not contained anymore in firewallconfiguration resource.
 	// It also deletes chains and rules which has been updated and need to be recreated.
 	if err = cleanTable(r.NftConnection, &fwcfg.Spec.Table); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("cleaning table %s: %w", ptr.Deref(fwcfg.Spec.Table.Name, ""), err)
 	}
 
 	// We need to flush the updates to allow the recreation of updated chains/rules.
 	if err = r.NftConnection.Flush(); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
 	klog.V(4).Infof("Applying firewallconfiguration %s", req.String())
@@ -149,11 +152,11 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 
 	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("adding chains to table %s: %w", ptr.Deref(fwcfg.Spec.Table.Name, ""), err)
 	}
 
 	if err = r.NftConnection.Flush(); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
 	klog.Infof("Applied firewallconfiguration %s", req.String())
@@ -162,22 +165,28 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
-func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableNftMonitor bool) error {
+func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
+	enableNftMonitor bool, reconcileTimeout time.Duration) error {
 	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.LabelsSets)
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
 	}
 
+	klog.Infof("nftables monitor enabled: %t", enableNftMonitor)
 	src := make(chan event.GenericEvent)
 	if enableNftMonitor {
 		go func() {
 			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
 		}()
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfiguration).
 		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
+		WithOptions(controller.Options{
+			ReconciliationTimeout: reconcileTimeout,
+		}).
 		Complete(r)
 }
 
@@ -223,9 +232,12 @@ func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er r
 	} else {
 		conditionRef.Status = metav1.ConditionFalse
 	}
-	if oldStatus != conditionRef.Status {
-		conditionRef.LastTransitionTime = metav1.Now()
+
+	if oldStatus == conditionRef.Status {
+		return nil
 	}
+
+	conditionRef.LastTransitionTime = metav1.Now()
 
 	er.Eventf(fwcfg, "Normal", "FirewallConfigurationUpdate", "FirewallConfiguration %s: %s", conditionRef.Type, conditionRef.Status)
 	if clerr := r.Client.Status().Update(ctx, fwcfg); clerr != nil {

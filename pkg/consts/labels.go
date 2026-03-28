@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,4 +53,20 @@ const (
 	// WebhookResourceLabelValue is the constant representing
 	// the value of the label assigned to all Webhook resources.
 	WebhookResourceLabelValue = "true"
+
+	// podSecurityLabelPrefix is the prefix for pod security admission labels.
+	podSecurityLabelPrefix = "pod-security.kubernetes.io/"
+	// PodSecurityAuditLevelLabel is the label key for pod security audit level.
+	PodSecurityAuditLevelLabel = podSecurityLabelPrefix + "audit"
+	// PodSecurityEnforceLevelLabel is the label key for pod security enforce level.
+	PodSecurityEnforceLevelLabel = podSecurityLabelPrefix + "enforce"
+	// PodSecurityWarnLevelLabel is the label key for pod security warn level.
+	PodSecurityWarnLevelLabel = podSecurityLabelPrefix + "warn"
+
+	// PodSecurityLevelPrivileged is the privileged pod security level.
+	PodSecurityLevelPrivileged = "privileged"
+	// PodSecurityLevelBaseline is the baseline pod security level.
+	PodSecurityLevelBaseline = "baseline"
+	// PodSecurityLevelRestricted is the restricted pod security level.
+	PodSecurityLevelRestricted = "restricted"
 )

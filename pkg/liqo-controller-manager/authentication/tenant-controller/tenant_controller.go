@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -260,13 +260,16 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
 			return ctrl.Result{}, err
 		}
+	}
 
-		_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
-		if err != nil {
-			klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
-			return ctrl.Result{}, err
-		}
+	// Bind cluster roles with cluster-wide scope to the tenant group.
+	// We do this even with TolerateNoHandshake since these clusterrole are tied to the tenant Group and
+	// will be used by the virtual kubelet to access cluster-wide resources (e.g., scraping remote metrics server)
+	_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID, nil, r.tenantClusterRolesClusterWide...)
+	if err != nil {
+		klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

@@ -1,4 +1,4 @@
-// Copyright 2019-2025 The Liqo Authors
+// Copyright 2019-2026 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ func GetGeneveTunnelManager(ctx context.Context, cl client.Client) *Manager[uint
 
 		for i := range tunnelList.Items {
 			tunnel := &tunnelList.Items[i]
-			err = geneveTunnelManager.Configure(tunnel.Name, tunnel.Spec.ID)
+			err = geneveTunnelManager.Configure(client.ObjectKeyFromObject(tunnel).String(), tunnel.Spec.ID)
 			runtime.Must(err)
 		}
 	})
