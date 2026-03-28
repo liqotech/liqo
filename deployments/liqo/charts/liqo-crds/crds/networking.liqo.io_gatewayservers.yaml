@@ -89,7 +89,7 @@ spec:
                     type: integer
                   nodePorts:
                     description: |-
-                      NodePort allocates a list of static ports for the NodePort service.
+                      NodePorts allocates a list of static ports for the NodePort service.
                       This field is preferred over the legacy NodePort field, which is kept for backward compatibility.
                     items:
                       format: int32
