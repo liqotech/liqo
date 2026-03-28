@@ -147,6 +147,7 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8085
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                - --preserve-client-endpoint={{ .Values.networking.gatewayTemplates.wireguard.preserveClientEndpoint }}
                 ports:
                 {{- if .Values.metrics.enabled }}
                 - containerPort: 8084

@@ -43,9 +43,11 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 	case gateway.ModeServer:
 		confdev.ListenPort = &options.ListenPort
 
-		endpoint := getExistingEndpoint(wgcl, peerPubKey)
-		if endpoint != nil {
-			confdev.Peers[0].Endpoint = endpoint
+		if options.PreserveClientEndpoint {
+			endpoint := getExistingEndpoint(wgcl, peerPubKey)
+			if endpoint != nil {
+				confdev.Peers[0].Endpoint = endpoint
+			}
 		}
 	case gateway.ModeClient:
 		confdev.Peers[0].Endpoint = &net.UDPAddr{
