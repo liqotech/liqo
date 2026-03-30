@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -164,7 +163,7 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	if err := r.handleInternalEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
+	if err := r.handleInternalEndpointStatus(ctx, wgServer, deploy); err != nil {
 		klog.Errorf("Error while handling internal endpoint status: %v", err)
 		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "InternalEndpointStatusFailed",
 			fmt.Sprintf("Failed to handle internal endpoint status: %s", err))
@@ -337,7 +336,7 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	case corev1.ServiceTypeClusterIP:
 		endpointStatus, err = r.forgeEndpointStatusClusterIP(&service)
 	case corev1.ServiceTypeNodePort:
-		endpointStatus, _, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
+		endpointStatus, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
 	case corev1.ServiceTypeLoadBalancer:
 		endpointStatus, err = r.forgeEndpointStatusLoadBalancer(&service)
 	default:
@@ -347,7 +346,7 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("forging endpoint status for wireguard server %s: %w", client.ObjectKeyFromObject(wgServer), err)
 	}
 
 	wgServer.Status.Endpoint = endpointStatus
@@ -374,61 +373,41 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusClusterIP(service *corev1
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Context, service *corev1.Service,
-	dep *appsv1.Deployment) (*networkingv1beta1.EndpointStatus, *networkingv1beta1.InternalGatewayEndpoint, error) {
+	dep *appsv1.Deployment) (*networkingv1beta1.EndpointStatus, error) {
 	if len(service.Spec.Ports) == 0 {
 		err := fmt.Errorf("service %s/%s has no ports", service.Namespace, service.Name)
 		klog.Error(err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	port := service.Spec.Ports[0].NodePort
 	protocol := &service.Spec.Ports[0].Protocol
 
-	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
-	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
-		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
-		return nil, nil, err
+	pod, err := listActiveGatewayPod(ctx, r.Client, dep.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving active gateway pod: %w", err)
 	}
-
-	if len(podList.Items) != 1 {
-		err := fmt.Errorf("wrong number of pods for deployment %s/%s: %d (must be 1)", dep.Namespace, dep.Name, len(podList.Items))
-		klog.Error(err)
-		return nil, nil, err
-	}
-
-	pod := &podList.Items[0]
 
 	node := &corev1.Node{}
-	err := r.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, node)
+	err = r.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, node)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Unable to get node %q: %v", pod.Spec.NodeName, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	addresses := make([]string, 1)
 	if utils.IsNodeReady(node) {
 		if addresses[0], err = utils.GetAddress(node); err != nil {
 			klog.Errorf("Unable to get address of node %q: %v", pod.Spec.NodeName, err)
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	internalAddress := pod.Status.PodIP
-	if internalAddress == "" {
-		err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
-		klog.Error(err)
-		return nil, nil, err
-	}
-
 	return &networkingv1beta1.EndpointStatus{
-			Protocol:  protocol,
-			Port:      port,
-			Addresses: addresses,
-		}, &networkingv1beta1.InternalGatewayEndpoint{
-			IP:   ptr.To(networkingv1beta1.IP(internalAddress)),
-			Node: &pod.Spec.NodeName,
-		}, nil
+		Protocol:  protocol,
+		Port:      port,
+		Addresses: addresses,
+	}, nil
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *corev1.Service) (*networkingv1beta1.EndpointStatus, error) {
@@ -475,25 +454,21 @@ func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, w
 	}
 }
 
-func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
-	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
+func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context,
+	wgServer *networkingv1beta1.WgGatewayServer, dep *appsv1.Deployment) error {
 	if dep == nil {
 		wgServer.Status.InternalEndpoint = nil
 		return nil
 	}
 
-	var service corev1.Service
-	err := r.Get(ctx, svcNsName, &service)
+	gwPod, err := listActiveGatewayPod(ctx, r.Client, dep.Namespace)
 	if err != nil {
-		klog.Error(err) // raise an error also if service NotFound
-		return err
+		return fmt.Errorf("retrieving active gateway pods: %w", err)
 	}
 
-	_, ige, err := r.forgeEndpointStatusNodePort(ctx, &service, dep)
-	if err != nil {
-		return err
+	wgServer.Status.InternalEndpoint = &networkingv1beta1.InternalGatewayEndpoint{
+		IP:   ptr.To(networkingv1beta1.IP(gwPod.Status.PodIP)),
+		Node: &gwPod.Spec.NodeName,
 	}
-
-	wgServer.Status.InternalEndpoint = ige
 	return nil
 }
