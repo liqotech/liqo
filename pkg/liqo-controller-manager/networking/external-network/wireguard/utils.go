@@ -245,3 +245,32 @@ func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Obje
 		return nil, fmt.Errorf("found multiple secrets associated to WireGuard gateway %q", wgObjNsName)
 	}
 }
+
+func listActiveGatewayPod(ctx context.Context, cl client.Client, namespace string) (*corev1.Pod, error) {
+	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
+	var podList corev1.PodList
+	if err := cl.List(ctx, &podList, client.InNamespace(namespace), podsSelector); err != nil {
+		klog.Errorf("Unable to list active gateway pods in namespace %q: %v", namespace, err)
+		return nil, fmt.Errorf("listing active gateway pods: %w", err)
+	}
+
+	// Filter out pods that are not running or that are being deleted
+	activePods := make([]corev1.Pod, 0, len(podList.Items))
+	for i := range podList.Items {
+		if podList.Items[i].Status.Phase == corev1.PodRunning && podList.Items[i].DeletionTimestamp == nil {
+			activePods = append(activePods, podList.Items[i])
+		}
+	}
+
+	if len(activePods) == 0 {
+		return nil, fmt.Errorf("no active gateway pods found in namespace %q", namespace)
+	} else if len(activePods) > 1 {
+		return nil, fmt.Errorf("multiple (%d) active gateway pods found in namespace %q", len(activePods), namespace)
+	}
+
+	if activePods[0].Status.PodIP == "" {
+		return nil, fmt.Errorf("active gateway pod %s does not have IP assigned yet. Retry later", client.ObjectKeyFromObject(&activePods[0]))
+	}
+
+	return &activePods[0], nil
+}

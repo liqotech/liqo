@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -289,28 +288,14 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 		return nil
 	}
 
-	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
-	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
-		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
-		return err
-	}
-
-	if len(podList.Items) != 1 {
-		err := fmt.Errorf("wrong number of pods for deployment %s/%s: %d (must be 1)", dep.Namespace, dep.Name, len(podList.Items))
-		klog.Error(err)
-		return err
-	}
-
-	if podList.Items[0].Status.PodIP == "" {
-		err := fmt.Errorf("pod %s/%s has no IP", podList.Items[0].Namespace, podList.Items[0].Name)
-		klog.Error(err)
-		return err
+	gwPod, err := listActiveGatewayPod(ctx, r.Client, dep.Namespace)
+	if err != nil {
+		return fmt.Errorf("retrieving active gateway pods: %w", err)
 	}
 
 	wgClient.Status.InternalEndpoint = &networkingv1beta1.InternalGatewayEndpoint{
-		IP:   ptr.To(networkingv1beta1.IP(podList.Items[0].Status.PodIP)),
-		Node: &podList.Items[0].Spec.NodeName,
+		IP:   ptr.To(networkingv1beta1.IP(gwPod.Status.PodIP)),
+		Node: &gwPod.Spec.NodeName,
 	}
 	return nil
 }
