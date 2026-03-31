@@ -86,6 +86,7 @@ spec:
           {{- if .Values.apiServer.trustedCA }}
           - --trusted-ca
           {{- end }}
+          - --fabric-route-rule-priority={{ .Values.networking.fabric.config.routeConfigurationRulePriority }}
           - --fabric-full-masquerade-enabled={{ .Values.networking.fabric.config.fullMasquerade }}
           - --gateway-masquerade-bypass-enabled={{ .Values.networking.fabric.config.gatewayMasqueradeBypass }}
           - --geneve-port={{ .Values.networking.genevePort }}

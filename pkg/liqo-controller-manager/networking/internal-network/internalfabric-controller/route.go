@@ -52,8 +52,14 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 		// Add route rule for every remote CIDR
 		var rules []networkingv1beta1.Rule
 
+		var priority *int
+		if r.RouteConfigurationRulePriority > 0 {
+			priority = ptr.To(r.RouteConfigurationRulePriority)
+		}
+
 		rules = append(rules, networkingv1beta1.Rule{
-			Dst: ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
+			Dst:      ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
+			Priority: priority,
 			Routes: []networkingv1beta1.Route{
 				{
 					Dst:   ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
@@ -76,7 +82,8 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 						Gw:  ptr.To(internalFabric.Spec.Interface.Gateway.IP),
 					},
 				},
-				Dst: ptr.To(remoteCIDR),
+				Dst:      ptr.To(remoteCIDR),
+				Priority: priority,
 			}
 			rules = append(rules, rule)
 		}

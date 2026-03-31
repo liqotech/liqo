@@ -54,6 +54,7 @@ type Options struct {
 	NetworkWorkers                 int
 	IPWorkers                      int
 	GenevePort                     uint16
+	RouteConfigurationRulePriority int
 
 	// Authentication module
 	APIServerAddressOverride string

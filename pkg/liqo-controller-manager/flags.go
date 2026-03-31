@@ -77,6 +77,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.IPWorkers, "ip-ctrl-workers", 1,
 		"The number of workers used to reconcile IP resources.")
 	flagset.Uint16Var(&opts.GenevePort, "geneve-port", 6081, "The port used by the Geneve tunnel")
+	flagset.IntVar(&opts.RouteConfigurationRulePriority, "fabric-route-rule-priority", 0,
+		"The priority of the ip rules created by the controller-manager for node/fabric routing")
 
 	// Authentication module
 	flagset.StringVar(&opts.APIServerAddressOverride, "api-server-address-override", "",
