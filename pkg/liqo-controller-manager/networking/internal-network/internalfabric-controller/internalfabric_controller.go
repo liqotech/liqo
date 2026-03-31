@@ -34,14 +34,16 @@ import (
 // InternalFabricReconciler manage InternalFabric lifecycle.
 type InternalFabricReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme                         *runtime.Scheme
+	RouteConfigurationRulePriority int
 }
 
 // NewInternalFabricReconciler returns a new InternalFabricReconciler.
-func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme) *InternalFabricReconciler {
+func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme, routeConfigurationRulePriority int) *InternalFabricReconciler {
 	return &InternalFabricReconciler{
-		Client: cl,
-		Scheme: s,
+		Client:                         cl,
+		Scheme:                         s,
+		RouteConfigurationRulePriority: routeConfigurationRulePriority,
 	}
 }
 

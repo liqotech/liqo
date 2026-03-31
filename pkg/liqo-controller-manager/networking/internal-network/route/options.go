@@ -16,5 +16,6 @@ package route
 
 // Options contains the options for the route package.
 type Options struct {
-	Namespace string
+	Namespace                      string
+	RouteConfigurationRulePriority int
 }

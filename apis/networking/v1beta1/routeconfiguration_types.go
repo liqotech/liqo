@@ -83,6 +83,8 @@ type Rule struct {
 	Oif *string `json:"oif,omitempty"`
 	// FwMark is the firewall mark of the Rule.
 	FwMark *int `json:"fwmark,omitempty"`
+	// Priority is the priority of the Rule.
+	Priority *int `json:"priority,omitempty"`
 	// Routes is the list of routes of the Rule.
 	Routes []Route `json:"routes"`
 	// TargetRef is the reference to the target object of the rule.

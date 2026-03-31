@@ -63,7 +63,8 @@ type NetworkingOption struct {
 	FabricFullMasquerade           bool
 	GwmasqbypassEnabled            bool
 
-	GenevePort uint16
+	GenevePort                     uint16
+	RouteConfigurationRulePriority int
 }
 
 // NewNetworkingOption creates a new NetworkingOption with the provided parameters.
@@ -85,7 +86,8 @@ func NewNetworkingOption(factory *dynamicutils.RunnableFactory, dynClient dynami
 		FabricFullMasquerade:           opts.FabricFullMasqueradeEnabled,
 		GwmasqbypassEnabled:            opts.GwmasqbypassEnabled,
 
-		GenevePort: opts.GenevePort,
+		GenevePort:                     opts.GenevePort,
+		RouteConfigurationRulePriority: opts.RouteConfigurationRulePriority,
 	}
 }
 
@@ -124,7 +126,9 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 	}
 
 	intPodReconciler := route.NewPodReconciler(mgr.GetClient(), mgr.GetScheme(),
-		mgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{Namespace: opts.LiqoNamespace})
+		mgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{
+			Namespace: opts.LiqoNamespace,
+		})
 	if err := intPodReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("unable to create controller internalPodReconciler: %s", err)
 		return err
@@ -176,7 +180,8 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		return err
 	}
 
-	internalFabricReconciler := internalfabriccontroller.NewInternalFabricReconciler(mgr.GetClient(), mgr.GetScheme())
+	internalFabricReconciler := internalfabriccontroller.NewInternalFabricReconciler(mgr.GetClient(), mgr.GetScheme(),
+		opts.RouteConfigurationRulePriority)
 	if err := internalFabricReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the internalFabricReconciler: %v", err)
 		return err
@@ -207,7 +212,9 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("internal-node-controller"),
-		&route.Options{Namespace: opts.LiqoNamespace},
+		&route.Options{
+			Namespace: opts.LiqoNamespace,
+		},
 	)
 	if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the internalNodeReconciler: %v", err)

@@ -176,6 +176,13 @@ networking:
       # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,
       # making impossible for a pod that receives the traffic to know the original source IP.
       fullMasquerade: false
+      # -- The priority used by the liqo-controller-manager to set the routing rules on the fabric (hostnetwork).
+      # It can be useful to solve race conditions between CNI daemonsets and liqo-fabric.
+      # For example the AWS CNI should add some rules with a fixed lower priority (lowest comes first) which breaks Liqo networking.
+      # Setting an explicit priority on Liqo's fabric routing rules allows them to be correctly ordered with respect to CNI rules.
+      # We suggest using a value between 101 and 500.
+      # If the value is 0, no priority is set, and Linux will automatically select a lower priority than the existing rules.
+      routeConfigurationRulePriority: 0
       # -- Enable/Disable the masquerade bypass for the gateway pods.
       # It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled.
       # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.

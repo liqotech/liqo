@@ -95,6 +95,10 @@ func AddRule(rule *networkingv1beta1.Rule, tableID uint32) error {
 		newrule.Mark = uint32(*rule.FwMark)
 	}
 
+	if rule.Priority != nil && *rule.Priority > 0 {
+		newrule.Priority = *rule.Priority
+	}
+
 	err := netlink.RuleAdd(newrule)
 	if err != nil {
 		return fmt.Errorf("unable to add rule %v: %w", rule, err)
@@ -167,6 +171,10 @@ func RuleIsEqual(rule *networkingv1beta1.Rule, netlinkRule *netlink.Rule) bool {
 		if *rule.FwMark < 0 || int64(*rule.FwMark) > math.MaxUint32 || uint32(*rule.FwMark) != netlinkRule.Mark {
 			return false
 		}
+	}
+
+	if rule.Priority != nil && *rule.Priority != netlinkRule.Priority {
+		return false
 	}
 	return true
 }
