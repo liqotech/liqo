@@ -614,13 +614,13 @@ Those fields and labels have the following meaning:
 
 ### Cilium
 
-Liqo creates a new node for each remote cluster, however it does not schedule any daemonset on these nodes.
+By default, Liqo creates a new (virtual) node for each remote cluster; however it does not schedule any daemonset on these nodes.
 
-From version **1.14.2** Cilium adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
-This taint prevents also Liqo pods from being scheduled on the remote nodes.
+Starting from version 1.14.2, Cilium adds a taint to the nodes where the DaemonSet is not scheduled; this taint prevents pods from being deployed on these nodes.
+Consequently, this taint also prevents Liqo pods from being scheduled on the virtual node, hence on the remote cluster.
 
-To solve this issue we need to configure Cilium daemonsets to ignore the Liqo node.
-This can be done by adding the following helm values to the Cilium installation:
+To address this issue, Cilium DaemonSets must be configured to ignore Liqo nodes.
+This can be achieved by adding the following Helm values to the Cilium installation:
 
 ```yaml
 affinity:
