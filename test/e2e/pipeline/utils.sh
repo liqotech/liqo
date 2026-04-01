@@ -206,7 +206,7 @@ function wait_kyverno() {
   local kubeconfig=$1
 
   # Wait for the kyverno deployments to be ready
-  if ! waitandretry 5s 2 "${KUBECTL} rollout status deployment -n kyverno --kubeconfig ${kubeconfig}"; then
+  if ! waitandretry 5s 2 "${KUBECTL} rollout status deployment -n kyverno --kubeconfig ${kubeconfig} --timeout=60s"; then
     echo "Failed to wait for kyverno deployments to be ready"
     exit 1
   fi
