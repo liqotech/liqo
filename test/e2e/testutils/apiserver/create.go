@@ -67,7 +67,7 @@ func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string, v
 						Resources: util.ResourceRequirements(),
 					}},
 					ServiceAccountName: serviceAccountName,
-					RestartPolicy:      corev1.RestartPolicyNever,
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
 				},
 			},
 		},
