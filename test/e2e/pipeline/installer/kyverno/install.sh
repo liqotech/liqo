@@ -38,7 +38,13 @@ for PID in "${PIDS[@]}"; do
     wait "${PID}"
 done
 
+PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}"); do
    # Wait for kyverno to be ready
-   wait_kyverno "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+   wait_kyverno "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" &
+   PIDS+=($!)
+done
+
+for PID in "${PIDS[@]}"; do
+    wait "${PID}"
 done
