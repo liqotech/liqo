@@ -62,14 +62,14 @@ type InitConfig struct {
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
-func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo) *LiqoNodeProvider {
+func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo, providerID string) *LiqoNodeProvider {
 	return &LiqoNodeProvider{
 		localClient:           kubernetes.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(cfg.RemoteConfig),
 		dynClient:             dynamic.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDynClient:       dynamic.NewForConfigOrDie(cfg.RemoteConfig),
 
-		node:              node(cfg, remoteNodeInfo),
+		node:              node(cfg, remoteNodeInfo, providerID),
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
@@ -87,7 +87,7 @@ func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo)
 	}
 }
 
-func node(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo) *corev1.Node {
+func node(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo, providerID string) *corev1.Node {
 	// Default values for the NodeInfo fields if they cannot be retrieved from the remote cluster.
 	nodeInfo := corev1.NodeSystemInfo{
 		KubeletVersion:  cfg.Version,
@@ -119,6 +119,7 @@ func node(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo) *corev1.Node {
 			Annotations: cfg.ExtraAnnotations,
 		},
 		Spec: corev1.NodeSpec{
+			ProviderID: providerID,
 			Taints: []corev1.Taint{{
 				Key:    liqoconst.VirtualNodeTolerationKey,
 				Value:  strconv.FormatBool(true),
