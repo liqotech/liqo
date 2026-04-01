@@ -23,7 +23,7 @@ import (
 )
 
 // ConvertSetData converts the set element data to the appropriate byte representation based on the set data type.
-func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []byte, error) {
+func ConvertSetData(data *string, dataType *firewallapi.SetDataType) (start, end []byte, err error) {
 	if dataType == nil {
 		if data != nil {
 			return nil, nil, fmt.Errorf("set element has data but no data type is specified")

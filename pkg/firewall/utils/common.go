@@ -214,7 +214,7 @@ func compareRuleExpressions(ruleName string, currentrule, newrule *nftables.Rule
 }
 
 // GetCIDRRange calculates the start and end IP addresses of a CIDR block.
-func GetCIDRRange(cidr string) (start net.IP, end net.IP, err error) {
+func GetCIDRRange(cidr string) (start, end net.IP, err error) {
 	ip, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid CIDR format: %s", cidr)
