@@ -378,7 +378,7 @@ jobs:
           # the output should be in the .cr-release-packages since cr index expects to find it there to create the helm index
           helm package deployments/liqo --version "${{ needs.configure.outputs.commit-ref }}" --app-version "${{ needs.configure.outputs.commit-ref }}" --destination .cr-release-packages
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           path: ./liqoctl/
 
