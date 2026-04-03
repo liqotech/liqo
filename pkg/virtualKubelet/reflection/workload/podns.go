@@ -201,7 +201,10 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 
 	// Skip reflection for pods in a terminal phase (Succeeded or Failed).
 	// Avoid recreating ShadowPods and changing local pod status when the workload already completed.
-	if local.Status.Phase == corev1.PodSucceeded || local.Status.Phase == corev1.PodFailed {
+	isTerminalPhase := local.Status.Phase == corev1.PodSucceeded || local.Status.Phase == corev1.PodFailed
+	// Make sure the remote pod is also in terminal state, to avoid mismatches between local and remote state when the status is not reflected anymore.
+	isSynced := remote == nil || remote.Status.Phase == local.Status.Phase
+	if isSynced && isTerminalPhase {
 		klog.V(4).Infof("Skipping reflection of local pod %q as it is in terminal phase %q", npr.LocalRef(name), local.Status.Phase)
 		return nil
 	}

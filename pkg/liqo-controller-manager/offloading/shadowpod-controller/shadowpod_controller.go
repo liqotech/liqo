@@ -77,12 +77,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	if shadowPod.Spec.Pod.RestartPolicy == corev1.RestartPolicyNever &&
-		(shadowPod.Status.Phase == corev1.PodSucceeded || shadowPod.Status.Phase == corev1.PodFailed) {
-		klog.V(4).Infof("skip: shadowpod %s already succeeded or failed and restart policy set to Never", shadowPod.GetName())
-		return ctrl.Result{}, nil
-	} else if shadowPod.Spec.Pod.RestartPolicy == corev1.RestartPolicyOnFailure && shadowPod.Status.Phase == corev1.PodSucceeded {
-		klog.V(4).Infof("skip: shadowpod %s already succeeded and restart policy set to OnFailure", shadowPod.GetName())
+	if shadowPod.Status.Phase == corev1.PodSucceeded || shadowPod.Status.Phase == corev1.PodFailed {
+		klog.V(4).Infof("skip: shadowpod %s already in terminal phase %s", shadowPod.GetName(), shadowPod.Status.Phase)
 		return ctrl.Result{}, nil
 	}
 
