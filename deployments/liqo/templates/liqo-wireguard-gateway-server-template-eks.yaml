@@ -27,9 +27,10 @@ spec:
           annotations:
             service.beta.kubernetes.io/aws-load-balancer-type: external
             service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "80"
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: TCP 
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "3"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8083"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: HTTP
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /healthz
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "3"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "10"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"   
@@ -241,8 +242,6 @@ spec:
                     add:
                     - NET_ADMIN
                     - NET_RAW
-              - name: tcp-healthcheck
-                image: nginx
               {{- if .Values.networking.gatewayTemplates.pod.priorityClassName }}
               priorityClassName: {{ .Values.networking.gatewayTemplates.pod.priorityClassName }}
               {{- end }}
