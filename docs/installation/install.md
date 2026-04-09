@@ -120,7 +120,10 @@ Liqo does NOT support:
 ```
 
 ```{admonition} Note
-If you are planning to use an EKS cluster as [network server](/advanced/peering/inter-cluster-network), you need to install the [AWS Load Balancer V2 Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.8/) on the EKS cluster.
+If you are planning to use an EKS cluster as [network server](/advanced/peering/inter-cluster-network), it is highly recommended to install the [AWS Load Balancer V2 Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.8/) on the EKS cluster.
+If you cannot install it and you plan to use the legacy in-tree AWS Load Balancer, make sure to pass the following annotations to the gateway service through the `networking.gatewayTemplates.server.service.annotations` helm value or using the Gatewayserver CR under `.spec.serviceAnnotations`:
+- `service.beta.kubernetes.io/aws-load-balancer-type: "nlb"`
+- `service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled`: "true"
 ```
 
 **Supported CNIs**

@@ -241,8 +241,9 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 			return fmt.Errorf("unable to render the template spec: %w", err)
 		}
 
-		// Merge custom service annotations from GatewayServer into the rendered spec.
-		mergeServiceAnnotations(spec, gwServer.Spec.ServiceAnnotations)
+		// Merge custom service annotations and labels from GatewayServer into the rendered spec.
+		mergeServiceMetadataField(spec, "annotations", gwServer.Spec.ServiceAnnotations)
+		mergeServiceMetadataField(spec, "labels", gwServer.Spec.ServiceLabels)
 
 		objChild.Object["spec"] = spec
 		return nil
@@ -299,10 +300,10 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// mergeServiceAnnotations merges the given annotations into spec.service.metadata.annotations.
-// Provided annotations take precedence over existing ones in the spec.
-func mergeServiceAnnotations(spec interface{}, annotations map[string]string) {
-	if len(annotations) == 0 {
+// mergeServiceMetadataField merges the given key-value pairs into spec.service.metadata.<field>.
+// Provided values take precedence over existing ones in the spec.
+func mergeServiceMetadataField(spec interface{}, field string, values map[string]string) {
+	if len(values) == 0 {
 		return
 	}
 	specMap, ok := spec.(map[string]interface{})
@@ -319,12 +320,12 @@ func mergeServiceAnnotations(spec interface{}, annotations map[string]string) {
 		meta = map[string]interface{}{}
 		svc["metadata"] = meta
 	}
-	annots, _ := meta["annotations"].(map[string]interface{})
-	if annots == nil {
-		annots = map[string]interface{}{}
+	existing, _ := meta[field].(map[string]interface{})
+	if existing == nil {
+		existing = map[string]interface{}{}
 	}
-	for k, v := range annotations {
-		annots[k] = v
+	for k, v := range values {
+		existing[k] = v
 	}
-	meta["annotations"] = annots
+	meta[field] = existing
 }

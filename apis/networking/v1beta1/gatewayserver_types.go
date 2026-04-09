@@ -67,6 +67,10 @@ type GatewayServerSpec struct {
 	// These annotations take precedence over any annotations defined in the server template.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ServiceLabels specifies custom labels to be added to the service created by the gateway server.
+	// These labels take precedence over any labels defined in the server template.
+	// +optional
+	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
 }
 
 // EndpointStatus defines the observed state of the endpoint.
