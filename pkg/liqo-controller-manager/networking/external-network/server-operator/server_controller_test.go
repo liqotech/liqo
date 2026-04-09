@@ -26,34 +26,36 @@ func TestServerOperator(t *testing.T) {
 	RunSpecs(t, "Server Operator Suite")
 }
 
-var _ = Describe("mergeServiceAnnotations", func() {
+var _ = Describe("mergeServiceMetadataField", func() {
 	type testCase struct {
-		spec        interface{}
-		annotations map[string]string
-		expected    interface{}
+		spec     interface{}
+		values   map[string]string
+		expected interface{}
 	}
 
-	DescribeTable("merging service annotations",
+	const field = "annotations"
+
+	DescribeTable("merging service metadata field",
 		func(tc testCase) {
-			mergeServiceAnnotations(tc.spec, tc.annotations)
+			mergeServiceMetadataField(tc.spec, field, tc.values)
 			Expect(tc.spec).To(Equal(tc.expected))
 		},
 
-		Entry("nil annotations does nothing", testCase{
+		Entry("nil values does nothing", testCase{
 			spec: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 						},
 					},
 				},
 			},
-			annotations: nil,
+			values: nil,
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 						},
 					},
@@ -61,21 +63,21 @@ var _ = Describe("mergeServiceAnnotations", func() {
 			},
 		}),
 
-		Entry("empty annotations does nothing", testCase{
+		Entry("empty values does nothing", testCase{
 			spec: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 						},
 					},
 				},
 			},
-			annotations: map[string]string{},
+			values: map[string]string{},
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 						},
 					},
@@ -83,23 +85,23 @@ var _ = Describe("mergeServiceAnnotations", func() {
 			},
 		}),
 
-		Entry("adds annotations to existing service metadata", testCase{
+		Entry("adds values to existing service metadata", testCase{
 			spec: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 						},
 					},
 				},
 			},
-			annotations: map[string]string{
+			values: map[string]string{
 				"new-key": "new-value",
 			},
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"existing": "value",
 							"new-key":  "new-value",
 						},
@@ -108,23 +110,23 @@ var _ = Describe("mergeServiceAnnotations", func() {
 			},
 		}),
 
-		Entry("overrides existing annotations", testCase{
+		Entry("overrides existing values", testCase{
 			spec: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"key": "old-value",
 						},
 					},
 				},
 			},
-			annotations: map[string]string{
+			values: map[string]string{
 				"key": "new-value",
 			},
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"key": "new-value",
 						},
 					},
@@ -136,14 +138,14 @@ var _ = Describe("mergeServiceAnnotations", func() {
 			spec: map[string]interface{}{
 				"deployment": map[string]interface{}{},
 			},
-			annotations: map[string]string{
+			values: map[string]string{
 				"key": "value",
 			},
 			expected: map[string]interface{}{
 				"deployment": map[string]interface{}{},
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"key": "value",
 						},
 					},
@@ -157,14 +159,14 @@ var _ = Describe("mergeServiceAnnotations", func() {
 					"spec": map[string]interface{}{},
 				},
 			},
-			annotations: map[string]string{
+			values: map[string]string{
 				"key": "value",
 			},
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"spec": map[string]interface{}{},
 					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"key": "value",
 						},
 					},
@@ -172,26 +174,26 @@ var _ = Describe("mergeServiceAnnotations", func() {
 			},
 		}),
 
-		Entry("creates annotations map when missing", testCase{
+		Entry("creates field map when missing", testCase{
 			spec: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+						"other": map[string]interface{}{
 							"app": "test",
 						},
 					},
 				},
 			},
-			annotations: map[string]string{
+			values: map[string]string{
 				"key": "value",
 			},
 			expected: map[string]interface{}{
 				"service": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+						"other": map[string]interface{}{
 							"app": "test",
 						},
-						"annotations": map[string]interface{}{
+						field: map[string]interface{}{
 							"key": "value",
 						},
 					},
@@ -200,9 +202,9 @@ var _ = Describe("mergeServiceAnnotations", func() {
 		}),
 
 		Entry("non-map spec is a no-op", testCase{
-			spec:        "not a map",
-			annotations: map[string]string{"key": "value"},
-			expected:    "not a map",
+			spec:     "not a map",
+			values:   map[string]string{"key": "value"},
+			expected: "not a map",
 		}),
 	)
 })
