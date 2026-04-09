@@ -15,7 +15,7 @@ linters:
     - gocyclo
     - godot
     - goheader
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - govet
@@ -67,12 +67,11 @@ linters:
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/go-logr/logr:
-              recommendations:
-                - k8s.io/klog/v2
+        - module: github.com/go-logr/logr
+          recommendations:
+            - k8s.io/klog/v2
     govet:
       enable:
         - shadow
@@ -104,6 +103,7 @@ linters:
       - linters:
           - revive
           - whitespace
+          - goconst
         path: _test\.go
       - path: (.+)\.go$
         # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
