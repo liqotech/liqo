@@ -70,6 +70,7 @@ func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error
 
 	// if the object is a map, render the template for each value
 	if reflect.TypeOf(obj).Kind() == reflect.Map {
+
 		for k, v := range obj.(map[string]interface{}) {
 			useKey, useValue, options := preProcessOptional(k, v, obj)
 
@@ -82,7 +83,9 @@ func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error
 				obj.(map[string]interface{})[useKey] = res
 			}
 		}
-
+		if err := expandPorts(obj.(map[string]interface{})); err != nil {
+			return obj, err
+		}
 		return obj, nil
 	}
 
@@ -180,4 +183,77 @@ func WatchByGVKs(ctrlBuilder *builder.TypedBuilder[reconcile.Request], gvks []sc
 		obj.SetGroupVersionKind(gvk)
 		ctrlBuilder = ctrlBuilder.Watches(obj, handler.EnqueueRequestsFromMapFunc(mapFunc))
 	}
+}
+
+// expandPorts expands the templates replacing the custom syntax "+ports"
+// into a standard Kubernetes "ports" slice.
+func expandPorts(obj map[string]interface{}) error {
+	val, ok := obj["+ports"]
+	if !ok {
+		return nil
+	}
+
+	instructions, ok := val.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("+ports must be a map")
+	}
+
+	portsStr, ok := instructions["Ports"].(string)
+	if !ok {
+		return fmt.Errorf("+ports found but missing 'Ports' field")
+	}
+
+	nodePortsStr, hasNodePorts := instructions["nodePorts"].(string)
+
+	if _, hasRegularPorts := obj["ports"]; hasRegularPorts {
+		fmt.Println("WARNING: both 'ports' and '+ports' found, '+ports' takes precedence")
+		delete(obj, "ports")
+	}
+
+	s := strings.Trim(portsStr, "[]")
+	parts := strings.Fields(s)
+
+	var nodePortsParts []string
+	if hasNodePorts {
+		ns := strings.Trim(nodePortsStr, "[]")
+		nodePortsParts = strings.Fields(ns)
+	}
+
+	namePrefix, hasPrefix := instructions["namePrefix"].(string)
+	if !hasPrefix {
+		namePrefix = "liqo-tunnel"
+	}
+
+	expanded := []interface{}{}
+
+	for i, p := range parts {
+		port, err := strconv.Atoi(p)
+		if err != nil {
+			return fmt.Errorf("invalid port value %s: %w", p, err)
+		}
+
+		element := map[string]interface{}{
+			"port":       int64(port),
+			"targetPort": int64(port),
+			"protocol":   "UDP",
+		}
+
+		if len(parts) > 1 {
+			element["name"] = fmt.Sprintf("%s-%d", namePrefix, i)
+		}
+
+		if hasNodePorts && i < len(nodePortsParts) {
+			nodePort, err := strconv.Atoi(nodePortsParts[i])
+			if err != nil {
+				return fmt.Errorf("invalid nodePort value %s: %w", nodePortsParts[i], err)
+			}
+			element["nodePort"] = int64(nodePort)
+		}
+
+		expanded = append(expanded, element)
+	}
+
+	delete(obj, "+ports")
+	obj["ports"] = expanded
+	return nil
 }
