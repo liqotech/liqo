@@ -46,6 +46,11 @@ const (
 
 // ForeignClusterStatus defines the observed state of ForeignCluster.
 type ForeignClusterStatus struct {
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// Zero means the controller has never reconciled this resource.
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// Role of the ForeignCluster.
 	// +kubebuilder:validation:Enum="Consumer";"Provider";"ConsumerAndProvider";"Unknown"
 	// +kubebuilder:default="Unknown"

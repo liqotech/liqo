@@ -162,9 +162,10 @@ func FakeForeignCluster(
 			ClusterID: clusterID,
 		},
 		Status: liqov1beta1.ForeignClusterStatus{
-			Modules:      *modules,
-			Role:         liqov1beta1.UnknownRole,
-			APIServerURL: ForeignAPIServerURL,
+			ObservedGeneration: 1,
+			Modules:            *modules,
+			Role:               liqov1beta1.UnknownRole,
+			APIServerURL:       ForeignAPIServerURL,
 		},
 	}
 }

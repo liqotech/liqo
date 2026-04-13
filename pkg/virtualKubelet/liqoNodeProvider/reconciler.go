@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -149,22 +150,36 @@ func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *liqov1beta1.
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	p.networkModuleEnabled = fcutils.IsNetworkingModuleEnabled(foreigncluster)
+	// Only trust Networking.Enabled once the FC controller has reconciled the status.
+	// Before that, the field is a zero value and indistinguishable from "networking disabled".
+	if foreigncluster.Status.ObservedGeneration > 0 {
+		p.networkModuleEnabled = ptr.To(fcutils.IsNetworkingModuleEnabled(foreigncluster))
+	}
 	p.networkReady = fcutils.IsNetworkingEstablished(foreigncluster)
+
 	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) updateNode() error {
-	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	networkReady := p.networkReady || !p.checkNetworkStatus || !p.networkModuleEnabled
+	// we assume the networking module to be enabled until confirmed otherwise (p.networkModuleEnabled == false),
+	// to avoid transient states where the node is ready but the network condition is not set
+	// because the ForeignCluster has not been observed yet.
+	networkModuleEnabled := ptr.Deref(p.networkModuleEnabled, true)
 
+	// we have to set the network condition if we have to check the network status and the network module is enabled
+	shouldSetNetworkCond := p.checkNetworkStatus && networkModuleEnabled
+
+	// check the network status only if we have to set the network condition, otherwise consider it ready
+	networkReady := p.networkReady || !shouldSetNetworkCond
+
+	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
 	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
 	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
-	if p.checkNetworkStatus && p.networkModuleEnabled {
+	if shouldSetNetworkCond {
 		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
-	} else if !p.networkModuleEnabled || !p.checkNetworkStatus {
+	} else {
 		deleteCondition(p.node, v1.NodeNetworkUnavailable)
 	}
 

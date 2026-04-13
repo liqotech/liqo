@@ -298,6 +298,47 @@ var _ = Describe("NodeProvider", func() {
 				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionFalse),
 			},
 		}),
+
+		Entry("ForeignCluster not yet reconciled (ObservedGeneration=0), Offloading enabled", nodeProviderTestcase{
+			foreignCluster: func() *liqov1beta1.ForeignCluster {
+				fc := testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+					Offloading: liqov1beta1.Module{
+						Enabled: true,
+					},
+					Networking: liqov1beta1.Module{
+						Enabled: false,
+					},
+					Authentication: liqov1beta1.Module{
+						Enabled: true,
+					},
+				})
+				fc.Status.ObservedGeneration = 0
+				return fc
+			}(),
+			virtualNode: &offloadingv1beta1.VirtualNode{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "VirtualNode",
+					APIVersion: offloadingv1beta1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nodeName,
+					Namespace: kubeletNamespace,
+				},
+				Spec: offloadingv1beta1.VirtualNodeSpec{
+					ClusterID: "remote-id",
+					ResourceQuota: v1.ResourceQuotaSpec{
+						Hard: v1.ResourceList{
+							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
+							v1.ResourceMemory: *resource.NewQuantity(3, resource.DecimalSI),
+						},
+					},
+				},
+			},
+			expectedConditions: []types.GomegaMatcher{
+				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionTrue),
+			},
+		}),
 	)
 
 	It("Labels patch", func() {

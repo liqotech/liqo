@@ -150,6 +150,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return res, err
 	}
 
+	foreignCluster.Status.ObservedGeneration = foreignCluster.Generation
+
 	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 
 	return ctrl.Result{Requeue: true, RequeueAfter: r.ResyncPeriod}, nil
