@@ -72,7 +72,7 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
-		networkModuleEnabled: false,
+		networkModuleEnabled: nil, // set once ForeignCluster is first observed
 		networkReady:         false,
 		resyncPeriod:         cfg.InformerResyncPeriod,
 		pingDisabled:         cfg.PingDisabled,

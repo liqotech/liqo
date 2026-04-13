@@ -51,7 +51,7 @@ type LiqoNodeProvider struct {
 	pingDisabled       bool
 	checkNetworkStatus bool
 
-	networkModuleEnabled bool
+	networkModuleEnabled *bool // nil = ForeignCluster not yet observed
 	networkReady         bool
 
 	onNodeChangeCallback func(*corev1.Node)
