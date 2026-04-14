@@ -38,6 +38,9 @@ const (
 	PodOffloadingBackOffReason = "OffloadingBackOff"
 	// PodOffloadingAbortedReason -> the reason assigned to pods rejected by the virtual kubelet after offloading has started.
 	PodOffloadingAbortedReason = "OffloadingAborted"
+	// RemotePodTerminatedReason -> the reason assigned to pods in the local cluster whose remote counterpart has completed,
+	// but it wasn't possible to reflect the real status (e.g. missed completion event), and the shadow pod reports a terminal phase.
+	RemotePodTerminatedReason = "RemotePodTerminated"
 
 	// ServiceAccountVolumeName is the prefix name that will be added to volumes that mount ServiceAccount secrets.
 	// This constant is taken from kubernetes/kubernetes (plugin/pkg/admission/serviceaccount/admission.go).
@@ -142,7 +145,15 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 	}
 
 	for i := range local.ContainerStatuses {
-		local.ContainerStatuses[i].Ready = false
+		TerminateContainerState(&local.ContainerStatuses[i], phase, reason)
+	}
+
+	for i := range local.InitContainerStatuses {
+		TerminateContainerState(&local.InitContainerStatuses[i], phase, reason)
+	}
+
+	for i := range local.EphemeralContainerStatuses {
+		TerminateContainerState(&local.EphemeralContainerStatuses[i], phase, reason)
 	}
 
 	return *local
@@ -240,6 +251,25 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 	}
 
 	return *remote
+}
+
+// TerminateContainerState modifies the container status to set it in a terminated state, if not already in a terminal state.
+func TerminateContainerState(cs *corev1.ContainerStatus, phase corev1.PodPhase, reason string) {
+	cs.Ready = false
+	if cs.State.Terminated == nil && (phase == corev1.PodFailed || phase == corev1.PodSucceeded) {
+		cs.State.Waiting = nil
+		cs.State.Running = nil
+		exitCode := int32(0)
+		if phase == corev1.PodFailed {
+			exitCode = 1
+		}
+		cs.State = corev1.ContainerState{
+			Terminated: &corev1.ContainerStateTerminated{
+				ExitCode: exitCode,
+				Reason:   reason,
+			},
+		}
+	}
 }
 
 // APIServerSupportMutator is a mutator which implements the support to enable offloaded pods to interact back with the local Kubernetes API server.

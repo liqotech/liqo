@@ -183,7 +183,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		}
 
 		// If the remote is already terminating, we need to reflect the status to the local one.
-		return npr.HandleStatus(ctx, local, remote, npr.RetrievePodInfo(local.GetName()))
+		return npr.HandleStatus(ctx, local, remote, shadow, npr.RetrievePodInfo(local.GetName()))
 	}
 
 	// Do not offload the pod if it was previously rejected, as new copies should have already been re-created.
@@ -282,7 +282,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	}
 
 	// Reflect the status from the remote pod to the local one.
-	return npr.HandleStatus(ctx, local, remote, info)
+	return npr.HandleStatus(ctx, local, remote, shadow, info)
 }
 
 // HandleLabels mutates the local object labels, to mark the pod as offloaded and allow filtering at the informer level.
@@ -376,9 +376,31 @@ func (npr *NamespacedPodReflector) ShouldUpdateShadowPod(ctx context.Context, sh
 }
 
 // HandleStatus reflects the status from the remote Pod to the local one.
-func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remote *corev1.Pod, info *PodInfo) error {
-	// Do not handle the status in case the remote pod has not yet been created, or already terminated.
+func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remote *corev1.Pod,
+	shadow *offloadingv1beta1.ShadowPod, info *PodInfo) error {
+	// The remote pod does not exist yet, or has been deleted.
 	if remote == nil {
+		switch {
+		case shadow == nil:
+			// Shadow pod still does not exist, wait for resources propagation.
+			klog.V(4).Infof("Remote pod %q and shadowpod do not exist, skipping status update", npr.RemoteRef(local.GetName()))
+		case shadow.Status.Phase == corev1.PodSucceeded || shadow.Status.Phase == corev1.PodFailed:
+			// If the shadow pod reports a terminal phase, the real pod completed normally we need to
+			// manage the orphan pod.
+			phase := shadow.Status.Phase
+			po := forge.LocalRejectedPod(local, phase, forge.RemotePodTerminatedReason)
+			if reflect.DeepEqual(local.Status, po.Status) {
+				klog.V(4).Infof("Skipping local pod %q status update, as already synced", npr.LocalRef(local.GetName()))
+				return nil
+			}
+
+			klog.Infof("Updating local pod %q status to %q since the remote pod is no longer available", npr.LocalRef(local.GetName()), phase)
+			if _, err := npr.localPodsClient.UpdateStatus(ctx, po, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager}); err != nil {
+				klog.Errorf("Failed to update local pod %q status: %v", npr.LocalRef(local.GetName()), err)
+				return err
+			}
+		}
+
 		return nil
 	}
 

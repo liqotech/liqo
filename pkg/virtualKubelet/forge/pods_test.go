@@ -135,6 +135,22 @@ var _ = Describe("Pod forging", func() {
 		It("should correctly mutate the container statuses", func() {
 			Expect(output.Status.ContainerStatuses).To(HaveLen(1))
 			Expect(output.Status.ContainerStatuses[0].Ready).To(Equal(false))
+			Expect(output.Status.ContainerStatuses[0].State.Terminated).NotTo(BeNil())
+			Expect(output.Status.ContainerStatuses[0].State.Terminated.ExitCode).To(Equal(int32(1)))
+			Expect(output.Status.ContainerStatuses[0].State.Terminated.Reason).To(Equal(forge.PodOffloadingAbortedReason))
+		})
+
+		Context("when the container is already terminated", func() {
+			BeforeEach(func() {
+				local.Status.ContainerStatuses[0].State = corev1.ContainerState{
+					Terminated: &corev1.ContainerStateTerminated{ExitCode: 137, Reason: "OOMKilled"},
+				}
+			})
+			It("should preserve the existing terminated state", func() {
+				Expect(output.Status.ContainerStatuses[0].State.Terminated).NotTo(BeNil())
+				Expect(output.Status.ContainerStatuses[0].State.Terminated.ExitCode).To(Equal(int32(137)))
+				Expect(output.Status.ContainerStatuses[0].State.Terminated.Reason).To(Equal("OOMKilled"))
+			})
 		})
 		It("should preserve the other status fields", func() { Expect(output.Status.PodIP).To(Equal(local.Status.PodIP)) })
 	})
