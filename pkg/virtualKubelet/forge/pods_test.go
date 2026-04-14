@@ -107,9 +107,26 @@ var _ = Describe("Pod forging", func() {
 			local = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace"},
 				Status: corev1.PodStatus{
-					PodIP:             "1.1.1.1",
-					Conditions:        []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
-					ContainerStatuses: []corev1.ContainerStatus{{Name: "foo", Ready: true}},
+					PodIP:      "1.1.1.1",
+					Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "foo",
+							Ready: true,
+						},
+						{
+							Name:  "bar",
+							Ready: true,
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()}},
+						},
+						{
+							Name:  "waiting",
+							Ready: false,
+							State: corev1.ContainerState{
+								Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"},
+							},
+						},
+					},
 				},
 			}
 		})
@@ -133,8 +150,30 @@ var _ = Describe("Pod forging", func() {
 			Expect(output.Status.Conditions[0].LastTransitionTime.Time).To(BeTemporally("~", time.Now()))
 		})
 		It("should correctly mutate the container statuses", func() {
-			Expect(output.Status.ContainerStatuses).To(HaveLen(1))
-			Expect(output.Status.ContainerStatuses[0].Ready).To(Equal(false))
+			Expect(output.Status.ContainerStatuses).To(HaveLen(len(local.Status.ContainerStatuses)))
+			for i := range output.Status.ContainerStatuses {
+				Expect(output.Status.ContainerStatuses[i].Ready).To(Equal(false))
+				Expect(output.Status.ContainerStatuses[i].State.Waiting).To(BeNil())
+				Expect(output.Status.ContainerStatuses[i].State.Running).To(BeNil())
+				Expect(output.Status.ContainerStatuses[i].State.Terminated).NotTo(BeNil())
+				Expect(output.Status.ContainerStatuses[i].State.Terminated.ExitCode).To(Equal(int32(1)))
+				Expect(output.Status.ContainerStatuses[i].State.Terminated.Reason).To(Equal(forge.PodOffloadingAbortedReason))
+			}
+		})
+
+		Context("when the container is already terminated", func() {
+			BeforeEach(func() {
+				local.Status.ContainerStatuses[0].State = corev1.ContainerState{
+					Terminated: &corev1.ContainerStateTerminated{ExitCode: 137, Reason: "OOMKilled"},
+				}
+			})
+			It("should preserve the existing terminated state", func() {
+				Expect(output.Status.ContainerStatuses[0].State.Waiting).To(BeNil())
+				Expect(output.Status.ContainerStatuses[0].State.Running).To(BeNil())
+				Expect(output.Status.ContainerStatuses[0].State.Terminated).NotTo(BeNil())
+				Expect(output.Status.ContainerStatuses[0].State.Terminated.ExitCode).To(Equal(int32(137)))
+				Expect(output.Status.ContainerStatuses[0].State.Terminated.Reason).To(Equal("OOMKilled"))
+			})
 		})
 		It("should preserve the other status fields", func() { Expect(output.Status.PodIP).To(Equal(local.Status.PodIP)) })
 	})

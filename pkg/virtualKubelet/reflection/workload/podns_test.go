@@ -413,6 +413,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			var (
 				local, remote *corev1.Pod
+				shadow        *offloadingv1beta1.ShadowPod
 				podInfo       workload.PodInfo
 				err           error
 			)
@@ -427,13 +428,14 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Conditions:        []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
 					},
 				}
+				shadow = nil
 				podInfo = workload.PodInfo{}
 			})
 
 			JustBeforeEach(func() {
 				CreatePod(client, local)
 				err = reflector.(*workload.NamespacedPodReflector).HandleStatus(
-					trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, &podInfo)
+					trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, shadow, &podInfo)
 			})
 
 			When("the local pod has remote unavailable label", func() {
@@ -493,7 +495,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				JustBeforeEach(func() {
 					remote.SetUID("something-different")
 					err = reflector.(*workload.NamespacedPodReflector).HandleStatus(
-						trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, &podInfo)
+						trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, shadow, &podInfo)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -506,16 +508,56 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			})
 
 			When("the remote pod is nil", func() {
-				BeforeEach(func() {
-					remote = nil
+				BeforeEach(func() { remote = nil })
 
-					// Here, we create a modified fake client which returns an error when trying to perform an update operation.
-					client.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
-						return true, nil, errors.New("should not call update")
+				When("the local pod is pending with no container statuses", func() {
+					BeforeEach(func() {
+						local.Status.Phase = corev1.PodPending
+
+						// No update should be issued: the real pod has not been created yet.
+						client.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
+							return true, nil, errors.New("should not call update")
+						})
 					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				})
 
-				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				When("the shadow pod is in a terminal phase", func() {
+					BeforeEach(func() {
+						local.Status.Phase = corev1.PodRunning
+					})
+
+					When("the shadow pod succeeded", func() {
+						BeforeEach(func() {
+							shadow = &offloadingv1beta1.ShadowPod{
+								Status: offloadingv1beta1.ShadowPodStatus{Phase: corev1.PodSucceeded},
+							}
+						})
+
+						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should mark the local pod as succeeded", func() {
+							localAfter := GetPod(client, LocalNamespace, PodName)
+							Expect(localAfter.Status.Phase).To(BeIdenticalTo(corev1.PodSucceeded))
+							Expect(localAfter.Status.Reason).To(BeIdenticalTo(forge.RemotePodTerminatedReason))
+						})
+					})
+
+					When("the shadow pod failed", func() {
+						BeforeEach(func() {
+							shadow = &offloadingv1beta1.ShadowPod{
+								Status: offloadingv1beta1.ShadowPodStatus{Phase: corev1.PodFailed},
+							}
+						})
+
+						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should mark the local pod as failed", func() {
+							localAfter := GetPod(client, LocalNamespace, PodName)
+							Expect(localAfter.Status.Phase).To(BeIdenticalTo(corev1.PodFailed))
+							Expect(localAfter.Status.Reason).To(BeIdenticalTo(forge.RemotePodTerminatedReason))
+						})
+					})
+				})
 			})
 		})
 
