@@ -16,6 +16,7 @@ package nsoffctrl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,20 +36,21 @@ import (
 
 func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Context,
 	nsoff *offloadingv1beta1.NamespaceOffloading,
-	clusterIDMap map[string]*offloadingv1beta1.NamespaceMap) error {
+	clusterIDToNsMap map[string]*offloadingv1beta1.NamespaceMap) error {
 	virtualNodes, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
 	if err != nil {
 		return fmt.Errorf("failed to retrieve VirtualNodes: %w", err)
 	}
 	clusterIDs := getters.RetrieveClusterIDsFromVirtualNodes(virtualNodes)
 
-	// If the number of virtual nodes does not match that of namespacemaps, there is something wrong in the cluster.
-	if len(clusterIDs) != len(clusterIDMap) {
-		return fmt.Errorf("number of foreign clusters (%d) does not match that of NamespaceMaps (%d)",
-			len(clusterIDs), len(clusterIDMap))
+	// Check if there is a NamespaceMap for each remote cluster ID
+	for _, clusterID := range clusterIDs {
+		if _, exists := clusterIDToNsMap[clusterID]; !exists {
+			return fmt.Errorf("no NamespaceMap found for remote cluster ID: %s", clusterID)
+		}
 	}
 
-	var returnErr error
+	var errs []error
 	for i := range virtualNodes.Items {
 		match, err := MatchVirtualNodeSelectorTerms(ctx, r.Client, &virtualNodes.Items[i], &nsoff.Spec.ClusterSelector)
 		if err != nil {
@@ -57,21 +59,21 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 			return fmt.Errorf("invalid ClusterSelector: %w", err)
 		}
 
+		nm := clusterIDToNsMap[string(virtualNodes.Items[i].Spec.ClusterID)]
+
 		if match {
-			if err = addDesiredMapping(ctx, r.Client, nsoff.Namespace, r.remoteNamespaceName(nsoff),
-				clusterIDMap[string(virtualNodes.Items[i].Spec.ClusterID)]); err != nil {
-				returnErr = fmt.Errorf("failed to configure all desired mappings")
+			if err = addDesiredMapping(ctx, r.Client, nsoff.Namespace, r.remoteNamespaceName(nsoff), nm); err != nil {
+				errs = append(errs, fmt.Errorf("adding namespace %q to NamespaceMap %s: %w", nsoff.Namespace, nm.Name, err))
 			}
 		} else {
 			// Ensure old mappings are removed in case the cluster selector is updated.
-			if err = removeDesiredMapping(ctx, r.Client, nsoff.Namespace,
-				clusterIDMap[string(virtualNodes.Items[i].Spec.ClusterID)]); err != nil {
-				returnErr = fmt.Errorf("failed to configure all desired mappings")
+			if err = removeDesiredMapping(ctx, r.Client, nsoff.Namespace, nm); err != nil {
+				errs = append(errs, fmt.Errorf("removing namespace %q from NamespaceMap %s: %w", nsoff.Namespace, nm.Name, err))
 			}
 		}
 	}
 
-	return returnErr
+	return errors.Join(errs...)
 }
 
 func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*offloadingv1beta1.NamespaceMap, error) {
@@ -86,14 +88,17 @@ func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (ma
 	}
 
 	clusterIDMap := make(map[string]*offloadingv1beta1.NamespaceMap)
-	if len(nms.Items) == 0 {
-		klog.Info("No NamespaceMaps are present at the moment in the cluster")
-		return clusterIDMap, nil
+	for i := range nms.Items {
+		nm := &nms.Items[i]
+		if v := nm.Labels[liqoconst.RemoteClusterID]; v != "" {
+			clusterIDMap[v] = nm
+		}
 	}
 
-	for i := range nms.Items {
-		clusterIDMap[nms.Items[i].Labels[liqoconst.RemoteClusterID]] = &nms.Items[i]
+	if len(clusterIDMap) == 0 {
+		klog.Info("No NamespaceMaps are present at the moment in the cluster")
 	}
+
 	return clusterIDMap, nil
 }
 
