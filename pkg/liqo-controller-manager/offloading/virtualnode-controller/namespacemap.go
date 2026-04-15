@@ -87,6 +87,12 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 	for i := range namespaceMapList.Items {
 		nm := &namespaceMapList.Items[i]
 
+		// If the NamespaceMap is not managed by Liqo, skip deletion as it is not managed by this controller.
+		if v, ok := nm.Annotations[liqoconst.ManagedNamespaceMapAnnotKey]; ok && v == liqoconst.ManagedNamespaceMapAnnotValue {
+			klog.V(4).Infof("NamespaceMap %q is managed by the user, skipping deletion", nm.Name)
+			continue
+		}
+
 		// Retrieve all the VirtualNodes associated with the NamespaceMap.
 		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, virtualNodeRemoteClusterID)
 		if err != nil {
