@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
@@ -29,6 +30,9 @@ import (
 // enforceStatus realigns the status of the NamespaceOffloading, depending on that of the NamespaceMaps.
 func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff *offloadingv1beta1.NamespaceOffloading,
 	nsmaps map[string]*offloadingv1beta1.NamespaceMap) error {
+	// Keep track of the original status, to avoid unnecessary updates.
+	orig := nsoff.Status.DeepCopy()
+
 	nsoff.Status.RemoteNamespaceName = r.remoteNamespaceName(nsoff)
 
 	// Update the observed generation.
@@ -43,10 +47,17 @@ func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff
 	// Configure the global status given the conditions.
 	setNamespaceOffloadingStatus(nsoff, required, ready, failed)
 
+	// If the status is already up-to-date, there is no need to update it.
+	if equality.Semantic.DeepEqual(orig, &nsoff.Status) {
+		// The status is already up-to-date, and there is nothing to do.
+		return nil
+	}
+
 	// Update the status just once at the end of the logic.
 	if err := r.Status().Update(ctx, nsoff); err != nil {
 		return fmt.Errorf("failed to update status: %w", err)
 	}
+	klog.Infof("NamespaceOffloading %q status correctly updated", klog.KObj(nsoff))
 
 	return nil
 }
