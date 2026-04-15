@@ -37,6 +37,10 @@ const (
 
 	// RemoteNamespaceManagedByAnnotationKey is the annotation that identifies the NamespaceMap managing a given remote namespace.
 	RemoteNamespaceManagedByAnnotationKey = "liqo.io/managed-by-namespace-map"
+	// ManagedNamespaceMapAnnotKey is the annotation key that identifies NamespaceMaps whose lifecycle is managed by the user and not by Liqo.
+	ManagedNamespaceMapAnnotKey = "liqo.io/managed-namespace-map"
+	// ManagedNamespaceMapAnnotValue is the annotation value that identifies NamespaceMaps whose lifecycle is managed by the user and not by Liqo.
+	ManagedNamespaceMapAnnotValue = "true"
 	// RemoteNamespaceOriginalNameAnnotationKey is the annotation that identifies the original name of a remote namespace.
 	RemoteNamespaceOriginalNameAnnotationKey = "liqo.io/original-name"
 	// RemoteNamespaceClusterRoleName is the name of the cluster role used to grant permissions to the virtual kubelet in remote namespaces.
