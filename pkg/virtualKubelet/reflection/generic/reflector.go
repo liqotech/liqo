@@ -345,6 +345,12 @@ func (gr *reflector) handlers(keyer options.Keyer, filters ...options.EventFilte
 
 // Resync trigger a resync of the informer.
 func (gr *reflector) Resync() error {
+	// The reflector resyncs is only required when the master VirtualKubelet is elected after another VK failure termination.
+	// It's not required for resources managed per-node.
+	if gr.concurrencyMode == ConcurrencyModeAll {
+		return nil
+	}
+
 	// Trigger a resync of the namespace reflectors.
 	for k, v := range gr.reflectors {
 		objs, err := v.List()
