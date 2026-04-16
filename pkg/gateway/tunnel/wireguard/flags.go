@@ -70,7 +70,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.EndpointAddress, FlagNameEndpointAddress.String(), "", "Endpoint address (client only)")
 	flagset.IntVar(&opts.EndpointPort, FlagNameEndpointPort.String(), forge.DefaultGwServerPort, "Endpoint port (client only)")
 	// If EndpointPorts is provided, EndpointPort is ignored to maintain a single source of truth.
-	flagset.IntSliceVar(&opts.EndpointPorts, FlagNameEndpointPorts.String(), nil, "List of endpoint ports (client only). Takes precedence over --endpoint-port")
+	flagset.IntSliceVar(&opts.EndpointPorts, FlagNameEndpointPorts.String(), nil,
+		"List of endpoint ports (client only). Takes precedence over --endpoint-port")
 	flagset.StringVar(&opts.KeysDir, FlagNameKeysDir.String(), forge.DefaultKeysDir, "Directory where the keys are stored")
 
 	flagset.DurationVar(&opts.DNSCheckInterval, FlagNameDNSCheckInterval.String(), 5*time.Minute, "Interval between two DNS checks")
