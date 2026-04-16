@@ -61,13 +61,27 @@ func (wgi WgImplementation) Type() string {
 type Options struct {
 	GwOptions *gateway.Options
 
-	MTU             int
-	PrivateKey      wgtypes.Key
-	InterfaceIP     string
-	ListenPort      int
+	MTU         int
+	PrivateKey  wgtypes.Key
+	InterfaceIP string
+
+	// ListenPort is the port used by the WireGuard server.
+	// This field is kept for backward compatibility; if ListenPorts is provided, this value is ignored.
+	ListenPort int
+	// ListenPorts is the list of ports used by the multi-tunnel WireGuard server.
+	// If not empty, it takes precedence over ListenPort.
+	ListenPorts []int
+
 	EndpointAddress string
-	EndpointPort    int
-	KeysDir         string
+
+	// EndpointPort is the port used by the WireGuard client.
+	// This field is kept for backward compatibility; if EndpointPorts is provided, this value is ignored.
+	EndpointPort int
+	// EndpointPorts is the list of ports used by the multi-tunnel WireGuard client.
+	// If not empty, it takes precedence over EndpointPort.
+	EndpointPorts []int
+
+	KeysDir string
 
 	EndpointIP      net.IP
 	EndpointIPMutex *sync.Mutex
@@ -75,9 +89,6 @@ type Options struct {
 	DNSCheckInterval time.Duration
 
 	Implementation WgImplementation
-
-	ListenPorts   []int
-	EndpointPorts []int
 }
 
 // NewOptions returns a new Options struct.
