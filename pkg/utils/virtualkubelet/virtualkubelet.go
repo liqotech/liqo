@@ -27,11 +27,16 @@ type Lister[T any] interface {
 
 // List returns a list of NamespacedName objects from the given listers.
 func List[T Lister[O], O metav1.Object](listers ...T) ([]any, error) {
+	return ListWithLabelSelector(labels.Everything(), listers...)
+}
+
+// ListWithLabelSelector returns a list of NamespacedName objects from the given listers using the provided label selector.
+func ListWithLabelSelector[T Lister[O], O metav1.Object](selector labels.Selector, listers ...T) ([]any, error) {
 	var err error
 	objs := make([][]O, len(listers))
 	tot := 0
 	for i, l := range listers {
-		objs[i], err = l.List(labels.Everything())
+		objs[i], err = l.List(selector)
 		if err != nil {
 			return nil, err
 		}
