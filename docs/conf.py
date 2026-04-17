@@ -77,8 +77,7 @@ linkcheck_ignore = [
 #
 html_permalinks_icon = '<span class="fa fa-link text-sm"></span>'
 html_theme = 'sphinxawesome_theme'
-pygments_style = "colorful"
-pygments_style_dark = "dracula"
+pygments_style = "default"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
