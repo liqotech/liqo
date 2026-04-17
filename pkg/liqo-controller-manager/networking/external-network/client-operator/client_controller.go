@@ -35,7 +35,6 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
-	forge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -127,14 +126,6 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 	remoteClusterID, ok := gwClient.Labels[consts.RemoteClusterID]
 	if !ok {
 		return fmt.Errorf("missing label %q on GatewayClient %q", consts.RemoteClusterID, gwClient.Name)
-	}
-
-	modified, err := r.ensurePortsCoherence(ctx, gwClient)
-	if err != nil {
-		return err
-	}
-	if modified {
-		return nil
 	}
 
 	templateGV, err := schema.ParseGroupVersion(gwClient.Spec.ClientTemplateRef.APIVersion)
@@ -298,25 +289,4 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
 		For(&networkingv1beta1.GatewayClient{}).
 		Complete(r)
-}
-
-func (r *ClientReconciler) ensurePortsCoherence(ctx context.Context, gw *networkingv1beta1.GatewayClient) (bool, error) {
-	if len(gw.Spec.Endpoint.Ports) > 0 && gw.Spec.Endpoint.Port == gw.Spec.Endpoint.Ports[0] {
-		return false, nil
-	}
-
-	switch {
-	case gw.Spec.Endpoint.Port != 0 && len(gw.Spec.Endpoint.Ports) == 0:
-		gw.Spec.Endpoint.Ports = []int32{gw.Spec.Endpoint.Port}
-	case len(gw.Spec.Endpoint.Ports) > 0:
-		gw.Spec.Endpoint.Port = gw.Spec.Endpoint.Ports[0]
-	default:
-		gw.Spec.Endpoint.Port = int32(forge.DefaultGwServerPort)
-		gw.Spec.Endpoint.Ports = []int32{forge.DefaultGwServerPort}
-	}
-
-	if err := r.Update(ctx, gw); err != nil {
-		return false, err
-	}
-	return true, nil
 }

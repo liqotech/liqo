@@ -66,6 +66,7 @@ type GatewayServerSpec struct {
 }
 
 // EndpointStatus defines the observed state of the endpoint.
+// +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
 type EndpointStatus struct {
 	// Addresses specifies the addresses of the endpoint.
 	Addresses []string `json:"addresses,omitempty"`

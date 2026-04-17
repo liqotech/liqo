@@ -195,6 +195,9 @@ spec:
                     - UDP
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: port must match ports[0]
+                  rule: '!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])'
               internalEndpoint:
                 description: InternalEndpoint specifies the endpoint for the internal
                   network.
