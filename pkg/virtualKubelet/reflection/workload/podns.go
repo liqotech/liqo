@@ -147,7 +147,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	if !localExists {
 		defer tracer.Step("Ensured the absence of the remote object")
 		if shadowExists {
-			klog.V(4).Infof("Deleting remote shadowpod %q, since local pod %q does no longer exist", npr.RemoteRef(name), npr.LocalRef(name))
+			klog.Infof("Deleting remote shadowpod %q, since local pod %q does no longer exist", npr.RemoteRef(name), npr.LocalRef(name))
 			return npr.DeleteRemote(ctx, npr.remoteShadowPodsClient, "ShadowPod", name, shadow.GetUID())
 		}
 
@@ -777,18 +777,33 @@ func (npr *NamespacedPodReflector) InferAdditionalRestarts(local, remote *corev1
 
 // List retrieves the list of reflected pods.
 func (npr *NamespacedPodReflector) List() ([]interface{}, error) {
-	listShPod, err := virtualkubelet.List[virtualkubelet.Lister[*offloadingv1beta1.ShadowPod], *offloadingv1beta1.ShadowPod](
+	nodeSelector := labels.SelectorFromSet(labels.Set{forge.LiqoOriginClusterNodeName: forge.LiqoNodeName})
+
+	listShPod, err := virtualkubelet.ListWithLabelSelector[virtualkubelet.Lister[*offloadingv1beta1.ShadowPod]](
+		nodeSelector,
 		npr.remoteShadowPods,
 	)
+
 	if err != nil {
 		return nil, err
 	}
-	listPod, err := virtualkubelet.List[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](
+
+	listLocalPods, err := virtualkubelet.List[virtualkubelet.Lister[*corev1.Pod]](
 		npr.localPods,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	listRemotePods, err := virtualkubelet.ListWithLabelSelector[virtualkubelet.Lister[*corev1.Pod]](
+		nodeSelector,
 		npr.remotePods,
 	)
+
 	if err != nil {
 		return nil, err
 	}
-	return append(listShPod, listPod...), nil
+
+	return append(append(listShPod, listLocalPods...), listRemotePods...), nil
 }

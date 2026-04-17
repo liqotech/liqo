@@ -16,9 +16,11 @@ package nsoffctrl
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -93,8 +95,6 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 			klog.Errorf("Failed to update NamespaceOffloading %q status: %v", klog.KObj(nsoff), err)
 			return
 		}
-
-		klog.Infof("NamespaceOffloading %q status correctly updated", klog.KObj(nsoff))
 	}()
 
 	// If deletion timestamp is set, it starts deletion logic and waits until all remote Namespaces
@@ -131,11 +131,19 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 		return object.GetName() == consts.DefaultNamespaceOffloadingName
 	})
 
+	// Filter only Nodes created from VirtualNodes.
+	virtualNodeFilter, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: map[string]string{
+		consts.TypeLabel: consts.TypeNode,
+	}})
+	if err != nil {
+		return fmt.Errorf("creating virtualnode predicate filter: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNamespaceOffloading).
 		For(&offloadingv1beta1.NamespaceOffloading{}, builder.WithPredicates(filter)).
 		Watches(&offloadingv1beta1.NamespaceMap{}, r.namespaceMapHandlers()).
 		Watches(&offloadingv1beta1.VirtualNode{}, r.enqueueAll()).
-		Watches(&corev1.Node{}, r.enqueueAll()).
+		Watches(&corev1.Node{}, r.enqueueAll(), builder.WithPredicates(virtualNodeFilter)).
 		Complete(r)
 }
 
