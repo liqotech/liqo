@@ -79,6 +79,7 @@ const (
 	// Cross modules.
 	CtrlResourceSliceQuotaCreator = "resourceslice_quotacreator"
 	CtrlResourceSliceVNCreator    = "resourceslice_vncreator"
+	CtrlSecretNsMapCreator        = "secret_nsmapcreator" //nolint:gosec // not a credential
 	CtrlPodIPMapping              = "pod_ipmapping"
 	CtrlConfigurationIPMapping    = "configuration_ipmapping"
 )
