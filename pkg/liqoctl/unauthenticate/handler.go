@@ -18,6 +18,9 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
@@ -64,6 +67,15 @@ func (o *Options) RunUnauthenticate(ctx context.Context) error {
 
 	// Delete control plane Identity on consumer cluster
 	if err := consumer.DeleteControlPlaneIdentity(ctx, provider.localClusterID); err != nil {
+		return err
+	}
+
+	// We only check for leftover NamespaceMaps which were replicated originally from the consumer cluster.
+	localSelector := labels.SelectorFromSet(labels.Set{
+		consts.ReplicationRequestedLabel:   consts.ReplicationRequestedLabelValue,
+		consts.ReplicationDestinationLabel: string(provider.localClusterID),
+	})
+	if err := consumer.WaitForNamespaceMapsDeletion(ctx, localSelector, provider.localClusterID); err != nil {
 		return err
 	}
 

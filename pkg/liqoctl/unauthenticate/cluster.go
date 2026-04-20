@@ -115,6 +115,15 @@ func (c *Cluster) DeleteControlPlaneIdentity(ctx context.Context, providerCluste
 	return nil
 }
 
+// WaitForNamespaceMapsDeletion waits until all NamespaceMaps associated with the given cluster are deleted.
+func (c *Cluster) WaitForNamespaceMapsDeletion(ctx context.Context, selector labels.Selector, remoteClusterID liqov1beta1.ClusterID) error {
+	tenantNamespace, err := c.tenantNamespaceManager.GetNamespace(ctx, remoteClusterID)
+	if err != nil {
+		return err
+	}
+	return c.waiter.ForNamespaceMapsAbsence(ctx, tenantNamespace.Name, selector)
+}
+
 // DeleteTenant deletes a tenant on a provider cluster given the consumer cluster id.
 func (c *Cluster) DeleteTenant(ctx context.Context, consumerClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting tenant")

@@ -67,8 +67,6 @@ var (
 
 	localID liqov1beta1.ClusterID = "local-ID"
 
-	nms *offloadingv1beta1.NamespaceMapList
-
 	virtualNode1     *offloadingv1beta1.VirtualNode
 	virtualNode2     *offloadingv1beta1.VirtualNode
 	simpleNode       *corev1.Node
@@ -136,8 +134,6 @@ var _ = BeforeSuite(func() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
-	nms = &offloadingv1beta1.NamespaceMapList{}
 
 	// create the 2 tenant namespace
 	tenantNamespace1, err = namespaceManager.CreateNamespace(ctx, remoteClusterID1)
