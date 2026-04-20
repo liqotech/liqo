@@ -118,6 +118,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// Enable Multipath Hash Policy if required.
+	if connoptions.GwOptions.EnableMultipathHashPolicy {
+		if err = kernel.EnableMultipathHashPolicy(); err != nil {
+			return fmt.Errorf("failed to enable multipath hash policy: %w", err)
+		}
+	}
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
 
