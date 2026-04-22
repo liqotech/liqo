@@ -82,7 +82,7 @@ const (
 	// This allows the kernel to distribute traffic across ECMP routes based on the
 	// 5-tuple (src/dst IP, src/dst port, protocol) instead of the default L3-only hashing.
 	// Without this setting, traffic between the same IP pair always uses the same tunnel
-	// regardless of the port. Note: this setting is namespaced and only affects the
+	// regardless of the port. Notes: (1) this setting is namespaced and only affects the
 	// gateway pod's network namespace.
 	FlagNameEnableMultipathHashPolicy FlagName = "enable-multipath-hash-policy"
 )
