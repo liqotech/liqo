@@ -77,7 +77,13 @@ const (
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
 	// FlagNameMinimumKernelVersion is the minimum kernel version required by Liqo.
 	FlagNameMinimumKernelVersion FlagName = "minimum-kernel-version"
-	// FlagNameEnableMultipathHashPolicy sets fib_multipath_hash_policy=1 to enable 5-tuple hashing for multipath routing.
+	// FlagNameEnableMultipathHashPolicy enables 5-tuple hashing to improve ECMP load balancing.
+	// When set to true, the gateway writes 1 to /proc/sys/net/ipv4/fib_multipath_hash_policy.
+	// This allows the kernel to distribute traffic across ECMP routes based on the
+	// 5-tuple (src/dst IP, src/dst port, protocol) instead of the default L3-only hashing.
+	// Without this setting, traffic between the same IP pair always uses the same tunnel
+	// regardless of the port. Note: this setting is namespaced and only affects the
+	// gateway pod's network namespace.
 	FlagNameEnableMultipathHashPolicy FlagName = "enable-multipath-hash-policy"
 )
 
