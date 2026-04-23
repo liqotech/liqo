@@ -164,6 +164,15 @@ func NetworkNotRemapped(nw *ipamv1alpha1.Network) bool {
 	return ok && !strings.EqualFold(value, "false")
 }
 
+// NetworkIsExclusive returns whether the given Network requires exclusive ownership.
+// Networks are exclusive by default; only those with the shared label are non-exclusive.
+func NetworkIsExclusive(nw *ipamv1alpha1.Network) bool {
+	if nw.Labels == nil {
+		return true
+	}
+	return nw.Labels[consts.NetworkSharedLabelKey] != consts.NetworkSharedLabelValue
+}
+
 // IsPodCIDR returns whether the given Network is of type PodCIDR.
 func IsPodCIDR(nw *ipamv1alpha1.Network) bool {
 	if nw.Labels == nil {
