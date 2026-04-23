@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//nolint:goconst // let's not use constants for more readability
 package ipam
 
 import (
@@ -132,6 +133,7 @@ var _ = Describe("IPAM integration tests", func() {
 					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: false,
+						Exclusive: true,
 					})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
@@ -145,6 +147,7 @@ var _ = Describe("IPAM integration tests", func() {
 					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: true,
+						Exclusive: false,
 					})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
@@ -159,6 +162,7 @@ var _ = Describe("IPAM integration tests", func() {
 				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(res).ToNot(BeNil())
@@ -166,11 +170,12 @@ var _ = Describe("IPAM integration tests", func() {
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
 			})
 
-			When("remapping is allowed", func() {
-				It("should acquire the network and get a remapping", func() {
+			When("exclusive remapping is allowed", func() {
+				It("should remap when the same prefix is occupied", func() {
 					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: false,
+						Exclusive: true,
 					})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
@@ -178,21 +183,23 @@ var _ = Describe("IPAM integration tests", func() {
 					Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix(res.Cidr))).To(BeFalse())
 				})
 
-				It("should acquire a network that contains it and get a remapping", func() {
+				It("should remap a child when parent is shared", func() {
 					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/17",
 						Immutable: false,
+						Exclusive: true,
 					})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
 					Expect(res.Cidr).ToNot(Equal("10.20.0.0/17"))
-					Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix(res.Cidr))).To(BeFalse())
+					Expect(netip.MustParsePrefix(res.Cidr).Bits()).To(Equal(17))
 				})
 
-				It("should acquire a network that contains it and get a remapping", func() {
+				It("should remap a parent prefix when descendants are occupied", func() {
 					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/15",
 						Immutable: false,
+						Exclusive: true,
 					})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
@@ -202,31 +209,205 @@ var _ = Describe("IPAM integration tests", func() {
 			})
 
 			When("remapping is not allowed", func() {
-				It("should not acquire the network and get an error", func() {
-					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				It("should acquire the same network via refcount increment", func() {
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/16",
 						Immutable: true,
+						Exclusive: false,
 					})
-					Expect(err).To(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(res.Cidr).To(Equal("10.20.0.0/16"))
 				})
 
-				It("should not acquire a network that is contained in and get an error", func() {
-					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				It("should acquire a child network via overlapping reservation", func() {
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/17",
 						Immutable: true,
+						Exclusive: false,
 					})
-					Expect(err).To(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(res.Cidr).To(Equal("10.20.0.0/17"))
 				})
 
-				It("should not acquire a network that contains it and get an error", func() {
-					_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+				It("should acquire a parent network via overlapping reservation", func() {
+					res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 						Cidr:      "10.20.0.0/15",
 						Immutable: true,
+						Exclusive: false,
 					})
-					Expect(err).To(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(res.Cidr).To(Equal("10.20.0.0/15"))
 				})
 			})
 
+		})
+
+		When("acquiring a network exclusively", func() {
+			It("should acquire a free network exclusively", func() {
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: false,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Cidr).To(Equal("10.50.0.0/16"))
+				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.50.0.0/16"))).To(BeFalse())
+			})
+
+			It("should fail if the network is already acquired and immutable", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.20.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.20.0.0/16",
+					Exclusive: true,
+					Immutable: true,
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should remap if the network is already acquired and not immutable", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.20.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.20.0.0/16",
+					Immutable: false,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Cidr).ToNot(Equal("10.20.0.0/16"))
+				Expect(netip.MustParsePrefix(res.Cidr).Bits()).To(Equal(16))
+			})
+
+			It("should block subsequent overlapping acquisitions", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: false,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Overlapping on same prefix should fail
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).To(HaveOccurred())
+
+				// Child prefix should also fail
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/24",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should block shared parent acquisition when child is exclusive", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: true,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.0.0.0/8",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should be released and re-acquirable", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: false,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = ipamClient.NetworkRelease(ctx, &NetworkReleaseRequest{
+					Cidr: "10.50.0.0/16",
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.50.0.0/16"))).To(BeTrue())
+
+				// Re-acquire as shared should work
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Cidr).To(Equal("10.50.0.0/16"))
+			})
+		})
+
+		When("acquiring a network exclusively with remapping", func() {
+			It("should acquire exclusively with immutable flag", func() {
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Exclusive: true,
+					Immutable: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Cidr).To(Equal("10.50.0.0/16"))
+			})
+
+			It("should remap when exclusive without immutable and prefix is taken", func() {
+				// First take 10.50.0.0/16 normally
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Now request exclusive on same prefix without immutable — should get a different /16
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: false,
+					Exclusive: true,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Cidr).ToNot(Equal("10.50.0.0/16"))
+				Expect(netip.MustParsePrefix(res.Cidr).Bits()).To(Equal(16))
+
+				// The remapped result should be exclusive — overlapping must fail
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      res.Cidr,
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should fail when exclusive+immutable and prefix is taken", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "10.50.0.0/16",
+					Exclusive: true,
+					Immutable: true,
+				})
+				Expect(err).To(HaveOccurred())
+			})
 		})
 
 		When("acquiring a network out of the pools", func() {
@@ -244,6 +425,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "192.168.0.0/15",
 					Immutable: false,
+					Exclusive: true,
 				})
 				Expect(err).To(HaveOccurred())
 			})
@@ -254,6 +436,7 @@ var _ = Describe("IPAM integration tests", func() {
 				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "192.168.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(res).ToNot(BeNil())
@@ -267,6 +450,7 @@ var _ = Describe("IPAM integration tests", func() {
 				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
+					Exclusive:    false,
 					PreAllocated: 2,
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -288,6 +472,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "192.168.1.0/31",
 					Immutable:    true,
+					Exclusive:    false,
 					PreAllocated: 3,
 				})
 				Expect(err).To(HaveOccurred())
@@ -307,6 +492,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.0.0.256/16",
 					Immutable: false,
+					Exclusive: true,
 				})
 				Expect(err).To(HaveOccurred())
 			})
@@ -319,6 +505,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
@@ -348,6 +535,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
+					Exclusive:    false,
 					PreAllocated: 2,
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -403,6 +591,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
@@ -479,6 +668,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/30",
 					Immutable:    true,
+					Exclusive:    false,
 					PreAllocated: 2,
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -530,6 +720,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
@@ -588,6 +779,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:         "10.20.0.0/16",
 					Immutable:    true,
+					Exclusive:    false,
 					PreAllocated: 1,
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -672,6 +864,7 @@ var _ = Describe("IPAM integration tests", func() {
 				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "10.20.0.0/16",
 					Immutable: true,
+					Exclusive: false,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix("10.20.0.0/16"))).To(BeFalse())
