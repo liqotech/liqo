@@ -66,7 +66,7 @@ func syncNetworkAcquire(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefix
 	// Add networks that are present in the cluster but not in the cache.
 	for clusterNetwork, clusterNetworkDetails := range clusterNetworks {
 		if _, ok := cachedNetworks[clusterNetwork]; !ok {
-			if _, err := lipam.networkAcquireSpecific(clusterNetwork); err != nil {
+			if _, err := lipam.networkAcquireSpecific(clusterNetwork, clusterNetworkDetails.exclusive); err != nil {
 				return fmt.Errorf("failed to acquire network %q: %w", clusterNetwork, err)
 			}
 		}

@@ -52,7 +52,7 @@ func (lipam *LiqoIPAM) initializeNetworks(ctx context.Context) error {
 
 	// Initialize the networks.
 	for net, netdetails := range nets {
-		if _, err := lipam.networkAcquireSpecific(net); err != nil {
+		if _, err := lipam.networkAcquireSpecific(net, netdetails.exclusive); err != nil {
 			return err
 		}
 

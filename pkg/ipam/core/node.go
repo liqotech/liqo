@@ -35,13 +35,16 @@ type node struct {
 	lastUpdateTimestamp time.Time
 
 	prefix   netip.Prefix
-	acquired bool
+	refCount int
 	left     *node
 	right    *node
 
 	ips    []nodeIP
 	lastip netip.Addr
 }
+
+func (n *node) isAcquired() bool  { return n.refCount != 0 }
+func (n *node) isExclusive() bool { return n.refCount == -1 }
 
 type nodeDirection string
 
@@ -56,13 +59,17 @@ func newNode(prefix netip.Prefix) node {
 	return node{prefix: prefix, lastUpdateTimestamp: time.Now()}
 }
 
-func allocateNetwork(size int, node *node) *netip.Prefix {
-	if node.acquired || node.prefix.Bits() > size {
+func allocateNetwork(size int, node *node, exclusive bool) *netip.Prefix {
+	if node.isAcquired() || node.prefix.Bits() > size {
 		return nil
 	}
 	if node.prefix.Bits() == size {
 		if !node.isSplitted() {
-			node.acquired = true
+			if exclusive {
+				node.refCount = -1
+			} else {
+				node.refCount = 1
+			}
 			node.lastUpdateTimestamp = time.Now()
 			return &node.prefix
 		}
@@ -75,22 +82,48 @@ func allocateNetwork(size int, node *node) *netip.Prefix {
 
 	first, second := node.bestDirection()
 
-	if prefix := allocateNetwork(size, node.next(first)); prefix != nil {
+	if prefix := allocateNetwork(size, node.next(first), exclusive); prefix != nil {
 		return prefix
 	}
-	return allocateNetwork(size, node.next(second))
+	return allocateNetwork(size, node.next(second), exclusive)
 }
 
-func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
-	if node.acquired || !isPrefixChildOf(node.prefix, prefix) {
+func (n *node) hasAcquiredDescendants() bool {
+	if n.left != nil && (n.left.isAcquired() || n.left.hasAcquiredDescendants()) {
+		return true
+	}
+	if n.right != nil && (n.right.isAcquired() || n.right.hasAcquiredDescendants()) {
+		return true
+	}
+	return false
+}
+
+// allocateNetworkWithPrefix acquires a specific prefix.
+// exclusive=false: ref-counted overlapping (refCount++). Succeeds even if already acquired.
+// exclusive=true: sole ownership (refCount=-1). Must be free with no acquired descendants.
+// Exclusive nodes block all subsequent acquisitions on the same prefix or children.
+func allocateNetworkWithPrefix(prefix netip.Prefix, node *node, exclusive bool) *netip.Prefix {
+	if !isPrefixChildOf(node.prefix, prefix) {
 		return nil
 	}
+
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
-		if !node.acquired && node.left == nil && node.right == nil {
-			node.acquired = true
-			node.lastUpdateTimestamp = time.Now()
-			return &node.prefix
+		if exclusive {
+			if node.isAcquired() || node.hasAcquiredDescendants() {
+				return nil
+			}
+			node.refCount = -1
+		} else {
+			if node.isExclusive() {
+				return nil
+			}
+			node.refCount++
 		}
+		node.lastUpdateTimestamp = time.Now()
+		return &node.prefix
+	}
+
+	if node.isExclusive() || (exclusive && node.isAcquired()) {
 		return nil
 	}
 
@@ -99,13 +132,12 @@ func allocateNetworkWithPrefix(prefix netip.Prefix, node *node) *netip.Prefix {
 	}
 
 	if node.left != nil && node.left.prefix.Overlaps(prefix) {
-		return allocateNetworkWithPrefix(prefix, node.left)
+		return allocateNetworkWithPrefix(prefix, node.left, exclusive)
 	}
 	if node.right != nil && node.right.prefix.Overlaps(prefix) {
-		return allocateNetworkWithPrefix(prefix, node.right)
+		return allocateNetworkWithPrefix(prefix, node.right, exclusive)
 	}
 
-	// This should never happen
 	return nil
 }
 
@@ -114,8 +146,12 @@ func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) 
 
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() &&
 		node.lastUpdateTimestamp.Add(gracePeriod).Before(time.Now()) {
-		if node.acquired {
-			node.acquired = false
+		if node.isAcquired() {
+			if node.isExclusive() {
+				node.refCount = 0
+			} else if node.refCount > 0 {
+				node.refCount--
+			}
 			node.lastUpdateTimestamp = time.Now()
 			return &node.prefix
 		}
@@ -134,25 +170,25 @@ func networkRelease(prefix netip.Prefix, node *node, gracePeriod time.Duration) 
 
 func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 	if node.prefix.Addr().Compare(prefix.Addr()) == 0 && node.prefix.Bits() == prefix.Bits() {
-		if node.left != nil && (node.left.isSplitted() || node.left.acquired) {
+		if node.left != nil && (node.left.isSplitted() || node.left.isAcquired()) {
 			return false
 		}
-		if node.right != nil && (node.right.isSplitted() || node.right.acquired) {
+		if node.right != nil && (node.right.isSplitted() || node.right.isAcquired()) {
 			return false
 		}
 
 		// If node children are not splitted and node is not acquired, then network is available
-		return !node.acquired
+		return !node.isAcquired()
 	}
 
 	if node.left == nil && node.right == nil {
-		return !node.acquired
+		return !node.isAcquired()
 	}
 
-	if node.left != nil && isPrefixChildOf(node.left.prefix, prefix) && !node.left.acquired {
+	if node.left != nil && isPrefixChildOf(node.left.prefix, prefix) && !node.left.isAcquired() {
 		return networkIsAvailable(prefix, node.left)
 	}
-	if node.right != nil && isPrefixChildOf(node.right.prefix, prefix) && !node.right.acquired {
+	if node.right != nil && isPrefixChildOf(node.right.prefix, prefix) && !node.right.isAcquired() {
 		return networkIsAvailable(prefix, node.right)
 	}
 
@@ -160,11 +196,13 @@ func networkIsAvailable(prefix netip.Prefix, node *node) bool {
 }
 
 func listNetworks(node *node) []netip.Prefix {
-	if node.acquired {
-		return []netip.Prefix{node.prefix}
-	}
-
 	var networks []netip.Prefix
+	if node.isAcquired() {
+		networks = append(networks, node.prefix)
+		if node.isExclusive() {
+			return networks
+		}
+	}
 	if node.left != nil {
 		networks = append(networks, listNetworks(node.left)...)
 	}
@@ -185,7 +223,7 @@ func (n *node) isAllocatedIP(ip netip.Addr) bool {
 }
 
 func (n *node) ipAcquire() *netip.Addr {
-	if !n.acquired {
+	if !n.isAcquired() {
 		return nil
 	}
 
@@ -220,7 +258,7 @@ func (n *node) ipAcquire() *netip.Addr {
 }
 
 func (n *node) allocateIPWithAddr(addr netip.Addr) *netip.Addr {
-	if !n.acquired {
+	if !n.isAcquired() {
 		return nil
 	}
 
@@ -241,7 +279,7 @@ func (n *node) allocateIPWithAddr(addr netip.Addr) *netip.Addr {
 }
 
 func (n *node) ipRelease(ip netip.Addr, gracePeriod time.Duration) *netip.Addr {
-	if !n.acquired {
+	if !n.isAcquired() {
 		return nil
 	}
 
@@ -292,7 +330,7 @@ func (n *node) merge(gracePeriod time.Duration) {
 	if !n.left.isLeaf() || !n.right.isLeaf() {
 		return
 	}
-	if n.left.acquired || n.right.acquired {
+	if n.left.isAcquired() || n.right.isAcquired() {
 		return
 	}
 
@@ -379,8 +417,10 @@ func (n *node) toGraphvizRecursive(sb *strings.Builder) {
 		}
 		label += "\\n" + strings.Join(ipsString, "\\n")
 	}
-	if n.acquired {
-		fmt.Fprintf(sb, "  %q [label=\"%s\", style=filled, color=\"#57cc99\"];\n", n.prefix, label)
+	if n.isExclusive() {
+		fmt.Fprintf(sb, "  %q [label=\"%s (exclusive)\", style=filled, color=\"#e76f51\"];\n", n.prefix, label)
+	} else if n.isAcquired() {
+		fmt.Fprintf(sb, "  %q [label=\"%s (rc=%d)\", style=filled, color=\"#57cc99\"];\n", n.prefix, label, n.refCount)
 	}
 	if n.left != nil {
 		fmt.Fprintf(sb, "  %q -> %q;\n", n.prefix, n.left.prefix)

@@ -153,15 +153,12 @@ func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequ
 	}
 
 	if req.GetImmutable() {
-		remappedCidr, err = lipam.networkAcquireSpecific(prefix)
-		if err != nil {
-			return &NetworkAcquireResponse{}, err
-		}
+		remappedCidr, err = lipam.networkAcquireSpecific(prefix, req.GetExclusive())
 	} else {
 		remappedCidr, err = lipam.networkAcquire(prefix)
-		if err != nil {
-			return &NetworkAcquireResponse{}, err
-		}
+	}
+	if err != nil {
+		return &NetworkAcquireResponse{}, err
 	}
 
 	if err := lipam.acquirePreallocatedIPs(*remappedCidr, req.GetPreAllocated()); err != nil {
