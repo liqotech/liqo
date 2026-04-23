@@ -103,9 +103,10 @@ var _ = Describe("Networks tests", func() {
 			Expect(nets).To(HaveKey(netip.MustParsePrefix("10.1.0.0/16")))
 			Expect(nets).To(HaveKey(netip.MustParsePrefix("10.2.0.0/16")))
 			Expect(nets).To(HaveKey(netip.MustParsePrefix("10.3.0.0/16")))
-			Expect(nets).To(HaveKeyWithValue(netip.MustParsePrefix("10.4.0.0/16"), prefixDetails{10})) // network with preAllocated field
-			Expect(nets).ToNot(HaveKey(netip.MustParsePrefix(("10.5.0.0/16"))))                        // network with no status
-			Expect(nets).ToNot(HaveKey(netip.MustParsePrefix(("10.6.0.0/16"))))                        // network in deletion
+			Expect(nets).To(HaveKeyWithValue(netip.MustParsePrefix("10.4.0.0/16"),
+				prefixDetails{preallocated: 10, exclusive: true})) // network with preAllocated field
+			Expect(nets).ToNot(HaveKey(netip.MustParsePrefix(("10.5.0.0/16")))) // network with no status
+			Expect(nets).ToNot(HaveKey(netip.MustParsePrefix(("10.6.0.0/16")))) // network in deletion
 		})
 	})
 
