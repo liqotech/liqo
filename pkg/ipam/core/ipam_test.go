@@ -80,6 +80,26 @@ var _ = Describe("Ipam", func() {
 				}
 			})
 		})
+
+		When("Using overlapping pools", func() {
+			It("should return an error if one pool contains another", func() {
+				_, err := NewIpam([]netip.Prefix{
+					netip.MustParsePrefix("10.0.0.0/8"),
+					netip.MustParsePrefix("10.0.0.0/16"),
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("overlap"))
+			})
+
+			It("should return an error if pools partially overlap", func() {
+				_, err := NewIpam([]netip.Prefix{
+					netip.MustParsePrefix("10.0.0.0/15"),
+					netip.MustParsePrefix("10.1.0.0/16"),
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("overlap"))
+			})
+		})
 	})
 
 	Context("Ipam utilities", func() {
