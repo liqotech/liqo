@@ -67,12 +67,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			klog.V(6).Infof("There is no internalfabric %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)
-	}
-
-	internalnode := &networkingv1beta1.InternalNode{}
-	if err = r.Get(ctx, types.NamespacedName{Name: r.Options.NodeName}, internalnode); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", r.Options.NodeName, err)
+		return ctrl.Result{}, fmt.Errorf("getting internalfabric %q: %w", req.NamespacedName, err)
 	}
 
 	klog.V(4).Infof("Reconciling internalfabric %s", req.String())
@@ -83,18 +78,18 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	switch {
 	case !deleting && !containsFinalizer:
 		if err = r.ensureinternalfabricFinalizerPresence(ctx, internalfabric); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("ensuring finalizer presence: %w", err)
 		}
 
 		return ctrl.Result{}, nil
 
 	case deleting && containsFinalizer:
 		if err := geneve.EnsureGeneveInterfaceAbsence(internalfabric.Spec.Interface.Node.Name); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface absence: %w", err)
+			return ctrl.Result{}, fmt.Errorf("ensuring the geneve interface absence: %w", err)
 		}
 
 		if err = r.ensureinternalfabricFinalizerAbsence(ctx, internalfabric); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("ensuring finalizer absence: %w", err)
 		}
 
 		klog.V(2).Infof("InternalFabric %s deleted", req.String())
@@ -103,6 +98,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	case deleting && !containsFinalizer:
 		return ctrl.Result{}, nil
+	}
+
+	internalnode := &networkingv1beta1.InternalNode{}
+	if err = r.Get(ctx, types.NamespacedName{Name: r.Options.NodeName}, internalnode); err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting internalnode %q: %w", r.Options.NodeName, err)
 	}
 
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
@@ -123,7 +123,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		internalfabric.Spec.MTU,
 		r.Options.GenevePort,
 	); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
+		return ctrl.Result{}, fmt.Errorf("ensuring the geneve interface presence: %w", err)
 	}
 
 	klog.Infof("Enforced interface %s for internalfabric %s", internalfabric.Spec.Interface.Node.Name, internalfabric.Name)

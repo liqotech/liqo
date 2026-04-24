@@ -59,43 +59,43 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme, routeConfi
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes/finalizers,verbs=update
 
 // Reconcile manage InternalFabric lifecycle.
-func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
+func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	internalFabric := &networkingv1beta1.InternalFabric{}
-	if err = r.Get(ctx, req.NamespacedName, internalFabric); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, internalFabric); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("InternalFabric %q not found", req.NamespacedName)
+			klog.V(6).Infof("InternalFabric %q not found", req.NamespacedName)
 			return ctrl.Result{}, nil
 		}
-		klog.Errorf("Unable to get the InternalFabric %q: %s", req.NamespacedName, err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting InternalFabric: %w", err)
 	}
 
-	if !internalFabric.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer) {
-		if err = deleteGeneveTunnels(ctx, r.Client, internalFabric); err != nil {
-			klog.Errorf("Unable to delete GeneveTunnels: %s", err)
-			return ctrl.Result{}, err
+	if !internalFabric.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer) {
+			if err := deleteGeneveTunnels(ctx, r.Client, internalFabric); err != nil {
+				return ctrl.Result{}, fmt.Errorf("deleting Geneve tunnels: %w", err)
+			}
 		}
+		return ctrl.Result{}, nil
 	}
 
 	// route configuration
 
-	if err = r.ensureRouteConfiguration(ctx, internalFabric); err != nil {
-		return ctrl.Result{}, err
+	if err := r.ensureRouteConfiguration(ctx, internalFabric); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensuring route configuration: %w", err)
 	}
 
-	// geneve tunnel
+	// geneve tunnels
 
 	var internalNodeList networkingv1beta1.InternalNodeList
-	if err = r.List(ctx, &internalNodeList); err != nil {
-		klog.Errorf("Unable to list InternalNodes: %s", err)
-		return ctrl.Result{}, err
+	if err := r.List(ctx, &internalNodeList); err != nil {
+		return ctrl.Result{}, fmt.Errorf("listing InternalNodes: %w", err)
 	}
 
-	if err = ensureGeneveTunnels(ctx, r.Client, r.Scheme, internalFabric, &internalNodeList); err != nil {
+	if err := ensureGeneveTunnels(ctx, r.Client, r.Scheme, internalFabric, &internalNodeList); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensuring GeneveTunnels: %w", err)
 	}
 
-	if err = cleanupGeneveTunnels(ctx, r.Client, internalFabric, &internalNodeList); err != nil {
+	if err := cleanupGeneveTunnels(ctx, r.Client, internalFabric, &internalNodeList); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning up GeneveTunnels: %w", err)
 	}
 

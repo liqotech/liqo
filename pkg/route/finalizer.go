@@ -28,13 +28,13 @@ const (
 )
 
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
-	ctrlutil.AddFinalizer(fwcfg, routeconfigurationControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, routecfg *networkingv1beta1.RouteConfiguration) error {
+	ctrlutil.AddFinalizer(routecfg, routeconfigurationControllerFinalizer)
+	return r.Update(ctx, routecfg)
 }
 
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
-	ctrlutil.RemoveFinalizer(fwcfg, routeconfigurationControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, routecfg *networkingv1beta1.RouteConfiguration) error {
+	ctrlutil.RemoveFinalizer(routecfg, routeconfigurationControllerFinalizer)
+	return r.Update(ctx, routecfg)
 }
