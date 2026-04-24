@@ -83,7 +83,8 @@ const (
 	// 5-tuple (src/dst IP, src/dst port, protocol) instead of the default L3-only hashing.
 	// Without this setting, traffic between the same IP pair always uses the same tunnel
 	// regardless of the port. Notes: (1) this setting is namespaced and only affects the
-	// gateway pod's network namespace; (2) this is meaningful only if the gateway uses multiple parallel tunnels to exchange date with its remote endpoint.
+	// gateway pod's network namespace; (2) this is meaningful only if the gateway uses multiple
+	// parallel tunnels to exchange date with its remote endpoint.
 	FlagNameEnableMultipathHashPolicy FlagName = "enable-multipath-hash-policy"
 )
 
