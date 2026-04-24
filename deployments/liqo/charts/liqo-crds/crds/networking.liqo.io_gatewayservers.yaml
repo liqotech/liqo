@@ -117,6 +117,11 @@ spec:
                     - ExternalName
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: port must match ports[0]
+                  rule: '!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])'
+                - message: nodePort must match nodePorts[0]
+                  rule: '!(has(self.nodePort)&&has(self.nodePorts)&&self.nodePort!=self.nodePorts[0])'
               mtu:
                 description: MTU specifies the MTU of the tunnel.
                 type: integer

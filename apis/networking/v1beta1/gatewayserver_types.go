@@ -36,6 +36,8 @@ var GatewayServerGroupResource = schema.GroupResource{Group: GroupVersion.Group,
 var GatewayServerGroupVersionResource = GroupVersion.WithResource(GatewayServerResource)
 
 // Endpoint defines the endpoint of the gatewayserver.
+// +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
+// +kubebuilder:validation:XValidation:rule="!(has(self.nodePort)&&has(self.nodePorts)&&self.nodePort!=self.nodePorts[0])",message="nodePort must match nodePorts[0]"
 type Endpoint struct {
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
