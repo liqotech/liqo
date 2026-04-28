@@ -65,7 +65,7 @@ spec:
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
 metadata:
-  name: reserved-{{ add $i 1 }}
+  name: reserved-{{ $value | replace "/" "-" | replace "." "-" | replace ":" "-" }}
   labels:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: reserved
