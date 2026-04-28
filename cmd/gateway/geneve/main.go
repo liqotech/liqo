@@ -31,10 +31,8 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/cleanup"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
-	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -105,18 +103,18 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to set up readyz probe: %w", err)
 	}
 
-	inr, err := geneve.NewInternalNodeReconciler(
+	gtr, err := fabric.NewGeneveTunnelReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("internalnode-controller"),
+		mgr.GetEventRecorderFor("genevetunnel-controller"),
 		options,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create internalnode reconciler: %w", err)
+		return fmt.Errorf("unable to create geneve tunnel reconciler: %w", err)
 	}
 
-	if err := inr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
+	if err := gtr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup geneve tunnel reconciler: %w", err)
 	}
 
 	if options.GwOptions.LeaderElection {
@@ -130,7 +128,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		defer runnableGuest.Close()
 	}
 
-	runnableGeneveCleanup, err := cleanup.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
+	runnableGeneveCleanup, err := fabric.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
 	if err != nil {
 		return fmt.Errorf("unable to create runnable geneve cleanup: %w", err)
 	}
