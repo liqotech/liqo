@@ -142,12 +142,5 @@ func deleteGeneveTunnels(ctx context.Context, cl client.Client,
 		}
 	}
 
-	updated := controllerutil.RemoveFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer)
-	if updated {
-		if err := cl.Update(ctx, internalFabric); err != nil {
-			return fmt.Errorf("removing finalizer: %w", err)
-		}
-	}
-
 	return nil
 }
