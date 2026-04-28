@@ -56,21 +56,13 @@ func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error
 		if routes[i].Dst == nil {
 			continue
 		}
-		_, dst, err := net.ParseCIDR(routes[i].Dst.String())
+		existingRoute, exists, err := ExistsRoute(&routes[i], tableID)
 		if err != nil {
-			return err
-		}
-		route := &netlink.Route{
-			Dst: dst,
-		}
-
-		_, exists, err := ExistsRoute(&routes[i], tableID)
-		if err != nil {
-			return err
+			return fmt.Errorf("checking route existence: %w", err)
 		}
 		if exists {
-			if err := netlink.RouteDel(route); err != nil {
-				return err
+			if err := netlink.RouteDel(existingRoute); err != nil {
+				return fmt.Errorf("deleting route: %w", err)
 			}
 		}
 	}
