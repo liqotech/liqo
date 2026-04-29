@@ -591,6 +591,70 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
+	Describe("the CastResourcesMutator function", func() {
+		var remote *corev1.PodSpec
+
+		BeforeEach(func() {
+			remote = &corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: "c1",
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:                     resource.MustParse("100m"),
+								"scheduling.cast.ai/network-bandwidth": resource.MustParse("10"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory:                  resource.MustParse("128Mi"),
+								"scheduling.cast.ai/network-bandwidth": resource.MustParse("20"),
+								"cast.ai/foo":                          resource.MustParse("1"),
+							},
+						},
+					},
+				},
+				InitContainers: []corev1.Container{
+					{
+						Name: "i1",
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:                     resource.MustParse("50m"),
+								"scheduling.cast.ai/network-bandwidth": resource.MustParse("5"),
+							},
+							Limits: corev1.ResourceList{
+								"other.cast.ai/something": resource.MustParse("3"),
+							},
+						},
+					},
+				},
+			}
+		})
+
+		JustBeforeEach(func() { forge.CastResourcesMutator()(remote) })
+
+		It("should strip cast.ai resources from container requests", func() {
+			Expect(remote.Containers[0].Resources.Requests).To(HaveKey(corev1.ResourceCPU))
+			Expect(remote.Containers[0].Resources.Requests).NotTo(HaveKey(corev1.ResourceName("scheduling.cast.ai/network-bandwidth")))
+		})
+
+		It("should strip cast.ai resources from container limits", func() {
+			Expect(remote.Containers[0].Resources.Limits).To(HaveKey(corev1.ResourceMemory))
+			Expect(remote.Containers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("scheduling.cast.ai/network-bandwidth")))
+			Expect(remote.Containers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("cast.ai/foo")))
+		})
+
+		It("should strip cast.ai resources from init container requests and limits", func() {
+			Expect(remote.InitContainers[0].Resources.Requests).To(HaveKey(corev1.ResourceCPU))
+			Expect(remote.InitContainers[0].Resources.Requests).NotTo(HaveKey(corev1.ResourceName("scheduling.cast.ai/network-bandwidth")))
+			Expect(remote.InitContainers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("other.cast.ai/something")))
+		})
+
+		It("should preserve standard resources", func() {
+			Expect(remote.Containers[0].Resources.Requests[corev1.ResourceCPU]).To(Equal(resource.MustParse("100m")))
+			Expect(remote.Containers[0].Resources.Limits[corev1.ResourceMemory]).To(Equal(resource.MustParse("128Mi")))
+			Expect(remote.InitContainers[0].Resources.Requests[corev1.ResourceCPU]).To(Equal(resource.MustParse("50m")))
+		})
+	})
+
 	Describe("the RemoteContainersAPIServerSupport function", func() {
 		var container corev1.Container
 		var output []corev1.Container

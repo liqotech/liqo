@@ -194,6 +194,7 @@ func RemoteShadowPod(local *corev1.Pod, remote *offloadingv1beta1.ShadowPod,
 	}
 
 	mutators = append(mutators, RuntimeClassNameMutator(local, forgingOpts))
+	mutators = append(mutators, CastResourcesMutator())
 
 	return &offloadingv1beta1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(localMetaFiltered, &remote.ObjectMeta),
@@ -451,6 +452,31 @@ func FilterAntiAffinityLabels(labels map[string]string, whitelist string) map[st
 
 	return maps.Filter(labels, maps.FilterBlacklist(appsv1.ControllerRevisionHashLabelKey,
 		appsv1.DefaultDeploymentUniqueLabelKey, appsv1.StatefulSetPodNameLabel))
+}
+
+// CastResourcesMutator is a mutator which strips cast.ai-related resource requests/limits
+// (e.g. scheduling.cast.ai/network-bandwidth) from containers, as these are already reflected on virtual node.
+func CastResourcesMutator() RemotePodSpecMutator {
+	stripCastResources := func(rl corev1.ResourceList) corev1.ResourceList {
+		for k := range rl {
+			if strings.Contains(string(k), "cast.ai/") {
+				delete(rl, k)
+			}
+		}
+		return rl
+	}
+
+	stripContainers := func(containers []corev1.Container) {
+		for i := range containers {
+			containers[i].Resources.Requests = stripCastResources(containers[i].Resources.Requests)
+			containers[i].Resources.Limits = stripCastResources(containers[i].Resources.Limits)
+		}
+	}
+
+	return func(remote *corev1.PodSpec) {
+		stripContainers(remote.Containers)
+		stripContainers(remote.InitContainers)
+	}
 }
 
 // RuntimeClassNameMutator is a mutator which implements the support to propagate the runtimeclass name.
