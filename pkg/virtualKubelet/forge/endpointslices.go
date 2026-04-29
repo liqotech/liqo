@@ -154,3 +154,14 @@ func RemoteEndpointSlicePorts(locals []discoveryv1.EndpointPort) []discoveryv1.E
 	}
 	return remotes
 }
+
+// ForgeEndpointSliceAnnotations builds annotations for a reflected EndpointSlice,
+// filtering out keys that must not be propagated.
+func ForgeEndpointSliceAnnotations(shadow *offloadingv1beta1.ShadowEndpointSlice,
+	annotationsNotReflected []string) map[string]string {
+	if shadow == nil {
+		return nil
+	}
+
+	return FilterNotReflected(shadow.GetAnnotations(), annotationsNotReflected)
+}
