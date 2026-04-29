@@ -10447,6 +10447,14 @@ spec:
                     description: Port specifies the port of the endpoint.
                     format: int32
                     type: integer
+                  ports:
+                    description: |-
+                      Ports specifies the ports of the endpoint.
+                      This field is preferred over the legacy Port field, which is kept for backward compatibility.
+                    items:
+                      format: int32
+                      type: integer
+                    type: array
                   protocol:
                     description: Protocol specifies the protocol of the endpoint.
                     enum:
@@ -10454,6 +10462,9 @@ spec:
                     - UDP
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: port must match ports[0]
+                  rule: '!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])'
               internalEndpoint:
                 description: InternalEndpoint specifies the endpoint for the internal
                   network.

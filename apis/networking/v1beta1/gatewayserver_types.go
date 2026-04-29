@@ -66,6 +66,7 @@ type GatewayServerSpec struct {
 }
 
 // EndpointStatus defines the observed state of the endpoint.
+// +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
 type EndpointStatus struct {
 	// Addresses specifies the addresses of the endpoint.
 	Addresses []string `json:"addresses,omitempty"`
@@ -74,6 +75,9 @@ type EndpointStatus struct {
 	// Protocol specifies the protocol of the endpoint.
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
+	// Ports specifies the ports of the endpoint.
+	// This field is preferred over the legacy Port field, which is kept for backward compatibility.
+	Ports []int32 `json:"ports,omitempty"`
 }
 
 // InternalGatewayEndpoint defines the endpoint for the internal network.
