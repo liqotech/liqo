@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -84,7 +83,7 @@ func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
 
 var _ = Describe("VirtualNode controller", func() {
 
-	Context("Check if resources VirtualNodes and NamespaceMaps are correctly initialized", func() {
+	Context("Check if VirtualNodes are correctly initialized", func() {
 
 		BeforeEach(func() {
 			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespace1.Name, remoteClusterID1)
@@ -116,43 +115,12 @@ var _ = Describe("VirtualNode controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("Check NamespaceMaps presence", func() {
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
-				return len(nms.Items) == 1
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace2.Name),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
-					return false
-				}
-				return len(nms.Items) == 1
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Check if finalizers are correctly created for %s", nameVirtualNode1), func() {
+		It(fmt.Sprintf("Check if finalizer is correctly created for %s", nameVirtualNode1), func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name}, virtualNode1)
 				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
-				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Try to check presence of finalizer on the virtual-Node: %s", virtualNode1.GetName()))
@@ -166,21 +134,12 @@ var _ = Describe("VirtualNode controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Check if finalizers are correctly created for %s", nameVirtualNode2), func() {
+		It(fmt.Sprintf("Check if finalizer is correctly created for %s", nameVirtualNode2), func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2, Namespace: tenantNamespace2.Name}, virtualNode2)
 				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace2.Name),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
-					return false
-				}
-				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Try to check presence of finalizer on the virtual-Node: %s", virtualNode2.GetName()))
@@ -192,87 +151,6 @@ var _ = Describe("VirtualNode controller", func() {
 				return controllerutil.ContainsFinalizer(virtualNode2, virtualNodeControllerFinalizer)
 			}, timeout, interval).Should(BeTrue())
 
-		})
-
-	})
-
-	Context("Check if a not virtual node is monitored", func() {
-
-		It("Check absence of NamespaceMap and of finalizer", func() {
-
-			simpleNode = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: nameSimpleNode,
-					Labels: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterIDSimpleNode,
-						offloadingCluster1Label1:  "",
-						offloadingCluster1Label2:  "",
-					},
-				},
-			}
-			By(fmt.Sprintf("Create the simple-node '%s'", nameSimpleNode))
-			Expect(k8sClient.Create(ctx, simpleNode)).Should(Succeed())
-
-			By(fmt.Sprintf("Try to get not virtual-node: %s", nameSimpleNode))
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check absence of finalizer %s: ", virtualNodeControllerFinalizer))
-			Consistently(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode},
-					simpleNode); err != nil {
-					return false
-				}
-				return !controllerutil.ContainsFinalizer(simpleNode, virtualNodeControllerFinalizer)
-			}, timeout/5, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Delete the simple-node '%s'", nameSimpleNode))
-			Expect(k8sClient.Delete(ctx, simpleNode)).Should(Succeed())
-
-		})
-
-	})
-
-	Context("Check deletion lifecycle of Namespacemaps associated with virtual-node 1 ", func() {
-
-		It(fmt.Sprintf("Check regeneration of NamespaceMap associated to %s", remoteClusterID1), func() {
-
-			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespace1.Name, remoteClusterID1)
-			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
-
-			var oldUUID types.UID
-			By(fmt.Sprintf("Try to delete NamespaceMap associated to: %s", remoteClusterID1))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms,
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				oldUUID = nms.Items[0].UID
-				err := k8sClient.Delete(ctx, &nms.Items[0])
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get new NamespaceMap associated to: %s", remoteClusterID1))
-			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
-				return len(nms.Items) == 1 && oldUUID != nms.Items[0].UID
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Delete(ctx, virtualNode1)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
-				return apierrors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
 		})
 
 	})

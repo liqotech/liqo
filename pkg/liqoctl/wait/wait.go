@@ -465,6 +465,24 @@ func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID 
 	return nil
 }
 
+// ForNamespaceMapsAbsence waits until the namespacemaps with the given selector have been deleted or the timeout expires.
+func (w *Waiter) ForNamespaceMapsAbsence(ctx context.Context, namespace string, selector labels.Selector) error {
+	s := w.Printer.StartSpinner("Waiting for namespacemaps to be deleted")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		namespaceMaps, err := getters.ListNamespaceMapsByLabel(ctx, w.CRClient, namespace, selector)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return len(namespaceMaps) == 0, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for namespacemaps to be deleted: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Ensured namespacemaps absence")
+	return nil
+}
+
 // ForResourceSlicesAbsence waits until the resource slices with the given selector have been deleted or the timeout expires.
 func (w *Waiter) ForResourceSlicesAbsence(ctx context.Context, namespace string, selector labels.Selector) error {
 	s := w.Printer.StartSpinner("Waiting for resource slices to be deleted")

@@ -39,7 +39,6 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -48,7 +47,7 @@ const (
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
 )
 
-// VirtualNodeReconciler manage NamespaceMap lifecycle.
+// VirtualNodeReconciler manage virtual kubelet deployment lifecycle.
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
@@ -88,12 +87,11 @@ func NewVirtualNodeReconciler(
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
-// Reconcile manage NamespaceMaps associated with the virtual-node.
+// Reconcile manage virtual kubelet deployments associated with the virtual-node.
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	virtualNode := &offloadingv1beta1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
@@ -130,10 +128,6 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.
-	if err := r.ensureNamespaceMapPresence(ctx, virtualNode); err != nil {
-		return ctrl.Result{}, err
-	}
 	return ctrl.Result{}, nil
 }
 
@@ -159,36 +153,6 @@ var deploymentHandler = &handler.Funcs{
 	},
 }
 
-func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(
-		func(ctx context.Context, o client.Object) []reconcile.Request {
-			nm, ok := o.(*offloadingv1beta1.NamespaceMap)
-			if !ok {
-				return []reconcile.Request{}
-			}
-
-			if nm.Labels == nil || nm.Labels[consts.RemoteClusterID] == "" {
-				return []reconcile.Request{}
-			}
-			clusterID := nm.Labels[consts.RemoteClusterID]
-
-			// list virtualnode resources with the remote cluster ID label
-			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, liqov1beta1.ClusterID(clusterID))
-			if err != nil {
-				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
-				return []reconcile.Request{}
-			}
-
-			requests := []reconcile.Request{}
-			for i := range virtualnodes {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: client.ObjectKeyFromObject(&virtualnodes[i]),
-				})
-			}
-			return requests
-		})
-}
-
 // SetupWithManager register the VirtualNodeReconciler to the manager.
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// select virtual kubelet deployments only
@@ -202,6 +166,5 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlVirtualNode).
 		For(&offloadingv1beta1.VirtualNode{}).
 		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
-		Watches(&offloadingv1beta1.NamespaceMap{}, r.enqueFromNamespaceMap()).
 		Complete(r)
 }
