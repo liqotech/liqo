@@ -962,9 +962,9 @@ func ListInternalFabricsByLabels(ctx context.Context, cl client.Client,
 
 // ListGeneveTunnelsByLabels returns the list of genevetunnels resources.
 func ListGeneveTunnelsByLabels(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1beta1.GeneveTunnelList, error) {
+	ns string, lSelector labels.Selector) (*networkingv1beta1.GeneveTunnelList, error) {
 	list := new(networkingv1beta1.GeneveTunnelList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
 	return list, nil

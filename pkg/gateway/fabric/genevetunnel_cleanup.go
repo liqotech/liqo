@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleanup
+package fabric
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -24,19 +26,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
 var _ manager.Runnable = &RunnableGeneveCleanup{}
 
-// RunnableGeneveCleanup is a RunnableGeneveCleanup that manages concurrency.
+// RunnableGeneveCleanup periodically removes orphan geneve interfaces on the gateway.
 type RunnableGeneveCleanup struct {
 	Client   client.Client
 	Interval time.Duration
 }
 
-// NewRunnableGeneveCleanup creates a new Runnable.
+// NewRunnableGeneveCleanup creates a new RunnableGeneveCleanup.
 func NewRunnableGeneveCleanup(cl client.Client, interval time.Duration) (*RunnableGeneveCleanup, error) {
 	return &RunnableGeneveCleanup{
 		Client:   cl,
@@ -57,7 +60,7 @@ func (rgc *RunnableGeneveCleanup) Start(ctx context.Context) error {
 			return nil
 		case <-ticker.C:
 			if err := geneveCleanup(ctx, rgc.Client); err != nil {
-				return fmt.Errorf("geneve cleanup failed: %w", err)
+				klog.Warningf("geneve cleanup failed: %v", err)
 			}
 		}
 	}
@@ -79,15 +82,21 @@ func geneveCleanup(ctx context.Context, cl client.Client) error {
 		internalnodesMap[internalnodesList.Items[i].Spec.Interface.Gateway.Name] = struct{}{}
 	}
 
+	var errs []error
 	for _, interfaceItem := range interfaceList {
-		if _, ok := internalnodesMap[interfaceItem.Attrs().Name]; !ok {
-			klog.Infof("geneve interface %s is not needed anymore", interfaceItem.Attrs().Name)
-			if err := geneve.EnsureGeneveInterfaceAbsence(interfaceItem.Attrs().Name); err != nil {
-				return fmt.Errorf("failed to delete geneve interface %s: %w", interfaceItem, err)
+		name := interfaceItem.Attrs().Name
+		if !strings.HasPrefix(name, internalnetwork.InterfaceNamePrefix) {
+			continue
+		}
+		if _, ok := internalnodesMap[name]; !ok {
+			klog.Infof("geneve interface %s is not needed anymore", name)
+			if err := geneve.EnsureGeneveInterfaceAbsence(name); err != nil {
+				errs = append(errs, fmt.Errorf("failed to delete geneve interface %s: %w", name, err))
+				continue
 			}
-			klog.Infof("geneve interface %s deleted", interfaceItem.Attrs().Name)
+			klog.Infof("geneve interface %s deleted", name)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
