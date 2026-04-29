@@ -78,6 +78,12 @@ func cleanTable(nftconn *nftables.Conn, table *firewallapi.Table) error {
 			return err
 		}
 	}
+
+	// Delete sets that are not used anymore in the table.
+	if err := cleanSets(nftconn, table); err != nil {
+		return err
+	}
+
 	return nil
 }
 
