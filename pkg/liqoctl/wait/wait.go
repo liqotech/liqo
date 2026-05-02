@@ -80,7 +80,7 @@ func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID liqov1beta1.Clu
 
 // ForResourceSliceAuthentication waits until the ResourceSlice authentication has been accepted or the timeout expires.
 func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSlice *authv1beta1.ResourceSlice) error {
-	s := w.Printer.StartSpinner("Waiting for ResourceSlice authentication to be accepted")
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for ResourceSlice %q authentication to be accepted", resourceSlice.Name))
 
 	nsName := client.ObjectKeyFromObject(resourceSlice)
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -95,11 +95,11 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 		return false, nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for ResourceSlice authentication to be accepted: %s", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("Failed waiting for ResourceSlice %q authentication to be accepted: %s", resourceSlice.Name, output.PrettyErr(err)))
 		return err
 	}
 
-	s.Success("ResourceSlice authentication: ", authv1beta1.ResourceSliceConditionAccepted)
+	s.Success(fmt.Sprintf("ResourceSlice %q authentication: ", resourceSlice.Name), authv1beta1.ResourceSliceConditionAccepted)
 	return nil
 }
 
