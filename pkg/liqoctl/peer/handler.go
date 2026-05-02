@@ -16,6 +16,7 @@ package peer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -58,6 +59,7 @@ type Options struct {
 
 	// Offloading options
 	CreateVirtualNode bool
+	MultiVirtualNode  bool
 	CPU               string
 	Memory            string
 	Pods              string
@@ -185,13 +187,19 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		return err
 	}
 
+	nsManager := tenantnamespace.NewManager(o.LocalFactory.KubeClient, o.LocalFactory.CRClient.Scheme())
+
+	if o.MultiVirtualNode {
+		return ensureOffloadingPerNode(ctx, o, providerClusterID, providerClusterIDFlag, nsManager)
+	}
+
 	rsOptions := resourceslice.Options{
 		CreateOptions: &rest.CreateOptions{
 			Factory: o.LocalFactory,
 			Name:    string(providerClusterID),
 		},
 
-		NamespaceManager:           tenantnamespace.NewManager(o.LocalFactory.KubeClient, o.LocalFactory.CRClient.Scheme()),
+		NamespaceManager:           nsManager,
 		RemoteClusterID:            providerClusterIDFlag,
 		Class:                      o.ResourceSliceClass,
 		DisableVirtualNodeCreation: !o.CreateVirtualNode,
@@ -202,9 +210,72 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		OtherResources: o.OtherResources,
 	}
 
-	if err := rsOptions.HandleCreate(ctx); err != nil {
-		return err
+	return rsOptions.HandleCreate(ctx)
+}
+
+func ensureOffloadingPerNode(ctx context.Context, o *Options, providerClusterID liqov1beta1.ClusterID,
+	providerClusterIDFlag argsutils.ClusterIDFlags, nsManager tenantnamespace.Manager) error {
+	var nodeList corev1.NodeList
+	if err := o.RemoteFactory.CRClient.List(ctx, &nodeList); err != nil {
+		return fmt.Errorf("unable to list remote cluster nodes: %w", err)
+	}
+
+	var workerCount int
+	for i := range nodeList.Items {
+		if !isControlPlaneNode(&nodeList.Items[i]) {
+			workerCount++
+		}
+	}
+	if workerCount == 0 {
+		return fmt.Errorf("no worker nodes found in remote cluster %q", providerClusterID)
+	}
+
+	for i := range nodeList.Items {
+		node := &nodeList.Items[i]
+		if isControlPlaneNode(node) {
+			continue
+		}
+		rsName := fmt.Sprintf("%s-%s", providerClusterID, node.Name)
+
+		rsOptions := resourceslice.Options{
+			CreateOptions: &rest.CreateOptions{
+				Factory: o.LocalFactory,
+				Name:    rsName,
+			},
+
+			NamespaceManager:           nsManager,
+			RemoteClusterID:            providerClusterIDFlag,
+			Class:                      o.ResourceSliceClass,
+			DisableVirtualNodeCreation: !o.CreateVirtualNode,
+			NodeName:                   node.Name,
+
+			CPU:            o.CPU,
+			Memory:         o.Memory,
+			Pods:           o.Pods,
+			OtherResources: o.OtherResources,
+		}
+
+		if err := rsOptions.HandleCreate(ctx); err != nil {
+			return fmt.Errorf("unable to create ResourceSlice for node %q: %w", node.Name, err)
+		}
 	}
 
 	return nil
+}
+
+func isControlPlaneNode(node *corev1.Node) bool {
+	labels := node.GetLabels()
+	_, hasControlPlane := labels["node-role.kubernetes.io/control-plane"]
+	_, hasMaster := labels["node-role.kubernetes.io/master"]
+	_, hasControlplaneLegacy := labels["node-role.kubernetes.io/controlplane"]
+	if hasControlPlane || hasMaster || hasControlplaneLegacy {
+		return true
+	}
+	for i := range node.Spec.Taints {
+		t := &node.Spec.Taints[i]
+		if t.Key == "node-role.kubernetes.io/control-plane" || t.Key == "node-role.kubernetes.io/master" {
+			return true
+		}
+	}
+	return false
 }

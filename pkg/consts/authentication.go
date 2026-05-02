@@ -46,6 +46,11 @@ const (
 	// CreateVirtualNodeAnnotation is the value of the annotation that enables the creation of a virtual node.
 	CreateVirtualNodeAnnotation = "liqo.io/create-virtual-node"
 
+	// VirtualNodeNodeNameAnnotation is the annotation key used to store the target node name for a per-node VirtualNode.
+	// When set on a ResourceSlice, the VirtualNode creator controller adds a kubernetes.io/hostname node selector
+	// so that the virtual kubelet targets only that specific remote node.
+	VirtualNodeNodeNameAnnotation = "liqo.io/virtual-node-node-name"
+
 	// CordonResourceAnnotation is the value of the annotation that enables the cordon of a resource.
 	CordonResourceAnnotation = "liqo.io/cordon"
 

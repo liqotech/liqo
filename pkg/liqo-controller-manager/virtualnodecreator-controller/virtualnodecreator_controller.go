@@ -124,6 +124,14 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name,
 			virtualNode.Spec.VkOptionsTemplateRef)
 
+		// If the ResourceSlice targets a specific remote node, pin the VirtualNode to that node.
+		if nodeName := resourceSlice.Annotations[consts.VirtualNodeNodeNameAnnotation]; nodeName != "" {
+			if vnOpts.NodeSelector == nil {
+				vnOpts.NodeSelector = map[string]string{}
+			}
+			vnOpts.NodeSelector["kubernetes.io/hostname"] = nodeName
+		}
+
 		if err := forge.MutateVirtualNode(ctx, r.Client,
 			virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil, nil); err != nil {
 			return err
