@@ -15,17 +15,17 @@
 package wireguard
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-	"time"
 
 	"github.com/vishvananda/netlink"
+	"golang.zx2c4.com/wireguard/conn"
+	"golang.zx2c4.com/wireguard/device"
+	"golang.zx2c4.com/wireguard/ipc"
+	"golang.zx2c4.com/wireguard/tun"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/gateway"
@@ -111,36 +111,66 @@ func createLinkKernel(options *Options) error {
 	return nil
 }
 
-// runWgUserCmd runs the wg command with the given arguments.
-func runWgUserCmd(cmd *exec.Cmd) {
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		outStr, errStr := stdout.String(), stderr.String()
-		fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-		klog.Fatalf("failed to run '%s': %v", cmd.String(), err)
+// createLinkUserspace creates a new Wireguard interface using the userspace implementation (wireguard-go)
+// embedded as a library. The device is kept running in-process for the lifetime of the gateway.
+func createLinkUserspace(ctx context.Context, options *Options) error {
+	mtu := options.MTU
+	if mtu <= 0 {
+		mtu = device.DefaultMTU
 	}
-}
 
-// createLinkUserspsce creates a new Wireguard interface using the userspace implementation (wireguard-go).
-// TODO: at the moment is not possible to override the settings of the wireguard-go implementation.
-// We are planning a PR to add a flag for the MTU.
-func createLinkUserspace(ctx context.Context, _ *Options) error {
-	cmd := exec.Command("/usr/bin/wireguard-go", "-f", tunnel.TunnelInterfaceName) //nolint:gosec //we leave it as it is
-	go runWgUserCmd(cmd)
+	tunDev, err := tun.CreateTUN(tunnel.TunnelInterfaceName, mtu)
+	if err != nil {
+		return fmt.Errorf("failed to create wireguard TUN device %q: %w", tunnel.TunnelInterfaceName, err)
+	}
 
-	if err := wait.PollUntilContextTimeout(ctx, time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-		klog.Info("Waiting for wireguard device to be created")
-		if _, err = netlink.LinkByName(tunnel.TunnelInterfaceName); err != nil {
-			klog.Errorf("failed to get wireguard device '%s': %s", tunnel.TunnelInterfaceName, err)
-			return false, nil
+	name, err := tunDev.Name()
+	if err != nil {
+		_ = tunDev.Close()
+		return fmt.Errorf("failed to read wireguard TUN device name: %w", err)
+	}
+
+	fileUAPI, err := ipc.UAPIOpen(name)
+	if err != nil {
+		_ = tunDev.Close()
+		return fmt.Errorf("failed to open UAPI socket for %q: %w", name, err)
+	}
+
+	logger := device.NewLogger(device.LogLevelError, fmt.Sprintf("(%s) ", name))
+	wgDev := device.NewDevice(tunDev, conn.NewDefaultBind(), logger)
+
+	uapi, err := ipc.UAPIListen(name, fileUAPI)
+	if err != nil {
+		wgDev.Close()
+		return fmt.Errorf("failed to listen on UAPI socket for %q: %w", name, err)
+	}
+
+	go func() {
+		for {
+			c, err := uapi.Accept()
+			if err != nil {
+				return
+			}
+			go wgDev.IpcHandle(c)
 		}
-		return true, nil
-	}); err != nil {
-		return fmt.Errorf("failed to create wireguard device %q: %w", tunnel.TunnelInterfaceName, err)
-	}
+	}()
 
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := uapi.Close(); err != nil {
+				klog.Errorf("Error closing uapi: %v", err)
+			}
+			wgDev.Close()
+		case <-wgDev.Wait():
+			if err := uapi.Close(); err != nil {
+				klog.Errorf("Error closing uapi: %v", err)
+			}
+			klog.Fatalf("wireguard userspace device %q stopped unexpectedly", name)
+		}
+	}()
+
+	klog.Infof("wireguard userspace device %q started", name)
 	return nil
 }
 
