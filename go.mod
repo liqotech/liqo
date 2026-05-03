@@ -34,6 +34,7 @@ require (
 	golang.org/x/mod v0.29.0
 	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.38.0
+	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220504211119-3d4a969bb56b
 	gomodules.xyz/jsonpatch/v2 v2.4.0
 	google.golang.org/api v0.206.0
@@ -261,7 +262,7 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 // indirect
+	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
