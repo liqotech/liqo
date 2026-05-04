@@ -47,7 +47,6 @@ rules:
   resources:
   - connections/status
   - genevetunnels/status
-  - internalnodes/status
   verbs:
   - get
   - patch
@@ -58,7 +57,6 @@ rules:
   - firewallconfigurations
   - firewallconfigurations/status
   - genevetunnels
-  - internalnodes
   - routeconfigurations
   - routeconfigurations/status
   verbs:
@@ -78,6 +76,7 @@ rules:
   - networking.liqo.io
   resources:
   - internalfabrics
+  - internalnodes
   verbs:
   - get
   - list
