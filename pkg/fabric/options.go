@@ -17,6 +17,7 @@ package fabric
 import (
 	"time"
 
+	"github.com/liqotech/liqo/pkg/conncheck"
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
 
@@ -37,13 +38,16 @@ type Options struct {
 	MinimumKernelVersion      kernelversion.KernelVersion
 
 	DisableARP            bool
-	GenevePort            uint16
 	GeneveCleanupInterval time.Duration
+	GenevePort            uint16
+
+	ConnCheckOptions *conncheck.Options
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
 	return &Options{
 		MinimumKernelVersion: kernelversion.MinimumKernelVersion,
+		ConnCheckOptions:     conncheck.NewOptions(),
 	}
 }

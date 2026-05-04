@@ -151,6 +151,19 @@ func ExistGeneveInterfaceAddr(link netlink.Link, addr net.IP) *netlink.Addr {
 	return nil
 }
 
+// GetGeneveInterfaceStatistics returns the traffic statistics of the geneve interface with the given name.
+// If the interface does not exist, it returns a nil statistics and no error.
+func GetGeneveInterfaceStatistics(name string) (*netlink.LinkStatistics, error) {
+	link, err := ExistGeneveInterface(name)
+	if err != nil {
+		return nil, fmt.Errorf("checking geneve link existence: %w", err)
+	}
+	if link == nil {
+		return nil, nil
+	}
+	return link.Attrs().Statistics, nil
+}
+
 // ListGeneveInterfaces returns all the geneve interfaces.
 func ListGeneveInterfaces() ([]netlink.Link, error) {
 	links, err := netlink.LinkList()

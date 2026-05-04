@@ -18,6 +18,8 @@ import "time"
 
 // Options contains the options for the wireguard interface.
 type Options struct {
+	// PingEnabled allows to enable/disable the conncheck
+	PingEnabled bool
 	// PingPort is the port used for the ping check.
 	PingPort int
 	// PingBufferSize is the size of the buffer used for the ping check.
@@ -26,6 +28,11 @@ type Options struct {
 	PingLossThreshold uint
 	// PingInterval is the interval at which the ping is sent.
 	PingInterval time.Duration
+	// PingUpdateStatusInterval is the interval used to send the update to the K8S API server with the update function
+	PingUpdateStatusInterval time.Duration
+
+	// PingBindIP is the IP address to bind the UDP socket to. Defaults to 0.0.0.0 if empty.
+	PingBindIP string
 }
 
 // NewOptions returns a new Options struct.

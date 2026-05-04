@@ -58,6 +58,11 @@ spec:
           - --geneve-port={{ .Values.networking.genevePort }}
           - --health-probe-bind-address=:{{ .Values.networking.fabric.config.healthProbeBindAddressPort}}
           - --metrics-address=:{{ .Values.networking.fabric.config.metricsAddressPort}}
+          - --ping-enabled=true
+          - --ping-port=54321
+          - --ping-loss-threshold={{ .Values.networking.fabric.config.ping.lossThreshold }}
+          - --ping-interval={{ .Values.networking.fabric.config.ping.interval }}
+          - --ping-update-status-interval={{ .Values.networking.fabric.config.ping.updateStatusInterval }}
           {{- if not .Values.requirements.kernel.enabled }}
           - --disable-kernel-version-check
           {{- end }}
