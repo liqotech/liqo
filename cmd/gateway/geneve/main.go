@@ -27,12 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	gwfabric "github.com/liqotech/liqo/pkg/gateway/fabric"
+	genevemetrics "github.com/liqotech/liqo/pkg/gateway/tunnel/geneve"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -115,6 +117,15 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	if err := gtr.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to setup geneve tunnel reconciler: %w", err)
+	}
+
+	// Register the geneve metrics collector.
+	promcollect := genevemetrics.NewPrometheusCollector(mgr.GetClient(), &genevemetrics.MetricsOptions{
+		RemoteClusterID: options.GwOptions.RemoteClusterID,
+		Namespace:       options.GwOptions.Namespace,
+	})
+	if err := metrics.Registry.Register(promcollect); err != nil {
+		return fmt.Errorf("unable to register geneve prometheus collector: %w", err)
 	}
 
 	if options.GwOptions.LeaderElection {

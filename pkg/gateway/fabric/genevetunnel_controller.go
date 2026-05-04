@@ -17,8 +17,11 @@ package fabric
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,9 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
+	timeutils "github.com/liqotech/liqo/pkg/utils/time"
 )
 
 // GeneveTunnelReconciler manages geneve tunnels for the gateway.
@@ -43,6 +48,9 @@ type GeneveTunnelReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder events.EventRecorder
 	Options        *Options
+
+	connChecker   *conncheck.ConnChecker
+	connCheckerMu sync.Mutex
 }
 
 // NewGeneveTunnelReconciler returns a new GeneveTunnelReconciler.
@@ -57,7 +65,8 @@ func NewGeneveTunnelReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 
@@ -73,6 +82,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !gt.DeletionTimestamp.IsZero() {
+		r.stopSender(gt.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -102,6 +112,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Disclaimer: this is a best-effort attempt as we have to reconcile before the InternalNode controller
 	// cleanup its finalizer. For a more consistent outcome, we rely on the geneve deletion routine.
 	if !internalnode.DeletionTimestamp.IsZero() {
+		r.stopSender(gt.Name)
 		if err := geneve.EnsureGeneveInterfaceAbsence(internalnode.Spec.Interface.Gateway.Name); err != nil {
 			klog.Warningf("Unable to delete geneve interface for genevetunnel %s: %v", req, err)
 			return ctrl.Result{}, nil
@@ -146,6 +157,32 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	klog.Infof("Enforced interface %s for genevetunnel %s", internalnode.Spec.Interface.Gateway.Name, req.String())
+
+	if internalnode.Spec.Interface.Node.IP == "" {
+		klog.Infof("waiting for inner IP of internalnode %s to be set...", internalnode.Name)
+		return ctrl.Result{}, nil
+	}
+
+	if r.Options.PingEnabled {
+		cc, err := r.getOrInitConnChecker(ctx, internalfabric.Spec.Interface.Gateway.IP.String())
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("initializing conncheck: %w", err)
+		}
+
+		updateCallback := r.forgeUpdateGeneveTunnelCallback(ctx, gt.Name, gt.Namespace)
+
+		err = cc.AddSender(ctx, gt.Name, internalnode.Spec.Interface.Node.IP.String(), updateCallback)
+		if err != nil {
+			switch err.(type) {
+			case *conncheck.DuplicateError:
+				return ctrl.Result{}, nil
+			default:
+				return ctrl.Result{}, fmt.Errorf("unable to add conncheck sender: %w", err)
+			}
+		}
+
+		go cc.RunSender(gt.Name)
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -202,4 +239,71 @@ func geneveTunnelListToRequests(list *networkingv1beta1.GeneveTunnelList) []reco
 		}
 	}
 	return requests
+}
+
+// getOrInitConnChecker lazily creates the ConnChecker bound to the gateway inner IP on first call.
+func (r *GeneveTunnelReconciler) getOrInitConnChecker(ctx context.Context, gatewayIP string) (*conncheck.ConnChecker, error) {
+	r.connCheckerMu.Lock()
+	defer r.connCheckerMu.Unlock()
+	if r.connChecker != nil {
+		return r.connChecker, nil
+	}
+	opts := *r.Options.ConnCheckOptions
+	opts.BindIP = gatewayIP
+	cc, err := conncheck.NewConnChecker(&opts)
+	if err != nil {
+		return nil, fmt.Errorf("creating geneve conncheck: %w", err)
+	}
+	go cc.RunReceiver(ctx)
+	go cc.RunReceiverDisconnectObserver(ctx)
+	r.connChecker = cc
+	klog.Infof("geneve conncheck started, bound to %s:%d", gatewayIP, opts.PingPort)
+	return cc, nil
+}
+
+// forgeUpdateGeneveTunnelCallback returns a conncheck.UpdateFunc that writes connectivity results to a GeneveTunnel status.
+func (r *GeneveTunnelReconciler) forgeUpdateGeneveTunnelCallback(ctx context.Context,
+	tunnelName, tunnelNamespace string) conncheck.UpdateFunc {
+	return func(connected bool, latency time.Duration, timestamp time.Time) error {
+		gt := &networkingv1beta1.GeneveTunnel{}
+		if err := r.Get(ctx, types.NamespacedName{Name: tunnelName, Namespace: tunnelNamespace}, gt); err != nil {
+			return err
+		}
+		value := networkingv1beta1.ConnectionError
+		if connected {
+			value = networkingv1beta1.Connected
+		}
+		return r.updateGeneveTunnelStatus(ctx, gt, value, latency, timestamp)
+	}
+}
+
+// updateGeneveTunnelStatus updates the status of a GeneveTunnel, throttled by PingUpdateStatusInterval.
+func (r *GeneveTunnelReconciler) updateGeneveTunnelStatus(ctx context.Context, gt *networkingv1beta1.GeneveTunnel,
+	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
+	if gt.Status.Value != value ||
+		timestamp.Sub(gt.Status.Latency.Timestamp.Time) > r.Options.PingUpdateStatusInterval {
+		if gt.Status.Value != value {
+			klog.Infof("changing genevetunnel %q status to %q", client.ObjectKeyFromObject(gt), value)
+		}
+		gt.Status.Latency = networkingv1beta1.ConnectionLatency{
+			Value:     timeutils.FormatLatency(latency),
+			Timestamp: metav1.NewTime(timestamp),
+		}
+		gt.Status.Value = value
+		if err := r.Status().Update(ctx, gt); err != nil {
+			return fmt.Errorf("unable to update genevetunnel %q status: %w", client.ObjectKeyFromObject(gt), err)
+		}
+	}
+	return nil
+}
+
+// stopSender removes the conncheck sender for the given genevetunnel when it is deleted.
+func (r *GeneveTunnelReconciler) stopSender(clusterID string) {
+	r.connCheckerMu.Lock()
+	cc := r.connChecker
+	r.connCheckerMu.Unlock()
+	if cc == nil {
+		return
+	}
+	cc.DelAndStopSender(clusterID)
 }

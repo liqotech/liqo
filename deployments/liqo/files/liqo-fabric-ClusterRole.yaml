@@ -24,6 +24,9 @@ rules:
   resources:
   - firewallconfigurations
   - firewallconfigurations/status
+  - genevetunnels
+  - internalfabrics
+  - internalfabrics/status
   - internalnodes
   - internalnodes/status
   - routeconfigurations
@@ -41,12 +44,3 @@ rules:
   - routeconfigurations/finalizers
   verbs:
   - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - genevetunnels
-  - internalfabrics
-  verbs:
-  - get
-  - list
-  - watch

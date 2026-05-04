@@ -17,8 +17,8 @@ package connection
 import (
 	"time"
 
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 )
 
 // Options contains the options for the wireguard interface.

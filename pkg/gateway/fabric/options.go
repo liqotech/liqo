@@ -17,6 +17,7 @@ package fabric
 import (
 	"time"
 
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
 
@@ -26,11 +27,16 @@ type Options struct {
 	DisableARP            bool
 	GenevePort            uint16
 	GeneveCleanupInterval time.Duration
+
+	PingEnabled              bool
+	ConnCheckOptions         *conncheck.Options
+	PingUpdateStatusInterval time.Duration
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions(options *gateway.Options) *Options {
 	return &Options{
-		GwOptions: options,
+		GwOptions:        options,
+		ConnCheckOptions: conncheck.NewOptions(),
 	}
 }

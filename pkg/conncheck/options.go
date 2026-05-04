@@ -26,9 +26,13 @@ type Options struct {
 	PingLossThreshold uint
 	// PingInterval is the interval at which the ping is sent.
 	PingInterval time.Duration
+	// BindIP is the IP address to bind the UDP socket to. Defaults to 0.0.0.0 if empty.
+	BindIP string
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		PingBufferSize: 1024,
+	}
 }
