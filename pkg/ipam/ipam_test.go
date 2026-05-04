@@ -392,22 +392,49 @@ var _ = Describe("IPAM integration tests", func() {
 		})
 
 		When("acquiring a network out of the pools", func() {
-			It("should not acquire the network and get an error", func() {
-				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+			It("mutable should allocate a remapped CIDR from the pools", func() {
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "50.0.0.0/24",
 					Immutable: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res).ToNot(BeNil())
+				Expect(res.Cidr).ToNot(Equal("50.0.0.0/24"))
+				Expect(netip.MustParsePrefix(res.Cidr).Bits()).To(Equal(24))
+				Expect(ipamServer.networkIsAvailable(netip.MustParsePrefix(res.Cidr))).To(BeFalse())
+			})
+
+			It("immutable+shared should succeed with implicit reservation (no-op)", func() {
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "50.0.0.0/24",
+					Immutable: true,
+					Exclusive: false,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res).ToNot(BeNil())
+				Expect(res.Cidr).To(Equal("50.0.0.0/24"))
+			})
+
+			It("immutable+exclusive should fail", func() {
+				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+					Cidr:      "50.0.0.0/24",
+					Immutable: true,
+					Exclusive: true,
 				})
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
-		When("acquiring a network bigger than a pool", func() {
-			It("should not acquire the network and get an error", func() {
-				_, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
+		When("acquiring a network bigger than a pool but mutable", func() {
+			It("should allocate a remapped CIDR from a pool that fits", func() {
+				res, err := ipamClient.NetworkAcquire(ctx, &NetworkAcquireRequest{
 					Cidr:      "192.168.0.0/15",
 					Immutable: false,
 				})
-				Expect(err).To(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res).ToNot(BeNil())
+				Expect(res.Cidr).ToNot(Equal("192.168.0.0/15"))
+				Expect(netip.MustParsePrefix(res.Cidr).Bits()).To(Equal(15))
 			})
 		})
 
@@ -605,20 +632,22 @@ var _ = Describe("IPAM integration tests", func() {
 		})
 
 		When("checking for an out of pool network", func() {
-			It("should get an error", func() {
-				_, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+			It("should return not available without error", func() {
+				res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "50.0.0.0/24",
 				})
-				Expect(err).To(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Available).To(BeFalse())
 			})
 		})
 
 		When("checking for a network bigger than a pool", func() {
-			It("should get an error", func() {
-				_, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
+			It("should return not available without error", func() {
+				res, err := ipamClient.NetworkIsAvailable(ctx, &NetworkAvailableRequest{
 					Cidr: "192.168.0.0/15",
 				})
-				Expect(err).To(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(res.Available).To(BeFalse())
 			})
 		})
 

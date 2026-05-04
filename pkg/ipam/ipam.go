@@ -25,6 +25,7 @@ import (
 
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamcore "github.com/liqotech/liqo/pkg/ipam/core"
@@ -148,13 +149,26 @@ func (lipam *LiqoIPAM) NetworkAcquire(_ context.Context, req *NetworkAcquireRequ
 		return &NetworkAcquireResponse{}, fmt.Errorf("failed to parse prefix %q: %w", req.GetCidr(), err)
 	}
 
-	if !lipam.isInPool(prefix) {
+	// Out-of-pool shared reservations are implicitly satisfied: Liqo cannot allocate from
+	// ranges outside its pools, so the CIDR is already excluded without tracking it.
+	// This only applies for:
+	// - CIDRs which don't allow remapping
+	// - CIDRs which are not intended to be used, hence we exclude "exclusive" reservations
+	if !lipam.isInPool(prefix) && req.GetImmutable() && !req.GetExclusive() {
+		klog.Infof("Network %q is outside pools, implicitly reserved", prefix.String())
+		return &NetworkAcquireResponse{Cidr: prefix.String()}, nil
+	}
+
+	// Immutable+exclusive requires the prefix to live inside a pool.
+	if !lipam.isInPool(prefix) && req.GetImmutable() {
 		return &NetworkAcquireResponse{}, fmt.Errorf("prefix %q is not in the pool %q", req.GetCidr(), strings.Join(lipam.opts.Pools, ","))
 	}
 
-	if req.GetImmutable() {
+	// At this point either the prefix is in-pool, or it's mutable (so ipam will return a remappedCIDR within the pools.
+	switch {
+	case req.GetImmutable():
 		remappedCidr, err = lipam.networkAcquireSpecific(prefix, req.GetExclusive())
-	} else {
+	default:
 		remappedCidr, err = lipam.networkAcquire(prefix)
 	}
 	if err != nil {
@@ -185,7 +199,7 @@ func (lipam *LiqoIPAM) NetworkRelease(_ context.Context, req *NetworkReleaseRequ
 	return &NetworkReleaseResponse{}, nil
 }
 
-// NetworkIsAvailable checks if a network is available.
+// NetworkIsAvailable checks if a network is available and ready to be used by Liqo.
 func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, req *NetworkAvailableRequest) (*NetworkAvailableResponse, error) {
 	lipam.mutex.Lock()
 	defer lipam.mutex.Unlock()
@@ -196,7 +210,7 @@ func (lipam *LiqoIPAM) NetworkIsAvailable(_ context.Context, req *NetworkAvailab
 	}
 
 	if !lipam.isInPool(prefix) {
-		return &NetworkAvailableResponse{}, fmt.Errorf("prefix %q is not in the pool %q", req.GetCidr(), strings.Join(lipam.opts.Pools, ","))
+		return &NetworkAvailableResponse{Available: false}, nil
 	}
 
 	available := lipam.networkIsAvailable(prefix)
