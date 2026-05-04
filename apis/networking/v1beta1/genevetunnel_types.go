@@ -45,8 +45,20 @@ type GeneveTunnelSpec struct {
 	InternalFabricRef *corev1.ObjectReference `json:"internalFabricRef"`
 }
 
+// GeneveTunnelStatus defines the observed state of GeneveTunnel.
+type GeneveTunnelStatus struct {
+	// Value of the tunnel connectivity.
+	Value ConnectionStatusValue `json:"value,omitempty"`
+	// Latency of the tunnel.
+	Latency ConnectionLatency `json:"latency,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo,shortName=gvtn
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.value`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Latency",type=string,JSONPath=`.status.latency.value`,priority=1
 
 // GeneveTunnel contains the settings about a geneve tunnel.
 // It links an InternalNode to an InternalFabric.
@@ -54,7 +66,8 @@ type GeneveTunnel struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec GeneveTunnelSpec `json:"spec,omitempty"`
+	Spec   GeneveTunnelSpec   `json:"spec,omitempty"`
+	Status GeneveTunnelStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

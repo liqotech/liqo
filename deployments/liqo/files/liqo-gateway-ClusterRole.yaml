@@ -46,6 +46,7 @@ rules:
   - networking.liqo.io
   resources:
   - connections/status
+  - genevetunnels/status
   - internalnodes/status
   verbs:
   - get

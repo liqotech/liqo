@@ -38,9 +38,13 @@ type ConnChecker struct {
 
 // NewConnChecker creates a new ConnChecker.
 func NewConnChecker(opts *Options) (*ConnChecker, error) {
+	bindIP := opts.BindIP
+	if bindIP == "" {
+		bindIP = "0.0.0.0"
+	}
 	addr := &net.UDPAddr{
 		Port: opts.PingPort,
-		IP:   net.ParseIP("0.0.0.0"),
+		IP:   net.ParseIP(bindIP),
 	}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
@@ -113,7 +117,7 @@ func (c *ConnChecker) RunSender(clusterID string) {
 			klog.Warningf("failed to send ping: %s", err)
 		}
 		return false, nil
-	}); err != nil {
+	}); err != nil && sender.Ctx.Err() == nil {
 		klog.Errorf("conncheck sender %s stopped for an error: %s", clusterID, err)
 	}
 

@@ -57,6 +57,9 @@ const (
 
 	// FlagNameGenevePort is the flag to set the Geneve port.
 	FlagNameGenevePort FlagName = "geneve-port"
+
+	// FlagNameGenevePingPort is the UDP port for the geneve ping receiver.
+	FlagNameGenevePingPort FlagName = "geneve-ping-port"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -82,6 +85,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")
 
 	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
+	flagset.IntVar(&opts.ConnCheckOptions.PingPort, FlagNameGenevePingPort.String(), 12346,
+		"UDP port to listen on for geneve tunnel ping health checks (must match gateway geneve-ping-port)")
 }
 
 // MarkFlagsRequired marks the flags as required.

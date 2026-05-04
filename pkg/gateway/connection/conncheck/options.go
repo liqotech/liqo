@@ -26,9 +26,16 @@ type Options struct {
 	PingLossThreshold uint
 	// PingInterval is the interval at which the ping is sent.
 	PingInterval time.Duration
+	// BindIP is the IP address to bind the UDP socket to. Defaults to 0.0.0.0 if empty.
+	BindIP string
+	// PingLatencyAlpha is the EWMA smoothing factor for latency (0 < alpha ≤ 1). Lower values produce smoother readings.
+	PingLatencyAlpha float64
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		PingBufferSize:   1024,
+		PingLatencyAlpha: 0.1,
+	}
 }

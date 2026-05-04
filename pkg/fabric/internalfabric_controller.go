@@ -17,6 +17,7 @@ package fabric
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +32,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
@@ -40,6 +42,9 @@ type InternalFabricReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	Options        *Options
+
+	connChecker   *conncheck.ConnChecker
+	connCheckerMu sync.Mutex
 }
 
 // NewInternalFabricReconciler returns a new InternalFabricReconciler.
@@ -51,6 +56,25 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme,
 		EventsRecorder: er,
 		Options:        opts,
 	}, nil
+}
+
+// getOrInitConnChecker lazily creates the ConnChecker receiver bound to the node inner geneve IP.
+func (r *InternalFabricReconciler) getOrInitConnChecker(ctx context.Context, geneveIP string) error {
+	r.connCheckerMu.Lock()
+	defer r.connCheckerMu.Unlock()
+	if r.connChecker != nil {
+		return nil
+	}
+	opts := *r.Options.ConnCheckOptions
+	opts.BindIP = geneveIP
+	cc, err := conncheck.NewConnChecker(&opts)
+	if err != nil {
+		return fmt.Errorf("creating geneve conncheck receiver: %w", err)
+	}
+	go cc.RunReceiver(ctx)
+	r.connChecker = cc
+	klog.Infof("geneve conncheck receiver started, bound to %s:%d", geneveIP, opts.PingPort)
+	return nil
 }
 
 // cluster-role
@@ -105,6 +129,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("getting internalnode %q: %w", r.Options.NodeName, err)
 	}
 
+	if internalnode.Spec.Interface.Node.IP == "" {
+		klog.V(4).Infof("waiting for inner IP of internalnode %s to be set...", internalnode.Name)
+		return ctrl.Result{}, nil
+	}
+
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -127,6 +156,10 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	klog.Infof("Enforced interface %s for internalfabric %s", internalfabric.Spec.Interface.Node.Name, internalfabric.Name)
+
+	if err := r.getOrInitConnChecker(ctx, internalnode.Spec.Interface.Node.IP.String()); err != nil {
+		return ctrl.Result{}, fmt.Errorf("initializing conncheck receiver: %w", err)
+	}
 
 	return ctrl.Result{}, nil
 }

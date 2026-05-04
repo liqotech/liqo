@@ -80,7 +80,13 @@ func (r *Receiver) ReceivePong(msg *Msg) error {
 		}
 		now := time.Now()
 		peer.lastReceivedTimestamp = msg.TimeStamp
-		peer.latency = now.Sub(msg.TimeStamp)
+		newLatency := now.Sub(msg.TimeStamp)
+		if peer.connected {
+			alpha := r.opts.PingLatencyAlpha
+			peer.latency = time.Duration(float64(peer.latency)*(1-alpha) + float64(newLatency)*alpha)
+		} else {
+			peer.latency = newLatency
+		}
 		peer.connected = true
 
 		err := peer.updateCallback(true, peer.latency, now)

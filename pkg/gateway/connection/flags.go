@@ -42,6 +42,8 @@ const (
 	PingIntervalFlag FlagName = "ping-interval"
 	// PingUpdateStatusIntervalFlag is the name of the flag used to set the ping update status interval.
 	PingUpdateStatusIntervalFlag FlagName = "ping-update-status-interval"
+	// PingLatencyAlphaFlag is the EWMA smoothing factor for reported latency.
+	PingLatencyAlphaFlag FlagName = "ping-latency-alpha"
 )
 
 // InitFlags initializes the flags for the wireguard tunnel.
@@ -60,4 +62,6 @@ func InitFlags(flagset *pflag.FlagSet, options *Options) {
 		"ping-interval is the interval between two connection checks")
 	flagset.DurationVar(&options.PingUpdateStatusInterval, PingUpdateStatusIntervalFlag.String(), 10*time.Second,
 		"ping-update-status-interval is the interval at which the status is updated")
+	flagset.Float64Var(&options.ConnCheckOptions.PingLatencyAlpha, PingLatencyAlphaFlag.String(), 0.1,
+		"ping-latency-alpha is the EWMA smoothing factor for latency (0 < alpha ≤ 1); lower values produce smoother readings")
 }

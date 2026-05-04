@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 )
 
 // Options contains the options for the wireguard interface.
@@ -26,11 +27,16 @@ type Options struct {
 	DisableARP            bool
 	GenevePort            uint16
 	GeneveCleanupInterval time.Duration
+
+	PingEnabled              bool
+	ConnCheckOptions         *conncheck.Options
+	PingUpdateStatusInterval time.Duration
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions(options *gateway.Options) *Options {
 	return &Options{
-		GwOptions: options,
+		GwOptions:        options,
+		ConnCheckOptions: conncheck.NewOptions(),
 	}
 }
