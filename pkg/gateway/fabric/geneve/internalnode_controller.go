@@ -17,6 +17,8 @@ package geneve
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,8 +32,9 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
-	"github.com/liqotech/liqo/pkg/utils/network/geneve"
+	geneveutils "github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
 // InternalNodeReconciler manage InternalNode.
@@ -40,6 +43,12 @@ type InternalNodeReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	Options        *fabric.Options
+
+	connChecker   *conncheck.ConnChecker
+	connCheckerMu sync.Mutex
+	// tunnelNames maps internalnode.Name to the GeneveTunnel name, used for cleanup on deletion.
+	tunnelNames   map[string]string
+	tunnelNamesMu sync.RWMutex
 }
 
 // NewInternalNodeReconciler returns a new InternalNodeReconciler.
@@ -50,6 +59,7 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 		Scheme:         s,
 		EventsRecorder: er,
 		Options:        opts,
+		tunnelNames:    make(map[string]string),
 	}, nil
 }
 
@@ -58,6 +68,7 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels/status,verbs=get;update;patch
 
 // Reconcile manage InternalNodes.
 func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -66,6 +77,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(6).Infof("There is no internalnode %s", req.String())
+			r.stopSender(req.Name)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
@@ -78,7 +90,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("unable to get the internal fabric: %w", err)
 	}
 
-	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
+	id, err := geneveutils.GetGeneveTunnelID(ctx, r.Client, internalFabric.Name, internalnode.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("waiting for geneve tunnel (internalfabric %s, internalnode %s) to be created...", internalFabric.Name, internalnode.Name)
@@ -100,7 +112,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if err := geneve.EnsureGeneveInterfacePresence(
+	if err := geneveutils.EnsureGeneveInterfacePresence(
 		internalnode.Spec.Interface.Gateway.Name,
 		internalFabric.Spec.Interface.Gateway.IP.String(),
 		remoteIP.String(),
@@ -113,6 +125,43 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	klog.Infof("Enforced interface %s for internalnode %s", internalnode.Spec.Interface.Gateway.Name, internalnode.Name)
+
+	if internalnode.Spec.Interface.Node.IP == "" {
+		klog.Infof("waiting for inner IP of internalnode %s to be set...", internalnode.Name)
+		return ctrl.Result{}, nil
+	}
+
+	tunnelName := fmt.Sprintf("%s-%s", internalFabric.Name, internalnode.Name)
+	r.tunnelNamesMu.Lock()
+	r.tunnelNames[internalnode.Name] = tunnelName
+	r.tunnelNamesMu.Unlock()
+
+	updateCallback := ForgeUpdateGeneveTunnelCallback(ctx, r.Client, r.Options, tunnelName, internalFabric.Namespace)
+
+	switch r.Options.PingEnabled {
+	case true:
+		cc, err := r.getOrInitConnChecker(ctx, internalFabric.Spec.Interface.Gateway.IP.String())
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("initializing conncheck: %w", err)
+		}
+
+		err = cc.AddSender(ctx, tunnelName, internalnode.Spec.Interface.Node.IP.String(), updateCallback)
+		if err != nil {
+			switch err.(type) {
+			case *conncheck.DuplicateError:
+				return ctrl.Result{}, nil
+			default:
+				return ctrl.Result{}, fmt.Errorf("unable to add conncheck sender: %w", err)
+			}
+		}
+
+		go cc.RunSender(tunnelName)
+
+	case false:
+		if err := updateCallback(true, 0, time.Time{}); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to update genevetunnel status: %w", err)
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -131,4 +180,41 @@ func geneveToInternalNodeEnqueuer(_ context.Context, obj client.Object) []reconc
 		return nil
 	}
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: v}}}
+}
+
+// getOrInitConnChecker lazily creates the ConnChecker bound to the gateway inner IP on first call.
+func (r *InternalNodeReconciler) getOrInitConnChecker(ctx context.Context, gatewayIP string) (*conncheck.ConnChecker, error) {
+	r.connCheckerMu.Lock()
+	defer r.connCheckerMu.Unlock()
+	if r.connChecker != nil {
+		return r.connChecker, nil
+	}
+	opts := *r.Options.ConnCheckOptions
+	opts.BindIP = gatewayIP
+	cc, err := conncheck.NewConnChecker(&opts)
+	if err != nil {
+		return nil, fmt.Errorf("creating geneve conncheck: %w", err)
+	}
+	go cc.RunReceiver(ctx)
+	go cc.RunReceiverDisconnectObserver(ctx)
+	r.connChecker = cc
+	klog.Infof("geneve conncheck started, bound to %s:%d", gatewayIP, opts.PingPort)
+	return cc, nil
+}
+
+// stopSender removes the conncheck sender for the given internalnode when it is deleted.
+func (r *InternalNodeReconciler) stopSender(internalNodeName string) {
+	r.connCheckerMu.Lock()
+	cc := r.connChecker
+	r.connCheckerMu.Unlock()
+	if cc == nil {
+		return
+	}
+	r.tunnelNamesMu.Lock()
+	tunnelName, ok := r.tunnelNames[internalNodeName]
+	delete(r.tunnelNames, internalNodeName)
+	r.tunnelNamesMu.Unlock()
+	if ok {
+		cc.DelAndStopSender(tunnelName)
+	}
 }

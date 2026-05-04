@@ -17,6 +17,7 @@ package fabric
 import (
 	"time"
 
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
 
@@ -38,11 +39,14 @@ type Options struct {
 	MinimumKernelVersion      kernelversion.KernelVersion
 
 	GenevePort uint16
+
+	ConnCheckOptions *conncheck.Options
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
 	return &Options{
 		MinimumKernelVersion: kernelversion.MinimumKernelVersion,
+		ConnCheckOptions:     conncheck.NewOptions(),
 	}
 }

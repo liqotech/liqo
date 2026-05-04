@@ -18,7 +18,18 @@ spec:
     singular: genevetunnel
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.value
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.latency.value
+      name: Latency
+      priority: 1
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: |-
@@ -140,6 +151,26 @@ spec:
             - internalFabricRef
             - internalNodeRef
             type: object
+          status:
+            description: GeneveTunnelStatus defines the observed state of GeneveTunnel.
+            properties:
+              latency:
+                description: Latency of the tunnel.
+                properties:
+                  timestamp:
+                    description: Timestamp of the latency.
+                    format: date-time
+                    type: string
+                  value:
+                    description: Value of the latency.
+                    type: string
+                type: object
+              value:
+                description: Value of the tunnel connectivity.
+                type: string
+            type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

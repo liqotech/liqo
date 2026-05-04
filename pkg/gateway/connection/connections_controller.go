@@ -17,6 +17,7 @@ package connection
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,7 +52,15 @@ type ConnectionsReconciler struct {
 // NewConnectionsReconciler returns a new PublicKeysReconciler.
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
-	connchecker, err := conncheck.NewConnChecker(options.ConnCheckOptions)
+	conncheckOpts := *options.ConnCheckOptions
+	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode); cidr != "" {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
+		}
+		conncheckOpts.BindIP = ip.String()
+	}
+	connchecker, err := conncheck.NewConnChecker(&conncheckOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the connection checker: %w", err)
 	}
