@@ -29,6 +29,8 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
+	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -58,6 +60,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 			local, remote netv1.Ingress
 			err           error
+
+			liqoClient *liqoclientfake.Clientset
 		)
 
 		GetIngress := func(namespace string) *netv1.Ingress {
@@ -104,6 +108,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		}
 
 		BeforeEach(func() {
+			//lint:ignore SA1019 NewClientset is not available in the generated code.
+			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: LocalNamespace}}
 			remote = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: RemoteNamespace}}
 			reflectionType = root.DefaultReflectorsTypes[resources.Ingress]
@@ -118,9 +124,12 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
+			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 			reflector = exposition.NewNamespacedIngressReflector(false, "")(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
+				WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).
+				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
 				WithReflectionType(reflectionType).
