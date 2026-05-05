@@ -175,6 +175,24 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - networking.liqo.io
   resources:
   - configurations
@@ -289,6 +307,14 @@ rules:
   - quotas/finalizers
   verbs:
   - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowingressstatuses
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - offloading.liqo.io
   resources:
