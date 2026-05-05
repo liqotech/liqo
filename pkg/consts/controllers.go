@@ -73,6 +73,7 @@ const (
 	CtrlNodeFailure         = "node_failure"
 	CtrlPodStatus           = "pod_status"
 	CtrlShadowEndpointSlice = "shadowendpointslice"
+	CtrlShadowIngressStatus = "shadowingressstatus"
 	CtrlShadowPod           = "shadowpod"
 	CtrlVirtualNode         = "virtualnode"
 

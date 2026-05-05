@@ -1361,6 +1361,11 @@ func (in *Rule) DeepCopyInto(out *Rule) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.Priority != nil {
+		in, out := &in.Priority, &out.Priority
+		*out = new(int)
+		**out = **in
+	}
 	if in.Routes != nil {
 		in, out := &in.Routes, &out.Routes
 		*out = make([]Route, len(*in))

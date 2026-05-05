@@ -31,71 +31,71 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 )
 
-// VkOptionsTemplateInformer provides access to a shared informer and lister for
-// VkOptionsTemplates.
-type VkOptionsTemplateInformer interface {
+// ShadowIngressStatusInformer provides access to a shared informer and lister for
+// ShadowIngressStatuses.
+type ShadowIngressStatusInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() offloadingv1beta1.VkOptionsTemplateLister
+	Lister() offloadingv1beta1.ShadowIngressStatusLister
 }
 
-type vkOptionsTemplateInformer struct {
+type shadowIngressStatusInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewVkOptionsTemplateInformer constructs a new informer for VkOptionsTemplate type.
+// NewShadowIngressStatusInformer constructs a new informer for ShadowIngressStatus type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewVkOptionsTemplateInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredVkOptionsTemplateInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewShadowIngressStatusInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredShadowIngressStatusInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredVkOptionsTemplateInformer constructs a new informer for VkOptionsTemplate type.
+// NewFilteredShadowIngressStatusInformer constructs a new informer for ShadowIngressStatus type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredVkOptionsTemplateInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredShadowIngressStatusInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).List(context.Background(), options)
+				return client.OffloadingV1beta1().ShadowIngressStatuses(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).Watch(context.Background(), options)
+				return client.OffloadingV1beta1().ShadowIngressStatuses(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).List(ctx, options)
+				return client.OffloadingV1beta1().ShadowIngressStatuses(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OffloadingV1beta1().VkOptionsTemplates(namespace).Watch(ctx, options)
+				return client.OffloadingV1beta1().ShadowIngressStatuses(namespace).Watch(ctx, options)
 			},
 		},
-		&apisoffloadingv1beta1.VkOptionsTemplate{},
+		&apisoffloadingv1beta1.ShadowIngressStatus{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *vkOptionsTemplateInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredVkOptionsTemplateInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *shadowIngressStatusInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredShadowIngressStatusInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *vkOptionsTemplateInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisoffloadingv1beta1.VkOptionsTemplate{}, f.defaultInformer)
+func (f *shadowIngressStatusInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisoffloadingv1beta1.ShadowIngressStatus{}, f.defaultInformer)
 }
 
-func (f *vkOptionsTemplateInformer) Lister() offloadingv1beta1.VkOptionsTemplateLister {
-	return offloadingv1beta1.NewVkOptionsTemplateLister(f.Informer().GetIndexer())
+func (f *shadowIngressStatusInformer) Lister() offloadingv1beta1.ShadowIngressStatusLister {
+	return offloadingv1beta1.NewShadowIngressStatusLister(f.Informer().GetIndexer())
 }

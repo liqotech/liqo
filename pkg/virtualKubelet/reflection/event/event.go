@@ -258,3 +258,8 @@ func (ner *NamespacedEventReflector) List() ([]interface{}, error) {
 		ner.remoteEvents,
 	)
 }
+
+// Cleanup is a no-op for this reflector.
+func (ner *NamespacedEventReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}

@@ -377,3 +377,8 @@ func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
 	}
 	return append(listEps, listSeps...), nil
 }
+
+// Cleanup is a no-op for this reflector.
+func (ner *NamespacedEndpointSliceReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
