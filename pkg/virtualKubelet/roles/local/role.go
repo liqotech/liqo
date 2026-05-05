@@ -30,6 +30,7 @@ package local
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps;virtualnodes,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowingressstatuses,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters/status,verbs=get;list;watch
 

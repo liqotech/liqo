@@ -152,6 +152,10 @@ The propagation of **Ingress** resources enables the configuration of multiple p
 *Ingress* resources are propagated **verbatim** into remote clusters, except for the *IngressClassName* field, which is left empty.
 Hence, selecting the default *ingress class* in the remote cluster, as the local one (i.e., the one in the origin cluster) might not be present.
 
+When the local *Ingress* specifies an *IngressClass* managed by Liqo (e.g., `liqo`), the offloading infrastructure tracks the status of the reflected *Ingress* resources in the remote clusters through *ShadowIngressStatus* custom resources.
+Each remote cluster reports the status of its own reflected *Ingress* (e.g., the assigned load-balancer IPs), and the Liqo controller manager aggregates these statuses back into the local *Ingress* status.
+This allows the origin cluster to present a unified view of the ingress endpoints, combining the load-balancer information from all peered clusters where the *Ingress* has been offloaded.
+
 (UsageReflectionStorage)=
 
 ## Persistent storage

@@ -391,3 +391,8 @@ func (ner *NamespacedEndpointSliceReflector) isLocalPodIP(ip string) bool {
 
 	return false
 }
+
+// Cleanup is a no-op for this reflector.
+func (ner *NamespacedEndpointSliceReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
