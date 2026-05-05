@@ -118,6 +118,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringSliceVar(&opts.LocalPodCIDRs, "podcidr", nil, "The CIDRs to use for the pod network")
 	flagset.StringVar(&opts.VkOptionsDefaultTemplate, "vk-options-default-template", "",
 		"Namespaced name of the default virtual-kubelet options template")
+	flagset.IntVar(&opts.ShadowIngressStatusWorkers, "shadow-ingress-status-ctrl-workers", 10,
+		"The number of workers used to reconcile ShadowIngressStatus resources.")
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerProxyIPRemapping, "enable-api-server-proxy-ip-remapping", true, "Enable the API server proxy IP remapping")

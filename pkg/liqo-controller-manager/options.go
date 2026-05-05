@@ -82,6 +82,7 @@ type Options struct {
 	DenyDirectConnections       bool
 	LocalPodCIDRs               []string
 	VkOptionsDefaultTemplate    string
+	ShadowIngressStatusWorkers  int
 
 	// Cross module
 	EnableAPIServerProxyIPRemapping bool

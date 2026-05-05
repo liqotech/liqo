@@ -92,6 +92,15 @@ var (
 	// VkOptionsTemplateGroupVersionResource is groupResourceVersion used to register these objects.
 	VkOptionsTemplateGroupVersionResource = SchemeGroupVersion.WithResource(VkOptionsTemplateResource)
 
+	// ShadowIngressStatusResource is the resource name used to register the ShadowIngressStatus CRD.
+	ShadowIngressStatusResource = "shadowingressstatuses"
+
+	// ShadowIngressStatusGroupResource is group resource used to register these objects.
+	ShadowIngressStatusGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowIngressStatusResource}
+
+	// ShadowIngressStatusGroupVersionResource is the groupResourceVersion used to register these objects.
+	ShadowIngressStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowIngressStatusResource)
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 
