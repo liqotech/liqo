@@ -16,18 +16,25 @@ package exposition
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	netv1clients "k8s.io/client-go/kubernetes/typed/networking/v1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	netv1listers "k8s.io/client-go/listers/networking/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
+	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -40,6 +47,7 @@ var _ manager.NamespacedReflector = (*NamespacedIngressReflector)(nil)
 const (
 	// IngressReflectorName -> The name associated with the Ingress reflector.
 	IngressReflectorName = "Ingress"
+	liqoIngressClassName = "liqo"
 )
 
 // NamespacedIngressReflector manages the Ingress reflection for a given pair of local and remote namespaces.
@@ -49,6 +57,10 @@ type NamespacedIngressReflector struct {
 	localIngresses        netv1listers.IngressNamespaceLister
 	remoteIngresses       netv1listers.IngressNamespaceLister
 	remoteIngressesClient netv1clients.IngressInterface
+
+	localShadowIngressStatuses     offloadingv1beta1listers.ShadowIngressStatusNamespaceLister
+	localShadowIngressStatusClient offloadingv1beta1clients.ShadowIngressStatusInterface
+	localNodes                     corev1listers.NodeLister
 
 	enableIngress              bool
 	remoteRealIngressClassName string
@@ -73,13 +85,19 @@ func NewNamespacedIngressReflector(enableIngress bool,
 		_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
+		localShadow := opts.LocalLiqoFactory.Offloading().V1beta1().ShadowIngressStatuses()
+		localNodes := opts.LocalFactory.Core().V1().Nodes()
+
 		return &NamespacedIngressReflector{
-			NamespacedReflector:        generic.NewNamespacedReflector(opts, IngressReflectorName),
-			localIngresses:             local.Lister().Ingresses(opts.LocalNamespace),
-			remoteIngresses:            remote.Lister().Ingresses(opts.RemoteNamespace),
-			remoteIngressesClient:      opts.RemoteClient.NetworkingV1().Ingresses(opts.RemoteNamespace),
-			enableIngress:              enableIngress,
-			remoteRealIngressClassName: remoteRealIngressClassName,
+			NamespacedReflector:            generic.NewNamespacedReflector(opts, IngressReflectorName),
+			localIngresses:                 local.Lister().Ingresses(opts.LocalNamespace),
+			remoteIngresses:                remote.Lister().Ingresses(opts.RemoteNamespace),
+			remoteIngressesClient:          opts.RemoteClient.NetworkingV1().Ingresses(opts.RemoteNamespace),
+			localShadowIngressStatuses:     localShadow.Lister().ShadowIngressStatuses(opts.LocalNamespace),
+			localShadowIngressStatusClient: opts.LocalLiqoClient.OffloadingV1beta1().ShadowIngressStatuses(opts.LocalNamespace),
+			localNodes:                     localNodes.Lister(),
+			enableIngress:                  enableIngress,
+			remoteRealIngressClassName:     remoteRealIngressClassName,
 		}
 	}
 }
@@ -135,7 +153,15 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 		defer tracer.Step("Ensured the absence of the remote object")
 		if !kerrors.IsNotFound(rerr) {
 			klog.V(4).Infof("Deleting remote Ingress %q, since local %q does no longer exist", nir.RemoteRef(name), nir.LocalRef(name))
-			return nir.DeleteRemote(ctx, nir.remoteIngressesClient, IngressReflectorName, name, remote.GetUID())
+			if err := nir.DeleteRemote(ctx, nir.remoteIngressesClient, IngressReflectorName, name, remote.GetUID()); err != nil {
+				return err
+			}
+		}
+
+		// Delete the ShadowIngressStatus if it exists.
+		shadowName := fmt.Sprintf("%s-%s", name, forge.RemoteCluster)
+		if err := nir.localShadowIngressStatusClient.Delete(ctx, shadowName, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete ShadowIngressStatus %q: %v", shadowName, err)
 		}
 
 		klog.V(4).Infof("Local Ingress %q and remote Ingress %q both vanished", nir.LocalRef(name), nir.RemoteRef(name))
@@ -156,6 +182,94 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 	klog.Infof("Remote Ingress %q successfully enforced (local: %q)", nir.RemoteRef(name), nir.LocalRef(name))
 	nir.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
+	// Reconcile the ShadowIngressStatus for status aggregation.
+	if err := nir.reconcileShadowIngressStatus(ctx, local, remote, name); err != nil {
+		klog.Errorf("Failed to reconcile ShadowIngressStatus for Ingress %q: %v", nir.LocalRef(name), err)
+	}
+
+	return nil
+}
+
+// reconcileShadowIngressStatus creates, updates or deletes the ShadowIngressStatus for the given ingress.
+func (nir *NamespacedIngressReflector) reconcileShadowIngressStatus(ctx context.Context,
+	local, remote *netv1.Ingress, name string) error {
+	// Check if the local ingress has the Liqo ingress class.
+	hasLiqoClass := (local.Spec.IngressClassName != nil && *local.Spec.IngressClassName == liqoIngressClassName) ||
+		local.Annotations["kubernetes.io/ingress.class"] == liqoIngressClassName
+
+	shadowName := fmt.Sprintf("%s-%s", name, forge.RemoteCluster)
+
+	if !hasLiqoClass {
+		// If a ShadowIngressStatus exists, delete it (user may have changed class).
+		if err := nir.localShadowIngressStatusClient.Delete(ctx, shadowName, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete ShadowIngressStatus %q: %w", shadowName, err)
+		}
+		return nil
+	}
+
+	if remote == nil || len(remote.Status.LoadBalancer.Ingress) == 0 {
+		// Remote ingress does not exist or has no status. Delete the shadow if it exists.
+		if err := nir.localShadowIngressStatusClient.Delete(ctx, shadowName, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete ShadowIngressStatus %q: %w", shadowName, err)
+		}
+		return nil
+	}
+
+	// Retrieve the local node to set the OwnerReference UID.
+	node, err := nir.localNodes.Get(forge.LiqoNodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get local node %q: %w", forge.LiqoNodeName, err)
+	}
+
+	shadow := &offloadingv1beta1.ShadowIngressStatus{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      shadowName,
+			Namespace: nir.LocalNamespace(),
+			Labels: map[string]string{
+				forge.LiqoOriginClusterIDKey: string(forge.RemoteCluster),
+				"liqo.io/ingress-name":       name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         "v1",
+					Kind:               "Node",
+					Name:               forge.LiqoNodeName,
+					UID:                node.GetUID(),
+					BlockOwnerDeletion: ptr.To(false),
+				},
+			},
+		},
+		Spec: offloadingv1beta1.ShadowIngressStatusSpec{
+			IngressName:  name,
+			ClusterID:    string(forge.RemoteCluster),
+			LoadBalancer: *remote.Status.LoadBalancer.DeepCopy(),
+		},
+	}
+
+	existing, err := nir.localShadowIngressStatuses.Get(shadowName)
+	if kerrors.IsNotFound(err) {
+		_, err = nir.localShadowIngressStatusClient.Create(ctx, shadow, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create ShadowIngressStatus %q: %w", shadowName, err)
+		}
+		klog.V(4).Infof("Created ShadowIngressStatus %q", shadowName)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to get ShadowIngressStatus %q: %w", shadowName, err)
+	}
+
+	// Verify the label matches our cluster ID (HA safety check).
+	if existing.Labels[forge.LiqoOriginClusterIDKey] != string(forge.RemoteCluster) {
+		klog.Warningf("ShadowIngressStatus %q exists but belongs to a different cluster. Skipping update.", shadowName)
+		return nil
+	}
+
+	shadow.ResourceVersion = existing.ResourceVersion
+	_, err = nir.localShadowIngressStatusClient.Update(ctx, shadow, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update ShadowIngressStatus %q: %w", shadowName, err)
+	}
+	klog.V(4).Infof("Updated ShadowIngressStatus %q", shadowName)
 	return nil
 }
 
@@ -165,4 +279,19 @@ func (nir *NamespacedIngressReflector) List() ([]interface{}, error) {
 		nir.localIngresses,
 		nir.remoteIngresses,
 	)
+}
+
+// Cleanup deletes all ShadowIngressStatus resources created by this reflector for the given namespace.
+func (nir *NamespacedIngressReflector) Cleanup(ctx context.Context, _, _ string) error {
+	selector := labels.SelectorFromSet(labels.Set{forge.LiqoOriginClusterIDKey: string(forge.RemoteCluster)})
+	shadows, err := nir.localShadowIngressStatuses.List(selector)
+	if err != nil {
+		return fmt.Errorf("failed to list ShadowIngressStatuses for cleanup: %w", err)
+	}
+	for _, shadow := range shadows {
+		if err := nir.localShadowIngressStatusClient.Delete(ctx, shadow.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete ShadowIngressStatus %q during cleanup: %v", shadow.Name, err)
+		}
+	}
+	return nil
 }
