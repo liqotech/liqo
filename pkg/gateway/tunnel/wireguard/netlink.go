@@ -33,27 +33,28 @@ import (
 )
 
 // InitWireguardLink inits the Wireguard interface.
-func InitWireguardLink(ctx context.Context, options *Options) error {
-	exists, err := existsLink()
+func InitWireguardLink(ctx context.Context, options *Options, idx int, ports []int) error {
+	name := tunnel.GetTunnelName(idx)
+	exists, err := existsLink(idx)
 	if err != nil {
-		return fmt.Errorf("cannot check if Wireguard interface exists: %w", err)
+		return fmt.Errorf("cannot check if Wireguard interface %q exists: %w", name, err)
 	}
 	if exists {
-		klog.Infof("Wireguard interface %q already exists", tunnel.TunnelInterfaceName)
+		klog.Infof("Wireguard interface %q already exists", name)
 		return nil
 	}
 
-	if err := createLink(ctx, options); err != nil {
-		return fmt.Errorf("cannot create Wireguard interface: %w", err)
+	if err := createLink(ctx, options, idx, ports); err != nil {
+		return fmt.Errorf("cannot create Wireguard interface %q: %w", name, err)
 	}
 
-	link, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
+	link, err := tunnel.GetLink(name)
 	if err != nil {
-		return fmt.Errorf("cannot get Wireguard interface: %w", err)
+		return fmt.Errorf("cannot get Wireguard interface %q: %w", name, err)
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, tunnel.GetInterfaceIP(options.GwOptions.Mode))
-	if err := tunnel.AddAddress(link, tunnel.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
+	klog.Infof("Setting up Wireguard interface %q with IP %q", name, tunnel.GetInterfaceIP(options.GwOptions.Mode, idx))
+	if err := tunnel.AddAddress(link, tunnel.GetInterfaceIP(options.GwOptions.Mode, idx)); err != nil {
 		return err
 	}
 
@@ -61,34 +62,34 @@ func InitWireguardLink(ctx context.Context, options *Options) error {
 }
 
 // CreateLink creates a new Wireguard interface.
-func createLink(ctx context.Context, options *Options) error {
+func createLink(ctx context.Context, options *Options, idx int, ports []int) error {
 	var err error
 	klog.Infof("Selected wireguard %s implementation", options.Implementation)
 
 	switch options.Implementation {
 	case WgImplementationKernel:
-		err = createLinkKernel(options)
+		err = createLinkKernel(options, idx)
 	case WgImplementationUserspace:
-		err = createLinkUserspace(ctx, options)
+		err = createLinkUserspace(ctx, options, idx)
 	default:
 		err = fmt.Errorf("invalid wireguard implementation: %s", options.Implementation)
 	}
 
 	if err != nil {
-		return fmt.Errorf("cannot create Wireguard interface: %w", err)
+		return fmt.Errorf("cannot create Wireguard interface %q: %w", tunnel.GetTunnelName(idx), err)
 	}
 
 	if options.GwOptions.Mode == gateway.ModeServer {
 		wgcl, err := wgctrl.New()
 		if err != nil {
-			return fmt.Errorf("cannot create Wireguard client: %w", err)
+			return fmt.Errorf("cannot create Wireguard client (interface %q): %w", tunnel.GetTunnelName(idx), err)
 		}
 		defer wgcl.Close()
 
-		if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, wgtypes.Config{
-			ListenPort: &options.ListenPort,
+		if err := wgcl.ConfigureDevice(tunnel.GetTunnelName(idx), wgtypes.Config{
+			ListenPort: &ports[idx],
 		}); err != nil {
-			return fmt.Errorf("cannot configure Wireguard interface: %w", err)
+			return fmt.Errorf("cannot configure Wireguard interface %q: %w", tunnel.GetTunnelName(idx), err)
 		}
 	}
 
@@ -96,17 +97,17 @@ func createLink(ctx context.Context, options *Options) error {
 }
 
 // createLinkKernel creates a new Wireguard interface using the kernel module.
-func createLinkKernel(options *Options) error {
+func createLinkKernel(options *Options, idx int) error {
 	link := netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  options.MTU,
-			Name: tunnel.TunnelInterfaceName,
+			Name: tunnel.GetTunnelName(idx),
 		},
 	}
 
 	err := netlink.LinkAdd(&link)
 	if err != nil {
-		return fmt.Errorf("cannot add Wireguard interface: %w", err)
+		return fmt.Errorf("cannot add Wireguard interface %q: %w", tunnel.GetTunnelName(idx), err)
 	}
 	return nil
 }
@@ -123,29 +124,30 @@ func runWgUserCmd(cmd *exec.Cmd) {
 	}
 }
 
-// createLinkUserspsce creates a new Wireguard interface using the userspace implementation (wireguard-go).
+// createLinkUserspace creates a new Wireguard interface using the userspace implementation (wireguard-go).
 // TODO: at the moment is not possible to override the settings of the wireguard-go implementation.
 // We are planning a PR to add a flag for the MTU.
-func createLinkUserspace(ctx context.Context, _ *Options) error {
-	cmd := exec.Command("/usr/bin/wireguard-go", "-f", tunnel.TunnelInterfaceName) //nolint:gosec //we leave it as it is
+func createLinkUserspace(ctx context.Context, _ *Options, idx int) error {
+	name := tunnel.GetTunnelName(idx)
+	cmd := exec.Command("/usr/bin/wireguard-go", "-f", name) //nolint:gosec //we leave it as it is
 	go runWgUserCmd(cmd)
 
 	if err := wait.PollUntilContextTimeout(ctx, time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-		klog.Info("Waiting for wireguard device to be created")
-		if _, err = netlink.LinkByName(tunnel.TunnelInterfaceName); err != nil {
-			klog.Errorf("failed to get wireguard device '%s': %s", tunnel.TunnelInterfaceName, err)
+		klog.Infof("Waiting for wireguard device %q to be created", name)
+		if _, err = netlink.LinkByName(name); err != nil {
+			klog.Errorf("failed to get wireguard device '%s': %s", name, err)
 			return false, nil
 		}
 		return true, nil
 	}); err != nil {
-		return fmt.Errorf("failed to create wireguard device %q: %w", tunnel.TunnelInterfaceName, err)
+		return fmt.Errorf("failed to create wireguard device %q: %w", name, err)
 	}
 
 	return nil
 }
 
-func existsLink() (bool, error) {
-	_, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
+func existsLink(idx int) (bool, error) {
+	_, err := tunnel.GetLink(tunnel.GetTunnelName(idx))
 	if err != nil {
 		if errors.As(err, &netlink.LinkNotFoundError{}) {
 			return false, nil
@@ -153,4 +155,27 @@ func existsLink() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// GetWireguardPorts returns the list of ports to be used for WireGuard interfaces.
+func GetWireguardPorts(opts *Options) []int {
+	var ports []int
+
+	switch opts.GwOptions.Mode {
+	case gateway.ModeClient:
+		if len(opts.EndpointPorts) > 0 {
+			ports = opts.EndpointPorts
+		} else if opts.EndpointPort != 0 {
+			ports = []int{opts.EndpointPort}
+		}
+
+	case gateway.ModeServer:
+		if len(opts.ListenPorts) > 0 {
+			ports = opts.ListenPorts
+		} else if opts.ListenPort != 0 {
+			ports = []int{opts.ListenPort}
+		}
+	}
+
+	return ports
 }

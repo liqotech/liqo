@@ -36,12 +36,16 @@ const (
 	FlagNameMTU FlagName = "mtu"
 	// FlagNameListenPort is the listen port for the wireguard interface.
 	FlagNameListenPort FlagName = "listen-port"
+	// FlagNameListenPorts is the list of listen ports for the WireGuard interface. It takes precedence over FlagNameListenPort.
+	FlagNameListenPorts FlagName = "listen-ports"
 	// FlagNameInterfaceIP is the IP of the wireguard interface.
 	FlagNameInterfaceIP FlagName = "interface-ip"
 	// FlagNameEndpointAddress is the address of the endpoint for the wireguard interface.
 	FlagNameEndpointAddress FlagName = "endpoint-address"
 	// FlagNameEndpointPort is the port of the endpoint for the wireguard interface.
 	FlagNameEndpointPort FlagName = "endpoint-port"
+	// FlagNameEndpointPorts is the list of endpoint ports for the WireGuard interface. It takes precedence over FlagNameEndpointPort.
+	FlagNameEndpointPorts FlagName = "endpoint-ports"
 	// FlagNameKeysDir is the directory where the keys are stored.
 	FlagNameKeysDir FlagName = "keys-dir"
 
@@ -61,8 +65,13 @@ var ClientRequiredFlags = []FlagName{
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.MTU, FlagNameMTU.String(), forge.DefaultMTU, "MTU for the interface")
 	flagset.IntVar(&opts.ListenPort, FlagNameListenPort.String(), forge.DefaultGwServerPort, "Listen port (server only)")
+	// If ListenPorts is provided, ListenPort is ignored to maintain a single source of truth.
+	flagset.IntSliceVar(&opts.ListenPorts, FlagNameListenPorts.String(), nil, "List of listen ports (server only). Takes precedence over --listen-port")
 	flagset.StringVar(&opts.EndpointAddress, FlagNameEndpointAddress.String(), "", "Endpoint address (client only)")
 	flagset.IntVar(&opts.EndpointPort, FlagNameEndpointPort.String(), forge.DefaultGwServerPort, "Endpoint port (client only)")
+	// If EndpointPorts is provided, EndpointPort is ignored to maintain a single source of truth.
+	flagset.IntSliceVar(&opts.EndpointPorts, FlagNameEndpointPorts.String(), nil,
+		"List of endpoint ports (client only). Takes precedence over --endpoint-port")
 	flagset.StringVar(&opts.KeysDir, FlagNameKeysDir.String(), forge.DefaultKeysDir, "Directory where the keys are stored")
 
 	flagset.DurationVar(&opts.DNSCheckInterval, FlagNameDNSCheckInterval.String(), 5*time.Minute, "Interval between two DNS checks")
