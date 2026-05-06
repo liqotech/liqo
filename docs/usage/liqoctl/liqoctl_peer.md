@@ -111,6 +111,10 @@ liqoctl peer [flags]
 
 >MTU of the Gateway server and client. Default: 1340 **(default 1340)**
 
+`--multi-virtual-node`
+
+>Create one VirtualNode and ResourceSlice per remote node, named <cluster>-<node>
+
 `-n`, `--namespace` _string_:
 
 >The namespace where Liqo is installed in **(default "liqo")**

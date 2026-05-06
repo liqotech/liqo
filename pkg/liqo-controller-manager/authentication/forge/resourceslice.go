@@ -29,6 +29,9 @@ import (
 type ResourceSliceOptions struct {
 	Class     authv1beta1.ResourceSliceClass
 	Resources map[corev1.ResourceName]string
+	// NodeName, when non-empty, sets the VirtualNodeNodeNameAnnotation on the ResourceSlice so that the
+	// VirtualNode creator controller restricts pod scheduling to that specific remote node.
+	NodeName string
 }
 
 // ResourceSlice forges a ResourceSlice resource.
@@ -60,6 +63,13 @@ func MutateResourceSlice(resourceSlice *authv1beta1.ResourceSlice, remoteCluster
 			resourceSlice.Annotations = map[string]string{}
 		}
 		resourceSlice.Annotations[consts.CreateVirtualNodeAnnotation] = "true"
+	}
+
+	if opts.NodeName != "" {
+		if resourceSlice.Annotations == nil {
+			resourceSlice.Annotations = map[string]string{}
+		}
+		resourceSlice.Annotations[consts.VirtualNodeNodeNameAnnotation] = opts.NodeName
 	}
 
 	rl, err := resourceList(opts.Resources)

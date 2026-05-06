@@ -28,6 +28,7 @@ type Options struct {
 	RemoteClusterID            args.ClusterIDFlags
 	Class                      string
 	DisableVirtualNodeCreation bool
+	NodeName                   string
 
 	CPU            string
 	Memory         string

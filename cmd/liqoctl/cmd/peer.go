@@ -127,6 +127,8 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	// Offloading flags
 	cmd.Flags().BoolVar(&options.CreateVirtualNode, "create-virtual-node", true, "Create a VirtualNode for the peering")
+	cmd.Flags().BoolVar(&options.MultiVirtualNode, "multi-virtual-node", false,
+		"Create one VirtualNode and ResourceSlice per remote node, named <cluster>-<node>")
 	cmd.Flags().StringVar(&options.CPU, "cpu", "", "The amount of CPU requested for the VirtualNode")
 	cmd.Flags().StringVar(&options.Memory, "memory", "", "The amount of memory requested for the VirtualNode")
 	cmd.Flags().StringVar(&options.Pods, "pods", "", "The amount of pods requested for the VirtualNode")
