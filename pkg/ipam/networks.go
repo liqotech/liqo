@@ -26,17 +26,18 @@ import (
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
-// networkAcquire acquires a network, eventually remapped if conflicts are found.
+// networkAcquire acquires a network exclusively. If the exact prefix is
+// unavailable, a free network of the same size is allocated instead.
 func (lipam *LiqoIPAM) networkAcquire(prefix netip.Prefix) (*netip.Prefix, error) {
-	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix)
+	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix, true)
 	if result == nil {
-		result = lipam.IpamCore.NetworkAcquire(prefix.Bits())
-		if result == nil {
-			return nil, fmt.Errorf("failed to reserve network %q", prefix.String())
-		}
+		result = lipam.IpamCore.NetworkAcquire(prefix.Bits(), true)
+	}
+	if result == nil {
+		return nil, fmt.Errorf("failed to acquire network %q", prefix.String())
 	}
 
-	klog.Infof("Acquired network %q -> %q", prefix.String(), result.String())
+	klog.Infof("Acquired network %q -> %q (exclusive=true)", prefix.String(), result.String())
 
 	if lipam.opts.GraphvizEnabled {
 		return result, lipam.IpamCore.ToGraphviz()
@@ -44,15 +45,14 @@ func (lipam *LiqoIPAM) networkAcquire(prefix netip.Prefix) (*netip.Prefix, error
 	return result, nil
 }
 
-// networkAcquireSpecific acquires a network with a specific prefix.
-// If the network is already allocated, it returns an error.
-func (lipam *LiqoIPAM) networkAcquireSpecific(prefix netip.Prefix) (*netip.Prefix, error) {
-	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix)
+// networkAcquireSpecific acquires the exact prefix. Used for immutable acquisitions.
+func (lipam *LiqoIPAM) networkAcquireSpecific(prefix netip.Prefix, exclusive bool) (*netip.Prefix, error) {
+	result := lipam.IpamCore.NetworkAcquireWithPrefix(prefix, exclusive)
 	if result == nil {
-		return nil, fmt.Errorf("failed to reserve specific network %q", prefix.String())
+		return nil, fmt.Errorf("failed to acquire network %q", prefix.String())
 	}
 
-	klog.Infof("Acquired specific network %q -> %q", prefix.String(), result.String())
+	klog.Infof("Acquired network %q (exclusive=%v)", prefix.String(), exclusive)
 
 	if lipam.opts.GraphvizEnabled {
 		return result, lipam.IpamCore.ToGraphviz()
@@ -105,6 +105,7 @@ func (lipam *LiqoIPAM) networkIsAvailable(prefix netip.Prefix) bool {
 
 type prefixDetails struct {
 	preallocated uint32
+	exclusive    bool
 }
 
 func (lipam *LiqoIPAM) listNetworksOnCluster(ctx context.Context) (map[netip.Prefix]prefixDetails, error) {
@@ -132,7 +133,8 @@ func (lipam *LiqoIPAM) listNetworksOnCluster(ctx context.Context) (map[netip.Pre
 			return nil, fmt.Errorf("failed to parse CIDR %q: %w", cidr, err)
 		}
 
-		result[prefix] = prefixDetails{preallocated: net.Spec.PreAllocated}
+		exclusive := ipamutils.NetworkIsExclusive(net)
+		result[prefix] = prefixDetails{preallocated: net.Spec.PreAllocated, exclusive: exclusive}
 	}
 
 	return result, nil

@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
@@ -96,6 +97,13 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 	// Initialize reserved networks
 	if err := initializeReservedNetworks(ctx, uncachedClient, opts.IpamClient); err != nil {
 		klog.Errorf("Unable to initialize reserved networks: %v", err)
+		return err
+	}
+
+	// Initialize internal networks (externalCIDR, internalCIDR) after reserved networks,
+	// so that reservations are in place and conflicts are caught early.
+	if err := initializeRequiredNetworks(ctx, uncachedClient, opts.IpamClient); err != nil {
+		klog.Errorf("Unable to initialize internal networks: %v", err)
 		return err
 	}
 
@@ -297,24 +305,14 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 		if ipamClient == nil {
 			nw.Status.CIDR = nw.Spec.CIDR
 		} else {
-			// First check if the network is already reserved
-			res, err := ipamClient.NetworkIsAvailable(ctx, &ipam.NetworkAvailableRequest{
-				Cidr: nw.Spec.CIDR.String(),
+			_, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
+				Cidr:         nw.Spec.CIDR.String(),
+				Immutable:    true,
+				Exclusive:    false,
+				PreAllocated: nw.Spec.PreAllocated,
 			})
 			if err != nil {
 				return fmt.Errorf("IPAM: %w", err)
-			}
-
-			if res.Available {
-				// Network is not reserved, reserve it
-				_, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
-					Cidr:         nw.Spec.CIDR.String(),
-					Immutable:    true,
-					PreAllocated: nw.Spec.PreAllocated,
-				})
-				if err != nil {
-					return fmt.Errorf("IPAM: %w", err)
-				}
 			}
 
 			// Since reserved network must not be remapped (immutable), we can set the status CIDR to the spec CIDR
@@ -328,5 +326,50 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 	}
 
 	klog.Info("Reserved networks initialized")
+	return nil
+}
+
+func initializeRequiredNetworks(ctx context.Context, cl client.Client, ipamClient ipam.IPAMClient) error {
+	externalCIDR, err := ipamutils.GetExternalCIDRNetwork(ctx, cl, corev1.NamespaceAll)
+	if err != nil {
+		return fmt.Errorf("unable to get external CIDR network: %w", err)
+	}
+
+	internalCIDR, err := ipamutils.GetInternalCIDRNetwork(ctx, cl, corev1.NamespaceAll)
+	if err != nil {
+		return fmt.Errorf("unable to get internal CIDR network: %w", err)
+	}
+
+	for _, nw := range []*ipamv1alpha1.Network{externalCIDR, internalCIDR} {
+		if nw.Status.CIDR != "" {
+			continue
+		}
+
+		if ipamClient == nil {
+			nw.Status.CIDR = nw.Spec.CIDR
+		} else {
+			immutable := ipamutils.NetworkNotRemapped(nw)
+			exclusive := ipamutils.NetworkIsExclusive(nw)
+
+			res, err := ipamClient.NetworkAcquire(ctx, &ipam.NetworkAcquireRequest{
+				Cidr:         nw.Spec.CIDR.String(),
+				Immutable:    immutable,
+				Exclusive:    exclusive,
+				PreAllocated: nw.Spec.PreAllocated,
+			})
+			if err != nil {
+				return fmt.Errorf("IPAM: failed to acquire %s (%s): %w", nw.Name, nw.Spec.CIDR, err)
+			}
+
+			nw.Status.CIDR = networkingv1beta1.CIDR(res.Cidr)
+		}
+
+		if err := cl.Status().Update(ctx, nw); err != nil {
+			return fmt.Errorf("unable to update network %s status: %w", nw.Name, err)
+		}
+		klog.Infof("Updated Network %q status (spec: %s | status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
+	}
+
+	klog.Info("Internal networks initialized")
 	return nil
 }

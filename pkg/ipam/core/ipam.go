@@ -43,23 +43,23 @@ func NewIpam(pools []netip.Prefix) (*Ipam, error) {
 	return ipam, nil
 }
 
-// NetworkAcquire allocates a network of the given size.
-// It returns the allocated network or nil if no network is available.
-func (ipam *Ipam) NetworkAcquire(size int) *netip.Prefix {
+// NetworkAcquire allocates a free network of the given size.
+// exclusive=false: refCount=1. exclusive=true: refCount=-1 (sole ownership).
+func (ipam *Ipam) NetworkAcquire(size int, exclusive bool) *netip.Prefix {
 	for i := range ipam.roots {
-		if result := allocateNetwork(size, &ipam.roots[i]); result != nil {
+		if result := allocateNetwork(size, &ipam.roots[i], exclusive); result != nil {
 			return result
 		}
 	}
 	return nil
 }
 
-// NetworkAcquireWithPrefix allocates a network with the given prefix.
-// It returns the allocated network or nil if the network is not available.
-func (ipam *Ipam) NetworkAcquireWithPrefix(prefix netip.Prefix) *netip.Prefix {
+// NetworkAcquireWithPrefix acquires the exact prefix.
+// exclusive=false: ref-counted overlapping (refCount++). exclusive=true: sole ownership (refCount=-1).
+func (ipam *Ipam) NetworkAcquireWithPrefix(prefix netip.Prefix, exclusive bool) *netip.Prefix {
 	for i := range ipam.roots {
 		if isPrefixChildOf(ipam.roots[i].prefix, prefix) {
-			if result := allocateNetworkWithPrefix(prefix, &ipam.roots[i]); result != nil {
+			if result := allocateNetworkWithPrefix(prefix, &ipam.roots[i], exclusive); result != nil {
 				return result
 			}
 		}

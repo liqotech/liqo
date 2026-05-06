@@ -124,10 +124,10 @@ func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1a
 		// multiple times by checking if the status is already set.
 		if nw.Status.CIDR == "" {
 			desiredCIDR := nw.Spec.CIDR
-			// if the Network must not be remapped, we acquire the network specifying to the IPAM that the cidr is immutable.
 			immutable := ipamutils.NetworkNotRemapped(nw)
+			exclusive := ipamutils.NetworkIsExclusive(nw)
 			preallocated := nw.Spec.PreAllocated
-			remappedCIDR, err := getRemappedCIDR(ctx, r.ipamClient, desiredCIDR, immutable, preallocated)
+			remappedCIDR, err := getRemappedCIDR(ctx, r.ipamClient, desiredCIDR, immutable, exclusive, preallocated)
 			if err != nil {
 				return err
 			}

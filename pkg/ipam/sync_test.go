@@ -44,7 +44,7 @@ var _ = Describe("Sync routine tests", func() {
 		addNetwork = func(server *LiqoIPAM, cidr string) {
 			prefix, err := netip.ParsePrefix(cidr)
 			Expect(err).ShouldNot(HaveOccurred())
-			_, err = server.networkAcquireSpecific(prefix)
+			_, err = server.networkAcquireSpecific(prefix, false)
 			Expect(err).ShouldNot(HaveOccurred())
 		}
 

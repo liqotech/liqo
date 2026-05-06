@@ -30,6 +30,11 @@ const (
 	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
 	// NetworkNotRemappedLabelValue is the label value used to mark a Network that does not need CIDR remapping.
 	NetworkNotRemappedLabelValue = "true"
+	// NetworkSharedLabelKey is the label key used to mark a Network as shared (ref-counted, non-exclusive).
+	// Networks without this label are exclusive by default.
+	NetworkSharedLabelKey = "ipam.liqo.io/network-shared"
+	// NetworkSharedLabelValue is the label value used to mark a Network as shared.
+	NetworkSharedLabelValue = "true"
 
 	// NetworkTypeLabelKey is the label key used to indicate the type of a Network.
 	NetworkTypeLabelKey = "ipam.liqo.io/network-type"

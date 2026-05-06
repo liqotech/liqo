@@ -1,60 +1,61 @@
-syntax="proto3";
+syntax = "proto3";
+
 option go_package = "./ipam";
 
 service IPAM {
-    rpc IPAcquire (IPAcquireRequest) returns (IPAcquireResponse);
-    rpc IPRelease (IPReleaseRequest) returns (IPReleaseResponse);
+  rpc IPAcquire(IPAcquireRequest) returns (IPAcquireResponse);
+  rpc IPRelease(IPReleaseRequest) returns (IPReleaseResponse);
 
-    rpc NetworkAcquire (NetworkAcquireRequest) returns (NetworkAcquireResponse);
-    rpc NetworkRelease (NetworkReleaseRequest) returns (NetworkReleaseResponse);
-    rpc NetworkIsAvailable (NetworkAvailableRequest) returns (NetworkAvailableResponse);
+  rpc NetworkAcquire(NetworkAcquireRequest) returns (NetworkAcquireResponse);
+  rpc NetworkRelease(NetworkReleaseRequest) returns (NetworkReleaseResponse);
+  rpc NetworkIsAvailable(NetworkAvailableRequest) returns (NetworkAvailableResponse);
 }
 
-message ResponseResult {
-}
+message ResponseResult {}
 
 message IPAcquireRequest {
-    string cidr = 1;
+  string cidr = 1;
 }
 
 message IPAcquireResponse {
-    string ip = 1;
-    ResponseResult result = 2;
+  string ip = 1;
+  ResponseResult result = 2;
 }
 
 message IPReleaseRequest {
-    string ip = 1;
-    string cidr = 2;
+  string ip = 1;
+  string cidr = 2;
 }
 
 message IPReleaseResponse {
-    ResponseResult result = 1;
+  ResponseResult result = 1;
 }
 
 message NetworkAcquireRequest {
-    string cidr = 1;
-    bool immutable = 2; // If true, the network cannot be remapped. It will be allocated if available, or an error will be returned.
-    uint32 preAllocated = 3; // The number of IPs to pre-allocate (reserve) in the CIDR, starting from the first IP of the CIDR. 
+  string cidr = 1;
+  bool immutable = 2; // If true, the network cannot be remapped. It will be allocated if available, or an error will be returned.
+  uint32 preAllocated = 3; // The number of IPs to pre-allocate (reserve) in the CIDR, starting from the first IP of the CIDR.
+  bool exclusive = 4; // If true, the network is acquired exclusively. No other entity can acquire or use this network range. Applies only if immutable=true.
 }
 
 message NetworkAcquireResponse {
-    string cidr = 1;
-    ResponseResult result = 2;
+  string cidr = 1;
+  ResponseResult result = 2;
 }
 
 message NetworkReleaseRequest {
-    string cidr = 1;
+  string cidr = 1;
 }
 
 message NetworkReleaseResponse {
-    ResponseResult result = 1;
+  ResponseResult result = 1;
 }
 
 message NetworkAvailableRequest {
-    string cidr = 1;
+  string cidr = 1;
 }
 
 message NetworkAvailableResponse {
-    bool available = 1;
-    ResponseResult result = 2;
+  bool available = 1;
+  ResponseResult result = 2;
 }

@@ -1,4 +1,6 @@
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $externalCIDR := .Values.ipam.externalCIDR | default "10.70.0.0/16" -}}
+{{- $internalCIDR := .Values.ipam.internalCIDR | default "10.80.0.0/16" -}}
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
@@ -8,6 +10,7 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: pod-cidr
     ipam.liqo.io/network-not-remapped: "true"
+    ipam.liqo.io/network-shared: "true"
   annotations:
     liqo.io/preinstalled: "true"
 spec:
@@ -21,6 +24,7 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: service-cidr
     ipam.liqo.io/network-not-remapped: "true"
+    ipam.liqo.io/network-shared: "true"
   annotations:
     liqo.io/preinstalled: "true"
 spec:
@@ -33,10 +37,13 @@ metadata:
   labels:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: external-cidr
+    {{- if .Values.ipam.externalCIDR }}
+    ipam.liqo.io/network-not-remapped: "true"
+    {{- end }}
   annotations:
     liqo.io/preinstalled: "true"
 spec:
-  cidr: {{ .Values.ipam.externalCIDR }}
+  cidr: {{ $externalCIDR }}
   preAllocated: 1 # the first IP of the external CIDR is reserved for the unknown source traffic
 ---
 apiVersion: ipam.liqo.io/v1alpha1
@@ -46,10 +53,13 @@ metadata:
   labels:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: internal-cidr
+    {{- if .Values.ipam.internalCIDR }}
+    ipam.liqo.io/network-not-remapped: "true"
+    {{- end }}
   annotations:
     liqo.io/preinstalled: "true"
 spec:
-  cidr: {{ .Values.ipam.internalCIDR }}
+  cidr: {{ $internalCIDR }}
 ---
 {{- range $i, $value := .Values.ipam.reservedSubnets }}
 apiVersion: ipam.liqo.io/v1alpha1
@@ -60,6 +70,7 @@ metadata:
     {{- include "liqo.labels" $ipamConfig | nindent 4 }}
     ipam.liqo.io/network-type: reserved
     ipam.liqo.io/network-not-remapped: "true"
+    ipam.liqo.io/network-shared: "true"
   annotations:
     liqo.io/preinstalled: "true"
 spec:
