@@ -130,6 +130,30 @@ func (o *Options) Values() map[string]interface{} {
 					"fullMasquerade": true,
 				},
 			},
+			"gatewayTemplates": map[string]interface{}{
+				"server": map[string]interface{}{
+					"service": map[string]interface{}{
+						"externalTrafficPolicy": "Cluster",
+						"annotations": map[string]interface{}{
+							// Annots for the AWS LoadBalancer Controller: https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/annotations/
+							"service.beta.kubernetes.io/aws-load-balancer-type":                            "external",
+							"service.beta.kubernetes.io/aws-load-balancer-scheme":                          "internet-facing",
+							"service.beta.kubernetes.io/aws-load-balancer-nlb-target-type":                 "ip",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-port":                "8083",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol":            "HTTP",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-path":                "/healthz",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold":   "2",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold": "3",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout":             "10",
+							"service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval":            "10",
+							// Annots for the legacy in-tree AWS load balancer (not recommended):
+							// "service.beta.kubernetes.io/aws-load-balancer-type":                              "nlb",
+							// "service.beta.kubernetes.io/aws-load-balancer-scheme":                            "internet-facing",
+							// "service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled": "true",
+						},
+					},
+				},
+			},
 		},
 
 		"authentication": map[string]interface{}{
