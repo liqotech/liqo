@@ -36,6 +36,7 @@ import (
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/nodefailure-controller"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/podstatus-controller"
 	shadowepsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowendpointslice-controller"
+	shadowingressctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowingressstatus-controller"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/storageprovisioner"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/virtualnode-controller"
@@ -55,6 +56,7 @@ type OffloadingOption struct {
 	EnableNodeFailureController bool
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
+	ShadowIngressStatusWorkers  int
 	ResyncPeriod                time.Duration
 }
 
@@ -72,6 +74,7 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 		EnableNodeFailureController: opts.EnableNodeFailureController,
 		ShadowPodWorkers:            opts.ShadowPodWorkers,
 		ShadowEndpointSliceWorkers:  opts.ShadowEndpointSliceWorkers,
+		ShadowIngressStatusWorkers:  opts.ShadowIngressStatusWorkers,
 		ResyncPeriod:                opts.ResyncPeriod,
 	}
 }
@@ -129,6 +132,15 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	}
 	if err = shadowEpsReconciler.SetupWithManager(ctx, mgr, opts.ShadowEndpointSliceWorkers); err != nil {
 		klog.Errorf("Unable to setup the shadowendpointslice reconciler: %v", err)
+		return err
+	}
+
+	shadowIngressStatusReconciler := &shadowingressctrl.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+	if err = shadowIngressStatusReconciler.SetupWithManager(mgr, opts.ShadowIngressStatusWorkers); err != nil {
+		klog.Errorf("Unable to setup the shadowingressstatus reconciler: %v", err)
 		return err
 	}
 

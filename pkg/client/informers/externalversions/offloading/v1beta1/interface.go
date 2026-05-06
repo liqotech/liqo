@@ -26,6 +26,8 @@ type Interface interface {
 	NamespaceMaps() NamespaceMapInformer
 	// ShadowEndpointSlices returns a ShadowEndpointSliceInformer.
 	ShadowEndpointSlices() ShadowEndpointSliceInformer
+	// ShadowIngressStatuses returns a ShadowIngressStatusInformer.
+	ShadowIngressStatuses() ShadowIngressStatusInformer
 	// ShadowPods returns a ShadowPodInformer.
 	ShadowPods() ShadowPodInformer
 	// VirtualNodes returns a VirtualNodeInformer.
@@ -53,6 +55,11 @@ func (v *version) NamespaceMaps() NamespaceMapInformer {
 // ShadowEndpointSlices returns a ShadowEndpointSliceInformer.
 func (v *version) ShadowEndpointSlices() ShadowEndpointSliceInformer {
 	return &shadowEndpointSliceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ShadowIngressStatuses returns a ShadowIngressStatusInformer.
+func (v *version) ShadowIngressStatuses() ShadowIngressStatusInformer {
+	return &shadowIngressStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ShadowPods returns a ShadowPodInformer.

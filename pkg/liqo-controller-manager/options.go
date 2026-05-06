@@ -77,6 +77,7 @@ type Options struct {
 	EnableNodeFailureController bool
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
+	ShadowIngressStatusWorkers  int
 
 	// Cross module
 	EnableAPIServerIPRemapping bool

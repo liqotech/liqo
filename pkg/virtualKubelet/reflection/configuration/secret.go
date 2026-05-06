@@ -172,3 +172,8 @@ func (nsr *NamespacedSecretReflector) List() ([]interface{}, error) {
 		nsr.remoteSecrets,
 	)
 }
+
+// Cleanup is a no-op for this reflector.
+func (nsr *NamespacedSecretReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
