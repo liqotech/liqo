@@ -50,6 +50,8 @@ const (
 
 	// FlagNameImplementation is the implementation of the wireguard interface.
 	FlagNameImplementation FlagName = "implementation"
+	// FlagNamePreserveClientEndpoint enables reusing the existing peer endpoint when configuring the device.
+	FlagNamePreserveClientEndpoint FlagName = "preserve-client-endpoint"
 )
 
 // ClientRequiredFlags contains the list of the mandatory flags for the client mode.
@@ -68,6 +70,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.DurationVar(&opts.DNSCheckInterval, FlagNameDNSCheckInterval.String(), 5*time.Minute, "Interval between two DNS checks")
 
 	flagset.Var(&opts.Implementation, "implementation", "Implementation of the wireguard interface (kernel or userspace)")
+	flagset.BoolVar(&opts.PreserveClientEndpoint, FlagNamePreserveClientEndpoint.String(), false,
+		"Preserve the existing peer endpoint when configuring the device in server mode")
 }
 
 // MarkFlagsRequired marks the flags as required.
