@@ -20,7 +20,7 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-func checkNatRulesInChain(chain *firewallapi.Chain) error {
+func checkNatRulesInChain(chain *firewallapi.Chain, sets []firewallapi.Set) error {
 	natrules := chain.Rules.NatRules
 	for i := range natrules {
 		if err := checkNatRuleChainHook(*chain.Hook, &natrules[i]); err != nil {
@@ -28,6 +28,11 @@ func checkNatRulesInChain(chain *firewallapi.Chain) error {
 		}
 		if err := checkNatRuleTo(&natrules[i]); err != nil {
 			return err
+		}
+		for _, match := range natrules[i].Match {
+			if err := checkRuleMatch(&match, sets); err != nil {
+				return fmt.Errorf("natrule %s: %w", *natrules[i].Name, err)
+			}
 		}
 	}
 	return nil
