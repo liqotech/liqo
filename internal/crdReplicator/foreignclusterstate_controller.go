@@ -47,15 +47,19 @@ func (c *ForeignClusterStateController) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// If the foreign cluster seems to be disabled, skip reconciliation.
-	if foreignCluster.Status.Role == liqov1beta1.UnknownRole {
-		klog.Infof("ForeignCluster %q has unknown role, skipping reconciliation", foreignCluster.Name)
-		return ctrl.Result{}, nil
-	}
-
 	// Get the reflector for the remote cluster
 	reflector, exists := c.Reflectors[foreignCluster.Spec.ClusterID]
 	if !exists {
+		if foreignCluster.Status.Role == liqov1beta1.UnknownRole {
+			klog.Warningf("Reflector not found and foreignCluster %q has unknown role, skipping reconcile", foreignCluster.Name)
+			return ctrl.Result{}, nil
+		}
+
+		if dead, _ := foreigncluster.IsDead(foreignCluster); dead {
+			klog.Warningf("Reflector not found and foreignCluster %q is marked dead, skipping reconcile", foreignCluster.Name)
+			return ctrl.Result{}, nil
+		}
+
 		klog.Warningf("No reflector found for ForeignCluster %q, will retry later", foreignCluster.Name)
 		return ctrl.Result{}, fmt.Errorf("no reflector found for ForeignCluster %q", foreignCluster.Name)
 	}
