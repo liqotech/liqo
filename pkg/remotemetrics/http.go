@@ -27,7 +27,10 @@ import (
 )
 
 const (
-	basePath = "/apis/metrics.liqo.io/v1beta1"
+	group        = "metrics.liqo.io"
+	version      = "v1beta1"
+	groupVersion = group + "/" + version
+	basePath     = "/apis/" + groupVersion
 )
 
 var (
@@ -56,7 +59,7 @@ func GetHTTPHandler(restClient rest.Interface, cl client.Client) (http.Handler, 
 	// app in order to discover what resources it provides.
 	router.GET("/", health)
 	// K8s needs the ability to query info about a specific API group
-	router.GET("/apis/metrics.liqo.io", apiGroupInfo)
+	router.GET("/apis/"+group, apiGroupInfo)
 	// K8s needs the ability to query the list of API groups this endpoint supports
 	router.GET("/apis", apiGroupList)
 
@@ -71,13 +74,10 @@ func GetHTTPHandler(restClient rest.Interface, cl client.Client) (http.Handler, 
 		"swagger": "2.0",
 		"info": map[string]string{
 			"title":   "Liqo Metric Agent",
-			"version": "v1beta1",
+			"version": version,
 		},
-		"paths": map[string]interface{}{},
 	}))
-	router.GET("/openapi/v3", openAPIDoc(map[string]interface{}{
-		"paths": map[string]interface{}{},
-	}))
+	router.GET("/openapi/v3", openAPIDoc(map[string]interface{}{}))
 
 	return router, nil
 }
@@ -86,8 +86,8 @@ func health(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	list := &metav1.APIResourceList{}
 
 	list.Kind = "APIResourceList"
-	list.GroupVersion = "metrics.liqo.io/v1beta1"
-	list.APIVersion = "v1beta1"
+	list.GroupVersion = groupVersion
+	list.APIVersion = version
 	list.APIResources = []metav1.APIResource{
 		{
 			Name:       "scrape/metrics",
@@ -108,15 +108,15 @@ func getAPIGroup() *metav1.APIGroup {
 		TypeMeta: metav1.TypeMeta{
 			Kind: "APIGroup",
 		},
-		Name: "metrics.liqo.io",
+		Name: group,
 		PreferredVersion: metav1.GroupVersionForDiscovery{
-			GroupVersion: "metrics.liqo.io/v1beta1",
-			Version:      "v1beta1",
+			GroupVersion: groupVersion,
+			Version:      version,
 		},
 		Versions: []metav1.GroupVersionForDiscovery{
 			{
-				GroupVersion: "metrics.liqo.io/v1beta1",
-				Version:      "v1beta1",
+				GroupVersion: groupVersion,
+				Version:      version,
 			},
 		},
 		ServerAddressByClientCIDRs: []metav1.ServerAddressByClientCIDR{
@@ -149,7 +149,8 @@ func apiGroupList(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 }
 
 func openAPIDoc(doc map[string]interface{}) httprouter.Handle {
-	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	doc["paths"] = map[string]interface{}{}
+	return func(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(doc); err != nil {
 			klog.Errorf("failed to write response: %s", err)
