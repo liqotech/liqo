@@ -64,6 +64,21 @@ func GetHTTPHandler(restClient rest.Interface, cl client.Client) (http.Handler, 
 	router.GET(fmt.Sprintf("%s/scrape/:cluster-id/:path", basePath), router.metricHTTP)
 	router.GET(fmt.Sprintf("%s/scrape/:cluster-id/:path/:subpath", basePath), router.metricHTTP)
 
+	// kube-apiserver's OpenAPI aggregation controller fetches these endpoints from
+	// every registered APIService. metric-agent does not expose CRUD resources, so
+	// we serve minimal stub documents to silence the aggregator's retry loop.
+	router.GET("/openapi/v2", openAPIDoc(map[string]interface{}{
+		"swagger": "2.0",
+		"info": map[string]string{
+			"title":   "Liqo Metric Agent",
+			"version": "v1beta1",
+		},
+		"paths": map[string]interface{}{},
+	}))
+	router.GET("/openapi/v3", openAPIDoc(map[string]interface{}{
+		"paths": map[string]interface{}{},
+	}))
+
 	return router, nil
 }
 
@@ -130,6 +145,16 @@ func apiGroupList(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 		klog.Errorf("failed to write response: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+}
+
+func openAPIDoc(doc map[string]interface{}) httprouter.Handle {
+	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(doc); err != nil {
+			klog.Errorf("failed to write response: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	}
 }
 
