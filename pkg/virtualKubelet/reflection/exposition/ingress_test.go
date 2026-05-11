@@ -108,8 +108,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		}
 
 		BeforeEach(func() {
-			//lint:ignore SA1019 NewClientset is not available in the generated code.
-			liqoClient = liqoclientfake.NewSimpleClientset()
+			liqoClient = liqoclientfake.NewClientset()
 			local = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: LocalNamespace}}
 			remote = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: RemoteNamespace}}
 			reflectionType = root.DefaultReflectorsTypes[resources.Ingress]
