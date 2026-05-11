@@ -128,7 +128,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 		BeforeEach(func() { local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: "not-existing"}} })
 
 		JustBeforeEach(func() {
-			client = fake.NewSimpleClientset(&local)
+			client = fake.NewClientset()
+			CreatePod(client, &local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
 			reflectorConfig := offloadingv1beta1.ReflectorConfig{
