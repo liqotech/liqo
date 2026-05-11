@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -64,6 +65,7 @@ func TestService(t *testing.T) {
 var _ = BeforeSuite(func() {
 	utilruntime.Must(offloadingv1beta1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(networkingv1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme.Scheme))
 
 	testutil.LogsToGinkgoWriter()
 
