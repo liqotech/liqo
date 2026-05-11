@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	applyconfigurationoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -46,18 +47,21 @@ type VirtualNodeInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.VirtualNodeList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.VirtualNode, err error)
+	Apply(ctx context.Context, virtualNode *applyconfigurationoffloadingv1beta1.VirtualNodeApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.VirtualNode, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, virtualNode *applyconfigurationoffloadingv1beta1.VirtualNodeApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.VirtualNode, err error)
 	VirtualNodeExpansion
 }
 
 // virtualNodes implements VirtualNodeInterface
 type virtualNodes struct {
-	*gentype.ClientWithList[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList]
+	*gentype.ClientWithListAndApply[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList, *applyconfigurationoffloadingv1beta1.VirtualNodeApplyConfiguration]
 }
 
 // newVirtualNodes returns a VirtualNodes
 func newVirtualNodes(c *OffloadingV1beta1Client, namespace string) *virtualNodes {
 	return &virtualNodes{
-		gentype.NewClientWithList[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList](
+		gentype.NewClientWithListAndApply[*offloadingv1beta1.VirtualNode, *offloadingv1beta1.VirtualNodeList, *applyconfigurationoffloadingv1beta1.VirtualNodeApplyConfiguration](
 			"virtualnodes",
 			c.RESTClient(),
 			scheme.ParameterCodec,
