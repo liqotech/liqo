@@ -55,6 +55,8 @@ type FirewallConfigurationReconciler struct {
 	LabelsSets []labels.Set
 	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
 	EnableFinalizer bool
+	// ConntrackClient is the client used to flush conntrack entries when notrack rules are applied.
+	ConntrackClient conntrackClient
 }
 
 // newFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
@@ -64,6 +66,12 @@ func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, pod
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
 	}
+
+	conntrackClient, err := newConntrackConn()
+	if err != nil {
+		klog.Warningf("unable to create conntrack connection: %v", err)
+	}
+
 	return &FirewallConfigurationReconciler{
 		PodName:         podname,
 		NftConnection:   nftConnection,
@@ -72,6 +80,7 @@ func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, pod
 		EventsRecorder:  er,
 		LabelsSets:      labelsSets,
 		EnableFinalizer: enableFinalizer,
+		ConntrackClient: conntrackClient,
 	}, nil
 }
 
@@ -160,6 +169,12 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	klog.Infof("Applied firewallconfiguration %s", req.String())
+
+	// Existing conntrack flows are not affected by newly added notrack expressions,
+	// so they need to be evicted explicitly after the nftables rules have been applied.
+	if err = r.flushConntrackForNotrackRules(ctx, fwcfg); err != nil {
+		return ctrl.Result{}, fmt.Errorf("flushing conntrack entries: %w", err)
+	}
 
 	return ctrl.Result{}, nil
 }
