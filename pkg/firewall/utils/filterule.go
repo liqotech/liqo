@@ -110,6 +110,8 @@ func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nf
 		applyDropAction(rule)
 	case firewallv1beta1.ActionReject:
 		applyRejectAction(rule)
+	case firewallv1beta1.ActionNotrack:
+		applyNotrackAction(rule)
 	default:
 	}
 
@@ -236,6 +238,10 @@ func applyDropAction(rule *nftables.Rule) {
 
 func applyRejectAction(rule *nftables.Rule) {
 	rule.Exprs = append(rule.Exprs, &expr.Reject{})
+}
+
+func applyNotrackAction(rule *nftables.Rule) {
+	rule.Exprs = append(rule.Exprs, &expr.Notrack{})
 }
 
 func applyCounter(rule *nftables.Rule) {
