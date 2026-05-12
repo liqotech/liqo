@@ -362,14 +362,25 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusClusterIP(service *corev1
 		return nil, err
 	}
 
-	port := service.Spec.Ports[0].Port
 	protocol := &service.Spec.Ports[0].Protocol
 	addresses := service.Spec.ClusterIPs
 
+	if len(service.Spec.Ports) == 1 {
+		return &networkingv1beta1.EndpointStatus{
+			Protocol:  protocol,
+			Port:      service.Spec.Ports[0].Port,
+			Addresses: addresses,
+		}, nil
+	}
+	ports := make([]int32, 0, len(service.Spec.Ports))
+	for i := 0; i < len(service.Spec.Ports); i++ {
+		ports = append(ports, service.Spec.Ports[i].Port)
+	}
+
 	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
-		Port:      port,
 		Addresses: addresses,
+		Ports:     ports,
 	}, nil
 }
 
@@ -381,7 +392,6 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		return nil, err
 	}
 
-	port := service.Spec.Ports[0].NodePort
 	protocol := &service.Spec.Ports[0].Protocol
 
 	pod, err := listActiveGatewayPod(ctx, r.Client, dep.Namespace)
@@ -404,10 +414,23 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		}
 	}
 
+	if len(service.Spec.Ports) == 1 {
+		return &networkingv1beta1.EndpointStatus{
+			Protocol:  protocol,
+			Port:      service.Spec.Ports[0].NodePort,
+			Addresses: addresses,
+		}, nil
+	}
+
+	ports := make([]int32, 0, len(service.Spec.Ports))
+	for i := 0; i < len(service.Spec.Ports); i++ {
+		ports = append(ports, service.Spec.Ports[i].NodePort)
+	}
+
 	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
-		Port:      port,
 		Addresses: addresses,
+		Ports:     ports,
 	}, nil
 }
 
@@ -418,15 +441,26 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 		return nil, err
 	}
 
-	port := service.Spec.Ports[0].Port
 	protocol := &service.Spec.Ports[0].Protocol
-
 	addresses := getters.CollectLoadBalancerAddresses(service.Status.LoadBalancer.Ingress)
+
+	if len(service.Spec.Ports) == 1 {
+		return &networkingv1beta1.EndpointStatus{
+			Protocol:  protocol,
+			Port:      service.Spec.Ports[0].Port,
+			Addresses: addresses,
+		}, nil
+	}
+
+	ports := make([]int32, 0, len(service.Spec.Ports))
+	for i := 0; i < len(service.Spec.Ports); i++ {
+		ports = append(ports, service.Spec.Ports[i].Port)
+	}
 
 	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
-		Port:      port,
 		Addresses: addresses,
+		Ports:     ports,
 	}, nil
 }
 
