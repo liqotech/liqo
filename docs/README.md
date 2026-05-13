@@ -6,7 +6,7 @@ The Liqo documentation is built with [Read the Docs](https://readthedocs.org/) a
 ## How to add/update documentation
 
 The documentation content is hosted in the Liqo repository and Read the Docs is in charge of building the documentation for you.
-When your PR is merged in master, the documentation will be available on [doc.liqo.io](https://doc.liqo.io) or [docs.liqo.io](https://docs.liqo.io).
+When your PR is merged in master, the documentation will be available on [docs.liqo.io](https://docs.liqo.io).
 
 ### Pages
 
