@@ -30,6 +30,7 @@ subtrees:
   - caption: Usage
     entries:
       - file: usage/peer.md
+      - file: usage/resource-reservation.md
       - file: usage/namespace-offloading.md
       - file: usage/reflection.md
       - file: usage/stateful-applications.md
