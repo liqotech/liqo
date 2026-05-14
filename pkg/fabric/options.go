@@ -30,14 +30,15 @@ type Options struct {
 
 	ReconcileTimeout time.Duration
 
-	DisableARP         bool
 	EnableNftMonitor   bool
 	EnableRouteMonitor bool
 
 	DisableKernelVersionCheck bool
 	MinimumKernelVersion      kernelversion.KernelVersion
 
-	GenevePort uint16
+	DisableARP            bool
+	GenevePort            uint16
+	GeneveCleanupInterval time.Duration
 }
 
 // NewOptions returns a new Options struct.

@@ -114,6 +114,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		selection.Equals,
 		[]string{gateway.GatewayComponentGateway},
 	)
+	utilruntime.Must(err)
 	reqActiveGatewayPods, err := labels.NewRequirement(
 		concurrent.ActiveGatewayKey,
 		selection.Equals,
@@ -203,18 +204,27 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup route configuration reconciler: %w", err)
 	}
 
-	ifr, err := fabric.NewInternalFabricReconciler(
+	gtr, err := fabric.NewGeneveTunnelReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("internalfabric-controller"),
+		mgr.GetEventRecorder("genevetunnel-controller"),
 		options,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create internal fabric reconciler: %w", err)
+		return fmt.Errorf("unable to create geneve tunnel reconciler: %w", err)
 	}
 
-	if err := ifr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup internal fabric reconciler: %w", err)
+	if err := gtr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup geneve tunnel reconciler: %w", err)
+	}
+
+	runnableGeneveCleanup, err := fabric.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
+	if err != nil {
+		return fmt.Errorf("unable to create runnable geneve cleanup: %w", err)
+	}
+
+	if err := mgr.Add(runnableGeneveCleanup); err != nil {
+		return fmt.Errorf("unable to add geneve cleanup runnable: %w", err)
 	}
 
 	// Start the manager.

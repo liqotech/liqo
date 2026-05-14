@@ -42,9 +42,6 @@ const (
 	// FlagNameReconcileTimeout is the reconciliation timeout.
 	FlagNameReconcileTimeout FlagName = "reconcile-timeout"
 
-	// FlagNameDisableARP is the flag to enable ARP.
-	FlagNameDisableARP FlagName = "disable-arp"
-
 	// FlagNameEnableNftMonitor is the flag to enable the nftables monitor.
 	FlagNameEnableNftMonitor FlagName = "enable-nft-monitor"
 	// FlagNameEnableRouteMonitor is the flag to enable the route monitor.
@@ -55,8 +52,12 @@ const (
 	// FlagNameMinimumKernelVersion is the minimum kernel version required to run the wireguard interface.
 	FlagNameMinimumKernelVersion FlagName = "minimum-kernel-version"
 
+	// FlagNameDisableARP is the flag to enable ARP.
+	FlagNameDisableARP FlagName = "disable-arp"
 	// FlagNameGenevePort is the flag to set the Geneve port.
 	FlagNameGenevePort FlagName = "geneve-port"
+	// FlagNameGeneveCleanupInterval is the flag to set the Geneve cleanup interval.
+	FlagNameGeneveCleanupInterval FlagName = "geneve-cleanup-interval"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -74,14 +75,16 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.DurationVar(&opts.ReconcileTimeout, FlagNameReconcileTimeout.String(), 10*time.Second, "Reconciliation timeout")
 
-	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.BoolVar(&opts.EnableNftMonitor, FlagNameEnableNftMonitor.String(), true, "Enable nftables monitor")
 	flagset.BoolVar(&opts.EnableRouteMonitor, FlagNameEnableRouteMonitor.String(), true, "Enable route monitor")
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")
 
+	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
+	flagset.DurationVar(&opts.GeneveCleanupInterval, FlagNameGeneveCleanupInterval.String(),
+		consts.DefaultGeneveCleanupInterval, "Geneve cleanup interval")
 }
 
 // MarkFlagsRequired marks the flags as required.

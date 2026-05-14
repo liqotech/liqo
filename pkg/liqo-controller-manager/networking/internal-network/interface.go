@@ -29,11 +29,12 @@ import (
 const (
 	maxretries          = 20
 	interfaceNameLength = 10
-	interfaceNamePrefix = "liqo."
+	// InterfaceNamePrefix is the prefix used for Liqo geneve interface names.
+	InterfaceNamePrefix = "liqo."
 )
 
 func forgeInterfaceName() string {
-	return interfaceNamePrefix + rand.String(interfaceNameLength)
+	return InterfaceNamePrefix + rand.String(interfaceNameLength)
 }
 
 // FindFreeInterfaceName returns a free  interface name.

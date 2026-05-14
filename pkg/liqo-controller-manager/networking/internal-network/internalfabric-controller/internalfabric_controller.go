@@ -75,6 +75,15 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("deleting Geneve tunnels: %w", err)
 			}
 		}
+
+		// Remove the geneve tunnel finalizer and the old deprecated one from previous versions.
+		updated := controllerutil.RemoveFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer)
+		updated = controllerutil.RemoveFinalizer(internalFabric, "internalfabric-controller.liqo.io/finalizer") || updated
+		if updated {
+			if err := r.Update(ctx, internalFabric); err != nil {
+				return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
+			}
+		}
 		return ctrl.Result{}, nil
 	}
 
