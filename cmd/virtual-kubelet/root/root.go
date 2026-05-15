@@ -258,32 +258,32 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		metrics.SetupMetricHandler(c.MetricsAddress)
 	}
 
-	// Initialize the node provider
-	nodecfg := nodeprovider.InitConfig{
-		HomeConfig:      localConfig,
-		RemoteConfig:    remoteConfig,
-		HomeClusterID:   c.HomeCluster.GetClusterID(),
-		RemoteClusterID: c.ForeignCluster.GetClusterID(),
-		Namespace:       c.TenantNamespace,
-
-		NodeName:         c.NodeName,
-		InternalIP:       c.NodeIP,
-		DaemonPort:       c.ListenPort,
-		Version:          getVersion(localConfig),
-		ExtraLabels:      c.NodeExtraLabels.StringMap,
-		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
-
-		InformerResyncPeriod: c.InformerResyncPeriod,
-		PingDisabled:         c.NodePingInterval == 0,
-		CheckNetworkStatus:   c.NodeCheckNetwork,
-
-		VirtualNode: vn,
-	}
-
-	var nodeReady chan struct{}
-	var nodeRunner *node.NodeController
-
 	if c.CreateNode {
+		var nodeReady chan struct{}
+		var nodeRunner *node.NodeController
+		// Initialize the node provider
+		nodecfg := nodeprovider.InitConfig{
+			HomeConfig:      localConfig,
+			RemoteConfig:    remoteConfig,
+			HomeClusterID:   c.HomeCluster.GetClusterID(),
+			RemoteClusterID: c.ForeignCluster.GetClusterID(),
+			Namespace:       c.TenantNamespace,
+
+			NodeName:         c.NodeName,
+			InternalIP:       c.NodeIP,
+			DaemonPort:       c.ListenPort,
+			Version:          getVersion(localConfig),
+			ExtraLabels:      c.NodeExtraLabels.StringMap,
+			ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
+
+			InformerResyncPeriod: c.InformerResyncPeriod,
+			PingDisabled:         c.NodePingInterval == 0,
+			CheckNetworkStatus:   c.NodeCheckNetwork,
+
+			VirtualNode:    &vn,
+			ForeignCluster: foreignCluster,
+		}
+
 		nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
 		nodeReady = nodeProvider.StartProvider(ctx)
 

@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
@@ -108,6 +109,25 @@ func (p *LiqoNodeProvider) IsTerminating() bool {
 // GetNode returns the node managed by the provider.
 func (p *LiqoNodeProvider) GetNode() *corev1.Node {
 	return p.node
+}
+
+// hydrate pre-populates the in-memory node state from the available source objects.
+// It does not publish node updates and does not patch the local Kubernetes Node object.
+func (p *LiqoNodeProvider) hydrate(
+	foreignCluster *liqov1beta1.ForeignCluster, virtualNode *offloadingv1beta1.VirtualNode,
+) {
+	p.updateMutex.Lock()
+	defer p.updateMutex.Unlock()
+
+	if virtualNode != nil {
+		p.applyVirtualNodeMetadata(virtualNode)
+		p.applyVirtualNodeStatus(virtualNode)
+	}
+	if foreignCluster != nil {
+		p.applyForeignCluster(foreignCluster)
+	}
+
+	p.recomputeNodeState()
 }
 
 func (p *LiqoNodeProvider) pingWithClient(ctx context.Context) error {

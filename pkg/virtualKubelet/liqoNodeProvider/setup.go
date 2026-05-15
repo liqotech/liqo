@@ -61,12 +61,13 @@ type InitConfig struct {
 	PingDisabled         bool
 	CheckNetworkStatus   bool
 
-	VirtualNode offloadingv1beta1.VirtualNode
+	VirtualNode    *offloadingv1beta1.VirtualNode
+	ForeignCluster *liqov1beta1.ForeignCluster
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
 func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
-	return &LiqoNodeProvider{
+	nodeProvider := &LiqoNodeProvider{
 		localClient:           kubernetes.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(cfg.RemoteConfig),
 		dynClient:             dynamic.NewForConfigOrDie(cfg.HomeConfig),
@@ -86,6 +87,10 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		foreignClusterID: cfg.RemoteClusterID,
 		tenantNamespace:  cfg.Namespace,
 	}
+
+	nodeProvider.hydrate(cfg.ForeignCluster, cfg.VirtualNode)
+
+	return nodeProvider
 }
 
 func node(cfg *InitConfig) *corev1.Node {
@@ -103,17 +108,13 @@ func node(cfg *InitConfig) *corev1.Node {
 		labelNodeExcludeBalancersAlpha:   strconv.FormatBool(true),
 	}
 	lbls = labels.Merge(lbls, cfg.ExtraLabels)
-	lbls = labels.Merge(lbls, cfg.VirtualNode.Spec.Labels)
 
 	annots := cfg.ExtraAnnotations
-	annots = labels.Merge(annots, cfg.VirtualNode.Spec.Annotations)
-
 	taints := []corev1.Taint{{
 		Key:    liqoconst.VirtualNodeTolerationKey,
 		Value:  strconv.FormatBool(true),
 		Effect: corev1.TaintEffectNoExecute,
 	}}
-	taints = append(taints, cfg.VirtualNode.Spec.Taints...)
 
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
