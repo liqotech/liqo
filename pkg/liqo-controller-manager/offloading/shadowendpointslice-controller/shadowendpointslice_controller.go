@@ -48,8 +48,7 @@ import (
 )
 
 const (
-	ctrlFieldManager                = "shadow-endpointslice-controller"
-	directConnectionAnnotationLabel = "direct-connections-data"
+	ctrlFieldManager = "shadow-endpointslice-controller"
 )
 
 // Reconciler reconciles a ShadowEndpointSlice object.
@@ -103,13 +102,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Check if direct connections data is provided
 	var remoteConnectionsData directconnectioninfo.DirectConnectionData
-	if val, ok := shadowEps.Annotations[directConnectionAnnotationLabel]; ok {
+	if val, ok := shadowEps.Annotations[consts.DirectConnectionDataAnnotationKey]; ok {
 		err := remoteConnectionsData.FromJSON([]byte(val))
 
 		if err != nil {
 			klog.Errorf("failed to unmarshal direct connection data for shadowendpointslice %q: %v", nsName, err)
 			return ctrl.Result{}, err
 		}
+		// JSON is not propagated to the EndpointSlice
+		delete(shadowEps.Annotations, consts.DirectConnectionDataAnnotationKey)
 	}
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
 	// If the networking module is disabled, we do not need to remap the endpoints.
@@ -126,7 +127,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Direct connections data annotation is not propagated to the EndpointSlice
-	annotations := forge.ForgeEndpointSliceAnnotations(&shadowEps, []string{directConnectionAnnotationLabel})
+	annotations := forge.ForgeEndpointSliceAnnotations(&shadowEps, []string{consts.DirectConnectionDataAnnotationKey})
 
 	// Forge the endpointslice given the shadowendpointslice
 	newEps := discoveryv1.EndpointSlice{

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,10 +40,10 @@ import (
 	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	directconnectioninfo "github.com/liqotech/liqo/pkg/utils/directconnection"
 	getters "github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
-	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -53,10 +54,8 @@ var _ manager.NamespacedReflector = (*NamespacedEndpointSliceReflector)(nil)
 
 const (
 	// EndpointSliceReflectorName -> The name associated with the EndpointSlice reflector.
-	EndpointSliceReflectorName      = "EndpointSlice"
-	maxAnnotationSize               = 256 * 1024 // 256 KiB
-	directConnectionAnnotationLabel = "direct-connections-data"
-	directConnectionServiceLabel    = "use-direct-connections"
+	EndpointSliceReflectorName = "EndpointSlice"
+	maxAnnotationSize          = 256 * 1024 // 256 KiB
 )
 
 // NamespacedEndpointSliceReflector manages the EndpointSlice reflection for a given pair of local and remote namespaces.
@@ -92,7 +91,15 @@ func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.Name
 
 		_, err := localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
-		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(func(obj metav1.Object) []types.NamespacedName {
+			name := obj.GetName()
+			// Map indirect ShadowEndpointSlice changes back to their parent EPS name so that
+			// Handle(parentName) is called and manages both objects consistently.
+			if obj.GetLabels()[forge.IndirectEndpointSliceLabelKey] == "true" {
+				name = strings.TrimSuffix(name, forge.IndirectEndpointSliceSuffix)
+			}
+			return []types.NamespacedName{{Namespace: opts.LocalNamespace, Name: name}}
+		}))
 		utilruntime.Must(err)
 
 		_, podCIDR, err := net.ParseCIDR(localPodCIDR)
@@ -138,6 +145,12 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	utilruntime.Must(client.IgnoreNotFound(rerr))
 	remoteExists := !kerrors.IsNotFound(rerr)
 
+	// Retrieve the companion indirect ShadowEndpointSlice (present when direct connections are enabled).
+	indirectName := name + forge.IndirectEndpointSliceSuffix
+	remoteIndirect, indirectErr := ner.remoteShadowEndpointSlices.Get(indirectName)
+	utilruntime.Must(client.IgnoreNotFound(indirectErr))
+	remoteIndirectExists := !kerrors.IsNotFound(indirectErr)
+
 	tracer.Step("Retrieved the local and remote objects")
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
@@ -179,6 +192,14 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
 	if !localExists {
 		defer tracer.Step("Ensured the absence of the remote object")
+		// Delete the indirect companion first if present.
+		if remoteIndirectExists {
+			klog.V(4).Infof("Deleting remote indirect shadowendpointslice %q, since local %q does no longer exist",
+				ner.RemoteRef(indirectName), ner.LocalRef(name))
+			if err := ner.DeleteRemote(ctx, ner.remoteShadowEndpointSlicesClient, "ShadowEndpointSlice", indirectName, remoteIndirect.GetUID()); err != nil {
+				return err
+			}
+		}
 		if remoteExists {
 			klog.V(4).Infof("Deleting remote shadowendpointslice %q, since local %q does no longer exist", ner.RemoteRef(name), ner.LocalRef(name))
 			return ner.DeleteRemote(ctx, ner.remoteShadowEndpointSlicesClient, "ShadowEndpointSlice", name, remote.GetUID())
@@ -188,7 +209,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return nil
 	}
 
-	directConnectionsEnabled := ner.ShouldProvideDirectConnectionData(local)
+	shouldProvideDirectConnectionData := ner.ShouldProvideDirectConnectionData(local)
 
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
@@ -199,14 +220,27 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		var translations []string
-		translations, terr = ner.MapEndpointIPs(name, originals, directConnectionsEnabled)
+		translations, terr = ner.MapEndpointIPs(name, originals, shouldProvideDirectConnectionData)
+		return translations
+	}
+
+	// The indirect ShadowEndpointSlice must always carry IPAM-remapped addresses. 
+	// It uses a separate translator that never skips translation. 
+	// It runs only when direct connections are enabled.
+	var indirectTerr error
+	indirectTranslator := func(originals []string) []string {
+		if indirectTerr != nil {
+			return nil
+		}
+		var translations []string
+		translations, indirectTerr = ner.MapEndpointIPs(name, originals, false)
 		return translations
 	}
 
 	var marshaledData []byte
-	if directConnectionsEnabled {
-		// If the service associated to the local Endpointslice is flagged with the "use-direct-connection": true annotation
-		// then gather the data needed to make the providers use the direct connections among them.
+	if shouldProvideDirectConnectionData {
+		// If the Service associated to the local Endpointslice is annotated with consts.UseDirectConnectionAnnotationKey,
+		// then gather and marshal the data needed to make the providers use the direct connections between them.
 		// 1) The address that needs to be remapped.
 		// 2) ClusterID of the cluster on which that endpoint is running.
 
@@ -226,7 +260,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 				continue
 			}
 
-			// No data collection for nodes in the remote cluster or in the central cluster
+			// No data collection for nodes in the remote cluster or in the consumer cluster
 			if !directconnectioninfo.ShouldIncludeDataFromNode(node, string(forge.RemoteCluster)) {
 				continue
 			}
@@ -270,34 +304,30 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	}
 	
 	if marshaledData != nil {
-		target.Annotations[directConnectionAnnotationLabel] = string(marshaledData)
+		target.Annotations[consts.DirectConnectionDataAnnotationKey] = string(marshaledData)
 	}
 	tracer.Step("Forged the remote shadowendpointslice")
 
-	// If the remote shadowendpointslice does not exist, then create it.
+	// Manage the direct ShadowEndpointSlice (create or update).
 	if !remoteExists {
 		defer tracer.Step("Ensured the presence of the remote object")
 		_, err := ner.remoteShadowEndpointSlicesClient.Create(ctx, target, metav1.CreateOptions{FieldManager: forge.ReflectionFieldManager})
 		if err != nil {
 			if kerrors.IsAlreadyExists(err) {
 				klog.Infof("Remote shadowendpointslice %q already exists (local endpointslice: %q)", ner.RemoteRef(name), ner.LocalRef(name))
-				return nil
+			} else {
+				klog.Errorf("Failed to create remote shadowendpointslice %q (local endpointslice: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
+				if !kerrors.IsConflict(err) {
+					ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
+				}
+				return err
 			}
-			klog.Errorf("Failed to create remote shadowendpointslice %q (local endpointslice: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
-			if !kerrors.IsConflict(err) {
-				ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-			}
-			return err
+		} else {
+			klog.Infof("Remote shadowendpointslice %q successfully created (local: %q)", ner.RemoteRef(name), ner.LocalRef(name))
+			ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+			tracer.Step("Created the remote shadowendpointslice")
 		}
-
-		klog.Infof("Remote shadowendpointslice %q successfully created (local: %q)", ner.RemoteRef(name), ner.LocalRef(name))
-		ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
-		tracer.Step("Created the remote shadowendpointslice")
-		return nil
-	}
-
-	// If so, perform the actual update operation if needed.
-	if ner.ShouldUpdateShadowEndpointSlice(ctx, remote, target) {
+	} else if ner.ShouldUpdateShadowEndpointSlice(ctx, remote, target) {
 		_, err := ner.remoteShadowEndpointSlicesClient.Update(ctx, target, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 		if err != nil {
 			klog.Errorf("Failed to update remote shadowendpointslice %q (local endpointslice: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
@@ -306,7 +336,6 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 			}
 			return err
 		}
-
 		klog.Infof("Remote shadowendpointslice %q successfully updated (local endpointslice: %q)", ner.RemoteRef(name), ner.LocalRef(name))
 		ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 		tracer.Step("Updated the remote shadowendpointslice")
@@ -314,6 +343,24 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		klog.V(4).Infof("Skipping remote shadowendpointslice %q update, as already synced", ner.RemoteRef(name))
 	}
 
+	// Manage the indirect ShadowEndpointSlice companion.
+	// This is only relevant in 3-cluster topologies where a consumer (A) offloads to two providers (B, C)
+	// that have a direct connection between each other, and the Service is annotated accordingly.
+	if shouldProvideDirectConnectionData {
+		if err := ner.reconcileIndirectShadowEndpointSlice(ctx, local, indirectName, remoteIndirect, remoteIndirectExists, indirectTranslator); err != nil {
+			return err
+		}
+		if indirectTerr != nil {
+			klog.Errorf("Indirect translation of local EndpointSlice %q failed: %v", ner.LocalRef(name), indirectTerr)
+			ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(indirectTerr))
+			return indirectTerr
+		}
+		return nil
+	} else if remoteIndirectExists {
+		// The use-direct-connections annotation was removed from the Service; delete the now-stale indirect companion.
+		klog.V(4).Infof("Deleting stale indirect shadowendpointslice %q (annotation removed from Service)", ner.RemoteRef(indirectName))
+		return ner.DeleteRemote(ctx, ner.remoteShadowEndpointSlicesClient, "ShadowEndpointSlice", indirectName, remoteIndirect.GetUID())
+	}
 	return nil
 }
 
@@ -347,6 +394,9 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(origina
 }
 
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
+//
+// skipTranslation parameter is needed when direct connections are enabled, since in that case 
+// we want to skip the mapping on ExternalCIDR for endpoints that are reachable through direct connections between providers.
 func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string, skipTranslation bool) ([]string, error) {
 	
 	if skipTranslation {
@@ -439,8 +489,6 @@ func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metada
 
 // ShouldProvideDirectConnectionData returns whether the reflector should provide the data to make pods deployed on providers communicate directly
 // (only in case a direct connection is established).
-//
-// It's done by reading an annotation in the Service associated to the given Endpointslice.
 func (ner *NamespacedEndpointSliceReflector) ShouldProvideDirectConnectionData(obj metav1.Object) bool {
 	// Check if a service is associated to the EndpointSlice
 	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
@@ -453,8 +501,7 @@ func (ner *NamespacedEndpointSliceReflector) ShouldProvideDirectConnectionData(o
 		return false
 	}
 
-	// Check if the service is marked to provide direct connection data
-	return svc.GetAnnotations()[directConnectionServiceLabel] == "true"
+	return svc.GetAnnotations()[consts.UseDirectConnectionAnnotationKey] == "true"
 }
 
 // totalAnnotationsSize computes the total size in bytes of all annotation keys and values in the given object.
@@ -470,17 +517,75 @@ func totalAnnotationsSize(obj metav1.Object) int {
 
 // List returns the list of EndpointSlices managed by informers.
 func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
-	listEps, err := virtualkubelet.List[virtualkubelet.Lister[*discoveryv1.EndpointSlice], *discoveryv1.EndpointSlice](
-		ner.localEndpointSlices,
-	)
+	listEps, err := ner.localEndpointSlices.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
-	listSeps, err := virtualkubelet.List[virtualkubelet.Lister[*offloadingv1beta1.ShadowEndpointSlice], *offloadingv1beta1.ShadowEndpointSlice](
-		ner.remoteShadowEndpointSlices,
-	)
+	allSeps, err := ner.remoteShadowEndpointSlices.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
-	return append(listEps, listSeps...), nil
+
+	result := make([]interface{}, 0, len(listEps)+len(allSeps))
+	for _, eps := range listEps {
+		result = append(result, types.NamespacedName{Name: eps.GetName(), Namespace: eps.GetNamespace()})
+	}
+	for _, sep := range allSeps {
+		// Filters indirect shadowendpointslice companions: those are managed as side-effects
+		// of their parent EPS reconciliation and must not be enqueued for independent reconciliation.
+		if sep.GetLabels()[forge.IndirectEndpointSliceLabelKey] != "true" {
+			result = append(result, types.NamespacedName{Name: sep.GetName(), Namespace: sep.GetNamespace()})
+		}
+	}
+	return result, nil
+}
+
+// reconcileIndirectShadowEndpointSlice creates or updates the indirect ShadowEndpointSlice companion for a
+// local EndpointSlice whose Service is annotated with consts.UseDirectConnectionAnnotationKey.
+//
+// The indirect ShadowEndpointSlice carries IPAM-remapped (indirect) addresses and is intentionally not
+// bound to the Service (kubernetes.io/service-name label absent), so kube-proxy on the provider does not
+// route traffic through it. The resulting EndpointSlice is available for inspection only.
+func (ner *NamespacedEndpointSliceReflector) reconcileIndirectShadowEndpointSlice(
+	ctx context.Context,
+	local *discoveryv1.EndpointSlice,
+	indirectName string,
+	remoteIndirect *offloadingv1beta1.ShadowEndpointSlice,
+	remoteIndirectExists bool,
+	translator forge.EndpointTranslator,
+) error {
+	var existing *offloadingv1beta1.ShadowEndpointSlice
+	if remoteIndirectExists {
+		existing = remoteIndirect
+	}
+	indirectTarget := forge.RemoteIndirectShadowEndpointSlice(local, existing, ner.localNodeClient,
+		ner.RemoteNamespace(), translator, ner.ForgingOpts)
+
+	if !remoteIndirectExists {
+		_, err := ner.remoteShadowEndpointSlicesClient.Create(ctx, indirectTarget,
+			metav1.CreateOptions{FieldManager: forge.ReflectionFieldManager})
+		if err != nil {
+			if kerrors.IsAlreadyExists(err) {
+				klog.Infof("Remote indirect shadowendpointslice %q already exists", ner.RemoteRef(indirectName))
+				return nil
+			}
+			klog.Errorf("Failed to create remote indirect shadowendpointslice %q: %v", ner.RemoteRef(indirectName), err)
+			return err
+		}
+		klog.Infof("Remote indirect shadowendpointslice %q successfully created", ner.RemoteRef(indirectName))
+		return nil
+	}
+
+	if ner.ShouldUpdateShadowEndpointSlice(ctx, remoteIndirect, indirectTarget) {
+		_, err := ner.remoteShadowEndpointSlicesClient.Update(ctx, indirectTarget,
+			metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
+		if err != nil {
+			klog.Errorf("Failed to update remote indirect shadowendpointslice %q: %v", ner.RemoteRef(indirectName), err)
+			return err
+		}
+		klog.Infof("Remote indirect shadowendpointslice %q successfully updated", ner.RemoteRef(indirectName))
+	} else {
+		klog.V(4).Infof("Skipping remote indirect shadowendpointslice %q update, as already synced", ner.RemoteRef(indirectName))
+	}
+	return nil
 }
