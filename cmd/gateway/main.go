@@ -16,8 +16,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -66,6 +68,8 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 
 func main() {
+	defer klog.Flush()
+
 	var cmd = cobra.Command{
 		Use:  "liqo-gateway",
 		RunE: run,
@@ -99,6 +103,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, _ []string) error {
+	cmd.SetContext(ctrl.SetupSignalHandler())
+
 	var err error
 
 	// Check if the minimum kernel version is satisfied.
@@ -144,14 +150,16 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Create the manager.
+	gracefulShutdownTimeout := 10 * time.Second
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
 			BindAddress: connoptions.GwOptions.MetricsAddress,
 		},
-		HealthProbeBindAddress: connoptions.GwOptions.ProbeAddr,
-		LeaderElection:         connoptions.GwOptions.LeaderElection,
+		HealthProbeBindAddress:  connoptions.GwOptions.ProbeAddr,
+		GracefulShutdownTimeout: &gracefulShutdownTimeout,
+		LeaderElection:          connoptions.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.connections.liqo.io",
 			connoptions.GwOptions.Name, connoptions.GwOptions.Namespace, connoptions.GwOptions.Mode,
@@ -213,26 +221,26 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
-	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
+	// Setup the firewall configuration attach controller.
+	fwcr, err := firewall.NewFirewallConfigurationAttachReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
-		mgr.GetEventRecorderFor("firewall-controller"),
+		mgr.GetEventRecorderFor("firewall-attach-controller"),
 		[]labels.Set{
-			gateway.ForgeFirewallAllGatewaysTargetLabels(),
-			gateway.ForgeFirewallInternalTargetLabels(),
-			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
-			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
+			gateway.ForgeFirewallAttachAllGatewaysTargetLabels(connoptions.GwOptions.Name),
+			gateway.ForgeFirewallAttachInternalTargetLabels(connoptions.GwOptions.Name),
+			remapping.ForgeFirewallAttachTargetLabels(connoptions.GwOptions.RemoteClusterID, connoptions.GwOptions.Name),
+			remapping.ForgeFirewallAttachTargetLabelsIPMappingGw(connoptions.GwOptions.Name),
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration attach reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
 		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to setup firewall configuration attach reconciler: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {
@@ -252,6 +260,20 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Start the manager.
-	return mgr.Start(cmd.Context())
+	// Start the manager. On clean shutdown (SIGTERM) mgr.Start returns nil after all
+	// reconcilers have stopped, and we remove any finalizers that the reconciler did not
+	// have time to process before the pod was terminated.
+	//
+	// Time budget: terminationGracePeriodSeconds (default 30s)
+	//   - GracefulShutdownTimeout:      10s  (manager waits for reconcilers)
+	//   - CleanupPendingAttachFinalizers: 15s (remaining budget)
+	// Total: 25s < 30s default grace period.
+	if err := mgr.Start(cmd.Context()); err != nil {
+		return err
+	}
+
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	firewall.CleanupPendingAttachFinalizers(cleanupCtx, cl, fwcr.LabelsSets)
+	return nil
 }

@@ -54,3 +54,34 @@ func ForgeFirewallTargetLabelsIPMappingFabric() map[string]string {
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 	}
 }
+
+// ForgeFirewallAttachTargetLabels returns the labels used by the firewallconfigurationattach controller
+// to reconcile only resources related to a single gateway, for the given gateway.
+// The remoteID is stored as subcategory to preserve the remote cluster identity alongside the gateway name.
+func ForgeFirewallAttachTargetLabels(remoteID, gatewayName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
+		firewall.FirewallSubCategoryTargetKey: remoteID,
+		firewall.FirewallUniqueTargetKey:      gatewayName,
+	}
+}
+
+// ForgeFirewallAttachTargetLabelsIPMappingGw returns the labels used by the firewallconfigurationattach
+// controller to reconcile only resources related to the IP mapping for a specific gateway.
+func ForgeFirewallAttachTargetLabelsIPMappingGw(gatewayName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
+		firewall.FirewallUniqueTargetKey:      gatewayName,
+	}
+}
+
+// ForgeFirewallAttachTargetLabelsIPMappingFabric returns the labels used by the firewallconfigurationattach
+// controller to reconcile only resources related to the IP mapping for a specific fabric node.
+func ForgeFirewallAttachTargetLabelsIPMappingFabric(nodeName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueFabric,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
+		firewall.FirewallUniqueTargetKey:      nodeName,
+	}
+}
