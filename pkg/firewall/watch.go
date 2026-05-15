@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -42,6 +43,32 @@ func NewFirewallWatchEventHandler(cl client.Client, labelsSets []labels.Set) han
 			for k := range labelsSets {
 				list, err := getters.ListFirewallConfigurationsByLabel(ctx, cl, labels.SelectorFromSet(labelsSets[k]))
 				if err != nil {
+					klog.Error(err)
+					return nil
+				}
+				for i := range list.Items {
+					item := &list.Items[i]
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: item.Name, Namespace: item.Namespace}})
+				}
+			}
+
+			return requests
+		})
+}
+
+// NewFirewallAttachWatchSource creates a new Source for the FirewallConfigurationAttach watcher.
+func NewFirewallAttachWatchSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+	return source.Channel(src, eh)
+}
+
+// NewFirewallAttachWatchEventHandler creates a new EventHandler for FirewallConfigurationAttach resources.
+func NewFirewallAttachWatchEventHandler(cl client.Client, labelsSets []labels.Set) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, _ client.Object) []reconcile.Request {
+			var requests []reconcile.Request
+			for k := range labelsSets {
+				list := &networkingv1beta1.FirewallConfigurationAttachList{}
+				if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: labels.SelectorFromSet(labelsSets[k])}); err != nil {
 					klog.Error(err)
 					return nil
 				}

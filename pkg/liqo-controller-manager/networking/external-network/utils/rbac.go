@@ -71,6 +71,10 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 		},
 	}
 	if _, err := resource.CreateOrUpdate(ctx, cl, sa, func() error {
+		// Keep this finalizer so the GC cascade from owner deletion does not invalidate the
+		// pod's service account token while the pod is still running shutdown cleanup.
+		// The finalizer is removed explicitly after all pods have terminated.
+		controllerutil.AddFinalizer(sa, consts.GatewayServiceAccountFinalizer)
 		return controllerutil.SetControllerReference(owner, sa, s)
 	}); err != nil {
 		klog.Errorf("error while creating service account %q: %v", saName, err)

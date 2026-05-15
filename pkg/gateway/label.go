@@ -100,3 +100,23 @@ func ForgeFirewallAllGatewaysTargetLabels() map[string]string {
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryAllGatewaysTargetValue,
 	}
 }
+
+// ForgeFirewallAttachAllGatewaysTargetLabels returns the labels used by the firewallconfigurationattach controller
+// to reconcile only resources related to all gateways, for the given gateway.
+func ForgeFirewallAttachAllGatewaysTargetLabels(gatewayName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryAllGatewaysTargetValue,
+		firewall.FirewallUniqueTargetKey:      gatewayName,
+	}
+}
+
+// ForgeFirewallAttachInternalTargetLabels returns the labels used by the firewallconfigurationattach controller
+// to reconcile only resources related to a gateway, for the given gateway.
+func ForgeFirewallAttachInternalTargetLabels(gatewayName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryFabricTargetValue,
+		firewall.FirewallUniqueTargetKey:      gatewayName,
+	}
+}

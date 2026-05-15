@@ -53,8 +53,8 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurations
-  - firewallconfigurations/status
+  - firewallconfigurationattachs
+  - firewallconfigurationattachs/status
   - routeconfigurations
   - routeconfigurations/status
   verbs:
@@ -66,13 +66,14 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurations/finalizers
+  - firewallconfigurationattachs/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update
 - apiGroups:
   - networking.liqo.io
   resources:
+  - firewallconfigurations
   - genevetunnels
   - internalfabrics
   - internalnodes
