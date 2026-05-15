@@ -29,6 +29,8 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -65,11 +67,12 @@ func TestE2E(t *testing.T) {
 }
 
 var (
-	ctx           = context.Background()
-	testContext   = tester.GetTester(ctx)
-	interval      = config.Interval
-	timeout       = time.Minute * 5
-	namespaceName = setup.NamespaceName
+	ctx                = context.Background()
+	testContext        = tester.GetTester(ctx)
+	interval           = config.Interval
+	timeout            = time.Minute * 5
+	networkTestTimeout = time.Minute * 10
+	namespaceName      = setup.NamespaceName
 
 	providers []string
 	consumer  string
@@ -78,6 +81,7 @@ var (
 	defaultArgs = networkTestsArgs{
 		nodePortNodes: networkflags.NodePortNodesAll,
 		nodePortExt:   true,
+		nodeToPod:     true,
 		podNodePort:   true,
 		ip:            true,
 		loadBalancer:  true,
@@ -127,6 +131,15 @@ var _ = Describe("Liqo E2E", func() {
 	Context("Network", func() {
 		When("\"liqoctl test network\" runs", func() {
 			It("should succeed both before and after gateway pods restart", func() {
+				// Wait until all firewall configuration bindings are applied before running traffic
+				// tests. Some bindings (e.g. masquerade-bypass for late-joining nodes) may not be
+				// ready immediately after cluster setup.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkFirewallBindingsApplied(testContext.Clusters[i].ControllerClient)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Run the tests.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
@@ -139,6 +152,9 @@ var _ = Describe("Liqo E2E", func() {
 
 				time.Sleep(time.Second * 60)
 
+				// Record the restart time for subsequent connection readiness checks.
+				restartTime := time.Now()
+
 				// Check if there is only one active gateway pod per remote cluster.
 				for i := range testContext.Clusters {
 					numActiveGateway := testContext.Clusters[i].NumPeeredConsumers + testContext.Clusters[i].NumPeeredProviders
@@ -147,10 +163,27 @@ var _ = Describe("Liqo E2E", func() {
 					}, timeout, interval).Should(Succeed())
 				}
 
+				// Check if all connections are ready and have been probed after the restart.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkConnectionsReady(testContext.Clusters[i].ControllerClient, restartTime)
+					}, timeout, interval).Should(Succeed())
+				}
+
+				// Check if all firewall configuration bindings have been applied after the restart.
+				// The gateway pods re-create bindings for their ephemeral pod name on restart,
+				// so waiting only on Connection readiness may run network tests before nftables
+				// rules (nodeport DNAT, IP remapping, ...) have been re-applied.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkFirewallBindingsApplied(testContext.Clusters[i].ControllerClient)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Run the tests again.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
-				}, timeout, interval).Should(Succeed())
+				}, networkTestTimeout, interval).Should(Succeed())
 			})
 
 			It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
@@ -158,12 +191,15 @@ var _ = Describe("Liqo E2E", func() {
 				args.basic = true
 				args.remove = false
 				for i := 0; i < stressMax; i++ {
+
 					// Restart the gateway pods.
 					for j := range testContext.Clusters {
 						RestartPods(testContext.Clusters[j].ControllerClient)
 					}
 
 					restartTime := time.Now()
+
+					time.Sleep(time.Second * 5) // Wait a bit.
 
 					// Check if there is only one active gateway pod per remote cluster.
 					for j := range testContext.Clusters {
@@ -179,6 +215,13 @@ var _ = Describe("Liqo E2E", func() {
 						}, timeout, interval).Should(Succeed())
 					}
 
+					// Check if all firewall configuration bindings have been applied after the restart.
+					for j := range testContext.Clusters {
+						Eventually(func() error {
+							return checkFirewallBindingsApplied(testContext.Clusters[j].ControllerClient)
+						}, timeout, interval).Should(Succeed())
+					}
+
 					if i == stressMax-1 {
 						args.remove = true
 					}
@@ -186,7 +229,7 @@ var _ = Describe("Liqo E2E", func() {
 					// Run the tests.
 					Eventually(func() error {
 						return runLiqoctlNetworkTests(args)
-					}, timeout, interval).Should(Succeed())
+					}, networkTestTimeout, interval).Should(Succeed())
 				}
 			})
 		})
@@ -205,6 +248,7 @@ type networkTestsArgs struct {
 	nodePortNodes networkflags.NodePortNodes
 	nodePortExt   bool
 	podNodePort   bool
+	nodeToPod     bool
 	ip            bool
 	loadBalancer  bool
 	info          bool
@@ -248,6 +292,9 @@ func forgeFlags(args networkTestsArgs) []string {
 	}
 	if args.nodePortExt {
 		flags = append(flags, "--np-ext")
+	}
+	if args.nodeToPod {
+		flags = append(flags, "--node-pod")
 	}
 	if args.podNodePort {
 		flags = append(flags, "--pod-np")
@@ -369,6 +416,46 @@ func checkConnectionsReady(cl client.Client, restartTime time.Time) error {
 				conn.Namespace, conn.Name, conn.Status.Latency.Timestamp, restartTime)
 		}
 	}
+	return nil
+}
+
+// checkFirewallBindingsApplied checks that every non-deleted FirewallConfigurationBinding
+// is Applied=True with an up-to-date ObservedGeneration. This proves the current spec is
+// installed in nftables on the owning node/pod without making any timing assumptions about
+// when the condition was last set.
+func checkFirewallBindingsApplied(cl client.Client) error {
+	bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
+	if err := cl.List(ctx, bindingList); err != nil {
+		return fmt.Errorf("unable to list firewallconfigurationbindings: %w", err)
+	}
+
+	for i := range bindingList.Items {
+		binding := &bindingList.Items[i]
+
+		// Skip bindings that are being garbage collected after the previous gateway pod
+		// was deleted; they are not relevant to the new pod's readiness.
+		if !binding.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		cond := apimeta.FindStatusCondition(binding.Status.Conditions,
+			string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied))
+		if cond == nil {
+			return fmt.Errorf("firewallconfigurationbinding %s/%s has no Applied condition",
+				binding.Namespace, binding.Name)
+		}
+
+		if cond.Status != metav1.ConditionTrue {
+			return fmt.Errorf("firewallconfigurationbinding %s/%s is not applied (status: %s, reason: %s, message: %s)",
+				binding.Namespace, binding.Name, cond.Status, cond.Reason, cond.Message)
+		}
+
+		if cond.ObservedGeneration != binding.Generation {
+			return fmt.Errorf("firewallconfigurationbinding %s/%s applied condition is stale (observedGeneration: %d, generation: %d)",
+				binding.Namespace, binding.Name, cond.ObservedGeneration, binding.Generation)
+		}
+	}
+
 	return nil
 }
 

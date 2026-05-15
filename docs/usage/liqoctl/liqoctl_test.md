@@ -84,6 +84,10 @@ or
 
 >Enable curl from external to loadbalancer service
 
+`--node-pod`
+
+>Enable node to pod checks
+
 `--np-ext`
 
 >Enable curl from external to nodeport service

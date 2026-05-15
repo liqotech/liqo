@@ -60,7 +60,8 @@ func newConntrackConn() (conntrackClient, error) {
 // flushConntrackForNotrackRules removes existing conntrack entries that match
 // any notrack rule in the firewallconfiguration. Existing flows are not affected
 // by newly-added notrack expressions, so they need to be evicted explicitly.
-func (r *FirewallConfigurationReconciler) flushConntrackForNotrackRules(ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration) error {
+func (r *FirewallConfigurationBindingReconciler) flushConntrackForNotrackRules(ctx context.Context,
+	fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	if r.ConntrackClient == nil {
 		return nil
 	}

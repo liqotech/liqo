@@ -1,19 +1,19 @@
-{{- $predelete := (merge (dict "name" "pre-delete" "module" "pre-delete"  "version" .Values.uninstaller.image.version) .) -}}
+{{- $postdelete := (merge (dict "name" "post-delete" "module" "post-delete"  "version" .Values.uninstaller.image.version) .) -}}
 
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "liqo.prefixedName" $predelete }}
+  name: {{ include "liqo.prefixedName" $postdelete }}
   labels:
-    {{- include "liqo.labels" $predelete| nindent 4 }}
+    {{- include "liqo.labels" $postdelete| nindent 4 }}
   annotations:
-    {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
+    {{- include "liqo.postDeleteAnnotations" $postdelete| nindent 4 }}
 spec:
   template:
     metadata:
-      name: {{ include "liqo.prefixedName" $predelete }}
+      name: {{ include "liqo.prefixedName" $postdelete }}
       labels:
-        {{- include "liqo.labels" $predelete| nindent 8 }}
+        {{- include "liqo.labels" $postdelete| nindent 8 }}
         {{- if .Values.uninstaller.pod.labels }}
         {{- toYaml .Values.uninstaller.pod.labels | nindent 8 }}
         {{- end }}
@@ -25,16 +25,16 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       restartPolicy: Never
-      serviceAccountName: {{ include "liqo.prefixedName" $predelete}}
+      serviceAccountName: {{ include "liqo.prefixedName" $postdelete}}
       {{- include "liqo.imagePullSecrets" . | nindent 6 }}
       containers:
-      - name: pre-delete-job
-        image: {{ .Values.uninstaller.image.name }}{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}
+      - name: post-delete-job
+        image: {{ .Values.uninstaller.image.name }}{{ include "liqo.suffix" $postdelete }}:{{ include "liqo.version" $postdelete }}
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         command: ["/usr/bin/uninstaller"]
         args:
-          - --helm-delete-mode=pre
+          - --helm-delete-mode=post
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}

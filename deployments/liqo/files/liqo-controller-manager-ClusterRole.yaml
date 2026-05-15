@@ -184,6 +184,7 @@ rules:
   - networking.liqo.io
   resources:
   - configurations
+  - firewallconfigurationbindings
   - firewallconfigurations
   - gatewayclients
   - gatewayservers
@@ -208,6 +209,8 @@ rules:
   - networking.liqo.io
   resources:
   - configurations/finalizers
+  - firewallconfigurationbindings/finalizers
+  - firewallconfigurations/finalizers
   - gatewayclients/finalizers
   - gatewayservers/finalizers
   - genevetunnels/finalizers

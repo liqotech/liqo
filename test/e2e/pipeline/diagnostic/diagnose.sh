@@ -49,4 +49,10 @@ do
    echo "Liqo peerings statuses"
    echo "|------------------------------------------------------------|"
    ${LIQOCTL} info peer --verbose
+   echo "FirewallConfigurations"
+   echo "|------------------------------------------------------------|"
+   ${KUBECTL} get firewallconfigurations -A -o wide
+   echo "FirewallConfigurationBindings"
+   echo "|------------------------------------------------------------|"
+   ${KUBECTL} get firewallconfigurationbindings -A -o wide
 done;

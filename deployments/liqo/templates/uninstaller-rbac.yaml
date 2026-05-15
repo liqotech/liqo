@@ -1,4 +1,5 @@
 {{- $predelete := (merge (dict "name" "pre-delete" "module" "pre-delete") .) -}}
+{{- $postdelete := (merge (dict "name" "post-delete" "module" "post-delete") .) -}}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -34,14 +35,40 @@ metadata:
   {{- include "liqo.labels" $predelete| nindent 4 }}
   annotations:
   {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
-{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $predelete))) }}
+{{ .Files.Get "files/liqo-uninstaller-ClusterRole.yaml" }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $postdelete}}
+  labels:
+  {{- include "liqo.labels" $postdelete| nindent 4 }}
+  annotations:
+    {{- include "liqo.postDeleteAnnotations" $postdelete| nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRoleBinding
 metadata:
-  name: {{ include "liqo.prefixedName" $predelete}}
+  name: {{ include "liqo.prefixedName" $postdelete}}
   labels:
-  {{- include "liqo.labels" $predelete| nindent 4 }}
+  {{- include "liqo.labels" $postdelete| nindent 4 }}
   annotations:
-  {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
-{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $predelete))) }}
+  {{- include "liqo.postDeleteAnnotations" $postdelete| nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $postdelete}}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $postdelete}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $postdelete}}
+  labels:
+  {{- include "liqo.labels" $postdelete| nindent 4 }}
+  annotations:
+  {{- include "liqo.postDeleteAnnotations" $postdelete| nindent 4 }}
+{{ .Files.Get "files/liqo-uninstaller-ClusterRole.yaml" }}

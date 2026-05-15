@@ -341,7 +341,7 @@ func TestFlushConntrackForNotrackRules(t *testing.T) {
 
 	t.Run("deletes only matching flows", func(t *testing.T) {
 		fake := &fakeConntrackClient{flows: []conntrack.Flow{matchingFlow, nonMatchingFlow}}
-		r := &FirewallConfigurationReconciler{ConntrackClient: fake}
+		r := &FirewallConfigurationBindingReconciler{ConntrackClient: fake}
 		err := r.flushConntrackForNotrackRules(context.Background(), fwcfg)
 		assert.NoError(t, err)
 		assert.Len(t, fake.deleted, 1)
@@ -350,7 +350,7 @@ func TestFlushConntrackForNotrackRules(t *testing.T) {
 
 	t.Run("no notrack rules does nothing", func(t *testing.T) {
 		fake := &fakeConntrackClient{flows: []conntrack.Flow{matchingFlow}}
-		r := &FirewallConfigurationReconciler{ConntrackClient: fake}
+		r := &FirewallConfigurationBindingReconciler{ConntrackClient: fake}
 		cfg := &networkingv1beta1.FirewallConfiguration{
 			Spec: networkingv1beta1.FirewallConfigurationSpec{
 				Table: firewallapi.Table{
@@ -370,21 +370,21 @@ func TestFlushConntrackForNotrackRules(t *testing.T) {
 	})
 
 	t.Run("no conntrack client configured", func(t *testing.T) {
-		r := &FirewallConfigurationReconciler{}
+		r := &FirewallConfigurationBindingReconciler{}
 		err := r.flushConntrackForNotrackRules(context.Background(), fwcfg)
 		assert.NoError(t, err)
 	})
 
 	t.Run("dump error is propagated", func(t *testing.T) {
 		fake := &fakeConntrackClient{dumpErr: errors.New("dump failed")}
-		r := &FirewallConfigurationReconciler{ConntrackClient: fake}
+		r := &FirewallConfigurationBindingReconciler{ConntrackClient: fake}
 		err := r.flushConntrackForNotrackRules(context.Background(), fwcfg)
 		assert.Error(t, err)
 	})
 
 	t.Run("delete error is propagated", func(t *testing.T) {
 		fake := &fakeConntrackClient{flows: []conntrack.Flow{matchingFlow}, deleteErr: errors.New("delete failed")}
-		r := &FirewallConfigurationReconciler{ConntrackClient: fake}
+		r := &FirewallConfigurationBindingReconciler{ConntrackClient: fake}
 		err := r.flushConntrackForNotrackRules(context.Background(), fwcfg)
 		assert.Error(t, err)
 	})

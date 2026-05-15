@@ -72,7 +72,7 @@ func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Conf
 // ExecCurl executes a curl command.
 func ExecCurl(ctx context.Context, pod *corev1.Pod, clset *kubernetes.Clientset,
 	cfg *rest.Config, quiet bool, endpoint string, logger *pterm.Logger) (ok bool, err error) {
-	cmd := fmt.Sprintf("curl -k --connect-timeout 5 -I %s", endpoint)
+	cmd := fmt.Sprintf("curl -k --connect-timeout 10 -I %s", endpoint)
 	stdout, stderr, err := podutils.ExecInPod(ctx, clset, cfg, pod, cmd)
 	if err != nil {
 		return false, fmt.Errorf("failed to execute curl command: %w", err)

@@ -129,7 +129,7 @@ func RunCheckExternalToNodePortServiceWithClient(ctx context.Context, cl ctrlcli
 // RunsCheckExternalToNodePortService runs all the checks from the external to the node port service.
 func RunsCheckExternalToNodePortService(ctx context.Context, cl *client.Client, opts *flags.Options,
 	totreplicas int32) (successCountTot, errorCountTot int32, err error) {
-	httpclient := client.NewHTTPClient(time.Second * 5)
+	httpclient := client.NewHTTPClient(time.Second * 10)
 
 	successCount, errorCount, err := RunCheckExternalToNodePortServiceWithClient(ctx, cl.Consumer, opts, totreplicas, httpclient)
 	successCountTot += successCount
@@ -157,7 +157,7 @@ func RunsCheckExternalToLoadBalancerServiceWithClient(ctx context.Context, cl ct
 	}
 
 	var lbip string
-	timeout, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	if err = wait.PollUntilContextCancel(timeout, time.Second*5, true, func(ctx context.Context) (bool, error) {
 		if err := cl.Get(ctx, ctrlclient.ObjectKeyFromObject(&svclb), &svclb); err != nil {
@@ -197,7 +197,7 @@ func RunsCheckExternalToLoadBalancerServiceWithClient(ctx context.Context, cl ct
 // RunsCheckExternalToLoadBalancerService runs all the checks from the external to the load balancer service.
 func RunsCheckExternalToLoadBalancerService(ctx context.Context, cl *client.Client, opts *flags.Options,
 	totreplicas int32) (successCountTot, errorCountTot int32, err error) {
-	httpclient := client.NewHTTPClient(time.Second * 5)
+	httpclient := client.NewHTTPClient(time.Second * 10)
 
 	successCount, errorCount, err := RunsCheckExternalToLoadBalancerServiceWithClient(ctx, cl.Consumer, opts, httpclient, totreplicas)
 	successCountTot += successCount
