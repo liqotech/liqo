@@ -34,6 +34,7 @@ import (
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/wireguard"
+	firewallgc "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/firewall"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/client-controller"
 	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/configuration-controller"
 	gwmasqbypass "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/gw-masq-bypass"
@@ -226,6 +227,13 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 	)
 	if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the internalNodeReconciler: %v", err)
+		return err
+	}
+
+	firewallBindingGCReconciler := firewallgc.NewBindingGCReconciler(mgr.GetClient(), mgr.GetScheme(),
+		firewallgc.DefaultBindingGCPeriod)
+	if err := firewallBindingGCReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the firewallBindingGCReconciler: %v", err)
 		return err
 	}
 

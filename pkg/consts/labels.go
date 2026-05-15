@@ -31,6 +31,8 @@ const (
 	K8sAppComponentKey = "app.kubernetes.io/component"
 	// K8sAppPartOfKey = key of the label used to denote the application a resource is part of.
 	K8sAppPartOfKey = "app.kubernetes.io/part-of"
+	// K8sAppPartOfLiqoValue = value of the label used to denote a resource is part of Liqo.
+	K8sAppPartOfLiqoValue = "liqo"
 
 	// ControllerManagerAppName label value that denotes the name of the liqo-controller-manager deployment.
 	ControllerManagerAppName = "controller-manager"

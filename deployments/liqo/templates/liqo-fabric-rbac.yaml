@@ -8,6 +8,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $fabricConfig }}
   labels:
     {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+    "argocd.argoproj.io/sync-wave": "-1"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -15,6 +18,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $fabricConfig }}
   labels:
     {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+    "argocd.argoproj.io/sync-wave": "-1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -30,6 +36,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $fabricConfig }}
   labels:
     {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+    "argocd.argoproj.io/sync-wave": "-1"
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $fabricConfig))) }}
 {{- if .Values.openshiftConfig.enabled }}
 - apiGroups:

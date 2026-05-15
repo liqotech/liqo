@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
@@ -59,6 +60,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1beta1.AddToScheme(scheme))
 }
 
@@ -66,6 +68,8 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 
 func main() {
+	defer klog.Flush()
+
 	var cmd = cobra.Command{
 		Use:  "liqo-gateway",
 		RunE: run,
@@ -99,6 +103,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, _ []string) error {
+	cmd.SetContext(ctrl.SetupSignalHandler())
+
 	var err error
 
 	// Check if the minimum kernel version is satisfied.
@@ -213,26 +219,33 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
-	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
+	// Setup the firewall configuration binding controller.
+	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		connoptions.GwOptions.Name,
-		mgr.GetEventRecorderFor("firewall-controller"),
-		[]labels.Set{
-			gateway.ForgeFirewallAllGatewaysTargetLabels(),
-			gateway.ForgeFirewallInternalTargetLabels(),
-			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
-			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
-		},
+		connoptions.GwOptions.PodName,
+		mgr.GetEventRecorder("firewall-binding-controller"),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
+		"v1", "Pod", connoptions.GwOptions.PodName, connoptions.GwOptions.Namespace,
 		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
+	}
+
+	// Setup the gateway firewall configuration binding creator controller.
+	gatewayBindingCreator := gateway.NewGatewayBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme(),
+		connoptions.GwOptions.PodName, connoptions.GwOptions.Namespace)
+	if err := gatewayBindingCreator.SetupWithManager(mgr, []labels.Set{
+		gateway.ForgeFirewallAllGatewaysTargetLabels(),
+		gateway.ForgeFirewallInternalTargetLabels(),
+		remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
+		remapping.ForgeFirewallTargetLabelsIPMappingGw(),
+	}); err != nil {
+		return fmt.Errorf("unable to setup gateway firewall configuration binding creator: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {

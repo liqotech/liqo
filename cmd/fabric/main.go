@@ -16,8 +16,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -64,6 +66,8 @@ func init() {
 }
 
 func main() {
+	defer klog.Flush()
+
 	var cmd = cobra.Command{
 		Use:  "liqo-fabric",
 		RunE: run,
@@ -89,6 +93,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, _ []string) error {
+	cmd.SetContext(ctrl.SetupSignalHandler())
+
 	var err error
 
 	// Check if the minimum kernel version is satisfied.
@@ -108,6 +114,12 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()
 
+	// Create the client. Used outside the reconciler for shutdown cleanup.
+	cl, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("unable to create client: %w", err)
+	}
+
 	// Create a label selector to filter only the events for gateway pods
 	reqGatewayPods, err := labels.NewRequirement(
 		gateway.GatewayComponentKey,
@@ -123,14 +135,16 @@ func run(cmd *cobra.Command, _ []string) error {
 	utilruntime.Must(err)
 
 	// Create the manager.
+	gracefulShutdownTimeout := 10 * time.Second
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
 			BindAddress: options.MetricsAddress,
 		},
-		HealthProbeBindAddress: options.ProbeAddr,
-		LeaderElection:         false,
+		HealthProbeBindAddress:  options.ProbeAddr,
+		GracefulShutdownTimeout: &gracefulShutdownTimeout,
+		LeaderElection:          false,
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
@@ -166,25 +180,21 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup gateway reconciler: %w", err)
 	}
 
-	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithFinalizer(
+	// Setup the firewall configuration binding controller.
+	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		options.PodName,
-		mgr.GetEventRecorderFor("firewall-controller"),
-		[]labels.Set{
-			fabric.ForgeFirewallTargetLabels(),
-			remapping.ForgeFirewallTargetLabelsIPMappingFabric(),
-			fabric.ForgeFirewallTargetLabelsSingleNode(options.NodeName),
-		},
+		options.NodeName,
+		mgr.GetEventRecorder("firewall-binding-controller"),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
+		"v1", "Node", options.NodeName, "",
 		options.EnableNftMonitor, options.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
 
 	// Setup the route configuration controller.
@@ -227,6 +237,31 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to add geneve cleanup runnable: %w", err)
 	}
 
-	// Start the manager.
-	return mgr.Start(cmd.Context())
+	// Setup the fabric firewall configuration binding creator controller.
+	fabricBindingCreator := fabric.NewFabricBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme(), options.NodeName)
+	if err := fabricBindingCreator.SetupWithManager(mgr, []labels.Set{
+		fabric.ForgeFirewallTargetLabels(),
+		remapping.ForgeFirewallTargetLabelsIPMappingFabric(),
+		fabric.ForgeFirewallTargetLabelsSingleNode(options.NodeName),
+	}); err != nil {
+		return fmt.Errorf("unable to setup fabric firewall configuration binding creator: %w", err)
+	}
+
+	// Start the manager. On clean shutdown (SIGTERM) mgr.Start returns nil after all
+	// reconcilers have stopped, and we remove any finalizers that the reconciler did not
+	// have time to process before the pod was terminated.
+	//
+	// Time budget: terminationGracePeriodSeconds (default 30s)
+	//   - GracefulShutdownTimeout:      10s  (manager waits for reconcilers)
+	//   - CleanupFirewallConfigurationBindings: 15s (remaining budget)
+	// Total: 25s < 30s default grace period.
+	if err := mgr.Start(cmd.Context()); err != nil {
+		return err
+	}
+
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl,
+		"v1", "Node", options.NodeName, "", true)
+	return nil
 }

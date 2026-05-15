@@ -53,14 +53,16 @@ func RunChecks(ctx context.Context, cl *client.Client, cfg client.Configs, opts 
 	successCountTot += successCount
 	errorCountTot += errorCount
 
-	logger.Info("Running checks node to pod")
-	successCount, errorCount, err = RunChecksNodeToPod(ctx, cl, cfg, opts, totreplicas)
-	PrintCheckResults(successCount, errorCount, logger)
-	if err != nil {
-		return fmt.Errorf("failed to run checks node to pod: %w", err)
+	if opts.NodeToPod {
+		logger.Info("Running checks node to pod")
+		successCount, errorCount, err = RunChecksNodeToPod(ctx, cl, cfg, opts, totreplicas)
+		PrintCheckResults(successCount, errorCount, logger)
+		if err != nil {
+			return fmt.Errorf("failed to run checks node to pod: %w", err)
+		}
+		successCountTot += successCount
+		errorCountTot += errorCount
 	}
-	successCountTot += successCount
-	errorCountTot += errorCount
 
 	if opts.PodToNodePort {
 		logger.Info("Running checks pod to nodeport")

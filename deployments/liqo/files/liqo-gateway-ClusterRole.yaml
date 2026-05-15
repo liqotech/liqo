@@ -31,6 +31,13 @@ rules:
   - get
   - update
 - apiGroups:
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - networking.liqo.io
   resources:
   - connections
@@ -53,11 +60,10 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurations
-  - firewallconfigurations/status
-  - routeconfigurations
-  - routeconfigurations/status
+  - firewallconfigurationbindings
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
@@ -66,10 +72,24 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - firewallconfigurationbindings/finalizers
   - firewallconfigurations/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - firewallconfigurationbindings/status
+  - firewallconfigurations
+  - routeconfigurations
+  - routeconfigurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - networking.liqo.io
   resources:
