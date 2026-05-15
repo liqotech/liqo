@@ -17,22 +17,15 @@ package liqonodeprovider
 import (
 	"context"
 	"errors"
-	"reflect"
-	"strconv"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	"github.com/liqotech/liqo/pkg/consts"
-	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
-	"github.com/liqotech/liqo/pkg/utils/maps"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 func (p *LiqoNodeProvider) reconcileNodeFromNode(_ watch.Event) error {
@@ -96,52 +89,24 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	lbls := virtualNode.Spec.Labels
-	if lbls == nil {
-		lbls = map[string]string{}
-	}
-	if len(virtualNode.Spec.StorageClasses) == 0 {
-		lbls[consts.StorageAvailableLabel] = "false"
-	} else {
-		lbls[consts.StorageAvailableLabel] = "true"
-	}
+	lbls, annotations, taints := desiredVirtualNodeMetadata(virtualNode)
 
 	if err := p.patchLabels(ctx, lbls); err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	annotations := virtualNode.Spec.Annotations
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
 	if err := p.patchAnnotations(ctx, annotations); err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	taints := virtualNode.Spec.Taints
-	if taints == nil {
-		taints = []v1.Taint{}
-	}
 	if err := p.patchTaints(ctx, taints); err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	if p.node.Status.Capacity == nil {
-		p.node.Status.Capacity = v1.ResourceList{}
-	}
-	if p.node.Status.Allocatable == nil {
-		p.node.Status.Allocatable = v1.ResourceList{}
-	}
-	for k, v := range virtualNode.Spec.ResourceQuota.Hard {
-		p.node.Status.Capacity[k] = v
-		p.node.Status.Allocatable[k] = v
-	}
-
-	p.node.Status.Images = []v1.ContainerImage{}
-	p.node.Status.Images = append(p.node.Status.Images, virtualNode.Spec.Images...)
+	p.applyVirtualNodeStatus(virtualNode)
 
 	return p.updateNode()
 }
@@ -150,42 +115,19 @@ func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *liqov1beta1.
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	// Only trust Networking.Enabled once the FC controller has reconciled the status.
-	// Before that, the field is a zero value and indistinguishable from "networking disabled".
-	if foreigncluster.Status.ObservedGeneration > 0 {
-		p.networkModuleEnabled = ptr.To(fcutils.IsNetworkingModuleEnabled(foreigncluster))
-	}
-	p.networkReady = fcutils.IsNetworkingEstablished(foreigncluster)
+	p.applyForeignCluster(foreigncluster)
 
 	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) updateNode() error {
-	// we assume the networking module to be enabled until confirmed otherwise (p.networkModuleEnabled == false),
-	// to avoid transient states where the node is ready but the network condition is not set
-	// because the ForeignCluster has not been observed yet.
-	networkModuleEnabled := ptr.Deref(p.networkModuleEnabled, true)
+	p.recomputeNodeState()
 
-	// we have to set the network condition if we have to check the network status and the network module is enabled
-	shouldSetNetworkCond := p.checkNetworkStatus && networkModuleEnabled
-
-	// check the network status only if we have to set the network condition, otherwise consider it ready
-	networkReady := p.networkReady || !shouldSetNetworkCond
-
-	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
-	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
-	if shouldSetNetworkCond {
-		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
-	} else {
-		deleteCondition(p.node, v1.NodeNetworkUnavailable)
+	// Call change callback to notify the provider of the node update, if registered.
+	if p.onNodeChangeCallback != nil {
+		p.onNodeChangeCallback(p.node.DeepCopy())
 	}
 
-	p.node.Status.Addresses = []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: p.nodeIP}}
-
-	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil
 }
 
@@ -203,82 +145,4 @@ func areResourcesReady(allocatable v1.ResourceList) bool {
 		return false
 	}
 	return true
-}
-
-func (p *LiqoNodeProvider) patchLabels(ctx context.Context, labels map[string]string) error {
-	if reflect.DeepEqual(labels, p.lastAppliedLabels) {
-		return nil
-	}
-	if labels == nil {
-		labels = map[string]string{}
-	}
-
-	if err := p.patchNode(ctx, func(node *v1.Node) error {
-		nodeLabels := node.GetLabels()
-		nodeLabels = maps.Sub(nodeLabels, p.lastAppliedLabels)
-		nodeLabels = maps.Merge(nodeLabels, labels)
-		node.Labels = nodeLabels
-		return nil
-	}); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	p.lastAppliedLabels = labels
-	return nil
-}
-
-func (p *LiqoNodeProvider) patchAnnotations(ctx context.Context, annotations map[string]string) error {
-	if reflect.DeepEqual(annotations, p.lastAppliedAnnotations) {
-		return nil
-	}
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-
-	if err := p.patchNode(ctx, func(node *v1.Node) error {
-		nodeAnnotations := node.GetAnnotations()
-		nodeAnnotations = maps.Sub(nodeAnnotations, p.lastAppliedAnnotations)
-		nodeAnnotations = maps.Merge(nodeAnnotations, annotations)
-		node.Annotations = nodeAnnotations
-		return nil
-	}); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	p.lastAppliedAnnotations = annotations
-	return nil
-}
-
-func (p *LiqoNodeProvider) patchTaints(ctx context.Context, taints []v1.Taint) error {
-	if taints == nil {
-		taints = []v1.Taint{}
-	}
-	taints = append(taints, v1.Taint{
-		Key:    consts.VirtualNodeTolerationKey,
-		Value:  strconv.FormatBool(true),
-		Effect: v1.TaintEffectNoExecute,
-	})
-
-	if reflect.DeepEqual(taints, p.lastAppliedTaints) {
-		return nil
-	}
-	if taints == nil {
-		taints = []v1.Taint{}
-	}
-
-	if err := p.patchNode(ctx, func(node *v1.Node) error {
-		nodeTaints := node.Spec.Taints
-		nodeTaints = slice.Sub(nodeTaints, p.lastAppliedTaints)
-		nodeTaints = slice.Merge(nodeTaints, taints)
-		node.Spec.Taints = nodeTaints
-		return nil
-	}); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	p.lastAppliedTaints = taints
-	return nil
 }

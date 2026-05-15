@@ -34,6 +34,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -44,6 +45,9 @@ const (
 	nodeName         = "node-name"
 	foreignClusterID = "foreign-id"
 	kubeletNamespace = "default"
+	taintKey         = "virtual-taint"
+	taintValue       = "taint-value"
+	trueValue        = "true"
 )
 
 func TestNodeProvider(t *testing.T) {
@@ -340,6 +344,127 @@ var _ = Describe("NodeProvider", func() {
 			},
 		}),
 	)
+
+	It("hydrates the node from virtual node and foreign cluster", func() {
+		virtualNode := &offloadingv1beta1.VirtualNode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nodeName,
+				Namespace: kubeletNamespace,
+			},
+			Spec: offloadingv1beta1.VirtualNodeSpec{
+				Labels: map[string]string{
+					"virtual-label": "virtual-value",
+				},
+				Annotations: map[string]string{
+					"virtual-annotation": "annotation-value",
+				},
+				Taints: []v1.Taint{{
+					Key:    taintKey,
+					Value:  taintValue,
+					Effect: v1.TaintEffectNoSchedule,
+				}},
+				StorageClasses: []liqov1beta1.StorageType{{StorageClassName: "fast"}},
+				ResourceQuota: v1.ResourceQuotaSpec{
+					Hard: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("2"),
+						v1.ResourceMemory: resource.MustParse("3Gi"),
+					},
+				},
+				Images: []v1.ContainerImage{{
+					Names:     []string{"nginx:latest"},
+					SizeBytes: 1234,
+				}},
+			},
+		}
+
+		foreignCluster := testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+			Offloading: liqov1beta1.Module{
+				Enabled: true,
+			},
+			Networking: liqov1beta1.Module{
+				Enabled: true,
+				Conditions: []liqov1beta1.Condition{{
+					Type:   liqov1beta1.NetworkConnectionStatusCondition,
+					Status: liqov1beta1.ConditionStatusEstablished,
+				}},
+			},
+		})
+		foreignCluster.Status.ObservedGeneration = 1
+
+		hydratedProvider := NewLiqoNodeProvider(&InitConfig{
+			NodeName:           nodeName,
+			Namespace:          kubeletNamespace,
+			InternalIP:         "10.2.0.1",
+			HomeConfig:         cluster.GetCfg(),
+			RemoteConfig:       cluster.GetCfg(),
+			RemoteClusterID:    foreignClusterID,
+			CheckNetworkStatus: true,
+			VirtualNode:        virtualNode,
+			ForeignCluster:     foreignCluster,
+		})
+
+		hydratedNode := hydratedProvider.GetNode()
+
+		Expect(hydratedNode.Labels).To(HaveKeyWithValue("virtual-label", "virtual-value"))
+		Expect(hydratedNode.Labels).To(HaveKeyWithValue(consts.StorageAvailableLabel, trueValue))
+		Expect(hydratedNode.Annotations).To(HaveKeyWithValue("virtual-annotation", "annotation-value"))
+		Expect(hydratedNode.Spec.Taints).To(ContainElement(v1.Taint{
+			Key:    taintKey,
+			Value:  taintValue,
+			Effect: v1.TaintEffectNoSchedule,
+		}))
+		Expect(hydratedNode.Spec.Taints).To(ContainElement(v1.Taint{
+			Key:    consts.VirtualNodeTolerationKey,
+			Value:  trueValue,
+			Effect: v1.TaintEffectNoExecute,
+		}))
+		Expect(hydratedNode.Status.Capacity.Cpu().Cmp(resource.MustParse("2"))).To(Equal(0))
+		Expect(hydratedNode.Status.Capacity.Memory().Cmp(resource.MustParse("3Gi"))).To(Equal(0))
+		Expect(hydratedNode.Status.Allocatable.Cpu().Cmp(resource.MustParse("2"))).To(Equal(0))
+		Expect(hydratedNode.Status.Allocatable.Memory().Cmp(resource.MustParse("3Gi"))).To(Equal(0))
+		Expect(hydratedNode.Status.Images).To(Equal(virtualNode.Spec.Images))
+
+		Expect(lookupCondition(hydratedNode, v1.NodeReady).Status).To(Equal(v1.ConditionTrue))
+		Expect(lookupCondition(hydratedNode, v1.NodeMemoryPressure).Status).To(Equal(v1.ConditionFalse))
+		Expect(lookupCondition(hydratedNode, v1.NodeDiskPressure).Status).To(Equal(v1.ConditionFalse))
+		Expect(lookupCondition(hydratedNode, v1.NodePIDPressure).Status).To(Equal(v1.ConditionFalse))
+		Expect(lookupCondition(hydratedNode, v1.NodeNetworkUnavailable).Status).To(Equal(v1.ConditionFalse))
+	})
+
+	It("hydrates the node when virtual node labels and annotations are nil", func() {
+		virtualNode := &offloadingv1beta1.VirtualNode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nodeName,
+				Namespace: kubeletNamespace,
+			},
+			Spec: offloadingv1beta1.VirtualNodeSpec{
+				ResourceQuota: v1.ResourceQuotaSpec{
+					Hard: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("2"),
+						v1.ResourceMemory: resource.MustParse("3Gi"),
+					},
+				},
+			},
+		}
+
+		hydratedProvider := NewLiqoNodeProvider(&InitConfig{
+			NodeName:           nodeName,
+			Namespace:          kubeletNamespace,
+			InternalIP:         "10.0.0.1",
+			HomeConfig:         cluster.GetCfg(),
+			RemoteConfig:       cluster.GetCfg(),
+			RemoteClusterID:    foreignClusterID,
+			CheckNetworkStatus: true,
+			VirtualNode:        virtualNode,
+			ForeignCluster:     nil,
+		})
+
+		hydratedNode := hydratedProvider.GetNode()
+
+		Expect(hydratedNode.Labels).To(HaveKeyWithValue(consts.StorageAvailableLabel, "false"))
+		Expect(hydratedNode.Annotations).ToNot(BeNil())
+		Expect(hydratedNode.Annotations).ToNot(HaveKey("virtual-annotation"))
+	})
 
 	It("Labels patch", func() {
 
