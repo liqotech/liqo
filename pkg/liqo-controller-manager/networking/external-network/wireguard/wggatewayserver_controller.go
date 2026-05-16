@@ -144,7 +144,7 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			// then revoke the ClusterRoleBinding.
 			saName := wgServer.Spec.Deployment.Spec.Template.Spec.ServiceAccountName
 			if saName == "" {
-				saName = "default"
+				saName = defaultServiceAccountName
 			}
 			var sa corev1.ServiceAccount
 			if err = r.Get(ctx, types.NamespacedName{Namespace: wgServer.Namespace, Name: saName}, &sa); err != nil {

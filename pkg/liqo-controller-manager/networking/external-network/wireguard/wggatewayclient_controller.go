@@ -45,6 +45,8 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
+const defaultServiceAccountName = "default"
+
 // WgGatewayClientReconciler manage WgGatewayClient lifecycle.
 type WgGatewayClientReconciler struct {
 	client.Client
@@ -140,7 +142,7 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			// then revoke the ClusterRoleBinding.
 			saName := wgClient.Spec.Deployment.Spec.Template.Spec.ServiceAccountName
 			if saName == "" {
-				saName = "default"
+				saName = defaultServiceAccountName
 			}
 			var sa corev1.ServiceAccount
 			if err = r.Get(ctx, types.NamespacedName{Namespace: wgClient.Namespace, Name: saName}, &sa); err != nil {

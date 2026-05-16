@@ -51,7 +51,6 @@ while IFS= read -r fw; do
   (( ${#plain} > col_width )) && col_width=${#plain}
 done <<< "$fw_list"
 
-terminating_label="  ${RED}[TERMINATING]${RESET}"
 terminating_label_len=15  # visible characters in the label
 sep=$(printf '%*s' $(( col_width + 12 + terminating_label_len )) '' | tr ' ' '-')
 header="FIREWALLCONFIGURATION (namespace/name)"
@@ -65,7 +64,6 @@ echo -e "${DIM}${sep}${RESET}"
 max_count=0
 max_names=()
 zero_count=0
-declare -A fw_counts
 
 while IFS= read -r fw; do
   [[ -z "$fw" ]] && continue
@@ -76,7 +74,6 @@ while IFS= read -r fw; do
   count=$(echo "$attach_list" | grep -cF "$fw_name" || true)
   # Count how many of the referencing attaches are themselves terminating
   attach_term_count=$(echo "$attach_terminating" | grep -cF "$fw_name" || true)
-  fw_counts["$plain"]=$count
   if (( count == 0 )); then
     count_color=$RED
   elif (( count >= max_count && max_count > 0 )); then

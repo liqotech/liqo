@@ -29,6 +29,14 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
+const (
+	appLabelKey      = "app"
+	fabricLabelVal   = "fabric"
+	otherLabelVal    = "other"
+	gatewayLabelVal  = "gateway"
+	foreignFinalizer = "other.liqo.io/finalizer"
+)
+
 func newAttachWith(name string, lbls map[string]string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationAttach {
 	a := &networkingv1beta1.FirewallConfigurationAttach{
 		ObjectMeta: metav1.ObjectMeta{
@@ -62,12 +70,12 @@ var _ = Describe("CleanupPendingAttachFinalizers", func() {
 	})
 
 	It("removes our finalizer from a deletion-pending, label-matched attach", func() {
-		a := newAttachWith("match", map[string]string{"app": "fabric"},
+		a := newAttachWith("match", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationAttachControllerFinalizer},
 			true /* deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{"app": "fabric"}})
+		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
 		// Removing the only finalizer on a deletion-timestamped object triggers fake-client GC,
 		// so the object should be gone.
@@ -75,12 +83,12 @@ var _ = Describe("CleanupPendingAttachFinalizers", func() {
 	})
 
 	It("does NOT touch attaches whose labels do not match any set", func() {
-		a := newAttachWith("no-label", map[string]string{"app": "other"},
+		a := newAttachWith("no-label", map[string]string{appLabelKey: otherLabelVal},
 			[]string{firewallConfigurationAttachControllerFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{"app": "fabric"}})
+		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
 		got := getAttach(cl, "no-label")
 		Expect(got).ToNot(BeNil())
@@ -88,12 +96,12 @@ var _ = Describe("CleanupPendingAttachFinalizers", func() {
 	})
 
 	It("skips attaches that are NOT pending deletion", func() {
-		a := newAttachWith("alive", map[string]string{"app": "fabric"},
+		a := newAttachWith("alive", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationAttachControllerFinalizer},
 			false /* not deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{"app": "fabric"}})
+		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
 		got := getAttach(cl, "alive")
 		Expect(got).ToNot(BeNil())
@@ -101,27 +109,27 @@ var _ = Describe("CleanupPendingAttachFinalizers", func() {
 	})
 
 	It("skips attaches that do NOT carry our finalizer", func() {
-		a := newAttachWith("foreign-fin", map[string]string{"app": "fabric"},
-			[]string{"other.liqo.io/finalizer"},
+		a := newAttachWith("foreign-fin", map[string]string{appLabelKey: fabricLabelVal},
+			[]string{foreignFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{"app": "fabric"}})
+		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
 		got := getAttach(cl, "foreign-fin")
 		Expect(got).ToNot(BeNil())
-		Expect(got.Finalizers).To(ContainElement("other.liqo.io/finalizer"))
+		Expect(got.Finalizers).To(ContainElement(foreignFinalizer))
 	})
 
 	It("processes all provided label sets", func() {
-		a := newAttachWith("a", map[string]string{"app": "fabric"},
+		a := newAttachWith("a", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationAttachControllerFinalizer}, true)
-		b := newAttachWith("b", map[string]string{"app": "gateway"},
+		b := newAttachWith("b", map[string]string{appLabelKey: gatewayLabelVal},
 			[]string{firewallConfigurationAttachControllerFinalizer}, true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a, b).Build()
 
 		CleanupPendingAttachFinalizers(ctx, cl,
-			[]labels.Set{{"app": "fabric"}, {"app": "gateway"}})
+			[]labels.Set{{appLabelKey: fabricLabelVal}, {appLabelKey: gatewayLabelVal}})
 
 		Expect(getAttach(cl, "a")).To(BeNil())
 		Expect(getAttach(cl, "b")).To(BeNil())

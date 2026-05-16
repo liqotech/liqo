@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package firewall implements the controllers for the firewall resources.
 package firewall
 
 import (
@@ -127,9 +128,7 @@ func (r *AttachCreatorReconciler) getTargets(ctx context.Context,
 func (r *AttachCreatorReconciler) getFabricTargets(ctx context.Context, subcategory, unique string) ([]attachTarget, error) {
 	switch subcategory {
 	case fabric.FirewallSubCategoryTargetAllNodesValue:
-		return r.allInternalNodeTargets(ctx, func(nodeName string) map[string]string {
-			return fabric.ForgeFirewallAttachTargetLabels(nodeName)
-		})
+		return r.allInternalNodeTargets(ctx, fabric.ForgeFirewallAttachTargetLabels)
 	case fabric.FirewallSubCategoryTargetSingleNodeValue:
 		// Single-node: one attach for the specific node indicated by unique.
 		return []attachTarget{{
@@ -137,9 +136,7 @@ func (r *AttachCreatorReconciler) getFabricTargets(ctx context.Context, subcateg
 			attachLabels: fabric.ForgeFirewallAttachTargetLabelsSingleNode(unique),
 		}}, nil
 	case remapping.FirewallSubCategoryTargetValueIPMapping:
-		return r.allInternalNodeTargets(ctx, func(nodeName string) map[string]string {
-			return remapping.ForgeFirewallAttachTargetLabelsIPMappingFabric(nodeName)
-		})
+		return r.allInternalNodeTargets(ctx, remapping.ForgeFirewallAttachTargetLabelsIPMappingFabric)
 	default:
 		klog.V(4).Infof("Unknown fabric subcategory %q; skipping", subcategory)
 		return nil, nil
@@ -151,17 +148,11 @@ func (r *AttachCreatorReconciler) getGatewayTargets(ctx context.Context,
 	subcategory, unique string) ([]attachTarget, error) {
 	switch subcategory {
 	case gateway.FirewallSubCategoryAllGatewaysTargetValue:
-		return r.allGatewayTargets(ctx, func(gwName string) map[string]string {
-			return gateway.ForgeFirewallAttachAllGatewaysTargetLabels(gwName)
-		})
+		return r.allGatewayTargets(ctx, gateway.ForgeFirewallAttachAllGatewaysTargetLabels)
 	case gateway.FirewallSubCategoryFabricTargetValue:
-		return r.allGatewayTargets(ctx, func(gwName string) map[string]string {
-			return gateway.ForgeFirewallAttachInternalTargetLabels(gwName)
-		})
+		return r.allGatewayTargets(ctx, gateway.ForgeFirewallAttachInternalTargetLabels)
 	case remapping.FirewallSubCategoryTargetValueIPMapping:
-		return r.allGatewayTargets(ctx, func(gwName string) map[string]string {
-			return remapping.ForgeFirewallAttachTargetLabelsIPMappingGw(gwName)
-		})
+		return r.allGatewayTargets(ctx, remapping.ForgeFirewallAttachTargetLabelsIPMappingGw)
 	case "":
 		// No subcategory: remapping for a specific gateway identified by unique=remoteID.
 		return r.singleGatewayTarget(ctx, unique)

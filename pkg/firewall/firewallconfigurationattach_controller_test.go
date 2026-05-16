@@ -35,7 +35,13 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-const attachTestNamespace = "liqo-tenant"
+const (
+	attachTestNamespace            = "liqo-tenant"
+	attachDelName                  = "att-del"
+	attachNoFinName                = "att-nofin"
+	firewallAttachForeignFinalizer = "other.liqo.io/finalizer"
+	roleLabelKey                   = "role"
+)
 
 // newAttachReconciler builds a reconciler with a nil nftables connection. Callers
 // must only exercise reconcile branches that do not touch the connection.
@@ -84,42 +90,42 @@ var _ = Describe("FirewallConfigurationAttachReconciler.Reconcile (non-nft branc
 
 	It("removes the finalizer on deletion when no table name is cached (no nft calls)", func() {
 		now := metav1.Now()
-		a := newAttach("att-del", func(a *networkingv1beta1.FirewallConfigurationAttach) {
+		a := newAttach(attachDelName, func(a *networkingv1beta1.FirewallConfigurationAttach) {
 			a.DeletionTimestamp = &now
 			a.Finalizers = []string{firewallConfigurationAttachControllerFinalizer}
 			// Status.TableName intentionally empty: the controller must skip nft calls.
 		})
 		r, _ := newAttachReconciler(a)
 
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "att-del", Namespace: attachTestNamespace}})
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: attachDelName, Namespace: attachTestNamespace}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		// The object should have been deleted from the fake client because removing the
 		// last finalizer on a deletion-timestamped object triggers the fake's GC.
 		var got networkingv1beta1.FirewallConfigurationAttach
-		err = r.Get(ctx, types.NamespacedName{Name: "att-del", Namespace: attachTestNamespace}, &got)
+		err = r.Get(ctx, types.NamespacedName{Name: attachDelName, Namespace: attachTestNamespace}, &got)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("is a no-op when the deletion timestamp is set but our finalizer is absent", func() {
 		now := metav1.Now()
-		a := newAttach("att-nofin", func(a *networkingv1beta1.FirewallConfigurationAttach) {
+		a := newAttach(attachNoFinName, func(a *networkingv1beta1.FirewallConfigurationAttach) {
 			a.DeletionTimestamp = &now
 			// Keep at least one finalizer so the fake client accepts the deletion-timestamp object,
 			// but it is NOT ours.
-			a.Finalizers = []string{"other.liqo.io/finalizer"}
+			a.Finalizers = []string{firewallAttachForeignFinalizer}
 		})
 		r, _ := newAttachReconciler(a)
 
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "att-nofin", Namespace: attachTestNamespace}})
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: attachNoFinName, Namespace: attachTestNamespace}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		// Object still exists and the foreign finalizer was not touched.
 		var got networkingv1beta1.FirewallConfigurationAttach
-		Expect(r.Get(ctx, types.NamespacedName{Name: "att-nofin", Namespace: attachTestNamespace}, &got)).To(Succeed())
-		Expect(got.Finalizers).To(ContainElement("other.liqo.io/finalizer"))
+		Expect(r.Get(ctx, types.NamespacedName{Name: attachNoFinName, Namespace: attachTestNamespace}, &got)).To(Succeed())
+		Expect(got.Finalizers).To(ContainElement(firewallAttachForeignFinalizer))
 	})
 
 	It("requeues after 5s and returns an error when the referenced FirewallConfiguration is missing", func() {
@@ -155,7 +161,7 @@ var _ = Describe("FirewallConfigurationAttachReconciler finalizer helpers", func
 
 	It("ensureAttachFinalizerAbsence removes our finalizer and leaves others alone", func() {
 		a := newAttach("a", func(a *networkingv1beta1.FirewallConfigurationAttach) {
-			a.Finalizers = []string{firewallConfigurationAttachControllerFinalizer, "other.liqo.io/finalizer"}
+			a.Finalizers = []string{firewallConfigurationAttachControllerFinalizer, firewallAttachForeignFinalizer}
 		})
 		r, _ := newAttachReconciler(a)
 
@@ -164,7 +170,7 @@ var _ = Describe("FirewallConfigurationAttachReconciler finalizer helpers", func
 		var got networkingv1beta1.FirewallConfigurationAttach
 		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: attachTestNamespace}, &got)).To(Succeed())
 		Expect(got.Finalizers).ToNot(ContainElement(firewallConfigurationAttachControllerFinalizer))
-		Expect(got.Finalizers).To(ContainElement("other.liqo.io/finalizer"))
+		Expect(got.Finalizers).To(ContainElement(firewallAttachForeignFinalizer))
 	})
 
 	It("exposes the same finalizer string under both internal and external names", func() {
@@ -232,14 +238,14 @@ var _ = Describe("forgeLabelsPredicate", func() {
 
 	It("matches objects carrying any of the configured label sets", func() {
 		p, err := forgeLabelsPredicate([]labels.Set{
-			{"role": "fabric"},
-			{"role": "gateway"},
+			{roleLabelKey: fabricLabelVal},
+			{roleLabelKey: gatewayLabelVal},
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{"role": "fabric"})})).To(BeTrue())
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{"role": "gateway"})})).To(BeTrue())
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{"role": "other"})})).To(BeFalse())
+		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: fabricLabelVal})})).To(BeTrue())
+		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: gatewayLabelVal})})).To(BeTrue())
+		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: otherLabelVal})})).To(BeFalse())
 		Expect(p.Create(event.CreateEvent{Object: makeObj(nil)})).To(BeFalse())
 	})
 

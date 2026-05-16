@@ -32,11 +32,11 @@ const (
 func (r *FirewallConfigurationAttachReconciler) ensureAttachFinalizerPresence(
 	ctx context.Context, fwattach *networkingv1beta1.FirewallConfigurationAttach) error {
 	ctrlutil.AddFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer)
-	return r.Client.Update(ctx, fwattach)
+	return r.Update(ctx, fwattach)
 }
 
 func (r *FirewallConfigurationAttachReconciler) ensureAttachFinalizerAbsence(
 	ctx context.Context, fwattach *networkingv1beta1.FirewallConfigurationAttach) error {
 	ctrlutil.RemoveFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer)
-	return r.Client.Update(ctx, fwattach)
+	return r.Update(ctx, fwattach)
 }
