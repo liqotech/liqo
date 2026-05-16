@@ -136,6 +136,18 @@ md-lint: markdownlint
 		-not -path "./hack/code-generator/*" \
 		-exec $(MARKDOWNLINT) {} +
 
+# Install actionlint if not available
+actionlint:
+ifeq (, $(shell which actionlint))
+	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+ACTIONLINT=$(GOBIN)/actionlint
+else
+ACTIONLINT=$(shell which actionlint)
+endif
+
+action-lint: actionlint
+	$(ACTIONLINT)
+
 lint: golangci-lint
 	$(GOLANGCILINT) run --new
 

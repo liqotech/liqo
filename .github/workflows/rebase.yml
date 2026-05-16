@@ -22,7 +22,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
 
       - name: Retrieve rebase commit hash
-        run: echo "rebasedcommit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        run: echo "rebasedcommit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
         id: rebase-commit-extraction
 
       - name: Repository Dispatch
@@ -57,8 +57,8 @@ jobs:
         id: rebase_reaction
         run: |
           [[ ${{ job.status }} == 'success' ]] && \
-            echo "reaction=hooray" >> $GITHUB_OUTPUT || \
-            echo "reaction=confused" >> $GITHUB_OUTPUT
+            echo "reaction=hooray" >> "$GITHUB_OUTPUT" || \
+            echo "reaction=confused" >> "$GITHUB_OUTPUT"
         if: always()
 
       - name: Report status as reaction
