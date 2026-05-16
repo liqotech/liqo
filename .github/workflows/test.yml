@@ -13,22 +13,26 @@ jobs:
       repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
       repo-name: ${{ steps.configure.outputs.repo-name }}
     steps:
+    - name: Get the version
+      id: get_version
+      run: echo "VERSION=$(echo "$GITHUB_REF" | cut -d / -f 3)" >> "$GITHUB_OUTPUT"
+      if: startsWith(github.ref, 'refs/tags/v')
     - name: Configure
       id: configure
       run: |
         # The ref of the commit to checkout (do not use the merge commit if pull request)
         if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> "$GITHUB_OUTPUT"
         else
-          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
         fi
 
         if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-           echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
+           echo "repo-name=${{ github.repository }}" >> "$GITHUB_OUTPUT"
         else
-           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
+           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> "$GITHUB_OUTPUT"
         fi
 
 

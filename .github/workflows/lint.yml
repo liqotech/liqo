@@ -48,8 +48,7 @@ jobs:
       working-directory: ./
       run: |
         go mod tidy
-        exit_code=$(git diff --exit-code)
-        exit ${exit_code}
+        git diff --exit-code
 
     - name: Issue a comment in case the of failure
       uses: peter-evans/create-or-update-comment@v4
@@ -139,3 +138,18 @@ jobs:
       with:
         exec:
           helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion
+
+  actionlint:
+    name: Lint GitHub Actions workflows
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+      with:
+        ref: "${{ github.event.pull_request.head.sha }}"
+        repository: ${{github.event.pull_request.head.repo.full_name}}
+        persist-credentials: false
+    - name: Run actionlint
+      uses: raven-actions/actionlint@v2
+      with:
+        version: 1.7.7

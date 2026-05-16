@@ -44,10 +44,10 @@ jobs:
           output="${output//$'\r'/'%0D'}"
 
           # Store the different as step output
-          echo "diff=${output}" >> $GITHUB_OUTPUT
+          echo "diff=${output}" >> "$GITHUB_OUTPUT"
 
           # Trigger a failure in case the diff is not empty
-          exit ${exit_code}
+          exit "${exit_code}"
 
       - name: Log the error if the diff is not empty (in case the comment cannot be generated)
         run: |

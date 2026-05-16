@@ -23,40 +23,48 @@ jobs:
     steps:
       - name: Get the version
         id: get_version
-        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(echo "$GITHUB_REF" | cut -d / -f 3)" >> "$GITHUB_OUTPUT"
         if: startsWith(github.ref, 'refs/tags/v')
       - name: Configure
         id: configure
         run: |
           # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
           if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-            echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
+            {
+              echo "master=false"
+              echo "architectures=linux/amd64,linux/arm64"
+              echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}"
+              echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}"
+            } >> "$GITHUB_OUTPUT"
           elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+            {
+              echo "master=false"
+              echo "architectures=linux/amd64,linux/arm64,linux/arm/v7"
+              echo "commit-ref=${{ steps.get_version.outputs.VERSION }}"
+            } >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" == "master" ]; then
-            echo "master=true" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+            {
+              echo "master=true"
+              echo "architectures=linux/amd64,linux/arm64"
+              echo "commit-ref=${{ github.sha }}"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "master=false" >> $GITHUB_OUTPUT
-            echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-            echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+            {
+              echo "master=false"
+              echo "architectures=linux/amd64,linux/arm64"
+              echo "commit-ref=${{ github.sha }}"
+            } >> "$GITHUB_OUTPUT"
           fi
 
           # The suffix to append to the repository name if not triggered by a push for a release
           ([[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
             echo "repo-suffix=-ci" ||
-            echo "repo-suffix=") >> $GITHUB_OUTPUT
+            echo "repo-suffix=") >> "$GITHUB_OUTPUT"
 
           if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-             echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
+             echo "repo-name=${{ github.repository }}" >> "$GITHUB_OUTPUT"
           else
-             echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
+             echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> "$GITHUB_OUTPUT"
           fi
 
         # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
@@ -90,7 +98,7 @@ jobs:
           if [ "${{ matrix.component }}" == "liqo-crd-upgrade" ]; then
             ARCHITECTURES="${ARCHITECTURES//,linux\/arm\/v7/}"
           fi
-          echo "ARCHITECTURES=${ARCHITECTURES}" >> $GITHUB_ENV
+          echo "ARCHITECTURES=${ARCHITECTURES}" >> "$GITHUB_ENV"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.4.0
         with:
@@ -126,7 +134,7 @@ jobs:
         run: |
           ([[ -d "build/${{ matrix.component }}" ]] && \
             echo "path=build/${{ matrix.component }}/Dockerfile" || \
-            echo "path=build/common/Dockerfile") >> $GITHUB_OUTPUT
+            echo "path=build/common/Dockerfile") >> "$GITHUB_OUTPUT"
 
       - name: Build (and Publish) ${{ matrix.component }} image
         uses: docker/build-push-action@v6
@@ -217,11 +225,11 @@ jobs:
         id: forge_build_result
         run: |
           if [[ "${{ needs.build-standard.result }}" == "success" && "${{ needs.build-go.result }}" == "success" && "${{ needs.liqoctl.result }}" == "success" ]]; then
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.build-standard.result }}" == "cancelled" || "${{ needs.build-go.result }}" == "cancelled" || "${{ needs.liqoctl.result }}" == "cancelled" ]]; then
-            echo "result=cancelled" >> $GITHUB_OUTPUT
+            echo "result=cancelled" >> "$GITHUB_OUTPUT"
           else
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
           fi
       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
       - uses: octokit/request-action@v2.x
