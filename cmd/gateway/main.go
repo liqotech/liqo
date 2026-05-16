@@ -222,16 +222,16 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Setup the firewall configuration attach controller.
-	fwcr, err := firewall.NewFirewallConfigurationAttachReconciler(
+	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("firewall-attach-controller"),
 		[]labels.Set{
-			gateway.ForgeFirewallAttachAllGatewaysTargetLabels(connoptions.GwOptions.Name),
-			gateway.ForgeFirewallAttachInternalTargetLabels(connoptions.GwOptions.Name),
-			remapping.ForgeFirewallAttachTargetLabels(connoptions.GwOptions.RemoteClusterID, connoptions.GwOptions.Name),
-			remapping.ForgeFirewallAttachTargetLabelsIPMappingGw(connoptions.GwOptions.Name),
+			gateway.ForgeFirewallBindingAllGatewaysTargetLabels(connoptions.GwOptions.Name),
+			gateway.ForgeFirewallBindingInternalTargetLabels(connoptions.GwOptions.Name),
+			remapping.ForgeFirewallBindingTargetLabels(connoptions.GwOptions.RemoteClusterID, connoptions.GwOptions.Name),
+			remapping.ForgeFirewallBindingTargetLabelsIPMappingGw(connoptions.GwOptions.Name),
 		},
 	)
 	if err != nil {

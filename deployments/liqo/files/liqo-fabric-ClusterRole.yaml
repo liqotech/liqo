@@ -22,8 +22,8 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurationattachs
-  - firewallconfigurationattachs/status
+  - firewallconfigurationbindings
+  - firewallconfigurationbindings/status
   - internalnodes
   - internalnodes/status
   - routeconfigurations
@@ -37,7 +37,7 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurationattachs/finalizers
+  - firewallconfigurationbindings/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update

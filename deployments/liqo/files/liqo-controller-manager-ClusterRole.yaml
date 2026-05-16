@@ -178,7 +178,7 @@ rules:
   - networking.liqo.io
   resources:
   - configurations
-  - firewallconfigurationattachs
+  - firewallconfigurationbindings
   - firewallconfigurations
   - gatewayclients
   - gatewayservers

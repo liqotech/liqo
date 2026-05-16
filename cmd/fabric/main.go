@@ -181,15 +181,15 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Setup the firewall configuration attach controller.
-	fwcr, err := firewall.NewFirewallConfigurationAttachReconciler(
+	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		options.NodeName,
 		mgr.GetEventRecorderFor("firewall-attach-controller"),
 		[]labels.Set{
-			fabric.ForgeFirewallAttachTargetLabels(options.NodeName),
-			remapping.ForgeFirewallAttachTargetLabelsIPMappingFabric(options.NodeName),
-			fabric.ForgeFirewallAttachTargetLabelsSingleNode(options.NodeName),
+			fabric.ForgeFirewallBindingTargetLabels(options.NodeName),
+			remapping.ForgeFirewallBindingTargetLabelsIPMappingFabric(options.NodeName),
+			fabric.ForgeFirewallBindingTargetLabelsSingleNode(options.NodeName),
 		},
 	)
 	if err != nil {

@@ -266,9 +266,9 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		}
 	}
 
-	attachCreator := firewallctrl.NewAttachCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
-	if err := attachCreator.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the firewallConfigurationAttachCreatorReconciler: %v", err)
+	bindingCreator := firewallctrl.NewBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
+	if err := bindingCreator.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the firewallConfigurationBindingCreatorReconciler: %v", err)
 		return err
 	}
 

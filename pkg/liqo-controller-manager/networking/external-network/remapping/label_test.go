@@ -54,41 +54,41 @@ func TestForgeFirewallTargetLabelsIPMappingFabric(t *testing.T) {
 	}
 }
 
-// ForgeFirewallAttachTargetLabels stores the remote cluster ID in the SubCategory key
+// ForgeFirewallBindingTargetLabels stores the remote cluster ID in the SubCategory key
 // (alongside the gateway name in Unique). This is intentional and load-bearing for the
-// AttachCreator's single-gateway path, so we explicitly assert it.
-func TestForgeFirewallAttachTargetLabels_RemoteIDInSubCategory(t *testing.T) {
-	got := ForgeFirewallAttachTargetLabels("remote-cluster-123", "gw-name")
+// BindingCreator's single-gateway path, so we explicitly assert it.
+func TestForgeFirewallBindingTargetLabels_RemoteIDInSubCategory(t *testing.T) {
+	got := ForgeFirewallBindingTargetLabels("remote-cluster-123", "gw-name")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
 		firewall.FirewallSubCategoryTargetKey: "remote-cluster-123",
 		firewall.FirewallUniqueTargetKey:      "gw-name",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachTargetLabels(remote-cluster-123, gw-name) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingTargetLabels(remote-cluster-123, gw-name) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachTargetLabelsIPMappingGw(t *testing.T) {
-	got := ForgeFirewallAttachTargetLabelsIPMappingGw("gw-y")
+func TestForgeFirewallBindingTargetLabelsIPMappingGw(t *testing.T) {
+	got := ForgeFirewallBindingTargetLabelsIPMappingGw("gw-y")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 		firewall.FirewallUniqueTargetKey:      "gw-y",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachTargetLabelsIPMappingGw(gw-y) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingTargetLabelsIPMappingGw(gw-y) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachTargetLabelsIPMappingFabric(t *testing.T) {
-	got := ForgeFirewallAttachTargetLabelsIPMappingFabric("node-z")
+func TestForgeFirewallBindingTargetLabelsIPMappingFabric(t *testing.T) {
+	got := ForgeFirewallBindingTargetLabelsIPMappingFabric("node-z")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueFabric,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 		firewall.FirewallUniqueTargetKey:      "node-z",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachTargetLabelsIPMappingFabric(node-z) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingTargetLabelsIPMappingFabric(node-z) = %v, want %v", got, want)
 	}
 }

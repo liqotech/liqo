@@ -44,33 +44,33 @@ func TestForgeFirewallTargetLabelsSingleNode(t *testing.T) {
 	}
 }
 
-func TestForgeFirewallAttachTargetLabels(t *testing.T) {
-	got := ForgeFirewallAttachTargetLabels("node-b")
+func TestForgeFirewallBindingTargetLabels(t *testing.T) {
+	got := ForgeFirewallBindingTargetLabels("node-b")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetAllNodesValue,
 		firewall.FirewallUniqueTargetKey:      "node-b",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachTargetLabels(node-b) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingTargetLabels(node-b) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachTargetLabelsSingleNode(t *testing.T) {
-	got := ForgeFirewallAttachTargetLabelsSingleNode("node-c")
+func TestForgeFirewallBindingTargetLabelsSingleNode(t *testing.T) {
+	got := ForgeFirewallBindingTargetLabelsSingleNode("node-c")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetSingleNodeValue,
 		firewall.FirewallUniqueTargetKey:      "node-c",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachTargetLabelsSingleNode(node-c) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingTargetLabelsSingleNode(node-c) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachTargetLabels_DifferentNodesProduceDifferentLabels(t *testing.T) {
-	a := ForgeFirewallAttachTargetLabels("node-a")
-	b := ForgeFirewallAttachTargetLabels("node-b")
+func TestForgeFirewallBindingTargetLabels_DifferentNodesProduceDifferentLabels(t *testing.T) {
+	a := ForgeFirewallBindingTargetLabels("node-a")
+	b := ForgeFirewallBindingTargetLabels("node-b")
 	if a[firewall.FirewallUniqueTargetKey] == b[firewall.FirewallUniqueTargetKey] {
 		t.Errorf("expected different unique-target keys for different nodes; got %q for both", a[firewall.FirewallUniqueTargetKey])
 	}

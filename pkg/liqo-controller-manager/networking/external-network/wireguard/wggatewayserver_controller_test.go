@@ -36,7 +36,9 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 )
 
-const wgServerName = "wg-server-1"
+const (
+	wgServerName = "wg-server-1"
+)
 
 func wgServerPending(saName string) *networkingv1beta1.WgGatewayServer {
 	now := metav1.Now()
@@ -105,7 +107,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 	})
 
 	It("triggers Deployment deletion and requeues while the Deployment still exists", func() {
-		wg := wgServerPending("gw-sa-s")
+		wg := wgServerPending(gwSAName)
 		r := wgServerReconciler(wg, gwServerDeployment())
 
 		res, err := r.Reconcile(ctx, reqWgServer())
@@ -118,11 +120,11 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 	})
 
 	It("requeues without re-deleting when the Deployment is already deletion-pending", func() {
-		wg := wgServerPending("gw-sa-s")
+		wg := wgServerPending(gwSAName)
 		d := gwServerDeployment()
 		now := metav1.Now()
 		d.DeletionTimestamp = &now
-		d.Finalizers = []string{"keep"}
+		d.Finalizers = []string{keepFinalizer}
 		r := wgServerReconciler(wg, d)
 
 		res, err := r.Reconcile(ctx, reqWgServer())
@@ -131,7 +133,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 	})
 
 	It("requeues while pods still exist after the Deployment is gone", func() {
-		wg := wgServerPending("gw-sa-s")
+		wg := wgServerPending(gwSAName)
 		r := wgServerReconciler(wg, gwServerPod())
 
 		res, err := r.Reconcile(ctx, reqWgServer())
@@ -140,10 +142,10 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 	})
 
 	It("removes SA finalizer, deletes CRB, removes wg finalizer when everything is gone", func() {
-		wg := wgServerPending("gw-sa-s")
+		wg := wgServerPending(gwSAName)
 		sa := &corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       "gw-sa-s",
+				Name:       gwSAName,
 				Namespace:  wgNamespace,
 				Finalizers: []string{consts.GatewayServiceAccountFinalizer},
 			},
@@ -155,7 +157,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		var gotSA corev1.ServiceAccount
-		Expect(r.Get(ctx, types.NamespacedName{Name: "gw-sa-s", Namespace: wgNamespace}, &gotSA)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: gwSAName, Namespace: wgNamespace}, &gotSA)).To(Succeed())
 		Expect(gotSA.Finalizers).ToNot(ContainElement(consts.GatewayServiceAccountFinalizer))
 
 		var crbList rbacv1.ClusterRoleBindingList
@@ -175,7 +177,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 	})
 
 	It("tolerates a missing ServiceAccount", func() {
-		wg := wgServerPending("gw-sa-s")
+		wg := wgServerPending(gwSAName)
 		r := wgServerReconciler(wg, gwServerClusterRoleBinding())
 
 		res, err := r.Reconcile(ctx, reqWgServer())
@@ -183,11 +185,11 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 		Expect(res).To(Equal(ctrl.Result{}))
 	})
 
-	It("defaults the SA name to 'default' when none is specified", func() {
+	It("defaults the SA name to '"+defaultServiceAccountName+"' when none is specified", func() {
 		wg := wgServerPending("")
 		defaultSA := &corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       "default",
+				Name:       defaultServiceAccountName,
 				Namespace:  wgNamespace,
 				Finalizers: []string{consts.GatewayServiceAccountFinalizer},
 			},
@@ -198,7 +200,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		var gotSA corev1.ServiceAccount
-		Expect(r.Get(ctx, types.NamespacedName{Name: "default", Namespace: wgNamespace}, &gotSA)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: defaultServiceAccountName, Namespace: wgNamespace}, &gotSA)).To(Succeed())
 		Expect(gotSA.Finalizers).ToNot(ContainElement(consts.GatewayServiceAccountFinalizer))
 	})
 })

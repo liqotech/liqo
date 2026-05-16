@@ -4,19 +4,19 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
-  name: firewallconfigurationattachs.networking.liqo.io
+  name: firewallconfigurationbindings.networking.liqo.io
 spec:
   group: networking.liqo.io
   names:
     categories:
     - liqo
-    kind: FirewallConfigurationAttach
-    listKind: FirewallConfigurationAttachList
-    plural: firewallconfigurationattachs
+    kind: FirewallConfigurationBinding
+    listKind: FirewallConfigurationBindingList
+    plural: firewallconfigurationbindings
     shortNames:
-    - fwattach
-    - fwcfgattach
-    singular: firewallconfigurationattach
+    - fwbinding
+    - fwcfgbinding
+    singular: firewallconfigurationbinding
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -34,7 +34,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          FirewallConfigurationAttach links an entity (e.g. a fabric pod or gateway) to a FirewallConfiguration.
+          FirewallConfigurationBinding links an entity (e.g. a fabric pod or gateway) to a FirewallConfiguration.
           The entity that owns this resource is responsible for applying the referenced FirewallConfiguration
           and for cleaning up the nftables rules when this resource is deleted.
         properties:
@@ -56,8 +56,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: FirewallConfigurationAttachSpec defines the desired state
-              of FirewallConfigurationAttach.
+            description: FirewallConfigurationBindingSpec defines the desired state
+              of FirewallConfigurationBinding.
             properties:
               firewallConfigurationRef:
                 description: FirewallConfigurationRef is the reference to the FirewallConfiguration
@@ -78,8 +78,8 @@ spec:
             - firewallConfigurationRef
             type: object
           status:
-            description: FirewallConfigurationAttachStatus defines the observed state
-              of FirewallConfigurationAttach.
+            description: FirewallConfigurationBindingStatus defines the observed state
+              of FirewallConfigurationBinding.
             properties:
               lastTransitionTime:
                 description: Last time the condition transitioned from one status
@@ -95,7 +95,7 @@ spec:
                   Cached here so that cleanup can proceed even after the FirewallConfiguration is deleted.
                 type: string
               type:
-                description: Type of FirewallConfigurationAttach condition.
+                description: Type of FirewallConfigurationBinding condition.
                 type: string
             type: object
         type: object

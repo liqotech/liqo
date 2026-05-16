@@ -27,9 +27,9 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-func TestAttachCreatorController(t *testing.T) {
+func TestBindingCreatorController(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "AttachCreatorController Suite")
+	RunSpecs(t, "BindingCreatorController Suite")
 }
 
 var _ = BeforeSuite(func() {

@@ -23,20 +23,20 @@ import (
 )
 
 const (
-	firewallConfigurationAttachControllerFinalizer = "firewallconfigurationattach-controller.liqo.io/finalizer"
-	// FirewallConfigurationAttachControllerFinalizer is the exported alias used by external
+	firewallConfigurationBindingControllerFinalizer = "firewallconfigurationbinding-controller.liqo.io/finalizer"
+	// FirewallConfigurationBindingControllerFinalizer is the exported alias used by external
 	// packages (e.g. liqo-controller-manager) to reference the same finalizer string.
-	FirewallConfigurationAttachControllerFinalizer = firewallConfigurationAttachControllerFinalizer
+	FirewallConfigurationBindingControllerFinalizer = firewallConfigurationBindingControllerFinalizer
 )
 
-func (r *FirewallConfigurationAttachReconciler) ensureAttachFinalizerPresence(
-	ctx context.Context, fwattach *networkingv1beta1.FirewallConfigurationAttach) error {
-	ctrlutil.AddFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer)
-	return r.Client.Update(ctx, fwattach)
+func (r *FirewallConfigurationBindingReconciler) ensureBindingFinalizerPresence(
+	ctx context.Context, fwbinding *networkingv1beta1.FirewallConfigurationBinding) error {
+	ctrlutil.AddFinalizer(fwbinding, firewallConfigurationBindingControllerFinalizer)
+	return r.Update(ctx, fwbinding)
 }
 
-func (r *FirewallConfigurationAttachReconciler) ensureAttachFinalizerAbsence(
-	ctx context.Context, fwattach *networkingv1beta1.FirewallConfigurationAttach) error {
-	ctrlutil.RemoveFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer)
-	return r.Client.Update(ctx, fwattach)
+func (r *FirewallConfigurationBindingReconciler) ensureBindingFinalizerAbsence(
+	ctx context.Context, fwbinding *networkingv1beta1.FirewallConfigurationBinding) error {
+	ctrlutil.RemoveFinalizer(fwbinding, firewallConfigurationBindingControllerFinalizer)
+	return r.Update(ctx, fwbinding)
 }

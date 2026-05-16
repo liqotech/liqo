@@ -35,11 +35,18 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 )
 
+const (
+	nodeAName        = "node-a"
+	tenant1Namespace = "tenant-1"
+	tenant2Namespace = "tenant-2"
+	remoteCluster1ID = "remote-cluster-1"
+)
+
 // ---------- helpers (Phase 2) ----------
 
 var _ = Describe("attachResourceName helper", func() {
 	It("returns <fwcfg>-<entity> when short enough", func() {
-		Expect(attachResourceName("fw", "node-a")).To(Equal("fw-node-a"))
+		Expect(attachResourceName("fw", nodeAName)).To(Equal("fw-" + nodeAName))
 	})
 
 	It("preserves the entity suffix when the joined name exceeds 253 chars", func() {
@@ -59,7 +66,7 @@ var _ = Describe("attachResourceName helper", func() {
 
 var _ = Describe("isOwnedBy helper", func() {
 	It("returns true when an ownerReference UID matches", func() {
-		obj := &networkingv1beta1.FirewallConfigurationAttach{
+		obj := &networkingv1beta1.FirewallConfigurationBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
 					{UID: types.UID("other")},
@@ -71,7 +78,7 @@ var _ = Describe("isOwnedBy helper", func() {
 	})
 
 	It("returns false when no ownerReference UID matches", func() {
-		obj := &networkingv1beta1.FirewallConfigurationAttach{
+		obj := &networkingv1beta1.FirewallConfigurationBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{{UID: types.UID("other")}},
 			},
@@ -80,21 +87,21 @@ var _ = Describe("isOwnedBy helper", func() {
 	})
 
 	It("returns false when there are no ownerReferences", func() {
-		obj := &networkingv1beta1.FirewallConfigurationAttach{}
+		obj := &networkingv1beta1.FirewallConfigurationBinding{}
 		Expect(isOwnedBy(obj, types.UID("anything"))).To(BeFalse())
 	})
 })
 
-// ---------- AttachCreatorReconciler (Phase 3) ----------
+// ---------- BindingCreatorReconciler (Phase 3) ----------
 
 const fwcfgNamespace = "liqo-tenant"
 
-func newFakeReconciler(objs ...client.Object) *AttachCreatorReconciler {
+func newFakeReconciler(objs ...client.Object) *BindingCreatorReconciler {
 	cb := fake.NewClientBuilder().WithScheme(scheme.Scheme)
 	if len(objs) > 0 {
 		cb = cb.WithObjects(objs...)
 	}
-	return NewAttachCreatorReconciler(cb.Build(), scheme.Scheme)
+	return NewBindingCreatorReconciler(cb.Build(), scheme.Scheme)
 }
 
 func newFwcfg(name string, labels map[string]string) *networkingv1beta1.FirewallConfiguration {
@@ -112,13 +119,13 @@ func req(name string) ctrl.Request {
 	return ctrl.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: fwcfgNamespace}}
 }
 
-func listAttaches(ctx context.Context, c client.Client) []networkingv1beta1.FirewallConfigurationAttach {
-	var l networkingv1beta1.FirewallConfigurationAttachList
+func listAttaches(ctx context.Context, c client.Client) []networkingv1beta1.FirewallConfigurationBinding {
+	var l networkingv1beta1.FirewallConfigurationBindingList
 	Expect(c.List(ctx, &l, client.InNamespace(fwcfgNamespace))).To(Succeed())
 	return l.Items
 }
 
-var _ = Describe("AttachCreatorReconciler", func() {
+var _ = Describe("BindingCreatorReconciler", func() {
 	var ctx context.Context
 
 	BeforeEach(func() {
@@ -167,7 +174,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 		It("creates one attach per InternalNode with the expected labels, owner and spec", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
 			nodes := []client.Object{
-				&networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-a"}},
+				&networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}},
 				&networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-b"}},
 				&networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-c"}},
 			}
@@ -189,16 +196,16 @@ var _ = Describe("AttachCreatorReconciler", func() {
 				Expect(a.OwnerReferences[0].UID).To(Equal(fwcfg.UID))
 				// Labels are derived from the node name suffix of the attach.
 				nodeName := strings.TrimPrefix(a.Name, "fw-fabric-")
-				Expect(a.Labels).To(Equal(fabric.ForgeFirewallAttachTargetLabels(nodeName)))
+				Expect(a.Labels).To(Equal(fabric.ForgeFirewallBindingTargetLabels(nodeName)))
 			}
-			Expect(seen).To(HaveKey("fw-fabric-node-a"))
+			Expect(seen).To(HaveKey("fw-fabric-" + nodeAName))
 			Expect(seen).To(HaveKey("fw-fabric-node-b"))
 			Expect(seen).To(HaveKey("fw-fabric-node-c"))
 		})
 
 		It("is idempotent: a second reconcile produces no changes", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
-			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-a"}}
+			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
 			r := newFakeReconciler(fwcfg, node)
 
 			_, err := r.Reconcile(ctx, req("fw-fabric"))
@@ -230,7 +237,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			items := listAttaches(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Name).To(Equal("fw-single-node-target"))
-			Expect(items[0].Labels).To(Equal(fabric.ForgeFirewallAttachTargetLabelsSingleNode("node-target")))
+			Expect(items[0].Labels).To(Equal(fabric.ForgeFirewallBindingTargetLabelsSingleNode("node-target")))
 		})
 	})
 
@@ -253,7 +260,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			Expect(items).To(HaveLen(2))
 			for i := range items {
 				nodeName := strings.TrimPrefix(items[i].Name, "fw-mapfab-")
-				Expect(items[i].Labels).To(Equal(remapping.ForgeFirewallAttachTargetLabelsIPMappingFabric(nodeName)))
+				Expect(items[i].Labels).To(Equal(remapping.ForgeFirewallBindingTargetLabelsIPMappingFabric(nodeName)))
 			}
 		})
 	})
@@ -263,8 +270,8 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			fwcfg := newFwcfg("fw-allgw", gateway.ForgeFirewallAllGatewaysTargetLabels())
 			r := newFakeReconciler(
 				fwcfg,
-				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gws-1", Namespace: "tenant-1"}},
-				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gws-2", Namespace: "tenant-2"}},
+				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gws-1", Namespace: tenant1Namespace}},
+				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gws-2", Namespace: tenant2Namespace}},
 				&networkingv1beta1.GatewayClient{ObjectMeta: metav1.ObjectMeta{Name: "gwc-1", Namespace: "tenant-3"}},
 			)
 
@@ -273,15 +280,15 @@ var _ = Describe("AttachCreatorReconciler", func() {
 
 			items := listAttaches(ctx, r.Client)
 			Expect(items).To(HaveLen(3))
-			byName := map[string]networkingv1beta1.FirewallConfigurationAttach{}
+			byName := map[string]networkingv1beta1.FirewallConfigurationBinding{}
 			for i := range items {
 				byName[items[i].Name] = items[i]
 			}
 			Expect(byName).To(HaveKey("fw-allgw-gws-1"))
 			Expect(byName).To(HaveKey("fw-allgw-gws-2"))
 			Expect(byName).To(HaveKey("fw-allgw-gwc-1"))
-			Expect(byName["fw-allgw-gws-1"].Labels).To(Equal(gateway.ForgeFirewallAttachAllGatewaysTargetLabels("gws-1")))
-			Expect(byName["fw-allgw-gwc-1"].Labels).To(Equal(gateway.ForgeFirewallAttachAllGatewaysTargetLabels("gwc-1")))
+			Expect(byName["fw-allgw-gws-1"].Labels).To(Equal(gateway.ForgeFirewallBindingAllGatewaysTargetLabels("gws-1")))
+			Expect(byName["fw-allgw-gwc-1"].Labels).To(Equal(gateway.ForgeFirewallBindingAllGatewaysTargetLabels("gwc-1")))
 		})
 	})
 
@@ -290,7 +297,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			fwcfg := newFwcfg("fw-gwfab", gateway.ForgeFirewallInternalTargetLabels())
 			r := newFakeReconciler(
 				fwcfg,
-				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gw-s", Namespace: "tenant-1"}},
+				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "gw-s", Namespace: tenant1Namespace}},
 			)
 
 			_, err := r.Reconcile(ctx, req("fw-gwfab"))
@@ -298,7 +305,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 
 			items := listAttaches(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
-			Expect(items[0].Labels).To(Equal(gateway.ForgeFirewallAttachInternalTargetLabels("gw-s")))
+			Expect(items[0].Labels).To(Equal(gateway.ForgeFirewallBindingInternalTargetLabels("gw-s")))
 		})
 	})
 
@@ -310,8 +317,8 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			})
 			r := newFakeReconciler(
 				fwcfg,
-				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "srv-a", Namespace: "tenant-1"}},
-				&networkingv1beta1.GatewayClient{ObjectMeta: metav1.ObjectMeta{Name: "cli-a", Namespace: "tenant-2"}},
+				&networkingv1beta1.GatewayServer{ObjectMeta: metav1.ObjectMeta{Name: "srv-a", Namespace: tenant1Namespace}},
+				&networkingv1beta1.GatewayClient{ObjectMeta: metav1.ObjectMeta{Name: "cli-a", Namespace: tenant2Namespace}},
 			)
 
 			_, err := r.Reconcile(ctx, req("fw-gwmap"))
@@ -321,7 +328,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			Expect(items).To(HaveLen(2))
 			for i := range items {
 				gwName := strings.TrimPrefix(items[i].Name, "fw-gwmap-")
-				Expect(items[i].Labels).To(Equal(remapping.ForgeFirewallAttachTargetLabelsIPMappingGw(gwName)))
+				Expect(items[i].Labels).To(Equal(remapping.ForgeFirewallBindingTargetLabelsIPMappingGw(gwName)))
 			}
 		})
 	})
@@ -330,13 +337,13 @@ var _ = Describe("AttachCreatorReconciler", func() {
 		It("creates one attach for the matching GatewayServer when only the server exists", func() {
 			fwcfg := newFwcfg("fw-rid", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey: gateway.FirewallCategoryGwTargetValue,
-				firewallpkg.FirewallUniqueTargetKey:   "remote-cluster-1",
+				firewallpkg.FirewallUniqueTargetKey:   remoteCluster1ID,
 			})
 			gws := &networkingv1beta1.GatewayServer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "gw-srv",
-					Namespace: "tenant-1",
-					Labels:    map[string]string{consts.RemoteClusterID: "remote-cluster-1"},
+					Namespace: tenant1Namespace,
+					Labels:    map[string]string{consts.RemoteClusterID: remoteCluster1ID},
 				},
 			}
 			r := newFakeReconciler(fwcfg, gws)
@@ -347,7 +354,7 @@ var _ = Describe("AttachCreatorReconciler", func() {
 			items := listAttaches(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Name).To(Equal("fw-rid-gw-srv"))
-			Expect(items[0].Labels).To(Equal(remapping.ForgeFirewallAttachTargetLabels("remote-cluster-1", "gw-srv")))
+			Expect(items[0].Labels).To(Equal(remapping.ForgeFirewallBindingTargetLabels(remoteCluster1ID, "gw-srv")))
 		})
 
 		It("creates no attach when no gateway matches the remote cluster ID", func() {
@@ -366,14 +373,14 @@ var _ = Describe("AttachCreatorReconciler", func() {
 	Context("stale attach garbage-collection", func() {
 		It("deletes an owned attach whose name is no longer expected, and strips any leftover finalizer first", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
-			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-a"}}
+			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
 			// Pre-existing stale attach owned by the FWCfg but for a node that no longer exists.
-			stale := &networkingv1beta1.FirewallConfigurationAttach{
+			stale := &networkingv1beta1.FirewallConfigurationBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fw-fabric-node-gone",
 					Namespace: fwcfgNamespace,
 					Finalizers: []string{
-						firewallpkg.FirewallConfigurationAttachControllerFinalizer,
+						firewallpkg.FirewallConfigurationBindingControllerFinalizer,
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -398,8 +405,8 @@ var _ = Describe("AttachCreatorReconciler", func() {
 
 		It("does NOT delete an attach that is not owned by the FirewallConfiguration", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
-			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: "node-a"}}
-			foreign := &networkingv1beta1.FirewallConfigurationAttach{
+			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
+			foreign := &networkingv1beta1.FirewallConfigurationBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fw-other-thing",
 					Namespace: fwcfgNamespace,

@@ -56,18 +56,18 @@ func NewFirewallWatchEventHandler(cl client.Client, labelsSets []labels.Set) han
 		})
 }
 
-// NewFirewallAttachWatchSource creates a new Source for the FirewallConfigurationAttach watcher.
-func NewFirewallAttachWatchSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+// NewFirewallBindingWatchSource creates a new Source for the FirewallConfigurationBinding watcher.
+func NewFirewallBindingWatchSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
 	return source.Channel(src, eh)
 }
 
-// NewFirewallAttachWatchEventHandler creates a new EventHandler for FirewallConfigurationAttach resources.
-func NewFirewallAttachWatchEventHandler(cl client.Client, labelsSets []labels.Set) handler.EventHandler {
+// NewFirewallBindingWatchEventHandler creates a new EventHandler for FirewallConfigurationBinding resources.
+func NewFirewallBindingWatchEventHandler(cl client.Client, labelsSets []labels.Set) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 			for k := range labelsSets {
-				list := &networkingv1beta1.FirewallConfigurationAttachList{}
+				list := &networkingv1beta1.FirewallConfigurationBindingList{}
 				if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: labels.SelectorFromSet(labelsSets[k])}); err != nil {
 					klog.Error(err)
 					return nil

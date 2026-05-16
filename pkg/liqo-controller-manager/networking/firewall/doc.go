@@ -13,11 +13,11 @@
 // limitations under the License.
 
 // Package firewall contains controllers for the liqo-controller-manager that manage
-// FirewallConfiguration and FirewallConfigurationAttach resources.
+// FirewallConfiguration and FirewallConfigurationBinding resources.
 
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations/finalizers,verbs=update
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationattachs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients,verbs=get;list;watch

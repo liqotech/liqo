@@ -43,36 +43,36 @@ func TestForgeFirewallAllGatewaysTargetLabels(t *testing.T) {
 	}
 }
 
-func TestForgeFirewallAttachAllGatewaysTargetLabels(t *testing.T) {
-	got := ForgeFirewallAttachAllGatewaysTargetLabels("gw-1")
+func TestForgeFirewallBindingAllGatewaysTargetLabels(t *testing.T) {
+	got := ForgeFirewallBindingAllGatewaysTargetLabels("gw-1")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryAllGatewaysTargetValue,
 		firewall.FirewallUniqueTargetKey:      "gw-1",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachAllGatewaysTargetLabels(gw-1) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingAllGatewaysTargetLabels(gw-1) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachInternalTargetLabels(t *testing.T) {
-	got := ForgeFirewallAttachInternalTargetLabels("gw-2")
+func TestForgeFirewallBindingInternalTargetLabels(t *testing.T) {
+	got := ForgeFirewallBindingInternalTargetLabels("gw-2")
 	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryFabricTargetValue,
 		firewall.FirewallUniqueTargetKey:      "gw-2",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ForgeFirewallAttachInternalTargetLabels(gw-2) = %v, want %v", got, want)
+		t.Errorf("ForgeFirewallBindingInternalTargetLabels(gw-2) = %v, want %v", got, want)
 	}
 }
 
-func TestForgeFirewallAttachLabels_AttachVariantsAddUniqueKey(t *testing.T) {
-	// Base (non-attach) variants do not carry the unique key; attach variants do.
+func TestForgeFirewallBindingLabels_BindingVariantsAddUniqueKey(t *testing.T) {
+	// Base (non-attach) variants do not carry the unique key; binding variants do.
 	if _, ok := ForgeFirewallInternalTargetLabels()[firewall.FirewallUniqueTargetKey]; ok {
 		t.Errorf("base ForgeFirewallInternalTargetLabels unexpectedly contains the unique-target key")
 	}
-	if _, ok := ForgeFirewallAttachInternalTargetLabels("gw-x")[firewall.FirewallUniqueTargetKey]; !ok {
-		t.Errorf("attach variant ForgeFirewallAttachInternalTargetLabels missing the unique-target key")
+	if _, ok := ForgeFirewallBindingInternalTargetLabels("gw-x")[firewall.FirewallUniqueTargetKey]; !ok {
+		t.Errorf("binding variant ForgeFirewallBindingInternalTargetLabels missing the unique-target key")
 	}
 }

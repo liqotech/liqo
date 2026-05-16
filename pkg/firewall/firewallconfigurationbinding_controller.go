@@ -44,27 +44,27 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
-// FirewallConfigurationAttachReconciler manages FirewallConfigurationAttach lifecycle.
+// FirewallConfigurationBindingReconciler manages FirewallConfigurationBinding lifecycle.
 //
 //nolint:revive // We usually use the name of the reconciled resource in the controller name.
-type FirewallConfigurationAttachReconciler struct {
+type FirewallConfigurationBindingReconciler struct {
 	NodeName      string
 	NftConnection *nftables.Conn
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
-	// LabelsSets are used to filter the reconciled FirewallConfigurationAttach resources.
+	// LabelsSets are used to filter the reconciled FirewallConfigurationBinding resources.
 	LabelsSets []labels.Set
 }
 
-// NewFirewallConfigurationAttachReconciler returns a new FirewallConfigurationAttachReconciler.
-func NewFirewallConfigurationAttachReconciler(cl client.Client, s *runtime.Scheme, nodename string,
-	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationAttachReconciler, error) {
+// NewFirewallConfigurationBindingReconciler returns a new FirewallConfigurationBindingReconciler.
+func NewFirewallConfigurationBindingReconciler(cl client.Client, s *runtime.Scheme, nodename string,
+	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationBindingReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
 	}
-	return &FirewallConfigurationAttachReconciler{
+	return &FirewallConfigurationBindingReconciler{
 		NodeName:       nodename,
 		NftConnection:  nftConnection,
 		Client:         cl,
@@ -75,41 +75,41 @@ func NewFirewallConfigurationAttachReconciler(cl client.Client, s *runtime.Schem
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationattachs,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationattachs/status,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationattachs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch
 
-// Reconcile manages FirewallConfigurationAttaches, applying nftables configuration from the referenced FirewallConfiguration.
-func (r *FirewallConfigurationAttachReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+// Reconcile manages FirewallConfigurationBindinges, applying nftables configuration from the referenced FirewallConfiguration.
+func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	fwattach := &networkingv1beta1.FirewallConfigurationAttach{}
-	if err = r.Get(ctx, req.NamespacedName, fwattach); err != nil {
+	fwbinding := &networkingv1beta1.FirewallConfigurationBinding{}
+	if err = r.Get(ctx, req.NamespacedName, fwbinding); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(6).Infof("There is no firewallconfigurationattach %s", req.String())
+			klog.V(6).Infof("There is no firewallconfigurationbinding %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("getting firewallconfigurationattach: %w", err)
+		return ctrl.Result{}, fmt.Errorf("getting firewallconfigurationbinding: %w", err)
 	}
 
-	klog.V(4).Infof("Reconciling firewallconfigurationattach %s", req.String())
+	klog.V(4).Infof("Reconciling firewallconfigurationbinding %s", req.String())
 
 	// Deletion path: use the table name cached in the status so the FirewallConfiguration
 	// does not need to be fetched (it may already be deleted).
-	if !fwattach.DeletionTimestamp.IsZero() {
-		if ctrlutil.ContainsFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer) {
-			if fwattach.Status.TableName != "" {
-				tableName := fwattach.Status.TableName
+	if !fwbinding.DeletionTimestamp.IsZero() {
+		if ctrlutil.ContainsFinalizer(fwbinding, firewallConfigurationBindingControllerFinalizer) {
+			if fwbinding.Status.TableName != "" {
+				tableName := fwbinding.Status.TableName
 				delTable(r.NftConnection, &firewallapi.Table{Name: &tableName})
 				if err = r.NftConnection.Flush(); err != nil {
 					return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 				}
-				klog.Infof("Deleted nftables configuration for firewallconfigurationattach %s", req.String())
+				klog.Infof("Deleted nftables configuration for firewallconfigurationbinding %s", req.String())
 			}
-			if err = r.ensureAttachFinalizerAbsence(ctx, fwattach); err != nil {
+			if err = r.ensureBindingFinalizerAbsence(ctx, fwbinding); err != nil {
 				return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
 			}
-			klog.Infof("Removed finalizer from firewallconfigurationattach %s", req.String())
+			klog.Infof("Removed finalizer from firewallconfigurationbinding %s", req.String())
 		}
 		return ctrl.Result{}, nil
 	}
@@ -117,28 +117,28 @@ func (r *FirewallConfigurationAttachReconciler) Reconcile(ctx context.Context, r
 	// Normal path: fetch the FirewallConfiguration to get the full table spec.
 	fwcfg := &networkingv1beta1.FirewallConfiguration{}
 	if err = r.Get(ctx, types.NamespacedName{
-		Name:      fwattach.Spec.FirewallConfigurationRef.Name,
-		Namespace: fwattach.Namespace,
+		Name:      fwbinding.Spec.FirewallConfigurationRef.Name,
+		Namespace: fwbinding.Namespace,
 	}, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Referenced firewallconfiguration %q not found for attach %s; requeuing",
-				fwattach.Spec.FirewallConfigurationRef.Name, req.String())
+				fwbinding.Spec.FirewallConfigurationRef.Name, req.String())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, fmt.Errorf("referenced firewallconfiguration %q not found",
-				fwattach.Spec.FirewallConfigurationRef.Name)
+				fwbinding.Spec.FirewallConfigurationRef.Name)
 		}
 		return ctrl.Result{}, fmt.Errorf("getting referenced firewallconfiguration: %w", err)
 	}
 
 	// Cache the table name in the status so it is available during cleanup even after
 	// the FirewallConfiguration has been deleted.
-	fwattach.Status.TableName = ptr.Deref(fwcfg.Spec.Table.Name, "")
+	fwbinding.Status.TableName = ptr.Deref(fwcfg.Spec.Table.Name, "")
 
 	defer func() {
-		err = r.updateStatus(ctx, fwattach, err)
+		err = r.updateStatus(ctx, fwbinding, err)
 	}()
 
-	if !ctrlutil.ContainsFinalizer(fwattach, firewallConfigurationAttachControllerFinalizer) {
-		if err = r.ensureAttachFinalizerPresence(ctx, fwattach); err != nil {
+	if !ctrlutil.ContainsFinalizer(fwbinding, firewallConfigurationBindingControllerFinalizer) {
+		if err = r.ensureBindingFinalizerPresence(ctx, fwbinding); err != nil {
 			return ctrl.Result{}, fmt.Errorf("adding finalizer: %w", err)
 		}
 		return ctrl.Result{}, nil
@@ -153,7 +153,7 @@ func (r *FirewallConfigurationAttachReconciler) Reconcile(ctx context.Context, r
 		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
-	klog.V(4).Infof("Applying firewallconfigurationattach %s (fwcfg %s)", req.String(), fwcfg.Name)
+	klog.V(4).Infof("Applying firewallconfigurationbinding %s (fwcfg %s)", req.String(), fwcfg.Name)
 
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
@@ -164,15 +164,15 @@ func (r *FirewallConfigurationAttachReconciler) Reconcile(ctx context.Context, r
 		return ctrl.Result{}, fmt.Errorf("flushing nftables connection: %w", err)
 	}
 
-	klog.Infof("Applied firewallconfigurationattach %s (fwcfg %s)", req.String(), fwcfg.Name)
+	klog.Infof("Applied firewallconfigurationbinding %s (fwcfg %s)", req.String(), fwcfg.Name)
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager registers the FirewallConfigurationAttachReconciler with the manager.
-func (r *FirewallConfigurationAttachReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
+// SetupWithManager registers the FirewallConfigurationBindingReconciler with the manager.
+func (r *FirewallConfigurationBindingReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
 	enableNftMonitor bool, reconcileTimeout time.Duration) error {
-	klog.Infof("Starting FirewallConfigurationAttach controller with labels %v", r.LabelsSets)
+	klog.Infof("Starting FirewallConfigurationBinding controller with labels %v", r.LabelsSets)
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
@@ -186,19 +186,19 @@ func (r *FirewallConfigurationAttachReconciler) SetupWithManager(ctx context.Con
 		}()
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfigurationAttach).
-		For(&networkingv1beta1.FirewallConfigurationAttach{}, builder.WithPredicates(filterByLabelsPredicate)).
-		WatchesRawSource(NewFirewallAttachWatchSource(src, NewFirewallAttachWatchEventHandler(r.Client, r.LabelsSets))).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfigurationBinding).
+		For(&networkingv1beta1.FirewallConfigurationBinding{}, builder.WithPredicates(filterByLabelsPredicate)).
+		WatchesRawSource(NewFirewallBindingWatchSource(src, NewFirewallBindingWatchEventHandler(r.Client, r.LabelsSets))).
 		WithOptions(controller.Options{
 			ReconciliationTimeout: reconcileTimeout,
 		}).
 		Complete(r)
 }
 
-// updateStatus updates the status of the given FirewallConfigurationAttach.
-func (r *FirewallConfigurationAttachReconciler) updateStatus(ctx context.Context,
-	fwattach *networkingv1beta1.FirewallConfigurationAttach, reconcileErr error) error {
-	fwattach.Status.Type = networkingv1beta1.FirewallConfigurationAttachConditionTypeApplied
+// updateStatus updates the status of the given FirewallConfigurationBinding.
+func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Context,
+	fwbinding *networkingv1beta1.FirewallConfigurationBinding, reconcileErr error) error {
+	fwbinding.Status.Type = networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied
 
 	var newStatus metav1.ConditionStatus
 	if reconcileErr == nil {
@@ -207,16 +207,16 @@ func (r *FirewallConfigurationAttachReconciler) updateStatus(ctx context.Context
 		newStatus = metav1.ConditionFalse
 	}
 
-	if fwattach.Status.Status == newStatus {
+	if fwbinding.Status.Status == newStatus {
 		return nil
 	}
 
-	fwattach.Status.Status = newStatus
-	fwattach.Status.LastTransitionTime = metav1.Now()
+	fwbinding.Status.Status = newStatus
+	fwbinding.Status.LastTransitionTime = metav1.Now()
 
-	r.EventsRecorder.Eventf(fwattach, "Normal", "FirewallConfigurationAttachUpdate",
-		"FirewallConfigurationAttach %s/%s: %s", fwattach.Namespace, fwattach.Name, newStatus)
-	if clerr := r.Client.Status().Update(ctx, fwattach); clerr != nil {
+	r.EventsRecorder.Eventf(fwbinding, "Normal", "FirewallConfigurationBindingUpdate",
+		"FirewallConfigurationBinding %s/%s: %s", fwbinding.Namespace, fwbinding.Name, newStatus)
+	if clerr := r.Client.Status().Update(ctx, fwbinding); clerr != nil {
 		return errors.Join(reconcileErr, clerr)
 	}
 	return reconcileErr
