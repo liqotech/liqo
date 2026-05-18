@@ -17,6 +17,7 @@ package info
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pterm/pterm"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +26,8 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
+
+const notRemapped = "N/R"
 
 // Info prints the configurations of the clusters.
 func Info(ctx context.Context, cl *client.Client, table *pterm.TablePrinter) error {
@@ -73,8 +76,8 @@ func PrintConfigurations(ctx context.Context, cl ctrlclient.Client, table *pterm
 func AppendLocalConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		"local",
-		cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(), "N/R",
-		cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String(), "N/R",
+		strings.Join(cidrutils.Strings(cfg.Spec.Local.CIDR.Pod), ", "), notRemapped,
+		strings.Join(cidrutils.Strings(cfg.Spec.Local.CIDR.External), ", "), notRemapped,
 	})
 }
 
@@ -82,7 +85,7 @@ func AppendLocalConfigurationTableData(cfg *networkingv1beta1.Configuration, td 
 func AppendRemoteConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		cfg.Name,
-		cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String(), cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
-		cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String(), cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
+		strings.Join(cidrutils.Strings(cfg.Spec.Remote.CIDR.Pod), ", "), strings.Join(cidrutils.Strings(cfg.Status.Remote.CIDR.Pod), ", "),
+		strings.Join(cidrutils.Strings(cfg.Spec.Remote.CIDR.External), ", "), strings.Join(cidrutils.Strings(cfg.Status.Remote.CIDR.External), ", "),
 	})
 }

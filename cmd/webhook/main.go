@@ -85,7 +85,7 @@ func main() {
 	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
 	liqoNamespace := pflag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
-	podcidr := pflag.String("podcidr", "", "The CIDR to use for the pod network")
+	podcidrs := pflag.StringSlice("podcidr", nil, "The CIDRs to use for the pod network")
 	vkOptsDefaultTemplate := pflag.String("vk-options-default-template", "", "Namespaced name of the virtual-kubelet options template")
 	enableResourceValidation := pflag.Bool("enable-resource-enforcement", false,
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
@@ -195,7 +195,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *liqoRuntimeClassName))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
-		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
+		mgr.GetClient(), clusterID, *podcidrs, *liqoNamespace, vkOptsDefaultTemplateRef))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())

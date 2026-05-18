@@ -15,13 +15,34 @@
 package utils
 
 import (
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
-// IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(confStatus networkingv1beta1.ConfigurationStatus) bool {
-	return confStatus.Remote != nil &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.Pod)) &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.External))
+// AreConfigurationNetworkCIDRsConfigured reports whether the Configuration controller has fully reconciled
+// the current spec generation. Downstream consumers should gate their work on this check so
+// they never act on a Configuration whose status reflects an older spec.
+func AreConfigurationNetworkCIDRsConfigured(cfg *networkingv1beta1.Configuration) bool {
+	cond := meta.FindStatusCondition(cfg.Status.Conditions, networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured)
+	if cond == nil || cfg.Generation != cond.ObservedGeneration {
+		return false
+	}
+	return cond.Status == metav1.ConditionTrue
+}
+
+// AreConfigurationNetworkCIDRsConfiguredPredicate returns a controller-runtime predicate that admits only
+// Configurations for which the controller has fully reconciled the current spec generation.
+// Wire it via builder.WithPredicates(...) on any controller that consumes the status arrays.
+func AreConfigurationNetworkCIDRsConfiguredPredicate() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		cfg, ok := obj.(*networkingv1beta1.Configuration)
+		if !ok {
+			return false
+		}
+		return AreConfigurationNetworkCIDRsConfigured(cfg)
+	})
 }

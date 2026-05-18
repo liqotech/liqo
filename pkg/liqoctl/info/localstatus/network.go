@@ -18,7 +18,6 @@ package localstatus
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,14 +29,10 @@ import (
 
 // Network represents the status of the network of the local Liqo installation.
 type Network struct {
-	PodCIDR      string `json:"podCIDR"`
-	ServiceCIDR  string `json:"serviceCIDR"`
-	ExternalCIDR string `json:"externalCIDR"`
-	InternalCIDR string `json:"internalCIDR"`
-}
-
-func (l *Network) setProperty(propName, propValue string) {
-	reflect.ValueOf(l).Elem().FieldByName(propName).Set(reflect.ValueOf(propValue))
+	PodCIDRs     []string `json:"podCIDRs"`
+	ServiceCIDR  string   `json:"serviceCIDR"`
+	ExternalCIDR string   `json:"externalCIDR"`
+	InternalCIDR string   `json:"internalCIDR"`
 }
 
 // NetworkChecker collects info about the local installation of Liqo.
@@ -48,26 +43,48 @@ type NetworkChecker struct {
 
 // Collect data about the network of the local installation of Liqo.
 func (l *NetworkChecker) Collect(ctx context.Context, options info.Options) {
-	fields := map[string]func(ctx context.Context, cl client.Client, namespace string) (string, error){
-		"PodCIDR":      ipam.GetPodCIDR,
+	const podCIDRs = "PodCIDRs"
+	listFields := map[string]func(ctx context.Context, cl client.Client, namespace string) ([]string, error){
+		podCIDRs: ipam.GetPodCIDRs,
+	}
+	scalarFields := map[string]func(ctx context.Context, cl client.Client, namespace string) (string, error){
 		"ServiceCIDR":  ipam.GetServiceCIDR,
 		"ExternalCIDR": ipam.GetExternalCIDR,
 		"InternalCIDR": ipam.GetInternalCIDR,
 	}
 
-	for key, fn := range fields {
+	for key, fn := range listFields {
 		val, err := fn(ctx, options.CRClient, corev1.NamespaceAll)
 		if err != nil {
 			l.AddCollectionError(fmt.Errorf("unable to get %s: %w", key, err))
+			continue
 		}
-		l.data.setProperty(key, val)
+		if key == podCIDRs {
+			l.data.PodCIDRs = val
+		}
+	}
+
+	for key, fn := range scalarFields {
+		val, err := fn(ctx, options.CRClient, corev1.NamespaceAll)
+		if err != nil {
+			l.AddCollectionError(fmt.Errorf("unable to get %s: %w", key, err))
+			continue
+		}
+		switch key {
+		case "ServiceCIDR":
+			l.data.ServiceCIDR = val
+		case "ExternalCIDR":
+			l.data.ExternalCIDR = val
+		case "InternalCIDR":
+			l.data.InternalCIDR = val
+		}
 	}
 }
 
 // Format returns the collected data using a user friendly output.
 func (l *NetworkChecker) Format(options info.Options) string {
 	main := output.NewRootSection()
-	main.AddEntry("Pod CIDR", l.data.PodCIDR)
+	main.AddEntry("Pod CIDRs", l.data.PodCIDRs...)
 	main.AddEntry("Service CIDR", l.data.ServiceCIDR)
 	main.AddEntry("External CIDR", l.data.ExternalCIDR)
 	main.AddEntry("Internal CIDR", l.data.InternalCIDR)

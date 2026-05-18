@@ -53,7 +53,7 @@ show the output in YAML format
   $ {{ .Executable }} info -o yaml
 get a specific field
   $ {{ .Executable }} info --get clusterid
-  $ {{ .Executable }} info --get network.podcidr
+  $ {{ .Executable }} info --get network.podcidrs
 `
 
 const liqoctlInfoPeerLongHelp = `Show additional info about peered clusters.

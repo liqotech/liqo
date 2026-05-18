@@ -60,7 +60,7 @@ var _ = Describe("Extract elements from GKE", func() {
 
 		Expect(options.APIServer).To(Equal(endpoint))
 		Expect(options.ServiceCIDR).To(Equal(serviceCIDR))
-		Expect(options.PodCIDR).To(Equal(podCIDR))
+		Expect(options.PodCIDRs).To(Equal([]string{podCIDR}))
 
 		Expect(options.ClusterLabels).ToNot(BeEmpty())
 		Expect(options.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))

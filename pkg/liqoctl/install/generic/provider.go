@@ -44,7 +44,7 @@ func (o *Options) Examples() string { return "" }
 // RegisterFlags registers the flags for the given provider.
 func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.APIServer, "api-server-url", "", "The Kubernetes API Server URL (defaults to the one specified in the kubeconfig)")
-	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "", "The Pod CIDR of the cluster")
+	cmd.Flags().StringSliceVar(&o.PodCIDRs, "pod-cidr", nil, "The Pod CIDRs of the cluster")
 	cmd.Flags().StringVar(&o.ServiceCIDR, "service-cidr", "", "The Service CIDR of the cluster")
 
 	utilruntime.Must(cmd.MarkFlagRequired("pod-cidr"))

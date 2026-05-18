@@ -14,7 +14,11 @@
 
 package cidr
 
-import networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+import (
+	"strings"
+
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+)
 
 // GetPrimary returns the primary CIDR from a list of CIDRs.
 func GetPrimary(cidrs []networkingv1beta1.CIDR) *networkingv1beta1.CIDR {
@@ -29,10 +33,54 @@ func SetPrimary(cidr networkingv1beta1.CIDR) []networkingv1beta1.CIDR {
 	return []networkingv1beta1.CIDR{cidr}
 }
 
-// IsVoid checks if a CIDR is void.
-func IsVoid(cidr *networkingv1beta1.CIDR) bool {
-	if cidr == nil {
-		return true
+// AllNonVoid reports whether the list is non-empty and every entry is non-empty.
+func AllNonVoid(cidrs []networkingv1beta1.CIDR) bool {
+	if len(cidrs) == 0 {
+		return false
 	}
-	return cidr.String() == ""
+	for i := range cidrs {
+		if cidrs[i].String() == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// EscapeForName converts a CIDR value into a DNS-1123-compliant suffix usable as a
+// Kubernetes resource name component by replacing "/" and "." with "-".
+// Example: "10.244.0.0/16" -> "10-244-0-0-16".
+func EscapeForName(cidr networkingv1beta1.CIDR) string {
+	return EscapeForNameStr(string(cidr))
+}
+
+// EscapeForNameStr is the string version of EscapeForName.
+func EscapeForNameStr(cidr string) string {
+	s := cidr
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, ".", "-")
+	return s
+}
+
+// Strings converts a CIDR slice to a slice of strings, preserving order.
+func Strings(cidrs []networkingv1beta1.CIDR) []string {
+	if cidrs == nil {
+		return nil
+	}
+	out := make([]string, len(cidrs))
+	for i := range cidrs {
+		out[i] = cidrs[i].String()
+	}
+	return out
+}
+
+// FromStrings converts a slice of strings to a CIDR slice, preserving order.
+func FromStrings(s []string) []networkingv1beta1.CIDR {
+	if s == nil {
+		return nil
+	}
+	out := make([]networkingv1beta1.CIDR, len(s))
+	for i := range s {
+		out[i] = networkingv1beta1.CIDR(s[i])
+	}
+	return out
 }

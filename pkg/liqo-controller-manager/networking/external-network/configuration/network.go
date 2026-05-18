@@ -18,8 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -31,75 +34,92 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
-// ForgeNetworkMetadata creates the metadata of a ipamv1alpha1.Network resource.
-func ForgeNetworkMetadata(net *ipamv1alpha1.Network, cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) error {
-	labels, err := ForgeNetworkLabel(cfg, cidrType)
-	if err != nil {
-		return err
-	}
-	net.Name = fmt.Sprintf("%s-%s", cfg.Name, cidrType)
-	net.Namespace = cfg.Namespace
-	net.Labels = labels
-	return nil
+// ForgeNetworkName returns the deterministic Network resource name for a (Configuration, cidr-type, CIDR) triple.
+func ForgeNetworkName(cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue, cidr networkingv1beta1.CIDR) string {
+	return fmt.Sprintf("%s-%s-%s", cfg.Name, cidrType, cidrutils.EscapeForName(cidr))
 }
 
-// ForgeNetwork creates a ipamv1alpha1.Network resource.
-func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue,
-	scheme *runtime.Scheme) (err error) {
-	if err := ForgeNetworkMetadata(net, cfg, cidrType); err != nil {
-		return err
+// EnsureNetwork creates or updates an ipamv1alpha1.Network resource for one specific CIDR
+// of the given Configuration and cidr-type.
+func EnsureNetwork(ctx context.Context, cl client.Client, scheme *runtime.Scheme, er record.EventRecorder,
+	cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue, cidr networkingv1beta1.CIDR) (*ipamv1alpha1.Network, error) {
+	network := &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ForgeNetworkName(cfg, cidrType, cidr),
+			Namespace: cfg.Namespace,
+		},
 	}
-	var cidr networkingv1beta1.CIDR
-	switch cidrType {
-	case LabelCIDRTypePod:
-		cidr = *cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod)
-	case LabelCIDRTypeExternal:
-		cidr = *cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External)
-	}
-	net.Spec = ipamv1alpha1.NetworkSpec{
-		CIDR: cidr,
-	}
-	err = ctrlutil.SetControllerReference(cfg, net, scheme)
+
+	op, err := resource.CreateOrUpdate(ctx, cl, network, func() error {
+		netLabels, err := ForgeNetworkLabel(cfg, cidrType)
+		if err != nil {
+			return err
+		}
+		network.Labels = netLabels
+		network.Spec.CIDR = cidr
+		return ctrlutil.SetControllerReference(cfg, network, scheme)
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	if op != ctrlutil.OperationResultNone {
+		events.Event(er, cfg, fmt.Sprintf("Network %s/%s %s", cfg.Namespace, network.Name, op))
+	}
+	return network, nil
 }
 
-// CreateOrGetNetwork creates or gets a ipamv1alpha1.Network resource.
-func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.Scheme, er record.EventRecorder,
-	cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) (*ipamv1alpha1.Network, error) {
+// DeleteOrphanNetworks deletes or waits on Network resources owned by cfg with the given
+// cidr-type label that do not match the desired steady state. It returns true when at least one
+// deletion is still pending, so callers can defer creating replacement networks until the old
+// ones have been fully removed and unmapped.
+func DeleteOrphanNetworks(ctx context.Context, cl client.Client,
+	cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue, desired []networkingv1beta1.CIDR) (bool, error) {
 	ls, err := ForgeNetworkLabelSelector(cfg, cidrType)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	ns := cfg.Namespace
-	list, err := getters.ListNetworksByLabel(ctx, cl, ns, ls)
+	list, err := getters.ListNetworksByLabel(ctx, cl, cfg.Namespace, ls)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	if len(list.Items) == 1 {
-		if len(list.Items[0].OwnerReferences) == 1 && string(list.Items[0].OwnerReferences[0].UID) == string(cfg.UID) {
-			return &list.Items[0], nil
+
+	desiredSet := make(map[networkingv1beta1.CIDR]struct{}, len(desired))
+	for i := range desired {
+		desiredSet[desired[i]] = struct{}{}
+	}
+
+	pendingDeletion := false
+
+	for i := range list.Items {
+		nw := &list.Items[i]
+		if !ownedByConfiguration(nw, cfg) {
+			continue
+		}
+
+		expectedName := ForgeNetworkName(cfg, cidrType, nw.Spec.CIDR)
+		if _, ok := desiredSet[nw.Spec.CIDR]; ok && nw.Name == expectedName {
+			continue
+		}
+
+		pendingDeletion = true
+		if !nw.GetDeletionTimestamp().IsZero() {
+			continue
+		}
+
+		if err := cl.Delete(ctx, nw); err != nil && !apierrors.IsNotFound(err) {
+			return false, fmt.Errorf("unable to delete orphan Network %q: %w", nw.Name, err)
+		}
+
+		klog.Infof("Deleted orphan Network %q for configuration %q", nw.Name, client.ObjectKeyFromObject(cfg))
+	}
+	return pendingDeletion, nil
+}
+
+func ownedByConfiguration(obj client.Object, cfg *networkingv1beta1.Configuration) bool {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.UID == cfg.UID {
+			return true
 		}
 	}
-	if len(list.Items) > 1 {
-		return nil, fmt.Errorf("multiple networks found with label selector '%s'", ls)
-	}
-
-	events.Event(er, cfg, fmt.Sprintf("Creating network %s/%s", cfg.Name, cfg.Namespace))
-
-	network := &ipamv1alpha1.Network{}
-	if err = ForgeNetworkMetadata(network, cfg, cidrType); err != nil {
-		return nil, err
-	}
-
-	if _, err := resource.CreateOrUpdate(ctx, cl, network, func() error {
-		return ForgeNetwork(network, cfg, cidrType, scheme)
-	}); err != nil {
-		return nil, err
-	}
-
-	events.Event(er, cfg, fmt.Sprintf("Network %s/%s created", cfg.Name, cfg.Namespace))
-	return network, nil
+	return false
 }

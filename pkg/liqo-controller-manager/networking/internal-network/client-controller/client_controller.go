@@ -17,6 +17,7 @@ package clientcontroller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,8 +25,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -34,7 +38,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	netutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -142,10 +145,10 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		}
 		internalFabric.Spec.Interface.Gateway.IP = networkingv1beta1.IP(ip.String())
 
-		internalFabric.Spec.RemoteCIDRs = []networkingv1beta1.CIDR{
-			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.Pod),
-			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.External),
-		}
+		internalFabric.Spec.RemoteCIDRs = slices.Concat(
+			configuration.Status.Remote.CIDR.Pod,
+			configuration.Status.Remote.CIDR.External,
+		)
 
 		return controllerutil.SetControllerReference(gwClient, internalFabric, r.Scheme)
 	}); err != nil {
@@ -160,5 +163,31 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayClientInternal).
 		Owns(&networkingv1beta1.InternalFabric{}).
 		For(&networkingv1beta1.GatewayClient{}).
+		Watches(
+			&networkingv1beta1.Configuration{},
+			handler.EnqueueRequestsFromMapFunc(r.gatewayClientEnqueuerByRemoteID()),
+			builder.WithPredicates(netutils.AreConfigurationNetworkCIDRsConfiguredPredicate()),
+		).
 		Complete(r)
+}
+
+func (r *ClientReconciler) gatewayClientEnqueuerByRemoteID() handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		remoteClusterID, ok := utils.GetClusterIDFromLabels(obj.GetLabels())
+		if !ok {
+			klog.Errorf("unable to get the remote cluster ID from the labels of configuration %s", obj.GetName())
+			return nil
+		}
+
+		gwClient, err := getters.GetGatewayClientByClusterID(ctx, r.Client, remoteClusterID, corev1.NamespaceAll)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			klog.Errorf("unable to get the gateway client for cluster %s: %s", remoteClusterID, err)
+			return nil
+		}
+
+		return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(gwClient)}}
+	}
 }
