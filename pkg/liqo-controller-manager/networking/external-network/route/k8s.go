@@ -17,6 +17,7 @@ package route
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,7 +31,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -111,30 +111,22 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 			},
 		}
 
+		remoteCIDRs := slices.Concat(cfg.Spec.Remote.CIDR.Pod, cfg.Spec.Remote.CIDR.External)
 		for i := range internalNodes.Items {
-			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules,
-				[]networkingv1beta1.Rule{
-					{
-						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
-						Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod),
-						Routes: []networkingv1beta1.Route{
-							{
-								Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod),
-								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
-							},
+			iif := &internalNodes.Items[i].Spec.Interface.Gateway.Name
+			for j := range remoteCIDRs {
+				dst := &remoteCIDRs[j]
+				routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
+					Iif: iif,
+					Dst: dst,
+					Routes: []networkingv1beta1.Route{
+						{
+							Dst: dst,
+							Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 						},
 					},
-					{
-						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
-						Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External),
-						Routes: []networkingv1beta1.Route{
-							{
-								Dst: cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External),
-								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
-							},
-						},
-					},
-				}...)
+				})
+			}
 		}
 		return nil
 	}

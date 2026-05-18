@@ -29,7 +29,6 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -136,24 +135,31 @@ func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1beta1.Configuratio
 	}
 }
 
-func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
-	var remoteCIDR, remoteRemapCIDR string
+// cidrPairsForType returns the (spec, status) CIDR list pair for the given CIDR type.
+func cidrPairsForType(cfg *networkingv1beta1.Configuration, cidrtype CIDRType) (spec, status []networkingv1beta1.CIDR) {
 	switch cidrtype {
 	case PodCIDR:
-		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String()
-		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
+		return cfg.Spec.Remote.CIDR.Pod, cfg.Status.Remote.CIDR.Pod
 	case ExternalCIDR:
-		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String()
-		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
+		return cfg.Spec.Remote.CIDR.External, cfg.Status.Remote.CIDR.External
 	}
-	return []firewall.NatRule{
-		{
+	return nil, nil
+}
+
+func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
+	spec, status := cidrPairsForType(cfg, cidrtype)
+	rules := make([]firewall.NatRule, 0, len(spec))
+	for i := range spec {
+		if spec[i] == status[i] {
+			continue
+		}
+		rules = append(rules, firewall.NatRule{
 			NatType: firewall.NatTypeDestination,
 			Match: []firewall.Match{
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Value:    remoteRemapCIDR,
+						Value:    status[i].String(),
 						Position: firewall.MatchPositionDst,
 					},
 				},
@@ -172,27 +178,23 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuratio
 					},
 				},
 			},
-			To: ptr.To(remoteCIDR),
-		},
+			To: ptr.To(spec[i].String()),
+		})
 	}
+	return rules
 }
 
 func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuration,
 	opts *Options, cidrtype CIDRType) []firewall.NatRule {
-	var remoteCIDR, remoteRemapCIDR string
-	switch cidrtype {
-	case PodCIDR:
-		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String()
-		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
-	case ExternalCIDR:
-		remoteCIDR = cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String()
-		remoteRemapCIDR = cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
-	}
-
-	return []firewall.NatRule{
-		{
+	spec, status := cidrPairsForType(cfg, cidrtype)
+	rules := make([]firewall.NatRule, 0, len(spec))
+	for i := range spec {
+		if spec[i] == status[i] {
+			continue
+		}
+		rules = append(rules, firewall.NatRule{
 			NatType: firewall.NatTypeSource,
-			To:      ptr.To(remoteRemapCIDR),
+			To:      ptr.To(status[i].String()),
 			Match: []firewall.Match{
 				{
 					Op: firewall.MatchOperationNeq,
@@ -204,7 +206,7 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Value:    remoteCIDR,
+						Value:    spec[i].String(),
 						Position: firewall.MatchPositionSrc,
 					},
 				},
@@ -216,6 +218,7 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 					},
 				},
 			},
-		},
+		})
 	}
+	return rules
 }

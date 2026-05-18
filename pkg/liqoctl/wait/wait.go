@@ -192,7 +192,7 @@ func (w *Waiter) ForConfiguration(ctx context.Context, remoteClusterID liqov1bet
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-		return networkingutils.IsConfigurationStatusSet(conf.Status), nil
+		return networkingutils.IsConfigurationStatusSet(conf.Spec, conf.Status), nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for configuration to be applied: %s", output.PrettyErr(err)))

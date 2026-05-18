@@ -20,8 +20,10 @@ import (
 )
 
 // IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(confStatus networkingv1beta1.ConfigurationStatus) bool {
+func IsConfigurationStatusSet(confSpec networkingv1beta1.ConfigurationSpec, confStatus networkingv1beta1.ConfigurationStatus) bool {
 	return confStatus.Remote != nil &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.Pod)) &&
-		!cidrutils.IsVoid(cidrutils.GetPrimary(confStatus.Remote.CIDR.External))
+		len(confStatus.Remote.CIDR.Pod) == len(confSpec.Local.CIDR.Pod) &&
+		len(confStatus.Remote.CIDR.External) == len(confSpec.Local.CIDR.External) &&
+		!cidrutils.AreAllVoid(confStatus.Remote.CIDR.Pod) &&
+		!cidrutils.AreAllVoid(confStatus.Remote.CIDR.External)
 }

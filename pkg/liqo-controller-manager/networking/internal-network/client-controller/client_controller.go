@@ -17,6 +17,7 @@ package clientcontroller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,7 +35,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	netutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -142,10 +142,10 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		}
 		internalFabric.Spec.Interface.Gateway.IP = networkingv1beta1.IP(ip.String())
 
-		internalFabric.Spec.RemoteCIDRs = []networkingv1beta1.CIDR{
-			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.Pod),
-			*cidrutils.GetPrimary(configuration.Status.Remote.CIDR.External),
-		}
+		internalFabric.Spec.RemoteCIDRs = slices.Concat(
+			configuration.Status.Remote.CIDR.Pod,
+			configuration.Status.Remote.CIDR.External,
+		)
 
 		return controllerutil.SetControllerReference(gwClient, internalFabric, r.Scheme)
 	}); err != nil {

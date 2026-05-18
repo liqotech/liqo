@@ -76,14 +76,14 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.Pod) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.Pod) {
+	if !cidrutils.EqualOrdered(conf.Spec.Remote.CIDR.Pod, conf.Status.Remote.CIDR.Pod) {
 		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, PodCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.External) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.External) {
+	if !cidrutils.EqualOrdered(conf.Spec.Remote.CIDR.External, conf.Status.Remote.CIDR.External) {
 		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, ExternalCIDR); err != nil {
 			return ctrl.Result{}, err
