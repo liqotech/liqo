@@ -37,6 +37,31 @@ var _ = Describe("CIDR utils", func() {
 		})
 	})
 
+	Describe("EscapeForName", func() {
+		It("replaces / and . with -", func() {
+			Expect(cidrutils.EscapeForName("10.244.0.0/16")).To(Equal("10-244-0-0-16"))
+			Expect(cidrutils.EscapeForName("192.168.1.0/24")).To(Equal("192-168-1-0-24"))
+		})
+		It("is a no-op for empty input", func() {
+			Expect(cidrutils.EscapeForName("")).To(Equal(""))
+		})
+	})
+
+	Describe("AllNonVoid", func() {
+		It("is false for nil and empty slices", func() {
+			Expect(cidrutils.AllNonVoid(nil)).To(BeFalse())
+			Expect(cidrutils.AllNonVoid([]networkingv1beta1.CIDR{})).To(BeFalse())
+		})
+		It("is true when every entry is non-empty", func() {
+			Expect(cidrutils.AllNonVoid([]networkingv1beta1.CIDR{"10.0.0.0/16"})).To(BeTrue())
+			Expect(cidrutils.AllNonVoid([]networkingv1beta1.CIDR{"10.0.0.0/16", "10.1.0.0/16"})).To(BeTrue())
+		})
+		It("is false when at least one entry is empty", func() {
+			Expect(cidrutils.AllNonVoid([]networkingv1beta1.CIDR{"", "10.0.0.0/16"})).To(BeFalse())
+			Expect(cidrutils.AllNonVoid([]networkingv1beta1.CIDR{"10.0.0.0/16", ""})).To(BeFalse())
+		})
+	})
+
 	Describe("Strings", func() {
 		It("returns nil for nil input", func() {
 			Expect(cidrutils.Strings(nil)).To(BeNil())

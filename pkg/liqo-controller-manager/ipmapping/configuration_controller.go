@@ -33,7 +33,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
-	"github.com/liqotech/liqo/pkg/utils/cidr"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -44,17 +44,23 @@ import (
 
 // ConfigurationReconciler creates a mapping for the UnknownSourceIP for each remote cluster.
 // This allows traffic with "external" source IPs to be routed from a leaf cluster to another.
+//
+// The unknown-source IP is a per-cluster anchor: one IP per Configuration, derived from the
+// first remote external CIDR. The ipam.IP resource has an immutable Spec.IP field, so the
+// resource name encodes the source CIDR: if the first external CIDR ever changes (the spec
+// was reordered or replaced), the new name produces a new resource and the old one is
+// garbage-collected by deleteOrphanUnknownSourceIPs.
 type ConfigurationReconciler struct {
 	Client         client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 }
 
-func forgeUnknownSourceIPName(cfg *networkingv1beta1.Configuration) string {
-	return cfg.Name + "-unknown-source"
+func forgeUnknownSourceIPName(cfg *networkingv1beta1.Configuration, sourceCIDR networkingv1beta1.CIDR) string {
+	return fmt.Sprintf("%s-unknown-source-%s", cfg.Name, cidrutils.EscapeForName(sourceCIDR))
 }
 
-// NewConfigurationReconciler returns a new PublicKeysReconciler.
+// NewConfigurationReconciler returns a new ConfigurationReconciler.
 func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) *ConfigurationReconciler {
 	return &ConfigurationReconciler{
 		Client:         cl,
@@ -75,13 +81,19 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	extCIDR := cidr.GetPrimary(cfg.Status.Remote.CIDR.External)
-	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(extCIDR.String())
+	sourceCIDR := cfg.Spec.Remote.CIDR.External[0]
+	desiredName := forgeUnknownSourceIPName(cfg, sourceCIDR)
+
+	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(cfg.Status.Remote.CIDR.External[0].String())
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the unknown source IP: %w", err)
 	}
-	if err := r.createOrUpdateUnknownSourceIPResource(ctx, cfg, remoteUnknownSourceIP); err != nil {
+	if err := r.createOrUpdateUnknownSourceIPResource(ctx, cfg, desiredName, remoteUnknownSourceIP); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to create or update the unknown source IP: %w", err)
+	}
+
+	if err := r.deleteOrphanUnknownSourceIPs(ctx, cfg, desiredName); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to delete orphan unknown source IPs: %w", err)
 	}
 
 	return ctrl.Result{}, nil
@@ -103,10 +115,10 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx context.Context,
-	cfg *networkingv1beta1.Configuration, remoteUnknownSourceIP string) error {
+	cfg *networkingv1beta1.Configuration, name, remoteUnknownSourceIP string) error {
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      forgeUnknownSourceIPName(cfg),
+			Name:      name,
 			Namespace: cfg.Namespace,
 			Labels: map[string]string{
 				consts.RemoteClusterID: cfg.GetName(),
@@ -122,4 +134,40 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 		return fmt.Errorf("unable to create or update the IP %q: %w", ip.Name, err)
 	}
 	return nil
+}
+
+// deleteOrphanUnknownSourceIPs removes any IP resource owned by cfg with the same RemoteClusterID
+// label whose name doesn't match the desired one. This GCs the previous IP when the first remote
+// external CIDR changes.
+func (r *ConfigurationReconciler) deleteOrphanUnknownSourceIPs(ctx context.Context,
+	cfg *networkingv1beta1.Configuration, desiredName string) error {
+	var list ipamv1alpha1.IPList
+	if err := r.Client.List(ctx, &list,
+		client.InNamespace(cfg.Namespace),
+		client.MatchingLabels{consts.RemoteClusterID: cfg.GetName()},
+	); err != nil {
+		return err
+	}
+	for i := range list.Items {
+		ip := &list.Items[i]
+		if ip.Name == desiredName {
+			continue
+		}
+		if !ownedByConfiguration(ip, cfg) {
+			continue
+		}
+		if err := r.Client.Delete(ctx, ip); err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("unable to delete orphan IP %q: %w", ip.Name, err)
+		}
+	}
+	return nil
+}
+
+func ownedByConfiguration(obj client.Object, cfg *networkingv1beta1.Configuration) bool {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.UID == cfg.UID {
+			return true
+		}
+	}
+	return false
 }

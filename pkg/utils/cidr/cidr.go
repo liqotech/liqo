@@ -17,6 +17,7 @@ package cidr
 import (
 	"slices"
 	"sort"
+	"strings"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
@@ -50,6 +51,29 @@ func AreAllVoid(cidrs []networkingv1beta1.CIDR) bool {
 		}
 	}
 	return true
+}
+
+// AllNonVoid reports whether the list is non-empty and every entry is non-empty.
+func AllNonVoid(cidrs []networkingv1beta1.CIDR) bool {
+	if len(cidrs) == 0 {
+		return false
+	}
+	for i := range cidrs {
+		if cidrs[i].String() == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// EscapeForName converts a CIDR value into a DNS-1123-compliant suffix usable as a
+// Kubernetes resource name component by replacing "/" and "." with "-".
+// Example: "10.244.0.0/16" -> "10-244-0-0-16".
+func EscapeForName(cidr networkingv1beta1.CIDR) string {
+	s := string(cidr)
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, ".", "-")
+	return s
 }
 
 // Strings converts a CIDR slice to a slice of strings, preserving order.

@@ -24,6 +24,6 @@ func IsConfigurationStatusSet(confSpec networkingv1beta1.ConfigurationSpec, conf
 	return confStatus.Remote != nil &&
 		len(confStatus.Remote.CIDR.Pod) == len(confSpec.Local.CIDR.Pod) &&
 		len(confStatus.Remote.CIDR.External) == len(confSpec.Local.CIDR.External) &&
-		!cidrutils.AreAllVoid(confStatus.Remote.CIDR.Pod) &&
-		!cidrutils.AreAllVoid(confStatus.Remote.CIDR.External)
+		cidrutils.AllNonVoid(confStatus.Remote.CIDR.Pod) &&
+		cidrutils.AllNonVoid(confStatus.Remote.CIDR.External)
 }
