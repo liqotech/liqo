@@ -267,22 +267,22 @@ func FakeConfiguration(remoteClusterID, podCIDR, extCIDR, remotePodCIDR, remoteE
 		Spec: networkingv1beta1.ConfigurationSpec{
 			Local: &networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
-					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(extCIDR)),
+					Pod:      cidrutils.FromStrings([]string{podCIDR}),
+					External: cidrutils.FromStrings([]string{extCIDR}),
 				},
 			},
 			Remote: networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(remotePodCIDR)),
-					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteExtCIDR)),
+					Pod:      cidrutils.FromStrings([]string{remotePodCIDR}),
+					External: cidrutils.FromStrings([]string{remoteExtCIDR}),
 				},
 			},
 		},
 		Status: networkingv1beta1.ConfigurationStatus{
 			Remote: &networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteRemappedPodCIDR)),
-					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(remoteRemappedExtCIDR)),
+					Pod:      cidrutils.FromStrings([]string{remoteRemappedPodCIDR}),
+					External: cidrutils.FromStrings([]string{remoteRemappedExtCIDR}),
 				},
 			},
 		},

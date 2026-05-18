@@ -37,7 +37,7 @@ func defaultConfigurationName(remoteClusterID liqov1beta1.ClusterID) string {
 
 // Configuration forges a Configuration resource of a remote cluster.
 func Configuration(name, namespace string, remoteClusterID liqov1beta1.ClusterID,
-	podCIDR, externalCIDR string) *networkingv1beta1.Configuration {
+	podCIDRs, externalCIDRs []string) *networkingv1beta1.Configuration {
 	conf := &networkingv1beta1.Configuration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1beta1.ConfigurationKind,
@@ -51,20 +51,21 @@ func Configuration(name, namespace string, remoteClusterID liqov1beta1.ClusterID
 			},
 		},
 	}
-	MutateConfiguration(conf, remoteClusterID, podCIDR, externalCIDR)
+	MutateConfiguration(conf, remoteClusterID, podCIDRs, externalCIDRs)
 	return conf
 }
 
 // MutateConfiguration mutates a Configuration resource of a remote cluster.
-func MutateConfiguration(conf *networkingv1beta1.Configuration, remoteClusterID liqov1beta1.ClusterID, podCIDR, externalCIDR string) {
+func MutateConfiguration(conf *networkingv1beta1.Configuration, remoteClusterID liqov1beta1.ClusterID,
+	podCIDRs, externalCIDRs []string) {
 	conf.Kind = networkingv1beta1.ConfigurationKind
 	conf.APIVersion = networkingv1beta1.GroupVersion.String()
 	if conf.Labels == nil {
 		conf.Labels = make(map[string]string)
 	}
 	conf.Labels[consts.RemoteClusterID] = string(remoteClusterID)
-	conf.Spec.Remote.CIDR.Pod = cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR))
-	conf.Spec.Remote.CIDR.External = cidrutils.SetPrimary(networkingv1beta1.CIDR(externalCIDR))
+	conf.Spec.Remote.CIDR.Pod = cidrutils.FromStrings(podCIDRs)
+	conf.Spec.Remote.CIDR.External = cidrutils.FromStrings(externalCIDRs)
 }
 
 // ConfigurationForRemoteCluster forges a Configuration of the local cluster to be applied to a remote cluster.
@@ -76,14 +77,14 @@ func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
 
-	podCIDR, err := ipamutils.GetPodCIDR(ctx, cl, liqoNamespace)
+	podCIDRs, err := ipamutils.GetPodCIDRs(ctx, cl, liqoNamespace)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve pod CIDR: %w", err)
+		return nil, fmt.Errorf("unable to retrieve pod CIDRs: %w", err)
 	}
 
-	externalCIDR, err := ipamutils.GetExternalCIDR(ctx, cl, liqoNamespace)
+	externalCIDRs, err := ipamutils.GetExternalCIDRs(ctx, cl, liqoNamespace)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve external CIDR: %w", err)
+		return nil, fmt.Errorf("unable to retrieve external CIDRs: %w", err)
 	}
 
 	cnf := &networkingv1beta1.Configuration{
@@ -100,8 +101,8 @@ func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		Spec: networkingv1beta1.ConfigurationSpec{
 			Remote: networkingv1beta1.ClusterConfig{
 				CIDR: networkingv1beta1.ClusterConfigCIDR{
-					Pod:      cidrutils.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
-					External: cidrutils.SetPrimary(networkingv1beta1.CIDR(externalCIDR)),
+					Pod:      cidrutils.FromStrings(podCIDRs),
+					External: cidrutils.FromStrings(externalCIDRs),
 				},
 			},
 		},
