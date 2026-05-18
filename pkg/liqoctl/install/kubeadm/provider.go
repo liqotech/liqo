@@ -80,8 +80,10 @@ func (o *Options) Initialize(ctx context.Context) error {
 	}
 
 	command := cm.Items[0].Spec.Containers[0].Command
-	o.PodCIDR = utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
 	o.ServiceCIDR = utils.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
+
+	podCidr := utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
+	o.PodCIDRs = []string{podCidr}
 
 	return nil
 }

@@ -84,6 +84,6 @@ var _ = Describe("Extract elements from EKS", func() {
 		}
 
 		Expect(options.parseVpcOutput("id", vpcOutput)).To(Succeed())
-		Expect(options.PodCIDR).To(Equal(podCIDR))
+		Expect(options.PodCIDRs).To(Equal([]string{podCIDR}))
 	})
 })

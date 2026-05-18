@@ -19,19 +19,16 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 )
 
 // cluster-role
@@ -75,19 +72,13 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, fmt.Errorf("unable to get the configuration %q: %w", req.NamespacedName, err)
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
-
-	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.Pod) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.Pod) {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
-			r.Scheme, PodCIDR); err != nil {
-			return ctrl.Result{}, err
-		}
+	if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
+		r.Scheme, PodCIDR); err != nil {
+		return ctrl.Result{}, err
 	}
 
-	if cidrutils.GetPrimary(conf.Spec.Remote.CIDR.External) != cidrutils.GetPrimary(conf.Status.Remote.CIDR.External) {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
-			r.Scheme, ExternalCIDR); err != nil {
-			return ctrl.Result{}, err
-		}
+	if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf, r.Scheme, ExternalCIDR); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -95,15 +86,7 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 // SetupWithManager register the RemappingReconciler to the manager.
 func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			configuration.Configured: configuration.ConfiguredValue,
-		},
-	})
-	if err != nil {
-		return err
-	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationRemapping).
-		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(networkingutils.AreConfigurationNetworkCIDRsConfiguredPredicate())).
 		Complete(r)
 }

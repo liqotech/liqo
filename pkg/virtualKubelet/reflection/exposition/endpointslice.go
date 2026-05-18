@@ -65,19 +65,19 @@ type NamespacedEndpointSliceReflector struct {
 	remoteShadowEndpointSlicesClient offloadingv1beta1clients.ShadowEndpointSliceInterface
 	localIPs                         ipamv1alpha1listers.IPNamespaceLister
 
-	localPodCIDR *net.IPNet
+	localPodCIDRs []*net.IPNet
 
 	translations sync.Map
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *offloadingv1beta1.ReflectorConfig) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(localPodCIDR),
+func NewEndpointSliceReflector(localPodCIDRs []string, reflectorConfig *offloadingv1beta1.ReflectorConfig) manager.Reflector {
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(localPodCIDRs),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
-func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.NamespacedOpts) manager.NamespacedReflector {
+func NewNamespacedEndpointSliceReflector(localPodCIDRs []string) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		localNode := opts.LocalFactory.Core().V1().Nodes()
 		localServices := opts.LocalFactory.Core().V1().Services()
@@ -90,8 +90,12 @@ func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.Name
 		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
-		_, podCIDR, err := net.ParseCIDR(localPodCIDR)
-		utilruntime.Must(err)
+		podCIDRs := make([]*net.IPNet, 0, len(localPodCIDRs))
+		for i := range localPodCIDRs {
+			_, podCIDR, err := net.ParseCIDR(localPodCIDRs[i])
+			utilruntime.Must(err)
+			podCIDRs = append(podCIDRs, podCIDR)
+		}
 
 		ner := &NamespacedEndpointSliceReflector{
 			NamespacedReflector:              generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
@@ -101,7 +105,7 @@ func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.Name
 			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
 			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.OffloadingV1beta1().ShadowEndpointSlices(opts.RemoteNamespace),
 			localIPs:                         localIPs.Lister().IPs(opts.LocalNamespace),
-			localPodCIDR:                     podCIDR,
+			localPodCIDRs:                    podCIDRs,
 		}
 
 		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
@@ -291,7 +295,7 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string
 		translation, found := cache[original]
 
 		if !found {
-			if !ner.localPodCIDR.Contains(net.ParseIP(original)) {
+			if !ner.isLocalPodIP(original) {
 				// Cache miss -> we need to interact with the IPAM to request the translation.
 				translation, err = ner.MapEndpointIPFromIPResource(original)
 				if err != nil {
@@ -376,4 +380,14 @@ func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
 		return nil, err
 	}
 	return append(listEps, listSeps...), nil
+}
+
+func (ner *NamespacedEndpointSliceReflector) isLocalPodIP(ip string) bool {
+	for i := range ner.localPodCIDRs {
+		if ner.localPodCIDRs[i].Contains(net.ParseIP(ip)) {
+			return true
+		}
+	}
+
+	return false
 }

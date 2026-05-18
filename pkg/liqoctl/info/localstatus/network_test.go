@@ -77,7 +77,7 @@ var _ = Describe("NetworkChecker tests", func() {
 				By("Checking the correctness of the data in the struct")
 				data := nc.GetData().(localstatus.Network)
 
-				Expect(data.PodCIDR).To(Equal(testutil.PodCIDR))
+				Expect(data.PodCIDRs).To(Equal([]string{testutil.PodCIDR}))
 				Expect(data.ServiceCIDR).To(Equal(testutil.ServiceCIDR))
 				Expect(data.ExternalCIDR).To(Equal(testutil.ExternalCIDR))
 				Expect(data.InternalCIDR).To(Equal(testutil.InternalCIDR))
@@ -88,7 +88,7 @@ var _ = Describe("NetworkChecker tests", func() {
 				text = testutil.SqueezeWhitespaces(text)
 
 				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
+					pterm.Sprintf("Pod CIDRs: %s", testutil.PodCIDR),
 				))
 				Expect(text).To(ContainSubstring(
 					pterm.Sprintf("Service CIDR: %s", testutil.ServiceCIDR),

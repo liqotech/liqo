@@ -31,9 +31,9 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
-// GetPodCIDRNetwork retrieves the Network resource of type PodCIDR.
-func GetPodCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(
+// GetPodCIDRNetworks retrieves all Network resources of type PodCIDR.
+func GetPodCIDRNetworks(ctx context.Context, cl client.Client, liqoNamespace string) ([]ipamv1alpha1.Network, error) {
+	return liqogetters.GetNetworksByLabel(
 		ctx, cl,
 		labels.SelectorFromSet(map[string]string{
 			consts.NetworkTypeLabelKey: string(consts.NetworkTypePodCIDR),
@@ -42,18 +42,26 @@ func GetPodCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace stri
 	)
 }
 
-// GetPodCIDR retrieves the podCIDR of the local cluster.
-func GetPodCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
-	nw, err := GetPodCIDRNetwork(ctx, cl, liqoNamespace)
+// GetPodCIDRs retrieves the pod CIDRs of the local cluster.
+// Returns an error if no Network resource of type PodCIDR is configured, or if any of them
+// has an empty status (i.e. has not been remapped yet by the IPAM).
+func GetPodCIDRs(ctx context.Context, cl client.Client, liqoNamespace string) ([]string, error) {
+	nws, err := GetPodCIDRNetworks(ctx, cl, liqoNamespace)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	if len(nws) == 0 {
+		return nil, fmt.Errorf("no pod CIDR Network resource found")
 	}
 
-	if nw.Status.CIDR == "" {
-		return "", fmt.Errorf("the pod CIDR is not yet configured: missing status on the Network resource")
+	cidrs := make([]string, 0, len(nws))
+	for i := range nws {
+		if nws[i].Status.CIDR == "" {
+			return nil, fmt.Errorf("the pod CIDR is not yet configured: missing status on Network %q", nws[i].Name)
+		}
+		cidrs = append(cidrs, nws[i].Status.CIDR.String())
 	}
-
-	return nw.Status.CIDR.String(), nil
+	return cidrs, nil
 }
 
 // GetServiceCIDRNetwork retrieves the Network resource of type ServiceCIDR.

@@ -73,19 +73,28 @@ var _ = Describe("Pod Reflection Tests", func() {
 			reflector := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
 					fakeAPIServerRemapping("192.168.200.1"), &networkingv1beta1.Configuration{
+						ObjectMeta: metav1.ObjectMeta{Generation: 1},
 						Spec: networkingv1beta1.ConfigurationSpec{
 							Remote: networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.200.0/24"),
-									External: cidrutils.SetPrimary("192.168.100.0/24"),
+									Pod:      cidrutils.FromStrings([]string{"192.168.200.0/24"}),
+									External: cidrutils.FromStrings([]string{"192.168.100.0/24"}),
 								},
 							},
 						},
 						Status: networkingv1beta1.ConfigurationStatus{
+							Conditions: []metav1.Condition{{
+								Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
+								Status:             metav1.ConditionTrue,
+								Reason:             "NetworkCIDRsConfigured",
+								Message:            "All network CIDRs are configured",
+								ObservedGeneration: 1,
+								LastTransitionTime: metav1.Now(),
+							}},
 							Remote: &networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.201.0/24"),
-									External: cidrutils.SetPrimary("192.168.101.0/24"),
+									Pod:      cidrutils.FromStrings([]string{"192.168.201.0/24"}),
+									External: cidrutils.FromStrings([]string{"192.168.101.0/24"}),
 								},
 							},
 						},

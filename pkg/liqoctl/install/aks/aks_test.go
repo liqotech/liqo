@@ -71,7 +71,7 @@ var _ = Describe("Extract elements from AKS", func() {
 		Expect(options.parseClusterOutput(context.Background(), clusterOutput)).To(Succeed())
 
 		Expect(options.APIServer).To(Equal(endpoint))
-		Expect(options.PodCIDR).To(Equal(podCIDR))
+		Expect(options.PodCIDRs).To(Equal([]string{podCIDR}))
 		Expect(options.ServiceCIDR).To(Equal(serviceCIDR))
 
 		Expect(len(options.ReservedSubnets)).To(BeNumerically("==", 1))

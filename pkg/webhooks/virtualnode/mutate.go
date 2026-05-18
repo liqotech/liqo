@@ -31,7 +31,7 @@ func (w *vnwh) initVirtualNodeDeployment(vn *offloadingv1beta1.VirtualNode, opts
 	if vn.Spec.Template == nil {
 		vn.Spec.Template = &offloadingv1beta1.DeploymentTemplate{}
 	}
-	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.localPodCIDR, w.liqoNamespace, vn, opts)
+	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.liqoNamespace, w.localPodCIDRs, vn, opts)
 	vn.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
 	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }

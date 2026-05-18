@@ -50,7 +50,18 @@ var _ = Describe("Extract elements from OpenShift", func() {
 		}
 
 		Expect(options.parseNetworkConfig(networkConfig)).To(Succeed())
-		Expect(options.PodCIDR).To(Equal(podCidr))
+		Expect(options.PodCIDRs).To(Equal([]string{podCidr}))
 		Expect(options.ServiceCIDR).To(Equal(serviceCidr))
+	})
+
+	It("should reject multiple cluster networks", func() {
+		networkConfig := &configv1api.Network{
+			Status: configv1api.NetworkStatus{
+				ClusterNetwork: []configv1api.ClusterNetworkEntry{{CIDR: "10.128.0.0/14"}, {CIDR: "10.132.0.0/14"}},
+				ServiceNetwork: []string{"172.30.0.0/16"},
+			},
+		}
+
+		Expect(options.parseNetworkConfig(networkConfig)).To(HaveOccurred())
 	})
 })

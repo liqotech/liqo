@@ -36,7 +36,7 @@ func VirtualKubeletName(virtualNode *offloadingv1beta1.VirtualNode) string {
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
+func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, liqoNamespace string, localPodCIDRs []string,
 	virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) *appsv1.Deployment {
 	matchLabels := VirtualKubeletLabels(virtualNode) // these are the minimum set of labels used as selector
 	depLabels := labels.Merge(opts.Spec.ExtraLabels, matchLabels)
@@ -58,7 +58,7 @@ func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, localPodCIDR, l
 					Labels:      depLabels,
 					Annotations: depAnnotations,
 				},
-				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, localPodCIDR, liqoNamespace, virtualNode, opts),
+				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, liqoNamespace, localPodCIDRs, virtualNode, opts),
 			},
 		},
 	}

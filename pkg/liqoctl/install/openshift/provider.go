@@ -89,7 +89,8 @@ func (o *Options) parseNetworkConfig(networkConfig *configv1api.Network) error {
 		return fmt.Errorf("no cluster network found")
 	case 1:
 		clusterNetwork := &networkConfig.Status.ClusterNetwork[0]
-		o.PodCIDR = clusterNetwork.CIDR
+		podCIDR := clusterNetwork.CIDR
+		o.PodCIDRs = []string{podCIDR}
 	default:
 		return fmt.Errorf("multiple cluster networks found")
 	}

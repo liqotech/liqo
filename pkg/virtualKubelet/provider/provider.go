@@ -62,7 +62,7 @@ type InitConfig struct {
 	NodeName             string
 	NodeIP               string
 	DisableIPReflection  bool
-	LocalPodCIDR         string
+	LocalPodCIDRs        []string
 	InformerResyncPeriod time.Duration
 
 	ReflectorsConfigs map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig
@@ -153,7 +153,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 
 	if !cfg.DisableIPReflection {
-		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDR, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
+		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDRs, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
 	}
 
 	reflectionManager.Start(ctx)

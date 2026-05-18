@@ -36,8 +36,14 @@ liqoctl install [flags]
 
 
 ```bash
-  $ liqoctl install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+	$ liqoctl install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+```
+
+or (configure multiple pod CIDRs)
+
+```bash
+	$ liqoctl install --pod-cidr 10.0.0.0/16 --pod-cidr 10.1.0.0/16 --service-cidr 10.2.0.0/16
 ```
 
 or (configure the cluster id and labels)
@@ -133,9 +139,9 @@ or (install a development version, cloning the Helm chart from a fork)
 
 >Generate the pre-configured values file for further customization, instead of installing Liqo (default false)
 
-`--pod-cidr` _string_:
+`--pod-cidr` _strings_:
 
->The Pod CIDR of the cluster
+>The Pod CIDRs of the cluster
 
 `--repo-url` _string_:
 
@@ -159,7 +165,7 @@ or (install a development version, cloning the Helm chart from a fork)
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -254,9 +260,9 @@ or
 
 >The private AKS cluster fqdn
 
-`--pod-cidr` _string_:
+`--pod-cidr` _strings_:
 
->Pod CIDR of the cluster, only used for AzureCNI (legacy) clusters with no defined subnet
+>Pod CIDRs of the cluster, only used for AzureCNI (legacy) clusters with no defined subnet
 
 `--private-link`
 
@@ -371,7 +377,7 @@ or
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -549,7 +555,7 @@ or
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -720,7 +726,7 @@ or (regional cluster)
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -793,9 +799,9 @@ or
 
 >The Kubernetes API Server URL (defaults to the one specified in the kubeconfig)
 
-`--pod-cidr` _string_:
+`--pod-cidr` _strings_:
 
->The Pod CIDR of the cluster **(default "10.42.0.0/16")**
+>The Pod CIDRs of the cluster **(default [10.42.0.0/16])**
 
 `--service-cidr` _string_:
 
@@ -890,7 +896,7 @@ or
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -1037,7 +1043,7 @@ liqoctl install kind [flags]
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -1185,7 +1191,7 @@ liqoctl install kubeadm [flags]
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 
@@ -1333,7 +1339,7 @@ liqoctl install openshift [flags]
 
 `--skip-validation`
 
->Skip the validation of the arguments (PodCIDR, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
+>Skip the validation of the arguments (PodCIDRs, ServiceCIDR). This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)
 
 `--timeout` _duration_:
 

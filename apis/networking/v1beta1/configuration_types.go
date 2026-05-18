@@ -34,6 +34,11 @@ var ConfigurationGroupResource = schema.GroupResource{Group: GroupVersion.Group,
 // ConfigurationGroupVersionResource is groupResourceVersion used to register these objects.
 var ConfigurationGroupVersionResource = GroupVersion.WithResource(ConfigurationResource)
 
+const (
+	// ConfigurationConditionNetworkCIDRsConfigured indicates whether the network CIDRs have been configured.
+	ConfigurationConditionNetworkCIDRsConfigured = "NetworkCIDRsConfigured"
+)
+
 // ClusterConfigCIDR defines the CIDR of the cluster.
 type ClusterConfigCIDR struct {
 	// Pod CIDR of the cluster.
@@ -58,6 +63,8 @@ type ConfigurationSpec struct {
 
 // ConfigurationStatus defines the observed state of Configuration.
 type ConfigurationStatus struct {
+	// Current conditions of the configuration.
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// Remote remapped configuration, it defines how the local cluster sees the remote cluster.
 	Remote *ClusterConfig `json:"remote,omitempty"`
 }
@@ -73,7 +80,7 @@ type ConfigurationStatus struct {
 // +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.metadata.labels.liqo\.io/remote-cluster-id`
 
 // Configuration contains the network configuration of a pair of clusters,
-// including the local and the remote pod and external CIDRs and how the where remapped.
+// including the local and the remote pod and external CIDRs and how they were remapped.
 type Configuration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

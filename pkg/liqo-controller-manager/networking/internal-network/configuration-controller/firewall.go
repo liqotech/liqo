@@ -88,108 +88,116 @@ func forgeFirewallChain() *firewallapi.Chain {
 }
 
 func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
+	if len(cfg.Spec.Local.CIDR.External) == 0 {
+		return nil, fmt.Errorf("configuration %q has no local external CIDR", cfg.Name)
+	}
+
 	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.External).String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
 
-	// Pod CIDR
+	localPodCIDRs := cfg.Spec.Local.CIDR.Pod
+	remotePodCIDRs := cfg.Status.Remote.CIDR.Pod
+	remoteExtCIDR := cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External)
+
+	// Pod CIDR: per (local-pod, remote-pod) pair, a no-op SNAT acting as masquerade-bypass marker.
 	if !opts.FullMasqueradeEnabled {
-		natrules = append(natrules, firewallapi.NatRule{
-			Name: ptr.To(generatePodNatRuleName(cfg)),
+		for li := range localPodCIDRs {
+			for ri := range remotePodCIDRs {
+				localPodCIDRstr := localPodCIDRs[li].String()
+				remotePodCIDRstr := remotePodCIDRs[ri].String()
+				natrules = append(natrules, firewallapi.NatRule{
+					Name: ptr.To(generatePodNatRuleName(cfg, localPodCIDRstr, remotePodCIDRstr)),
+					Match: []firewallapi.Match{
+						{
+							Op: firewallapi.MatchOperationEq,
+							IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionDst, Value: remotePodCIDRstr},
+						},
+						{
+							Op: firewallapi.MatchOperationEq,
+							IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionSrc, Value: localPodCIDRstr},
+						},
+					},
+					NatType: firewallapi.NatTypeSource,
+					To:      ptr.To(localPodCIDRstr),
+				})
+			}
+		}
+	}
+
+	// NodePort: per remote-pod-CIDR, SNAT to unknown-source-IP for traffic not originating from any local pod CIDR.
+	for ri := range remotePodCIDRs {
+		remotePodCIDRStr := remotePodCIDRs[ri].String()
+		rule := firewallapi.NatRule{
+			Name: ptr.To(generateNodePortSvcNatRuleName(cfg, remotePodCIDRStr)),
 			Match: []firewallapi.Match{
 				{
 					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchPositionDst,
-						Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
-					},
-				},
-				{
-					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchPositionSrc,
-						Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
-					},
+					IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionDst, Value: remotePodCIDRStr},
 				},
 			},
 			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()),
-		})
+			To:      ptr.To(unknownSourceIP),
+		}
+
+		// If full masquerade is enable we do the SNAT for all the traffic.
+		if !opts.FullMasqueradeEnabled {
+			for li := range localPodCIDRs {
+				rule.Match = append(rule.Match, firewallapi.Match{
+					Op: firewallapi.MatchOperationNeq,
+					IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionSrc, Value: localPodCIDRs[li].String()},
+				})
+			}
+		}
+		natrules = append(natrules, rule)
 	}
 
-	natrules = append(natrules, firewallapi.NatRule{
-		Name: ptr.To(generateNodePortSvcNatRuleName(cfg)),
-		Match: []firewallapi.Match{
-			{
-				Op: firewallapi.MatchOperationEq,
-				IP: &firewallapi.MatchIP{
-					Position: firewallapi.MatchPositionDst,
-					Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String(),
-				},
-			},
-		},
-		NatType: firewallapi.NatTypeSource,
-		To:      ptr.To(unknownSourceIP),
-	})
+	// External CIDR: per (local-pod, remote-external) pair, a no-op SNAT acting as masquerade-bypass marker.
 	if !opts.FullMasqueradeEnabled {
-		natrules[1].Match = append(natrules[1].Match, firewallapi.Match{
-			Op: firewallapi.MatchOperationNeq,
-			IP: &firewallapi.MatchIP{
-				Position: firewallapi.MatchPositionSrc,
-				Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
-			},
-		})
-	}
-
-	// External CIDR
-	if !opts.FullMasqueradeEnabled {
-		natrules = append(natrules, firewallapi.NatRule{
-			Name: ptr.To(generatePodNatRuleNameExt(cfg)),
-			Match: []firewallapi.Match{
-				{
-					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchPositionDst,
-						Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
+		for li := range localPodCIDRs {
+			localPodCIDRStr := localPodCIDRs[li].String()
+			natrules = append(natrules, firewallapi.NatRule{
+				Name: ptr.To(generatePodNatRuleNameExt(cfg, localPodCIDRStr)),
+				Match: []firewallapi.Match{
+					{
+						Op: firewallapi.MatchOperationEq,
+						IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionDst, Value: remoteExtCIDR.String()},
+					},
+					{
+						Op: firewallapi.MatchOperationEq,
+						IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionSrc, Value: localPodCIDRStr},
 					},
 				},
-				{
-					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchPositionSrc,
-						Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
-					},
-				},
-			},
-			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String()),
-		})
+				NatType: firewallapi.NatTypeSource,
+				To:      ptr.To(localPodCIDRStr),
+			})
+		}
 	}
 
-	natrules = append(natrules, firewallapi.NatRule{
+	// NodePort: SNAT to unknown-source-IP for traffic towards remote-external-CIDR not originating from any local pod CIDR.
+	rule := firewallapi.NatRule{
 		Name: ptr.To(generateNodePortSvcNatRuleNameExt(cfg)),
 		Match: []firewallapi.Match{
 			{
 				Op: firewallapi.MatchOperationEq,
-				IP: &firewallapi.MatchIP{
-					Position: firewallapi.MatchPositionDst,
-					Value:    cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String(),
-				},
+				IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionDst, Value: remoteExtCIDR.String()},
 			},
 		},
 		NatType: firewallapi.NatTypeSource,
 		To:      ptr.To(unknownSourceIP),
-	})
-	if !opts.FullMasqueradeEnabled {
-		natrules[3].Match = append(natrules[3].Match, firewallapi.Match{
-			Op: firewallapi.MatchOperationNeq,
-			IP: &firewallapi.MatchIP{
-				Position: firewallapi.MatchPositionSrc,
-				Value:    cidrutils.GetPrimary(cfg.Spec.Local.CIDR.Pod).String(),
-			},
-		})
 	}
+
+	// If full masquerade is enable we do the SNAT for all the traffic.
+	if !opts.FullMasqueradeEnabled {
+		for li := range localPodCIDRs {
+			rule.Match = append(rule.Match, firewallapi.Match{
+				Op: firewallapi.MatchOperationNeq,
+				IP: &firewallapi.MatchIP{Position: firewallapi.MatchPositionSrc, Value: localPodCIDRs[li].String()},
+			})
+		}
+	}
+	natrules = append(natrules, rule)
 	return natrules, nil
 }
 
@@ -197,16 +205,16 @@ func generateFirewallConfigurationName(cfg *networkingv1beta1.Configuration) str
 	return fmt.Sprintf("%s-masquerade-bypass", cfg.Name)
 }
 
-func generatePodNatRuleName(cfg *networkingv1beta1.Configuration) string {
-	return fmt.Sprintf("podcidr-%s", cfg.Name)
+func generatePodNatRuleName(cfg *networkingv1beta1.Configuration, localCidr, remoteCidr string) string {
+	return fmt.Sprintf("podcidr-%s-%s-%s", cfg.Name, cidrutils.EscapeForNameStr(localCidr), cidrutils.EscapeForNameStr(remoteCidr))
 }
 
-func generateNodePortSvcNatRuleName(cfg *networkingv1beta1.Configuration) string {
-	return fmt.Sprintf("service-nodeport-%s", cfg.Name)
+func generateNodePortSvcNatRuleName(cfg *networkingv1beta1.Configuration, remoteCidr string) string {
+	return fmt.Sprintf("service-nodeport-%s-%s", cfg.Name, cidrutils.EscapeForNameStr(remoteCidr))
 }
 
-func generatePodNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {
-	return fmt.Sprintf("podcidr-%s-ext", cfg.Name)
+func generatePodNatRuleNameExt(cfg *networkingv1beta1.Configuration, localCidr string) string {
+	return fmt.Sprintf("podcidr-%s-ext-%s", cfg.Name, cidrutils.EscapeForNameStr(localCidr))
 }
 
 func generateNodePortSvcNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {

@@ -125,6 +125,55 @@ var _ = Describe("NetworkChecker tests", func() {
 				Expect(data.Gateway.Address).To(Equal(gatewayRes.Spec.Endpoint.Addresses), "Unexpected gateway addresses")
 				Expect(data.Gateway.Port).To(Equal(gatewayRes.Spec.Endpoint.Port), "Unexpected gateway addresses")
 			})
+
+			It("should preserve multiple remote and remapped CIDRs", func() {
+				expectedPodCIDRs := []string{"10.0.0.0/24", "10.0.1.0/24"}
+				expectedRemappedPods := []string{"11.0.0.0/24", "11.0.1.0/24"}
+				expectedExternalCIDRs := []string{"10.0.2.0/24"}
+				expectedRemappedExternal := []string{"11.0.2.0/24"}
+
+				foreignclusterRes := testutil.FakeForeignCluster(liqov1beta1.ClusterID(remoteClusterID), &liqov1beta1.Modules{
+					Networking: liqov1beta1.Module{
+						Enabled:    true,
+						Conditions: []liqov1beta1.Condition{{Status: liqov1beta1.ConditionStatusEstablished}},
+					},
+					Authentication: liqov1beta1.Module{Enabled: true},
+					Offloading:     liqov1beta1.Module{Enabled: true},
+				})
+				configurationRes := testutil.FakeConfiguration(
+					remoteClusterID,
+					expectedPodCIDRs[0], expectedExternalCIDRs[0],
+					expectedPodCIDRs[0], expectedExternalCIDRs[0],
+					expectedRemappedPods[0], expectedRemappedExternal[0],
+				)
+				configurationRes.Spec.Remote.CIDR.Pod = cidrutils.FromStrings(expectedPodCIDRs)
+				configurationRes.Spec.Remote.CIDR.External = cidrutils.FromStrings(expectedExternalCIDRs)
+				configurationRes.Status.Remote.CIDR.Pod = cidrutils.FromStrings(expectedRemappedPods)
+				configurationRes.Status.Remote.CIDR.External = cidrutils.FromStrings(expectedRemappedExternal)
+
+				gatewayRes := testutil.FakeGatewayClient(remoteClusterID)
+
+				clientBuilder.WithObjects(configurationRes, gatewayRes)
+				options.CRClient = clientBuilder.Build()
+				options.ClustersInfo = map[liqov1beta1.ClusterID]*liqov1beta1.ForeignCluster{
+					liqov1beta1.ClusterID(remoteClusterID): foreignclusterRes,
+				}
+
+				nc = &NetworkChecker{}
+				nc.Collect(ctx, options)
+
+				Expect(nc.GetCollectionErrors()).To(BeEmpty(), "Unexpected collection errors detected")
+
+				rawData, err := nc.GetDataByClusterID(liqov1beta1.ClusterID(remoteClusterID))
+				Expect(err).NotTo(HaveOccurred(), "An error occurred while getting the data")
+
+				data := rawData.(Network)
+				Expect(data.CIDRs.Remote.Pod).To(Equal(cidrutils.FromStrings(expectedPodCIDRs)))
+				Expect(data.CIDRs.Remote.External).To(Equal(cidrutils.FromStrings(expectedExternalCIDRs)))
+				Expect(data.CIDRs.Remapped).NotTo(BeNil(), "Expected remapped CIDRs but empty received")
+				Expect(data.CIDRs.Remapped.Pod).To(Equal(cidrutils.FromStrings(expectedRemappedPods)))
+				Expect(data.CIDRs.Remapped.External).To(Equal(cidrutils.FromStrings(expectedRemappedExternal)))
+			})
 		})
 
 		DescribeTable("collectGatewayInfo function test", func(gatewayType GatewayType) {
@@ -228,12 +277,12 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      cidrutils.SetPrimary("fakepod"),
-						External: cidrutils.SetPrimary("fakeexternal"),
+						Pod:      cidrutils.FromStrings([]string{"fakepod"}),
+						External: cidrutils.FromStrings([]string{"fakeexternal"}),
 					},
 					Remapped: &networkingv1beta1.ClusterConfigCIDR{
-						Pod:      cidrutils.SetPrimary("fakeremappedpod"),
-						External: cidrutils.SetPrimary("fakeremappedexternal"),
+						Pod:      cidrutils.FromStrings([]string{"fakeremappedpod"}),
+						External: cidrutils.FromStrings([]string{"fakeremappedexternal"}),
 					},
 				},
 				Gateway: GatewayInfo{
@@ -246,14 +295,32 @@ var _ = Describe("NetworkChecker tests", func() {
 				Status: common.ModuleHealthy,
 				CIDRs: CIDRInfo{
 					Remote: networkingv1beta1.ClusterConfigCIDR{
-						Pod:      cidrutils.SetPrimary("fakepod"),
-						External: cidrutils.SetPrimary("fakeexternal"),
+						Pod:      cidrutils.FromStrings([]string{"fakepod"}),
+						External: cidrutils.FromStrings([]string{"fakeexternal"}),
 					},
 				},
 				Gateway: GatewayInfo{
 					Address: []string{"10.0.0.0/24"},
 					Port:    4320,
 					Role:    GatewayClientType,
+				},
+			}),
+			Entry("Healthy module with multiple CIDRs", Network{
+				Status: common.ModuleHealthy,
+				CIDRs: CIDRInfo{
+					Remote: networkingv1beta1.ClusterConfigCIDR{
+						Pod:      cidrutils.FromStrings([]string{"10.0.0.0/24", "10.0.1.0/24"}),
+						External: cidrutils.FromStrings([]string{"10.0.2.0/24"}),
+					},
+					Remapped: &networkingv1beta1.ClusterConfigCIDR{
+						Pod:      cidrutils.FromStrings([]string{"11.0.0.0/24", "11.0.1.0/24"}),
+						External: cidrutils.FromStrings([]string{"11.0.2.0/24"}),
+					},
+				},
+				Gateway: GatewayInfo{
+					Address: []string{"192.168.0.10", "192.168.0.11"},
+					Port:    4311,
+					Role:    GatewayServerType,
 				},
 			}),
 			Entry("Healthy module CIDR", Network{

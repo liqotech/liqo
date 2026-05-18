@@ -27,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
-	"github.com/liqotech/liqo/pkg/utils/cidr"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -54,7 +53,7 @@ func forgeUnknownSourceIPName(cfg *networkingv1beta1.Configuration) string {
 	return cfg.Name + "-unknown-source"
 }
 
-// NewConfigurationReconciler returns a new PublicKeysReconciler.
+// NewConfigurationReconciler returns a new ConfigurationReconciler.
 func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) *ConfigurationReconciler {
 	return &ConfigurationReconciler{
 		Client:         cl,
@@ -75,11 +74,19 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	extCIDR := cidr.GetPrimary(cfg.Status.Remote.CIDR.External)
-	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(extCIDR.String())
+	if len(cfg.Status.Remote.CIDR.External) == 0 {
+		return ctrl.Result{}, fmt.Errorf("configuration %q has no remote external CIDR", req.NamespacedName)
+	}
+	remoteExternalCIDR := cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
+	remoteUnknownSourceIP, err := ipamutils.GetUnknownSourceIP(remoteExternalCIDR)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the unknown source IP: %w", err)
 	}
+
+	if err := r.deletePreviousUnknownSourceIPs(ctx, cfg, remoteUnknownSourceIP); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to delete orphan unknown source IPs: %w", err)
+	}
+
 	if err := r.createOrUpdateUnknownSourceIPResource(ctx, cfg, remoteUnknownSourceIP); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to create or update the unknown source IP: %w", err)
 	}
@@ -89,16 +96,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager register the RemappingReconciler to the manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			configuration.Configured: configuration.ConfiguredValue,
-		},
-	})
-	if err != nil {
-		return err
-	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationIPMapping).
-		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(networkingutils.AreConfigurationNetworkCIDRsConfiguredPredicate())).
 		Complete(r)
 }
 
@@ -121,5 +120,33 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 	}); err != nil {
 		return fmt.Errorf("unable to create or update the IP %q: %w", ip.Name, err)
 	}
+	return nil
+}
+
+// deletePreviousUnknownSourceIPs removes any IP resource owned by cfg with the same RemoteClusterID
+// label whose IP doesn't match the desired one.
+func (r *ConfigurationReconciler) deletePreviousUnknownSourceIPs(ctx context.Context,
+	cfg *networkingv1beta1.Configuration, remoteUnknownSourceIP string) error {
+	unknownSourceIPName := forgeUnknownSourceIPName(cfg)
+
+	unknownSourceIP := &ipamv1alpha1.IP{}
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: cfg.Namespace, Name: unknownSourceIPName}, unknownSourceIP)
+	switch {
+	case apierrors.IsNotFound(err):
+		// No previous IP exists, nothing to delete.
+		return nil
+	case err != nil:
+		return fmt.Errorf("unable to get the IP %q: %w", unknownSourceIPName, err)
+	case unknownSourceIP.Spec.IP == networkingv1beta1.IP(remoteUnknownSourceIP):
+		// The current IP is correct, no need to delete any orphan.
+		return nil
+	}
+
+	err = r.Client.Delete(ctx, unknownSourceIP)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("unable to delete orphan IP %q: %w", unknownSourceIP.Name, err)
+	}
+
+	klog.Infof("Deleted previous Unknown source IP %q for configuration %q", unknownSourceIPName, cfg.Name)
 	return nil
 }

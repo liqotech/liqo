@@ -1,0 +1,3 @@
+{{- if and .Values.ipam.podCIDR .Values.ipam.podCIDRs }}
+WARNING: both ipam.podCIDR and ipam.podCIDRs are set; ipam.podCIDRs takes precedence and ipam.podCIDR is ignored.
+{{- end }}

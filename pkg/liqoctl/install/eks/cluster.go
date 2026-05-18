@@ -96,7 +96,7 @@ func (o *Options) parseVpcOutput(vpcID string, describeVpcResult *ec2.DescribeVp
 		err := fmt.Errorf("multiple VPC found with id %v", vpcID)
 		return err
 	}
-	o.PodCIDR = *vpcs[0].CidrBlock
+	o.PodCIDRs = []string{aws.StringValue(vpcs[0].CidrBlock)}
 
 	return nil
 }

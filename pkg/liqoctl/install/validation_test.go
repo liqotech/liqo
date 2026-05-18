@@ -100,7 +100,7 @@ var _ = Describe("Validation", func() {
 
 		DescribeTable("API server consistency table",
 			func(c checkEndpointTestcase) {
-				options.Factory.RESTConfig = c.config
+				options.RESTConfig = c.config
 				options.APIServer = c.endpoint
 				Expect(options.validateAPIServerConsistency()).To(c.expected)
 			},
@@ -198,7 +198,7 @@ var _ = Describe("Validation", func() {
 		DescribeTable("Service CIDR validation table",
 			func(c serviceCIDRValidatorTestcase) {
 				options.ServiceCIDR = serviceCIDR
-				options.Factory.KubeClient = fake.NewSimpleClientset(c.serviceList...)
+				options.KubeClient = fake.NewClientset(c.serviceList...)
 
 				err := options.validateServiceCIDR(ctx)
 				Expect(err).To(c.expectedOutput)
@@ -240,20 +240,32 @@ var _ = Describe("Validation", func() {
 	Context("Pod CIDR", func() {
 
 		type podCIDRValidatorTestcase struct {
+			podCIDRs       []string
+			serviceCIDR    string
+			externalCIDR   string
+			reservedCIDRs  []string
 			podList        []runtime.Object
 			expectedOutput types.GomegaMatcher
 		}
 
 		DescribeTable("Pod CIDR validation table",
 			func(c podCIDRValidatorTestcase) {
-				options.PodCIDR = podCIDR
-				options.Factory.KubeClient = fake.NewSimpleClientset(c.podList...)
+				options.PodCIDRs = c.podCIDRs
+				if len(options.PodCIDRs) == 0 {
+					options.PodCIDRs = []string{podCIDR}
+				}
+				options.ServiceCIDR = c.serviceCIDR
+				options.ExternalCIDR = c.externalCIDR
+				options.ReservedSubnets = c.reservedCIDRs
+				options.KubeClient = fake.NewClientset(c.podList...)
 
-				err := options.validatePodCIDR(ctx)
+				err := options.validatePodCIDRs(ctx)
 				Expect(err).To(c.expectedOutput)
 			},
 
 			Entry("valid pod CIDR", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
 				podList: []runtime.Object{
 					getPod("pod-1", "10.0.0.1", false, false),
 					getPod("pod-2", "10.0.0.2", false, false),
@@ -263,6 +275,8 @@ var _ = Describe("Validation", func() {
 			}),
 
 			Entry("valid pod CIDR with hostNetwork pods", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
 				podList: []runtime.Object{
 					getPod("pod-1", "10.0.0.1", false, false),
 					getPod("pod-2", "10.0.0.2", false, false),
@@ -273,6 +287,8 @@ var _ = Describe("Validation", func() {
 			}),
 
 			Entry("invalid pod CIDR", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
 				podList: []runtime.Object{
 					getPod("pod-1", "10.0.0.1", false, false),
 					getPod("pod-2", "10.0.0.2", false, false),
@@ -284,6 +300,8 @@ var _ = Describe("Validation", func() {
 			}),
 
 			Entry("valid pod CIDR with offloaded pods", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
 				podList: []runtime.Object{
 					getPod("pod-1", "10.0.0.1", false, false),
 					getPod("pod-2", "10.0.0.2", false, false),
@@ -293,7 +311,36 @@ var _ = Describe("Validation", func() {
 				},
 				expectedOutput: Succeed(),
 			}),
+
+			Entry("valid multiple pod CIDRs", podCIDRValidatorTestcase{
+				podCIDRs:    []string{"10.0.0.0/16", "10.1.0.0/16"},
+				serviceCIDR: serviceCIDR,
+				podList: []runtime.Object{
+					getPod("pod-1", "10.0.0.1", false, false),
+					getPod("pod-2", "10.1.0.2", false, false),
+				},
+				expectedOutput: Succeed(),
+			}),
+
+			Entry("reject pod CIDR overlapping service CIDR", podCIDRValidatorTestcase{
+				podCIDRs:       []string{"10.0.0.0/16"},
+				serviceCIDR:    "10.0.1.0/24",
+				expectedOutput: HaveOccurred(),
+			}),
+
+			Entry("reject pod CIDR overlapping external CIDR", podCIDRValidatorTestcase{
+				podCIDRs:       []string{"10.0.0.0/16"},
+				externalCIDR:   "10.0.2.0/24",
+				expectedOutput: HaveOccurred(),
+			}),
 		)
+
+		It("should reject overlapping pod CIDRs", func() {
+			options.PodCIDRs = []string{"10.0.0.0/16", "10.0.1.0/24"}
+			options.KubeClient = fake.NewClientset()
+
+			Expect(options.validatePodCIDRs(ctx)).To(HaveOccurred())
+		})
 	})
 })
 

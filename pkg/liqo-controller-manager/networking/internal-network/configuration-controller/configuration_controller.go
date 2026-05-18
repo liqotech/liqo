@@ -18,17 +18,15 @@ import (
 	"context"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 )
 
 // ConfigurationReconciler manage Configuration lifecycle.
@@ -79,17 +77,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager register the ConfigurationReconciler to the manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	p, err := predicate.LabelSelectorPredicate(v1.LabelSelector{
-		MatchLabels: map[string]string{
-			configuration.Configured: configuration.ConfiguredValue,
-		},
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationInternal).
-		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(networkingutils.AreConfigurationNetworkCIDRsConfiguredPredicate())).
 		Complete(r)
 }

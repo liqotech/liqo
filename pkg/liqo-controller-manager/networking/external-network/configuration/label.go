@@ -15,15 +15,12 @@
 package configurationcontroller
 
 import (
-	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // LabelCIDRType is the label used to target a ipamv1alpha1.Network resource that manages a PodCIDR or an ExternalCIDR.
@@ -64,23 +61,4 @@ func ForgeNetworkLabelSelector(cfg *networkingv1beta1.Configuration,
 		return nil, err
 	}
 	return labels.SelectorFromSet(result), nil
-}
-
-const (
-	// Configured is the label used to mark a configuration as configured.
-	Configured = "configuration.liqo.io/configured"
-	// ConfiguredValue is the value of the Configured label.
-	ConfiguredValue = "true"
-)
-
-// SetConfigurationConfigured sets the Configured label of the given configuration to true.
-func SetConfigurationConfigured(ctx context.Context, cl client.Client, cfg *networkingv1beta1.Configuration) error {
-	_, err := resource.CreateOrUpdate(ctx, cl, cfg, func() error {
-		if cfg.Labels == nil {
-			cfg.Labels = map[string]string{}
-		}
-		cfg.Labels[Configured] = ConfiguredValue
-		return nil
-	})
-	return err
 }

@@ -169,19 +169,20 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		}
 
 		newConfiguration = func(remapped bool) *networkingv1beta1.Configuration {
-			var remappedPodCIDR, remappedExternalCIDR networkingv1beta1.CIDR
+			var remappedPodCIDRs, remappedExternalCIDRs []string
 			if remapped {
-				remappedPodCIDR = "10.30.0.0/16"
-				remappedExternalCIDR = "10.40.0.0/16"
+				remappedPodCIDRs = []string{"10.30.0.0/16", "10.50.0.0/16"}
+				remappedExternalCIDRs = []string{"10.40.0.0/16", "10.60.0.0/16"}
 			} else {
-				remappedPodCIDR = "10.10.0.0/16"
-				remappedExternalCIDR = "10.20.0.0/16"
+				remappedPodCIDRs = []string{"10.10.0.0/16", "10.11.0.0/16"}
+				remappedExternalCIDRs = []string{"10.20.0.0/16", "10.21.0.0/16"}
 			}
 
 			return &networkingv1beta1.Configuration{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",
-					Namespace: "default",
+					Name:       "test",
+					Namespace:  "default",
+					Generation: 1,
 					Labels: map[string]string{
 						consts.RemoteClusterID: testFcID,
 					},
@@ -189,16 +190,24 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Spec: networkingv1beta1.ConfigurationSpec{
 					Remote: networkingv1beta1.ClusterConfig{
 						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      cidrutils.SetPrimary("10.10.0.0/16"),
-							External: cidrutils.SetPrimary("10.20.0.0/16"),
+							Pod:      cidrutils.FromStrings([]string{"10.10.0.0/16", "10.11.0.0/16"}),
+							External: cidrutils.FromStrings([]string{"10.20.0.0/16", "10.21.0.0/16"}),
 						},
 					},
 				},
 				Status: networkingv1beta1.ConfigurationStatus{
+					Conditions: []metav1.Condition{{
+						Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
+						Status:             metav1.ConditionTrue,
+						Reason:             "NetworkCIDRsConfigured",
+						Message:            "All network CIDRs are configured",
+						ObservedGeneration: 1,
+						LastTransitionTime: metav1.Now(),
+					}},
 					Remote: &networkingv1beta1.ClusterConfig{
 						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      cidrutils.SetPrimary(remappedPodCIDR),
-							External: cidrutils.SetPrimary(remappedExternalCIDR),
+							Pod:      cidrutils.FromStrings(remappedPodCIDRs),
+							External: cidrutils.FromStrings(remappedExternalCIDRs),
 						},
 					},
 				},
@@ -351,6 +360,23 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Expect(eps.Endpoints[i].Addresses).To(HaveLen(1))
 				Expect(eps.Endpoints[i].Addresses[0]).To(HavePrefix("10.30."))
 			}
+		})
+
+		When("the shadow endpoint belongs to the second remote pod CIDR", func() {
+			BeforeEach(func() {
+				testShadowEps = newShadowEps(true)
+				testShadowEps.Spec.Template.Endpoints[0].Addresses = []string{"10.11.0.1"}
+				testFc = newFc(true, true)
+				testConf = newConfiguration(true)
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
+			})
+
+			It("should remap using the aligned second status pod CIDR", func() {
+				eps := discoveryv1.EndpointSlice{}
+				Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+				Expect(eps.Endpoints).To(HaveLen(1))
+				Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.50.0.1"}))
+			})
 		})
 	})
 
