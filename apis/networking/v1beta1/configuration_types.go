@@ -60,6 +60,13 @@ type ConfigurationSpec struct {
 type ConfigurationStatus struct {
 	// Remote remapped configuration, it defines how the local cluster sees the remote cluster.
 	Remote *ClusterConfig `json:"remote,omitempty"`
+	// ObservedGeneration is the generation of the Configuration spec that the controller has fully
+	// reconciled. Downstream consumers should act on the Configuration only when
+	// metadata.generation == status.observedGeneration, signalling that the remapped status arrays
+	// reflect the current spec. Any change to the spec invalidates this signal until the next
+	// successful reconcile.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

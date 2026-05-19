@@ -19,18 +19,16 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
@@ -95,15 +93,7 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 // SetupWithManager register the RemappingReconciler to the manager.
 func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			configuration.Configured: configuration.ConfiguredValue,
-		},
-	})
-	if err != nil {
-		return err
-	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationRemapping).
-		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(networkingutils.IsConfigurationObservedPredicate())).
 		Complete(r)
 }

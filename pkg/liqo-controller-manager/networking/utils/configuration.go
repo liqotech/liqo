@@ -15,15 +15,45 @@
 package utils
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
-// IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(confSpec networkingv1beta1.ConfigurationSpec, confStatus networkingv1beta1.ConfigurationStatus) bool {
-	return confStatus.Remote != nil &&
-		len(confStatus.Remote.CIDR.Pod) == len(confSpec.Local.CIDR.Pod) &&
-		len(confStatus.Remote.CIDR.External) == len(confSpec.Local.CIDR.External) &&
-		cidrutils.AllNonVoid(confStatus.Remote.CIDR.Pod) &&
-		cidrutils.AllNonVoid(confStatus.Remote.CIDR.External)
+// IsConfigurationObserved reports whether the Configuration controller has fully reconciled
+// the current spec generation. Downstream consumers should gate their work on this check so
+// they never act on a Configuration whose status reflects an older spec.
+//
+// The metadata.generation == status.observedGeneration check is the canonical Kubernetes
+// freshness signal. The additional length and AllNonVoid checks are belt-and-suspenders: if
+// the producing controller writes both fields correctly, they follow from generation parity;
+// they catch the case where status fields were written out of order or partially populated.
+func IsConfigurationObserved(cfg *networkingv1beta1.Configuration) bool {
+	if cfg.Status.Remote == nil {
+		return false
+	}
+	if cfg.Status.ObservedGeneration != cfg.Generation {
+		return false
+	}
+	if len(cfg.Status.Remote.CIDR.Pod) != len(cfg.Spec.Remote.CIDR.Pod) ||
+		len(cfg.Status.Remote.CIDR.External) != len(cfg.Spec.Remote.CIDR.External) {
+		return false
+	}
+	return cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.Pod) &&
+		cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.External)
+}
+
+// IsConfigurationObservedPredicate returns a controller-runtime predicate that admits only
+// Configurations for which the controller has fully reconciled the current spec generation.
+// Wire it via builder.WithPredicates(...) on any controller that consumes the status arrays.
+func IsConfigurationObservedPredicate() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		cfg, ok := obj.(*networkingv1beta1.Configuration)
+		if !ok {
+			return false
+		}
+		return IsConfigurationObserved(cfg)
+	})
 }

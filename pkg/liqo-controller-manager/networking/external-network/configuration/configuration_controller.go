@@ -87,6 +87,12 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// Stamp ObservedGeneration only when the remap is fully complete; otherwise leave it at the
+	// previous value so downstream consumers see "still stale" until reconcile catches up.
+	if isRemapComplete(configuration) {
+		configuration.Status.ObservedGeneration = configuration.Generation
+	}
+
 	if !equality.Semantic.DeepEqual(originalCfg, configuration) {
 		if err := r.UpdateConfigurationStatus(ctx, configuration); err != nil {
 			return ctrl.Result{}, err
@@ -94,17 +100,29 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		klog.Infof("Configuration %s status updated", req.NamespacedName)
 
-		if !networkingutils.IsConfigurationStatusSet(configuration.Spec, configuration.Status) {
-			events.Event(r.EventsRecorder, configuration, "Waiting for all networks to be ready")
-		} else {
+		if networkingutils.IsConfigurationObserved(configuration) {
 			events.Event(r.EventsRecorder, configuration, "Configuration remapped")
-			if err := SetConfigurationConfigured(ctx, r.Client, configuration); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to set configuration %q as configured: %w", req.NamespacedName, err)
-			}
+		} else {
+			events.Event(r.EventsRecorder, configuration, "Waiting for all networks to be ready")
 		}
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// isRemapComplete reports whether RemapConfiguration has populated the full status arrays for
+// the current spec: lengths match and no positions are empty. It does NOT check generation
+// parity — that is the job that this function gates.
+func isRemapComplete(cfg *networkingv1beta1.Configuration) bool {
+	if cfg.Status.Remote == nil {
+		return false
+	}
+	if len(cfg.Status.Remote.CIDR.Pod) != len(cfg.Spec.Remote.CIDR.Pod) ||
+		len(cfg.Status.Remote.CIDR.External) != len(cfg.Spec.Remote.CIDR.External) {
+		return false
+	}
+	return cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.Pod) &&
+		cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.External)
 }
 
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1beta1.Configuration) error {

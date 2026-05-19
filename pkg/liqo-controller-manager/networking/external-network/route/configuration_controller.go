@@ -20,7 +20,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -28,12 +27,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -84,16 +82,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 // when we are aware if the gateway pod will act as a server or a client.
 // This allows us to set the correct gateway IP inside the route.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	p, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			configuration.Configured: configuration.ConfiguredValue,
-		},
-	})
-	if err != nil {
-		return err
-	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationRoute).
-		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(networkingutils.IsConfigurationObservedPredicate())).
 		Watches(
 			&networkingv1beta1.GatewayServer{},
 			handler.EnqueueRequestsFromMapFunc(r.configurationEnqueuerByRemoteID()),

@@ -116,6 +116,15 @@ spec:
           status:
             description: ConfigurationStatus defines the observed state of Configuration.
             properties:
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the generation of the Configuration spec that the controller has fully
+                  reconciled. Downstream consumers should act on the Configuration only when
+                  metadata.generation == status.observedGeneration, signalling that the remapped status arrays
+                  reflect the current spec. Any change to the spec invalidates this signal until the next
+                  successful reconcile.
+                format: int64
+                type: integer
               remote:
                 description: Remote remapped configuration, it defines how the local
                   cluster sees the remote cluster.
