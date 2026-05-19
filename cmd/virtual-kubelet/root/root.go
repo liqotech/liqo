@@ -190,7 +190,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		NodeIP:        c.NodeIP,
 
 		DisableIPReflection:  c.DisableIPReflection,
-		LocalPodCIDR:         c.LocalPodCIDR,
+		LocalPodCIDRs:        c.LocalPodCIDRs,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		ReflectorsConfigs: reflectorsConfigs,
