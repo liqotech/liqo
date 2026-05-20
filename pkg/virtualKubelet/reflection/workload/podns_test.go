@@ -56,11 +56,30 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			reflector  manager.NamespacedReflector
 			client     *fake.Clientset
 			liqoClient liqoclient.Interface
+			netConfig  *networkingv1beta1.Configuration
 		)
 
 		BeforeEach(func() {
 			client = fake.NewSimpleClientset()
 			liqoClient = liqoclientfake.NewSimpleClientset()
+			netConfig = &networkingv1beta1.Configuration{
+				Spec: networkingv1beta1.ConfigurationSpec{
+					Remote: networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod:      cidrutils.FromStrings([]string{"192.168.200.0/24"}),
+							External: cidrutils.FromStrings([]string{"192.168.100.0/24"}),
+						},
+					},
+				},
+				Status: networkingv1beta1.ConfigurationStatus{
+					Remote: &networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod:      cidrutils.FromStrings([]string{"192.168.201.0/24"}),
+							External: cidrutils.FromStrings([]string{"192.168.101.0/24"}),
+						},
+					},
+				},
+			}
 		})
 
 		JustBeforeEach(func() {
@@ -74,25 +93,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			rfl := workload.NewPodReflector(nil, metricsFactory,
-				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping(""),
-					&networkingv1beta1.Configuration{
-						Spec: networkingv1beta1.ConfigurationSpec{
-							Remote: networkingv1beta1.ClusterConfig{
-								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.200.0/24"),
-									External: cidrutils.SetPrimary("192.168.100.0/24"),
-								},
-							},
-						},
-						Status: networkingv1beta1.ConfigurationStatus{
-							Remote: &networkingv1beta1.ClusterConfig{
-								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.201.0/24"),
-									External: cidrutils.SetPrimary("192.168.101.0/24"),
-								},
-							},
-						},
-					}}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping(""), netConfig}, &reflectorConfig)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
@@ -632,6 +633,43 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
 					It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("should return the same translations", func() { Expect(output).To(BeIdenticalTo("192.168.201.25")) })
+				})
+
+				When("the address belongs to a secondary remote pod CIDR", func() {
+					BeforeEach(func() {
+						input = "192.168.210.25"
+						netConfig.Spec.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.200.0/24", "192.168.210.0/24"})
+						netConfig.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.201.0/24", "192.168.211.0/24"})
+					})
+
+					It("should remap using the aligned secondary pod CIDR", func() {
+						Expect(err).ToNot(HaveOccurred())
+						Expect(output).To(BeIdenticalTo("192.168.211.25"))
+					})
+
+					When("translating again the same secondary pod CIDR address", func() {
+						JustBeforeEach(func() {
+							output, err = reflector.(*workload.NamespacedPodReflector).MapPodIP(ctx, &podinfo, input)
+						})
+
+						It("should succeed using the cached translation", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should return the cached secondary CIDR translation", func() {
+							Expect(output).To(BeIdenticalTo("192.168.211.25"))
+						})
+					})
+				})
+
+				When("the secondary remote pod CIDR does not need remapping", func() {
+					BeforeEach(func() {
+						input = "192.168.210.25"
+						netConfig.Spec.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.200.0/24", "192.168.210.0/24"})
+						netConfig.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.201.0/24", "192.168.210.0/24"})
+					})
+
+					It("should preserve the original address for the aligned secondary CIDR", func() {
+						Expect(err).ToNot(HaveOccurred())
+						Expect(output).To(BeIdenticalTo("192.168.210.25"))
+					})
 				})
 			})
 		})

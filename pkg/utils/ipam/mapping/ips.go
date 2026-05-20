@@ -28,7 +28,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -133,45 +133,57 @@ func MapAddress(ctx context.Context, cl client.Client,
 
 // MapAddressWithConfiguration maps the address with the network configuration of the cluster.
 func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address string) (string, error) {
-	var (
-		podnet, podnetMapped, extnet, extnetMapped *net.IPNet
-		err                                        error
-	)
+	if cfg == nil || !networkingutils.IsConfigurationObserved(cfg) {
+		return "", fmt.Errorf("configuration not remapped yet")
+	}
 
-	podNeedsRemap := cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String() != cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String()
-	extNeedsRemap := cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String() != cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String()
+	ip := net.ParseIP(address)
+	if ip == nil {
+		return "", fmt.Errorf("invalid IP %q", address)
+	}
 
-	_, podnet, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.Pod).String())
+	podAddr, ok, err := remapWithin(ip, address, cfg.Spec.Remote.CIDR.Pod, cfg.Status.Remote.CIDR.Pod)
 	if err != nil {
-		return "", err
-	}
-	if podNeedsRemap {
-		_, podnetMapped, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Status.Remote.CIDR.Pod).String())
-		if err != nil {
-			return "", err
-		}
+		return "", fmt.Errorf("remapping the address within the pod CIDRs: %w", err)
+	} else if ok {
+		return podAddr, nil
 	}
 
-	_, extnet, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Spec.Remote.CIDR.External).String())
+	extAddr, ok, err := remapWithin(ip, address, cfg.Spec.Remote.CIDR.External, cfg.Status.Remote.CIDR.External)
 	if err != nil {
-		return "", err
-	}
-	if extNeedsRemap {
-		_, extnetMapped, err = net.ParseCIDR(cidrutils.GetPrimary(cfg.Status.Remote.CIDR.External).String())
-		if err != nil {
-			return "", err
-		}
-	}
-
-	paddr := net.ParseIP(address)
-	if podNeedsRemap && podnet.Contains(paddr) {
-		return RemapMask(paddr, *podnetMapped).String(), nil
-	}
-	if extNeedsRemap && extnet.Contains(paddr) {
-		return RemapMask(paddr, *extnetMapped).String(), nil
+		return "", fmt.Errorf("remapping the address within the external CIDRs: %w", err)
+	} else if ok {
+		return extAddr, nil
 	}
 
 	return address, nil
+}
+
+func remapWithin(ip net.IP, address string, spec, status []networkingv1beta1.CIDR) (outAddr string, processed bool, err error) {
+	for i := range spec {
+		_, specNet, err := net.ParseCIDR(spec[i].String())
+		if err != nil {
+			return "", false, fmt.Errorf("parsing the spec CIDR %q: %w", spec[i].String(), err)
+		}
+
+		if !specNet.Contains(ip) {
+			continue
+		}
+
+		// If spec and status CIDRs are the same, no remapping required, just return the original address.
+		if spec[i].String() == status[i].String() {
+			return address, true, nil
+		}
+
+		_, statusNet, err := net.ParseCIDR(status[i].String())
+		if err != nil {
+			return "", false, fmt.Errorf("parsing the status CIDR %q: %w", status[i].String(), err)
+		}
+
+		return RemapMask(ip, *statusNet).String(), true, nil
+	}
+
+	return "", false, nil
 }
 
 // RemapMask take an IP address and a network mask and remap the address to the network.

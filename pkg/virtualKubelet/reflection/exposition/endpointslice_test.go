@@ -51,6 +51,8 @@ const (
 	localPodCIDR string = "192.168.0.0/16"
 )
 
+var localPodCIDRs = []string{localPodCIDR}
+
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
@@ -58,7 +60,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.EndpointSlice],
 			}
-			Expect(exposition.NewEndpointSliceReflector(localPodCIDR, &reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewEndpointSliceReflector(localPodCIDRs, &reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -71,6 +73,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			reflector      manager.NamespacedReflector
 			reflectionType offloadingv1beta1.ReflectionType
 			liqoClient     liqoclient.Interface
+			podCIDRs       []string
 
 			local  discoveryv1.EndpointSlice
 			remote offloadingv1beta1.ShadowEndpointSlice
@@ -133,6 +136,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 		BeforeEach(func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
+			podCIDRs = localPodCIDRs
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = offloadingv1beta1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
 			reflectionType = root.DefaultReflectorsTypes[resources.Service] // reflection type inherited from the service reflector
@@ -150,7 +154,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
-			reflector = exposition.NewNamespacedEndpointSliceReflector(localPodCIDR)(options.NewNamespaced().
+			reflector = exposition.NewNamespacedEndpointSliceReflector(podCIDRs)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).
@@ -188,6 +192,24 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					CreateEndpointSlice(&local)
 					CreateIP("ip1", LocalNamespace, "10.168.0.25", "192.168.200.25")
 					CreateIP("ip2", LocalNamespace, "10.168.0.43", "192.168.200.43")
+				})
+
+				When("one endpoint belongs to a secondary local pod CIDR", func() {
+					BeforeEach(func() {
+						podCIDRs = []string{localPodCIDR, "10.168.0.0/16"}
+						local.Endpoints[0].Addresses = []string{"10.168.0.25", "172.16.0.43"}
+						_, err := client.DiscoveryV1().EndpointSlices(local.GetNamespace()).Update(ctx, &local, metav1.UpdateOptions{})
+						Expect(err).ToNot(HaveOccurred())
+						CreateIP("ip3", LocalNamespace, "172.16.0.43", "192.168.200.43")
+					})
+
+					It("should keep addresses from any local pod CIDR unchanged and remap the others", func() {
+						Expect(err).ToNot(HaveOccurred())
+
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+						Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(1))
+						Expect(remoteAfter.Spec.Template.Endpoints[0].Addresses).To(ConsistOf("10.168.0.25", "192.168.200.43"))
+					})
 				})
 
 				When("the remote object does not exist", func() {

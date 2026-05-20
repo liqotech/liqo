@@ -90,7 +90,8 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
 	conf := forge.Configuration(o.createOptions.Name, o.createOptions.Namespace,
-		o.RemoteClusterID.GetClusterID(), o.PodCIDR.String(), o.ExternalCIDR.String())
+		o.RemoteClusterID.GetClusterID(),
+		[]string{o.PodCIDR.String()}, []string{o.ExternalCIDR.String()})
 
 	if opts.OutputFormat != "" {
 		opts.Printer.CheckErr(o.output(conf))
@@ -99,7 +100,8 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating configuration")
 	_, err := resource.CreateOrUpdate(ctx, opts.CRClient, conf, func() error {
-		forge.MutateConfiguration(conf, o.RemoteClusterID.GetClusterID(), o.PodCIDR.String(), o.ExternalCIDR.String())
+		forge.MutateConfiguration(conf, o.RemoteClusterID.GetClusterID(),
+			[]string{o.PodCIDR.String()}, []string{o.ExternalCIDR.String()})
 		return nil
 	})
 	if err != nil {

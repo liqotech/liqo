@@ -365,7 +365,7 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID l
 		return err
 	}
 
-	if !networkingutils.IsConfigurationStatusSet(conf.Status) {
+	if !networkingutils.IsConfigurationObserved(conf) {
 		err := fmt.Errorf("network Configuration status is not set yet. Retry later. If the issue persist, " +
 			"you can try to reset the network with `liqoctl network reset`")
 		s.Fail(err)

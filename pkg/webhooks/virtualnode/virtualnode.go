@@ -44,20 +44,20 @@ type vnwh struct {
 	decoder admission.Decoder
 
 	clusterID             liqov1beta1.ClusterID
-	localPodCIDR          string
+	localPodCIDRs         []string
 	liqoNamespace         string
 	vkOptsDefaultTemplate *corev1.ObjectReference
 }
 
 // New returns a new VirtualNodeWebhook instance.
-func New(cl client.Client, clusterID liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
+func New(cl client.Client, clusterID liqov1beta1.ClusterID, localPodCIDRs []string, liqoNamespace string,
 	vkOptsDefaultTemplate *corev1.ObjectReference) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
 		client:  cl,
 		decoder: admission.NewDecoder(runtime.NewScheme()),
 
 		clusterID:             clusterID,
-		localPodCIDR:          localPodCIDR,
+		localPodCIDRs:         localPodCIDRs,
 		liqoNamespace:         liqoNamespace,
 		vkOptsDefaultTemplate: vkOptsDefaultTemplate,
 	}}

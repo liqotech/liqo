@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -29,7 +30,8 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/utils/cidr"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -58,7 +60,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations/finalizers,verbs=update
-// +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks/status,verbs=get;list;watch
 
 // Reconcile manage Configurations, remapping cidrs with Networks resources.
@@ -72,6 +74,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("unable to get the configuration %q: %w", req.NamespacedName, err)
 	}
 
+	originalCfg := configuration.DeepCopy()
 	if configuration.Spec.Local == nil {
 		if err := r.defaultLocalNetwork(ctx, configuration); err != nil {
 			return ctrl.Result{}, err
@@ -84,37 +87,59 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	if err := r.UpdateConfigurationStatus(ctx, configuration); err != nil {
-		return ctrl.Result{}, err
+	// Stamp ObservedGeneration only when the remap is fully complete; otherwise leave it at the
+	// previous value so downstream consumers see "still stale" until reconcile catches up.
+	if isRemapComplete(configuration) {
+		configuration.Status.ObservedGeneration = configuration.Generation
 	}
 
-	if !isConfigurationConfigured(configuration) {
-		events.Event(r.EventsRecorder, configuration, "Waiting for all networks to be ready")
-	} else {
-		events.Event(r.EventsRecorder, configuration, "Configuration remapped")
-		if err := SetConfigurationConfigured(ctx, r.Client, configuration); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to set configuration %q as configured: %w", req.NamespacedName, err)
+	if !equality.Semantic.DeepEqual(originalCfg, configuration) {
+		if err := r.UpdateConfigurationStatus(ctx, configuration); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		klog.Infof("Configuration %s status updated", req.NamespacedName)
+
+		if networkingutils.IsConfigurationObserved(configuration) {
+			events.Event(r.EventsRecorder, configuration, "Configuration remapped")
+		} else {
+			events.Event(r.EventsRecorder, configuration, "Waiting for all networks to be ready")
 		}
 	}
 
 	return ctrl.Result{}, nil
 }
 
+// isRemapComplete reports whether RemapConfiguration has populated the full status arrays for
+// the current spec: lengths match and no positions are empty. It does NOT check generation
+// parity — that is the job that this function gates.
+func isRemapComplete(cfg *networkingv1beta1.Configuration) bool {
+	if cfg.Status.Remote == nil {
+		return false
+	}
+	if len(cfg.Status.Remote.CIDR.Pod) != len(cfg.Spec.Remote.CIDR.Pod) ||
+		len(cfg.Status.Remote.CIDR.External) != len(cfg.Spec.Remote.CIDR.External) {
+		return false
+	}
+	return cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.Pod) &&
+		cidrutils.AllNonVoid(cfg.Status.Remote.CIDR.External)
+}
+
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1beta1.Configuration) error {
 	if r.localCIDR == nil {
-		podCIDR, err := ipamutils.GetPodCIDR(ctx, r.Client, corev1.NamespaceAll)
+		podCIDRs, err := ipamutils.GetPodCIDRs(ctx, r.Client, corev1.NamespaceAll)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the podCIDR: %w", err)
 		}
 
-		externalCIDR, err := ipamutils.GetExternalCIDR(ctx, r.Client, corev1.NamespaceAll)
+		externalCIDRs, err := ipamutils.GetExternalCIDRs(ctx, r.Client, corev1.NamespaceAll)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the externalCIDR: %w", err)
 		}
 
 		r.localCIDR = &networkingv1beta1.ClusterConfigCIDR{
-			Pod:      cidr.SetPrimary(networkingv1beta1.CIDR(podCIDR)),
-			External: cidr.SetPrimary(networkingv1beta1.CIDR(externalCIDR)),
+			Pod:      cidrutils.FromStrings(podCIDRs),
+			External: cidrutils.FromStrings(externalCIDRs),
 		}
 	}
 
@@ -124,19 +149,28 @@ func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *
 	return r.Client.Update(ctx, cfg)
 }
 
-// RemapConfiguration remap the configuration using ipamv1alpha1.Network.
+// RemapConfiguration ensures one ipamv1alpha1.Network resource per spec CIDR (per cidr-type),
+// deletes Networks for CIDRs no longer in the spec, and populates the configuration status with
+// the IPAM-remapped values, index-aligned with the spec. Positions whose corresponding Network
+// has not yet been remapped by the IPAM are left as empty CIDRs.
 func (r *ConfigurationReconciler) RemapConfiguration(ctx context.Context, cfg *networkingv1beta1.Configuration,
 	er record.EventRecorder) error {
-	// Checks if the configuration is already remapped.
 	for _, cidrType := range LabelCIDRTypeValues {
-		network, err := CreateOrGetNetwork(ctx, r.Client, r.Scheme, er, cfg, cidrType)
-		if err != nil {
-			return fmt.Errorf("unable to create or get the network %q: %w", client.ObjectKeyFromObject(cfg), err)
+		specCIDRs := selectSpecCIDRs(cfg, cidrType)
+
+		if err := DeleteOrphanNetworks(ctx, r.Client, cfg, cidrType, specCIDRs); err != nil {
+			return fmt.Errorf("unable to delete orphan networks for cidr-type %q: %w", cidrType, err)
 		}
-		if network.Status.CIDR == "" {
-			continue
+
+		remapped := make([]networkingv1beta1.CIDR, len(specCIDRs))
+		for i, c := range specCIDRs {
+			nw, err := EnsureNetwork(ctx, r.Client, r.Scheme, er, cfg, cidrType, c)
+			if err != nil {
+				return fmt.Errorf("unable to ensure network for CIDR %q: %w", c, err)
+			}
+			remapped[i] = nw.Status.CIDR
 		}
-		ForgeConfigurationStatus(cfg, network, cidrType)
+		writeStatusForCIDRType(cfg, cidrType, remapped)
 	}
 	return nil
 }
@@ -149,29 +183,26 @@ func (r *ConfigurationReconciler) UpdateConfigurationStatus(ctx context.Context,
 	return nil
 }
 
-// ForgeConfigurationStatus create the status of the configuration.
-func ForgeConfigurationStatus(cfg *networkingv1beta1.Configuration, net *ipamv1alpha1.Network, cidrType LabelCIDRTypeValue) {
+func selectSpecCIDRs(cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) []networkingv1beta1.CIDR {
+	switch cidrType {
+	case LabelCIDRTypePod:
+		return cfg.Spec.Remote.CIDR.Pod
+	case LabelCIDRTypeExternal:
+		return cfg.Spec.Remote.CIDR.External
+	}
+	return nil
+}
+
+func writeStatusForCIDRType(cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue, remapped []networkingv1beta1.CIDR) {
 	if cfg.Status.Remote == nil {
 		cfg.Status.Remote = &networkingv1beta1.ClusterConfig{}
 	}
-	var cidrNew, cidrOld networkingv1beta1.CIDR
-	cidrNew = net.Status.CIDR
 	switch cidrType {
 	case LabelCIDRTypePod:
-		cidrOld = *cidr.GetPrimary(cfg.Spec.Remote.CIDR.Pod)
-		cfg.Status.Remote.CIDR.Pod = cidr.SetPrimary(cidrNew)
+		cfg.Status.Remote.CIDR.Pod = remapped
 	case LabelCIDRTypeExternal:
-		cidrOld = *cidr.GetPrimary(cfg.Spec.Remote.CIDR.External)
-		cfg.Status.Remote.CIDR.External = cidr.SetPrimary(cidrNew)
+		cfg.Status.Remote.CIDR.External = remapped
 	}
-	klog.Infof("Configuration %s %s CIDR: %s -> %s", client.ObjectKeyFromObject(cfg).String(), cidrType, cidrOld, cidrNew)
-}
-
-func isConfigurationConfigured(cfg *networkingv1beta1.Configuration) bool {
-	if cfg.Status.Remote == nil {
-		return false
-	}
-	return !cidr.IsVoid(cidr.GetPrimary(cfg.Status.Remote.CIDR.Pod)) && !cidr.IsVoid(cidr.GetPrimary(cfg.Status.Remote.CIDR.External))
 }
 
 // SetupWithManager register the ConfigurationReconciler to the manager.

@@ -35,31 +35,31 @@ import (
 // validate validates the correctness of the different parameters.
 func (o *Options) validate(ctx context.Context) error {
 	if err := o.validateClusterID(); err != nil {
-		return fmt.Errorf("failed validating cluster id: %w", err)
+		return fmt.Errorf("validating cluster id: %w", err)
 	}
 	o.Printer.Verbosef("Cluster id: %s\n", o.ClusterID)
 
 	if err := o.validateAPIServer(); err != nil {
-		return fmt.Errorf("failed validating API Server URL %q: %w", o.APIServer, err)
+		return fmt.Errorf("validating API Server URL %q: %w", o.APIServer, err)
 	}
 	o.Printer.Verbosef("Kubernetes API Server: %s\n", o.APIServer)
 
-	if err := o.validatePodCIDR(ctx); err != nil {
-		return fmt.Errorf("failed validating Pod CIDR %q: %w. "+
+	if err := o.validatePodCIDRs(ctx); err != nil {
+		return fmt.Errorf("validating Pod CIDRs %q: %w. "+
 			"Try setting the correct Pod CIDR using the vanilla *liqoctl install* command, or installing Liqo with Helm",
-			o.PodCIDR, err)
+			strings.Join(o.PodCIDRs, ", "), err)
 	}
-	o.Printer.Verbosef("Pod CIDR: %s\n", o.PodCIDR)
+	o.Printer.Verbosef("Pod CIDRs: %s\n", strings.Join(o.PodCIDRs, ", "))
 
 	if err := o.validateServiceCIDR(ctx); err != nil {
-		return fmt.Errorf("failed validating Service CIDR %q: %w. "+
+		return fmt.Errorf("validating Service CIDR %q: %w. "+
 			"Try setting the correct Service CIDR using the vanilla *liqoctl install* command, or installing Liqo with Helm",
 			o.ServiceCIDR, err)
 	}
 	o.Printer.Verbosef("Service CIDR: %s\n", o.ServiceCIDR)
 
 	if err := o.validateOutputValues(); err != nil {
-		return fmt.Errorf("failed validating output values: %w", err)
+		return fmt.Errorf("validating output values: %w", err)
 	}
 
 	return nil
@@ -149,26 +149,52 @@ func (o *Options) validateAPIServerConsistency() error {
 	return nil
 }
 
-// validatePodCIDR validates that the pods in the target cluster matche the provided Pod CIDR.
-func (o *Options) validatePodCIDR(ctx context.Context) error {
+// validatePodCIDRs validates that the pods in the target cluster match the provided Pod CIDRs.
+func (o *Options) validatePodCIDRs(ctx context.Context) error {
 	pods, err := o.KubeClient.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("!%v", consts.LocalPodLabelKey),
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("getting pods for CIDR validation: %w", err)
 	}
 
-	_, podNet, err := net.ParseCIDR(o.PodCIDR)
+	podNets, err := parseCIDRs(o.PodCIDRs)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing pod CIDRs: %w", err)
+	}
+
+	if err := validateNoOverlaps(podNets); err != nil {
+		return fmt.Errorf("validating pod CIDRs: %w", err)
 	}
 
 	for i := range pods.Items {
 		pod := &pods.Items[i]
 		podIP := pod.Status.PodIP
-		if podIP != "" && !pod.Spec.HostNetwork && !podNet.Contains(net.ParseIP(podIP)) {
+		if podIP != "" && !pod.Spec.HostNetwork && !containsIP(podNets, podIP) {
 			return fmt.Errorf(
-				"pod %q does not match the provided Pod CIDR (IP: %v)", pod.GetName(), podIP)
+				"pod %q does not match the provided Pod CIDRs (IP: %v)", pod.GetName(), podIP)
+		}
+	}
+
+	cidrs := map[string][]string{
+		"external": o.ExternalCIDRs,
+		"reserved": o.ReservedSubnets,
+		"service":  {o.ServiceCIDR},
+	}
+
+	for name, cidrList := range cidrs {
+		if len(cidrList) == 0 {
+			continue
+		}
+
+		otherNets, err := parseCIDRs(cidrList)
+		if err != nil {
+			return fmt.Errorf("parsing %s CIDRs: %w", name, err)
+		}
+
+		// Validate no overlaps between the Pod CIDRs and the other CIDR list.
+		if err := validateNoPairwiseOverlap(podNets, otherNets); err != nil {
+			return fmt.Errorf("validating overlaps between Pod CIDRs and %s CIDRs: %w", name, err)
 		}
 	}
 
@@ -232,4 +258,57 @@ func defaultPort(port string) string {
 		port = "443"
 	}
 	return port
+}
+
+func parseCIDRs(cidrs []string) ([]*net.IPNet, error) {
+	if len(cidrs) == 0 {
+		return nil, fmt.Errorf("no CIDRs specified")
+	}
+
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for i := range cidrs {
+		_, ipNet, err := net.ParseCIDR(cidrs[i])
+		if err != nil {
+			return nil, fmt.Errorf("invalid CIDR at position %d: %w", i+1, err)
+		}
+		nets = append(nets, ipNet)
+	}
+	return nets, nil
+}
+
+func validateNoOverlaps(nets []*net.IPNet) error {
+	for i := range nets {
+		for j := i + 1; j < len(nets); j++ {
+			if cidrsOverlap(nets[i], nets[j]) {
+				return fmt.Errorf("CIDR %q overlaps with CIDR %q", nets[i].String(), nets[j].String())
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateNoPairwiseOverlap(left []*net.IPNet, right []*net.IPNet) error {
+	for i := range left {
+		for j := range right {
+			if cidrsOverlap(left[i], right[j]) {
+				return fmt.Errorf("CIDR %q overlaps with CIDR %q", left[i].String(), right[j].String())
+			}
+		}
+	}
+	return nil
+}
+
+func cidrsOverlap(left, right *net.IPNet) bool {
+	return left.Contains(right.IP) || right.Contains(left.IP)
+}
+
+func containsIP(nets []*net.IPNet, ip string) bool {
+	parsedIP := net.ParseIP(ip)
+	for i := range nets {
+		if nets[i].Contains(parsedIP) {
+			return true
+		}
+	}
+	return false
 }

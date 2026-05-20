@@ -68,7 +68,7 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1beta1.LoadBalancerT
 
 func forgeVKContainers(
 	homeCluster, remoteCluster liqov1beta1.ClusterID,
-	nodeName, vkNamespace, localPodCIDR, liqoNamespace string,
+	nodeName, vkNamespace, liqoNamespace string, localPodCIDRs []string,
 	storageClasses []liqov1beta1.StorageType, ingressClasses []liqov1beta1.IngressType, loadBalancerClasses []liqov1beta1.LoadBalancerType,
 	opts *offloadingv1beta1.VkOptionsTemplate) []v1.Container {
 	command := []string{
@@ -82,7 +82,9 @@ func forgeVKContainers(
 		StringifyArgument(string(TenantNamespace), vkNamespace),
 		StringifyArgument(string(LiqoNamespace), liqoNamespace),
 		StringifyArgument(string(HomeClusterID), string(homeCluster)),
-		StringifyArgument(string(LocalPodCIDR), localPodCIDR),
+	}
+	for i := range localPodCIDRs {
+		args = append(args, StringifyArgument(string(LocalPodCIDR), localPodCIDRs[i]))
 	}
 
 	if len(storageClasses) > 0 {
@@ -169,12 +171,12 @@ func forgeVKContainers(
 	}
 }
 
-func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
+func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, liqoNamespace string, localPodCIDRs []string,
 	virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) v1.PodSpec {
 	return v1.PodSpec{
 		Containers: forgeVKContainers(
 			homeCluster, virtualNode.Spec.ClusterID,
-			virtualNode.Name, vkNamespace, localPodCIDR, liqoNamespace,
+			virtualNode.Name, vkNamespace, liqoNamespace, localPodCIDRs,
 			virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses, virtualNode.Spec.LoadBalancerClasses,
 			opts),
 		ServiceAccountName: virtualNode.Name,

@@ -98,6 +98,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	// Print a warning if the IP is not being deleted and it is referencing a non-existing network.
 	if !deleting && !networkExists {
 		klog.Warningf("network referenced by IP %q does not exist", req.NamespacedName)
+		return ctrl.Result{}, nil
 	}
 
 	// The resource is being deleted or the referenced network does not exist:
@@ -216,10 +217,18 @@ func (r *IPReconciler) handleNetworkRef(ctx context.Context, ip *ipamv1alpha1.IP
 	// If the IP has not set a reference to a Network CIDR, we remap it on the external CIDR of the local cluster.
 	if ip.Spec.NetworkRef == nil {
 		if r.externalCidr == "" {
-			network, err := ipamutils.GetExternalCIDRNetwork(ctx, r.Client, corev1.NamespaceAll)
+			networks, err := ipamutils.GetExternalCIDRNetworks(ctx, r.Client, corev1.NamespaceAll)
 			if err != nil {
 				return nil, "", err
 			}
+
+			if len(networks) == 0 {
+				return nil, "", fmt.Errorf("no externalCIDR Network resource found")
+			}
+
+			// Default to the first external CIDR network
+			network := networks[0]
+
 			// The externalCIDR Network has no CIDR set yet, we return an error.
 			if network.Status.CIDR == "" {
 				return nil, "", fmt.Errorf("externalCIDR is not set yet. Configure it to correctly handle IP mapping")

@@ -88,7 +88,7 @@ type Opts struct {
 	HomeCluster         argsutils.ClusterIDFlags
 	ForeignCluster      argsutils.ClusterIDFlags
 	DisableIPReflection bool
-	LocalPodCIDR        string
+	LocalPodCIDRs       []string
 
 	// Sets the addresses to listen for requests from the Kubernetes API server
 	NodeIP          string

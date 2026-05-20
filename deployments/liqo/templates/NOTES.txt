@@ -1,0 +1,6 @@
+{{- if and .Values.ipam.podCIDR .Values.ipam.podCIDRs }}
+WARNING: both ipam.podCIDR and ipam.podCIDRs are set; ipam.podCIDRs takes precedence and ipam.podCIDR is ignored.
+{{- end }}
+{{- if and .Values.ipam.externalCIDR .Values.ipam.externalCIDRs }}
+WARNING: both ipam.externalCIDR and ipam.externalCIDRs are set; ipam.externalCIDRs takes precedence and ipam.externalCIDR is ignored.
+{{- end }}

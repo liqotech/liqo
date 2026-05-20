@@ -20,7 +20,71 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
+
+var _ = Describe("MapAddressWithConfiguration", func() {
+	var cfg *networkingv1beta1.Configuration
+
+	BeforeEach(func() {
+		cfg = &networkingv1beta1.Configuration{
+			Spec: networkingv1beta1.ConfigurationSpec{
+				Remote: networkingv1beta1.ClusterConfig{
+					CIDR: networkingv1beta1.ClusterConfigCIDR{
+						Pod:      cidrutils.FromStrings([]string{"10.10.0.0/16", "10.20.0.0/16"}),
+						External: cidrutils.FromStrings([]string{"192.168.0.0/16", "172.16.0.0/16"}),
+					},
+				},
+			},
+			Status: networkingv1beta1.ConfigurationStatus{
+				Remote: &networkingv1beta1.ClusterConfig{
+					CIDR: networkingv1beta1.ClusterConfigCIDR{
+						Pod:      cidrutils.FromStrings([]string{"10.30.0.0/16", "10.40.0.0/16"}),
+						External: cidrutils.FromStrings([]string{"192.168.0.0/16", "172.18.0.0/16"}),
+					},
+				},
+			},
+		}
+	})
+
+	It("remaps addresses from the second pod CIDR using the aligned status entry", func() {
+		mapped, err := MapAddressWithConfiguration(cfg, "10.20.5.10")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapped).To(Equal("10.40.5.10"))
+	})
+
+	It("remaps addresses from the second external CIDR using the aligned status entry", func() {
+		mapped, err := MapAddressWithConfiguration(cfg, "172.16.5.10")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapped).To(Equal("172.18.5.10"))
+	})
+
+	It("leaves addresses unchanged when the aligned status CIDR matches the spec CIDR", func() {
+		mapped, err := MapAddressWithConfiguration(cfg, "192.168.5.10")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapped).To(Equal("192.168.5.10"))
+	})
+
+	It("leaves addresses outside the configured CIDRs unchanged", func() {
+		mapped, err := MapAddressWithConfiguration(cfg, "8.8.8.8")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mapped).To(Equal("8.8.8.8"))
+	})
+
+	It("errors when the input address is invalid", func() {
+		_, err := MapAddressWithConfiguration(cfg, "not-an-ip")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("errors when the spec and status lengths diverge", func() {
+		cfg.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"10.30.0.0/16"})
+
+		_, err := MapAddressWithConfiguration(cfg, "10.10.5.10")
+		Expect(err).To(HaveOccurred())
+	})
+})
 
 var _ = Describe("RemapMask", func() {
 	DescribeTable("IPv4 remapping",

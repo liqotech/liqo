@@ -17,6 +17,7 @@ package kubeadm
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +59,6 @@ func (o *Options) RegisterFlags(_ *cobra.Command) {}
 func (o *Options) Initialize(ctx context.Context) error {
 	const (
 		serviceCIDRParameterFilter = `--service-cluster-ip-range`
-		podCIDRParameterFilter     = `--cluster-cidr`
 		kubeSystemNamespaceName    = "kube-system"
 
 		defaultPodCIDR     = "172.16.0.0/16"
@@ -80,7 +80,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 	}
 
 	command := cm.Items[0].Spec.Containers[0].Command
-	o.PodCIDR = utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
+	o.PodCIDRs = getPodCidrs(command, defaultPodCIDR)
 	o.ServiceCIDR = utils.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
 
 	return nil
@@ -89,4 +89,19 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{}
+}
+
+func getPodCidrs(kubeControllerManagerCommand []string, defaultPodCIDR string) []string {
+	const podCIDRParameterFilter = `--cluster-cidr`
+	cidrsStr := utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, kubeControllerManagerCommand, defaultPodCIDR)
+
+	parts := strings.Split(cidrsStr, ",")
+	cidrs := make([]string, 0, len(parts))
+	for i := range parts {
+		trimmed := strings.TrimSpace(parts[i])
+		if trimmed != "" {
+			cidrs = append(cidrs, trimmed)
+		}
+	}
+	return cidrs
 }

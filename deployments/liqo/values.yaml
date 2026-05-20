@@ -528,11 +528,17 @@ ipam:
     ## -- Set the grace period the sync routine will wait before deleting an ip or a network.
     syncGracePeriod: 30s
   # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
+  # Deprecated: used as fallback if podCIDRs is empty.
   podCIDR: ""
+  # -- The subnets used by the pods in your cluster, in CIDR notation.
+  podCIDRs: []
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
   serviceCIDR: ""
   # -- The subnet used for the external CIDR.
+  # Deprecated: used as fallback if externalCIDRs is empty.
   externalCIDR: "10.70.0.0/16"
+  # -- The subnets used for the external CIDR.
+  externalCIDRs: []
   # -- The subnet used for the internal CIDR.
   # These IPs are assigned to the Liqo internal-network interfaces.
   internalCIDR: "10.80.0.0/16"

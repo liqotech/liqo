@@ -14,7 +14,13 @@
 
 package cidr
 
-import networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+import (
+	"slices"
+	"sort"
+	"strings"
+
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+)
 
 // GetPrimary returns the primary CIDR from a list of CIDRs.
 func GetPrimary(cidrs []networkingv1beta1.CIDR) *networkingv1beta1.CIDR {
@@ -35,4 +41,80 @@ func IsVoid(cidr *networkingv1beta1.CIDR) bool {
 		return true
 	}
 	return cidr.String() == ""
+}
+
+// AreAllVoid reports whether a CIDR list is empty or contains only empty entries.
+func AreAllVoid(cidrs []networkingv1beta1.CIDR) bool {
+	for i := range cidrs {
+		if cidrs[i].String() != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// AllNonVoid reports whether the list is non-empty and every entry is non-empty.
+func AllNonVoid(cidrs []networkingv1beta1.CIDR) bool {
+	if len(cidrs) == 0 {
+		return false
+	}
+	for i := range cidrs {
+		if cidrs[i].String() == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// EscapeForName converts a CIDR value into a DNS-1123-compliant suffix usable as a
+// Kubernetes resource name component by replacing "/" and "." with "-".
+// Example: "10.244.0.0/16" -> "10-244-0-0-16".
+func EscapeForName(cidr networkingv1beta1.CIDR) string {
+	s := string(cidr)
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, ".", "-")
+	return s
+}
+
+// Strings converts a CIDR slice to a slice of strings, preserving order.
+func Strings(cidrs []networkingv1beta1.CIDR) []string {
+	if cidrs == nil {
+		return nil
+	}
+	out := make([]string, len(cidrs))
+	for i := range cidrs {
+		out[i] = cidrs[i].String()
+	}
+	return out
+}
+
+// FromStrings converts a slice of strings to a CIDR slice, preserving order.
+func FromStrings(s []string) []networkingv1beta1.CIDR {
+	if s == nil {
+		return nil
+	}
+	out := make([]networkingv1beta1.CIDR, len(s))
+	for i := range s {
+		out[i] = networkingv1beta1.CIDR(s[i])
+	}
+	return out
+}
+
+// EqualOrdered reports whether two CIDR lists are equal element-by-element in order.
+func EqualOrdered(a, b []networkingv1beta1.CIDR) bool {
+	return slices.Equal(a, b)
+}
+
+// EqualAsSet reports whether two CIDR lists contain the same elements regardless of order.
+// Duplicates are treated as significant: [A, A, B] is not equal to [A, B, B].
+func EqualAsSet(a, b []networkingv1beta1.CIDR) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	as := Strings(a)
+	bs := Strings(b)
+	sort.Strings(as)
+	sort.Strings(bs)
+
+	return slices.Equal(as, bs)
 }

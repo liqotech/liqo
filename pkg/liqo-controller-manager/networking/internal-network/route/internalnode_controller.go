@@ -33,7 +33,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -112,22 +112,22 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	extCIDR, err := ipam.GetExternalCIDR(ctx, r.Client, corev1.NamespaceAll)
+	extCIDRs, err := ipam.GetExternalCIDRs(ctx, r.Client, corev1.NamespaceAll)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	unknownSourceIP, err := ipam.GetUnknownSourceIP(extCIDR)
+	// We always use the first external CIDR network as unknown source IP
+	unknownSourceIP, err := ipam.GetUnknownSourceIP(extCIDRs[0])
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.SelectorFromSet(labels.Set{
-		configuration.Configured: configuration.ConfiguredValue,
-	}))
+	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.Everything())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	configurations.Items = filterObservedConfigurations(configurations.Items)
 
 	ips, err := getters.ListIPsByLabel(ctx, r.Client, labels.Everything())
 	if err != nil {
@@ -147,6 +147,18 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	klog.Infof("Enforced routeconfiguration and firewallconfiguration for internalnode %s", req.Name)
 
 	return ctrl.Result{}, nil
+}
+
+// filterObservedConfigurations keeps only Configurations whose controller has fully reconciled
+// the current spec generation. Used in place of the legacy "configured" label selector.
+func filterObservedConfigurations(items []networkingv1beta1.Configuration) []networkingv1beta1.Configuration {
+	out := items[:0]
+	for i := range items {
+		if networkingutils.IsConfigurationObserved(&items[i]) {
+			out = append(out, items[i])
+		}
+	}
+	return out
 }
 
 // SetupWithManager register the InternalNodeReconciler to the manager.

@@ -65,9 +65,10 @@ type Provider interface {
 type Options struct {
 	*CommonOptions
 
-	APIServer   string
-	PodCIDR     string
-	ServiceCIDR string
+	APIServer     string
+	PodCIDRs      []string
+	ServiceCIDR   string
+	ExternalCIDRs []string
 }
 
 // CommonOptions encapsulates common arguments (not modified by providers) of the install command.
@@ -349,6 +350,16 @@ func (o *Options) isRelease() bool {
 }
 
 func (o *Options) preProviderValues() map[string]interface{} {
+	ipamValues := map[string]interface{}{
+		"serviceCIDR":     o.ServiceCIDR,
+		"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
+		// TODO: check if true
+		// Here we directly use plural keys, it shouldn't be breaking of the existing installations
+		// as the previous network is removed and the new ones allocated.
+		"podCIDRs":      util.GetInterfaceSlice(o.PodCIDRs),
+		"externalCIDRs": util.GetInterfaceSlice(o.ExternalCIDRs),
+	}
+
 	return map[string]interface{}{
 		"tag": o.Version,
 
@@ -369,11 +380,7 @@ func (o *Options) preProviderValues() map[string]interface{} {
 			},
 		},
 
-		"ipam": map[string]interface{}{
-			"podCIDR":         o.PodCIDR,
-			"serviceCIDR":     o.ServiceCIDR,
-			"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
-		},
+		"ipam": ipamValues,
 
 		"metrics": map[string]interface{}{
 			"enabled": o.EnableMetrics,

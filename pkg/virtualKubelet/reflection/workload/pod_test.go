@@ -76,16 +76,16 @@ var _ = Describe("Pod Reflection Tests", func() {
 						Spec: networkingv1beta1.ConfigurationSpec{
 							Remote: networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.200.0/24"),
-									External: cidrutils.SetPrimary("192.168.100.0/24"),
+									Pod:      cidrutils.FromStrings([]string{"192.168.200.0/24"}),
+									External: cidrutils.FromStrings([]string{"192.168.100.0/24"}),
 								},
 							},
 						},
 						Status: networkingv1beta1.ConfigurationStatus{
 							Remote: &networkingv1beta1.ClusterConfig{
 								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.SetPrimary("192.168.201.0/24"),
-									External: cidrutils.SetPrimary("192.168.101.0/24"),
+									Pod:      cidrutils.FromStrings([]string{"192.168.201.0/24"}),
+									External: cidrutils.FromStrings([]string{"192.168.101.0/24"}),
 								},
 							},
 						},

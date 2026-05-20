@@ -17,6 +17,7 @@ package aks
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -84,8 +85,8 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 		"The Azure ResourceGroup name of the Virtual Network (defaults to --resource-group-name if not provided)")
 	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
 	cmd.Flags().BoolVar(&o.privateLink, "private-link", false, "Use the private FQDN for the API server")
-	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "",
-		"Pod CIDR of the cluster, only used for AzureCNI (legacy) clusters with no defined subnet")
+	cmd.Flags().StringSliceVar(&o.PodCIDRs, "pod-cidr", nil,
+		"Pod CIDRs of the cluster, only used for AzureCNI (legacy) clusters with no defined subnet")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
 	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
@@ -185,7 +186,7 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *armcontainers
 			}
 		}
 	case armcontainerservice.NetworkPluginNone:
-		if o.PodCIDR == "" {
+		if len(o.PodCIDRs) == 0 {
 			return fmt.Errorf("azure network plugin is set to `none`, please specify the PodCIDR with --pod-cidr")
 		}
 		o.ServiceCIDR = *cluster.Properties.NetworkProfile.ServiceCidr
@@ -219,7 +220,7 @@ func (o *Options) setupKubenetOrAzureCNIOverlay(ctx context.Context, cluster *ar
 	if ptr.Deref(cluster.Properties.NetworkProfile.PodCidr, "") == "" {
 		return fmt.Errorf("no PodCIDR found on network profile")
 	}
-	o.PodCIDR = *cluster.Properties.NetworkProfile.PodCidr
+	o.PodCIDRs = []string{*cluster.Properties.NetworkProfile.PodCidr}
 
 	if ptr.Deref(cluster.Properties.NetworkProfile.ServiceCidr, "") == "" {
 		return fmt.Errorf("no ServiceCIDR found on network profile")
@@ -267,32 +268,44 @@ func (o *Options) setupAzureCNI(ctx context.Context, cluster *armcontainerservic
 	if len(cluster.Properties.AgentPoolProfiles) == 0 || cluster.Properties.AgentPoolProfiles[0] == nil ||
 		ptr.Deref(cluster.Properties.AgentPoolProfiles[0].VnetSubnetID, "") == "" {
 		// VnetSubnet is not specified, use specified PodCIDR.
-		if o.PodCIDR == "" {
-			o.PodCIDR = defaultAzureCNIPodCIDR
+		if len(o.PodCIDRs) == 0 {
+			o.PodCIDRs = []string{defaultAzureCNIPodCIDR}
 		}
 		// PodCIDR already set, nothing to do.
 		return nil
 	}
-
-	// Else, retrieve the pod CIDR from the subnet, as for azure CNI the pod CIDR is the subnet CIDR.
-	vnetSubnetID := *cluster.Properties.AgentPoolProfiles[0].VnetSubnetID
 
 	subnetsClient, err := armnetwork.NewSubnetsClient(o.subscriptionID, o.azurecredential, nil)
 	if err != nil {
 		return err
 	}
 
-	vnetName, subnetName, err := parseSubnetID(vnetSubnetID)
-	if err != nil {
-		return err
-	}
+	podCIDRs := make([]string, 0, len(cluster.Properties.AgentPoolProfiles))
+	for i := range cluster.Properties.AgentPoolProfiles {
+		pool := cluster.Properties.AgentPoolProfiles[i]
+		if pool == nil || ptr.Deref(pool.VnetSubnetID, "") == "" {
+			continue
+		}
 
-	vnet, err := subnetsClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, nil)
-	if err != nil {
-		return err
-	}
+		vnetName, subnetName, err := parseSubnetID(*pool.VnetSubnetID)
+		if err != nil {
+			return fmt.Errorf("parsing the subnet ID: %w", err)
+		}
 
-	o.PodCIDR = *vnet.Subnet.Properties.AddressPrefix
+		vnet, err := subnetsClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, nil)
+		if err != nil {
+			return fmt.Errorf("retrieving the subnet %q: %w", subnetName, err)
+		}
+
+		if vnet.Subnet.Properties == nil || vnet.Subnet.Properties.AddressPrefix == nil {
+			return fmt.Errorf("subnet %q does not expose an address prefix", subnetName)
+		}
+		cidr := *vnet.Subnet.Properties.AddressPrefix
+		if !slices.Contains(podCIDRs, cidr) {
+			podCIDRs = append(podCIDRs, cidr)
+		}
+	}
+	o.PodCIDRs = podCIDRs
 
 	return nil
 }

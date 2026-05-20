@@ -253,3 +253,4 @@ imagePullSecrets:
 {{- toYaml .Values.imagePullSecrets | nindent 0 }}
 {{- end -}}
 {{- end -}}
+

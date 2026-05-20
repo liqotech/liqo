@@ -55,7 +55,13 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --secret-name={{ include "liqo.prefixedName" $webhookConfig }}-certs
           - --liqo-runtime-class={{ .Values.offloading.runtimeClass.name }}
+          {{- if .Values.ipam.podCIDRs }}
+          {{- range $cidr := .Values.ipam.podCIDRs }}
+          - --podcidr={{ $cidr }}
+          {{- end }}
+          {{- else if .Values.ipam.podCIDR }}
           - --podcidr={{ .Values.ipam.podCIDR }}
+          {{- end }}
           - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
