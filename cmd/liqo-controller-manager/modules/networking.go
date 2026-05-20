@@ -264,11 +264,11 @@ func initializeReservedNetworks(ctx context.Context, cl client.Client, ipamClien
 	var networksToReserve []ipamv1alpha1.Network
 
 	// PodCIDR is a special case of reserved network
-	podCidr, err := ipamutils.GetPodCIDRNetwork(ctx, cl, corev1.NamespaceAll)
+	podCidrs, err := ipamutils.GetPodCIDRNetworks(ctx, cl, corev1.NamespaceAll)
 	if err != nil {
 		return err
 	}
-	networksToReserve = append(networksToReserve, *podCidr)
+	networksToReserve = append(networksToReserve, podCidrs...)
 
 	// ServiceCIDR is a special case of reserved network
 	serviceCidr, err := ipamutils.GetServiceCIDRNetwork(ctx, cl, corev1.NamespaceAll)

@@ -31,17 +31,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
-// GetPodCIDRNetwork retrieves the Network resource of type PodCIDR.
-func GetPodCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(
-		ctx, cl,
-		labels.SelectorFromSet(map[string]string{
-			consts.NetworkTypeLabelKey: string(consts.NetworkTypePodCIDR),
-		}),
-		liqoNamespace,
-	)
-}
-
 // GetPodCIDRNetworks retrieves all Network resources of type PodCIDR.
 func GetPodCIDRNetworks(ctx context.Context, cl client.Client, liqoNamespace string) ([]ipamv1alpha1.Network, error) {
 	return liqogetters.GetNetworksByLabel(
@@ -51,20 +40,6 @@ func GetPodCIDRNetworks(ctx context.Context, cl client.Client, liqoNamespace str
 		}),
 		liqoNamespace,
 	)
-}
-
-// GetPodCIDR retrieves the podCIDR of the local cluster.
-func GetPodCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
-	nw, err := GetPodCIDRNetwork(ctx, cl, liqoNamespace)
-	if err != nil {
-		return "", err
-	}
-
-	if nw.Status.CIDR == "" {
-		return "", fmt.Errorf("the pod CIDR is not yet configured: missing status on the Network resource")
-	}
-
-	return nw.Status.CIDR.String(), nil
 }
 
 // GetPodCIDRs retrieves the pod CIDRs of the local cluster.
@@ -110,17 +85,6 @@ func GetServiceCIDR(ctx context.Context, cl client.Client, liqoNamespace string)
 	return nw.Status.CIDR.String(), nil
 }
 
-// GetExternalCIDRNetwork retrieves the Network resource of type ExternalCIDR.
-func GetExternalCIDRNetwork(ctx context.Context, cl client.Client, liqoNamespace string) (*ipamv1alpha1.Network, error) {
-	return liqogetters.GetUniqueNetworkByLabel(
-		ctx, cl,
-		labels.SelectorFromSet(map[string]string{
-			consts.NetworkTypeLabelKey: string(consts.NetworkTypeExternalCIDR),
-		}),
-		liqoNamespace,
-	)
-}
-
 // GetExternalCIDRNetworks retrieves all Network resources of type ExternalCIDR.
 func GetExternalCIDRNetworks(ctx context.Context, cl client.Client, liqoNamespace string) ([]ipamv1alpha1.Network, error) {
 	return liqogetters.GetNetworksByLabel(
@@ -130,20 +94,6 @@ func GetExternalCIDRNetworks(ctx context.Context, cl client.Client, liqoNamespac
 		}),
 		liqoNamespace,
 	)
-}
-
-// GetExternalCIDR retrieves the externalCIDR of the local cluster.
-func GetExternalCIDR(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
-	nw, err := GetExternalCIDRNetwork(ctx, cl, liqoNamespace)
-	if err != nil {
-		return "", err
-	}
-
-	if nw.Status.CIDR == "" {
-		return "", fmt.Errorf("the external CIDR is not yet configured: missing status on the Network resource")
-	}
-
-	return nw.Status.CIDR.String(), nil
 }
 
 // GetExternalCIDRs retrieves the external CIDRs of the local cluster.

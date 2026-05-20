@@ -112,12 +112,13 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	extCIDR, err := ipam.GetExternalCIDR(ctx, r.Client, corev1.NamespaceAll)
+	extCIDRs, err := ipam.GetExternalCIDRs(ctx, r.Client, corev1.NamespaceAll)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	unknownSourceIP, err := ipam.GetUnknownSourceIP(extCIDR)
+	// We always use the first external CIDR network as unknown source IP
+	unknownSourceIP, err := ipam.GetUnknownSourceIP(extCIDRs[0])
 	if err != nil {
 		return ctrl.Result{}, err
 	}
