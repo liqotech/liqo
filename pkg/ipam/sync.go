@@ -65,8 +65,12 @@ func (lipam *LiqoIPAM) sync(ctx context.Context, syncFrequency time.Duration) {
 func syncNetworkAcquire(lipam *LiqoIPAM, clusterNetworks map[netip.Prefix]prefixDetails, cachedNetworks map[netip.Prefix]any) error {
 	// Add networks that are present in the cluster but not in the cache.
 	for clusterNetwork, clusterNetworkDetails := range clusterNetworks {
+		if !lipam.isInPool(clusterNetwork) && !clusterNetworkDetails.exclusive {
+			continue
+		}
+
 		if _, ok := cachedNetworks[clusterNetwork]; !ok {
-			if _, err := lipam.networkAcquireSpecific(clusterNetwork); err != nil {
+			if _, err := lipam.networkAcquireSpecific(clusterNetwork, clusterNetworkDetails.exclusive); err != nil {
 				return fmt.Errorf("failed to acquire network %q: %w", clusterNetwork, err)
 			}
 		}
