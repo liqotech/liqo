@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package virtualnodectrl contains VirtualNode Controller logic and some functions for managing NamespaceMap lifecycle.
-// There are also some tests for VirtualNode Controller
 package virtualnodectrl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -46,7 +45,7 @@ var (
 // DeletionRoutine is responsible for deleting a virtual node.
 type DeletionRoutine struct {
 	vnr *VirtualNodeReconciler
-	wq  workqueue.RateLimitingInterface
+	wq  workqueue.TypedRateLimitingInterface[string]
 }
 
 // RunDeletionRoutine starts the deletion routine.
@@ -57,7 +56,7 @@ func RunDeletionRoutine(ctx context.Context, r *VirtualNodeReconciler) (*Deletio
 	deletionRoutineRunning = true
 	dr := &DeletionRoutine{
 		vnr: r,
-		wq:  workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		wq:  workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
 	}
 	go dr.run(ctx)
 	return dr, nil
@@ -87,13 +86,7 @@ func (dr *DeletionRoutine) processNextItem(ctx context.Context) bool {
 	}
 	defer dr.wq.Done(key)
 
-	ref, ok := key.(string)
-	if !ok {
-		klog.Errorf("expected string in workqueue but got %#v", key)
-		return true
-	}
-
-	if err = dr.handle(ctx, ref); err == nil {
+	if err = dr.handle(ctx, key); err == nil {
 		dr.wq.Forget(key)
 		return true
 	}
@@ -107,26 +100,25 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 	var namespace, name string
 	namespace, name, err = cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		err = fmt.Errorf("error splitting key: %w", err)
-		return err
+		return fmt.Errorf("error splitting key: %w", err)
 	}
+
 	ref := types.NamespacedName{Namespace: namespace, Name: name}
 	vn := &offloadingv1beta1.VirtualNode{}
 	if err = dr.vnr.Client.Get(ctx, ref, vn); err != nil {
 		if k8serrors.IsNotFound(err) {
-			err = nil
-			return err
+			klog.V(4).Infof("skipping deletion routine for virtual node %s: already deleted", ref)
+			return nil
 		}
-		err = fmt.Errorf("error getting virtual node: %w", err)
-		return err
+		return fmt.Errorf("error getting virtual node: %w", err)
 	}
 
 	defer func() {
 		if interr := dr.vnr.Client.Status().Update(ctx, vn); interr != nil {
-			if err != nil {
-				klog.Error(err)
-			}
-			err = fmt.Errorf("error updating virtual node status: %w", interr)
+			err = errors.Join(err, fmt.Errorf("error updating virtual node status: %w", interr))
+		}
+		if err == nil {
+			klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
 		}
 	}()
 
@@ -138,20 +130,12 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 			}})
 
 	if err = dr.deleteVirtualKubelet(ctx, vn); err != nil {
-		err = fmt.Errorf("error deleting node and Virtual Kubelet: %w", err)
-		return err
+		return fmt.Errorf("deleting node and Virtual Kubelet: %w", err)
 	}
 
 	if !vn.DeletionTimestamp.IsZero() {
-		// VirtualNode resource is being deleted.
-		if err = dr.vnr.ensureNamespaceMapAbsence(ctx, vn); err != nil {
-			err = fmt.Errorf("error deleting namespace map: %w", err)
-			return err
-		}
-		err = dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
-		if err != nil {
-			err = fmt.Errorf("error removing finalizer: %w", err)
-			return err
+		if err = dr.vnr.removeVirtualNodeFinalizer(ctx, vn); err != nil {
+			return fmt.Errorf("removing finalizer: %w", err)
 		}
 	} else {
 		// Node is deleting/deleted, but the VirtualNode resource is not
@@ -162,7 +146,6 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 			}})
 	}
 
-	klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
 	return nil
 }
 
@@ -171,21 +154,18 @@ func (dr *DeletionRoutine) deleteVirtualKubelet(ctx context.Context, vn *offload
 	// Check if the Node resource exists to make sure that we are not in a case in which it should not exist.
 	node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
 	if client.IgnoreNotFound(err) != nil {
-		err = fmt.Errorf("error getting node: %w", err)
-		return err
+		return fmt.Errorf("error getting node: %w", err)
 	}
 
 	if node != nil {
-		if err := cordonNode(ctx, dr.vnr.Client, node); err != nil {
+		if err := client.IgnoreNotFound(cordonNode(ctx, dr.vnr.Client, node)); err != nil {
 			return fmt.Errorf("error cordoning node: %w", err)
 		}
-
 		klog.Infof("Node %s cordoned", node.Name)
 
 		if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
 			return fmt.Errorf("error draining node: %w", err)
 		}
-
 		klog.Infof("Node %s drained", node.Name)
 	}
 
@@ -212,8 +192,7 @@ func (dr *DeletionRoutine) deleteVirtualKubelet(ctx context.Context, vn *offload
 	} else {
 		nodeToDelete, err = getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
 		if client.IgnoreNotFound(err) != nil {
-			err = fmt.Errorf("error getting node before deletion: %w", err)
-			return err
+			return fmt.Errorf("error getting node before deletion: %w", err)
 		}
 	}
 
@@ -228,7 +207,6 @@ func (dr *DeletionRoutine) deleteVirtualKubelet(ctx context.Context, vn *offload
 		if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, nodeToDelete, &client.DeleteOptions{})); err != nil {
 			return fmt.Errorf("error deleting node: %w", err)
 		}
-
 		klog.Infof("Node %s deleted", node.Name)
 	} else {
 		klog.Infof("Node of VirtualNode %s already deleted", vn.Name)

@@ -16,6 +16,7 @@ package nsoffctrl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -86,14 +87,9 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// Defer the function to output the error message if necessary, as well as update the NamespaceOffloading status.
 	defer func() {
-		if err != nil {
-			klog.Errorf("Failed to reconcile NamespaceOffloading %q: %v", klog.KObj(nsoff), err)
-		}
-
 		// Update the status, regardless of whether an error occurred.
-		if err = r.enforceStatus(ctx, nsoff, clusterIDMap); err != nil {
-			klog.Errorf("Failed to update NamespaceOffloading %q status: %v", klog.KObj(nsoff), err)
-			return
+		if rerr := r.enforceStatus(ctx, nsoff, clusterIDMap); rerr != nil {
+			err = errors.Join(err, fmt.Errorf("updating namespaceoffloading %q status: %w", klog.KObj(nsoff), rerr))
 		}
 	}()
 

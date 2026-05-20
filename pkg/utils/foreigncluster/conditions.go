@@ -16,6 +16,7 @@ package foreigncluster
 
 import (
 	"slices"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -29,29 +30,12 @@ func IsDead(foreignCluster *liqov1beta1.ForeignCluster) (isDead bool, message st
 		return true, "ForeignCluster is nil"
 	}
 
-	// Return dead only if the foreign cluster is marked as permanently unreachable.
-	if foreignCluster.Annotations == nil || foreignCluster.Annotations[consts.ForeignClusterPermanentlyUnreachableAnnotationKey] != "true" {
-		return false, ""
+	// Return dead if the foreign cluster is marked as permanently unreachable.
+	if v, ok := foreignCluster.Annotations[consts.ForeignClusterPermanentlyUnreachableAnnotationKey]; ok && !strings.EqualFold(v, "false") {
+		return true, "The foreign cluster has been marked as permanently unreachable"
 	}
 
-	// In all the other cases we consider the connection dead, as there is an annotation marking the cluster unreachable
-	// unless the API server is still responding.
-
-	if foreignCluster.Status.Conditions != nil {
-		// Check the API server reachability condition.
-		for _, condition := range foreignCluster.Status.Conditions {
-			if condition.Type == liqov1beta1.APIServerStatusCondition {
-				switch condition.Status {
-				case liqov1beta1.ConditionStatusEstablished:
-					return false, ""
-				default:
-					return true, condition.Message
-				}
-			}
-		}
-	}
-
-	return true, "The foreign cluster has been marked as permanently unreachable"
+	return false, ""
 }
 
 // EnsureGenericCondition ensures the presence of a generic condition in the foreign cluster status.
