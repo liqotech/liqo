@@ -97,6 +97,7 @@ func ExistsRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route
 
 // IsEqualRoute checks if the two routes are equal.
 func IsEqualRoute(route1, route2 *netlink.Route) bool {
+
 	if route1.Dst != nil && route2.Dst != nil && route1.Dst.String() != route2.Dst.String() {
 		return false
 	}
@@ -112,6 +113,33 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 	if route1.Flags != route2.Flags {
 		return false
 	}
+
+	multipath1 := len(route1.MultiPath)
+	multipath2 := len(route2.MultiPath)
+	if multipath1 > 0 && multipath2 > 0 {
+		if multipath1 != multipath2 {
+			return false
+		}
+
+		for _, nh1 := range route1.MultiPath {
+			found := false
+			for _, nh2 := range route2.MultiPath {
+				if nh1.Gw.String() == nh2.Gw.String() && nh1.Hops == nh2.Hops && nh1.LinkIndex == nh2.LinkIndex {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
+
+	if (multipath1 > 0) != (multipath2 > 0) {
+		return false
+	}
+
 	return true
 }
 
@@ -198,10 +226,45 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 		default:
 		}
 	}
+	var multiPath []*netlink.NexthopInfo
+	if len(route.NextHops) > 0 {
+		// MultiPath (ECMP) routes must not have a main gateway or a main link index
+		// All next-hop specific information is contained within the MultiPath slice.
+		gw = nil
+		linkIndex = 0
+		multiPath = make([]*netlink.NexthopInfo, len(route.NextHops))
+		for i, nh := range route.NextHops {
+			nextHopGw := net.ParseIP(nh.Gw.String())
+			weight := 0
+			if nh.Weight != nil {
+				weight = *nh.Weight
+			}
+
+			routes, err := netlink.RouteGet(nextHopGw)
+			if err != nil {
+				return nil, fmt.Errorf("cannot get route for next-hop %s: %w", nextHopGw, err)
+			}
+			if len(routes) == 0 {
+				return nil, fmt.Errorf("no route found for next-hop %s", nextHopGw)
+			}
+
+			r := routes[0]
+			if r.LinkIndex == 0 {
+				return nil, fmt.Errorf("inferred route for next-hop %s has no link index", nextHopGw)
+			}
+
+			multiPath[i] = &netlink.NexthopInfo{
+				Gw:        nextHopGw,
+				LinkIndex: r.LinkIndex,
+				Hops:      weight,
+			}
+		}
+	}
 
 	return &netlink.Route{
 		Dst:       dst,
 		Gw:        gw,
+		MultiPath: multiPath,
 		Src:       src,
 		LinkIndex: linkIndex,
 		Table:     int(tableID),
