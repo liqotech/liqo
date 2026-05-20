@@ -157,7 +157,7 @@ func (o *Options) getLocation() (string, error) {
 func (o *Options) parseClusterOutput(cluster *container.Cluster) {
 	o.APIServer = cluster.Endpoint
 	o.ServiceCIDR = cluster.ServicesIpv4Cidr
-	o.PodCIDR = cluster.ClusterIpv4Cidr
+	o.PodCIDRs = []string{cluster.ClusterIpv4Cidr}
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
 	if o.ClusterID == "" {

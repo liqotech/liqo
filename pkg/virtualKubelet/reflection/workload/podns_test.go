@@ -646,6 +646,30 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Expect(err).ToNot(HaveOccurred())
 						Expect(output).To(BeIdenticalTo("192.168.211.25"))
 					})
+
+					When("translating again the same secondary pod CIDR address", func() {
+						JustBeforeEach(func() {
+							output, err = reflector.(*workload.NamespacedPodReflector).MapPodIP(ctx, &podinfo, input)
+						})
+
+						It("should succeed using the cached translation", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should return the cached secondary CIDR translation", func() {
+							Expect(output).To(BeIdenticalTo("192.168.211.25"))
+						})
+					})
+				})
+
+				When("the secondary remote pod CIDR does not need remapping", func() {
+					BeforeEach(func() {
+						input = "192.168.210.25"
+						netConfig.Spec.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.200.0/24", "192.168.210.0/24"})
+						netConfig.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.201.0/24", "192.168.210.0/24"})
+					})
+
+					It("should preserve the original address for the aligned secondary CIDR", func() {
+						Expect(err).ToNot(HaveOccurred())
+						Expect(output).To(BeIdenticalTo("192.168.210.25"))
+					})
 				})
 			})
 		})

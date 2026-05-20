@@ -59,8 +59,10 @@ distribution or cloud provider), which automatically retrieves most parameters
 based on the cluster configuration.
 
 Examples:
-  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+	$ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+or (configure multiple pod CIDRs)
+	$ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --pod-cidr 10.1.0.0/16 --service-cidr 10.2.0.0/16
 or (configure the cluster id and labels)
   $ {{ .Executable }} install --cluster-id engaged-weevil --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24 --cluster-labels region=europe,environment=staging
@@ -170,7 +172,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
 		"Disable the sanity checks concerning the retrieved Kubernetes API server URL (default false)")
 	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation of the arguments "+
-		"(PodCIDR, ServiceCIDR). "+
+		"(PodCIDRs, ServiceCIDR). "+
 		"This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)")
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,

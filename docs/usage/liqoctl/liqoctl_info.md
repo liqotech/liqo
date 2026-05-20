@@ -43,7 +43,7 @@ get a specific field
 
 ```bash
   $ liqoctl info --get clusterid
-  $ liqoctl info --get network.podcidr
+  $ liqoctl info --get network.podcidrs
 ```
 
 

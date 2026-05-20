@@ -107,7 +107,7 @@ var _ = Describe("Extract elements from apiServer", func() {
 
 		It("should retrieve the appropriate parameters", func() {
 			Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
-			Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
+			Expect(options.PodCIDRs).To(Equal([]string{"10.244.0.0/16"}))
 			Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
 		})
 	})
@@ -117,7 +117,7 @@ var _ = Describe("Extract elements from apiServer", func() {
 
 		It("should retrieve the appropriate parameters", func() {
 			Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
-			Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
+			Expect(options.PodCIDRs).To(Equal([]string{"10.244.0.0/16"}))
 			Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
 		})
 	})

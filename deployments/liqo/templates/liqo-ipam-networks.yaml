@@ -1,4 +1,21 @@
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- if .Values.ipam.podCIDRs }}
+{{- range $cidr := .Values.ipam.podCIDRs }}
+---
+apiVersion: ipam.liqo.io/v1alpha1
+kind: Network
+metadata:
+  name: pod-cidr-{{ $cidr | replace "/" "-" | replace "." "-" }}
+  labels:
+    {{- include "liqo.labels" $ipamConfig | nindent 4 }}
+    ipam.liqo.io/network-type: pod-cidr
+    ipam.liqo.io/network-not-remapped: "true"
+  annotations:
+    liqo.io/preinstalled: "true"
+spec:
+  cidr: {{ $cidr }}
+{{- end }}
+{{- else if .Values.ipam.podCIDR }}
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
@@ -12,6 +29,7 @@ metadata:
     liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.podCIDR }}
+{{- end }}
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
@@ -25,6 +43,23 @@ metadata:
     liqo.io/preinstalled: "true"
 spec:
   cidr: {{ .Values.ipam.serviceCIDR }}
+{{- if .Values.ipam.externalCIDRs }}
+{{- range $cidr := .Values.ipam.externalCIDRs }}
+---
+apiVersion: ipam.liqo.io/v1alpha1
+kind: Network
+metadata:
+  name: external-cidr-{{ $cidr | replace "/" "-" | replace "." "-" }}
+  labels:
+    {{- include "liqo.labels" $ipamConfig | nindent 4 }}
+    ipam.liqo.io/network-type: external-cidr
+  annotations:
+    liqo.io/preinstalled: "true"
+spec:
+  cidr: {{ $cidr }}
+  preAllocated: 1 # the first IP of the external CIDR is reserved for the unknown source traffic
+{{- end }}
+{{- else if .Values.ipam.externalCIDR }}
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
@@ -38,6 +73,7 @@ metadata:
 spec:
   cidr: {{ .Values.ipam.externalCIDR }}
   preAllocated: 1 # the first IP of the external CIDR is reserved for the unknown source traffic
+{{- end }}
 ---
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
