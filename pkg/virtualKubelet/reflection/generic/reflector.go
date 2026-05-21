@@ -164,10 +164,14 @@ func (gr *reflector) StopNamespace(local, remote string) {
 	defer gr.Unlock()
 
 	klog.Infof("Stopping %v reflection between local namespace %q and remote namespace %q", gr.name, local, remote)
-	_, found := gr.reflectors[local]
+	reflector, found := gr.reflectors[local]
 	if !found {
 		klog.Warningf("%v reflection between local namespace %q and remote namespace %q already stopped", gr.name, local, remote)
 		return
+	}
+
+	if err := reflector.Cleanup(context.Background(), local, remote); err != nil {
+		klog.Errorf("Failed to cleanup %v reflector for namespace %q: %v", gr.name, local, err)
 	}
 
 	delete(gr.reflectors, local)

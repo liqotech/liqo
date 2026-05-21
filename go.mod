@@ -29,6 +29,7 @@ require (
 	github.com/pterm/pterm v0.12.79
 	github.com/spf13/cobra v1.10.0
 	github.com/spf13/pflag v1.0.9
+	github.com/stretchr/testify v1.11.1
 	github.com/virtual-kubelet/virtual-kubelet v1.11.0
 	github.com/vishvananda/netlink v1.3.0
 	golang.org/x/mod v0.29.0
@@ -56,6 +57,7 @@ require (
 	sigs.k8s.io/aws-iam-authenticator v0.6.27
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -236,7 +238,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/urfave/cli/v2 v2.23.7 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -275,5 +276,4 @@ require (
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
 )

@@ -175,6 +175,7 @@ generate-groups:
 	    --output-dir "./pkg/client" \
 	    --output-pkg "github.com/liqotech/liqo/pkg/client" \
 	    --with-watch \
+	    --with-applyconfig \
 	    --boilerplate "./hack/boilerplate.go.txt" \
 	    ${PWD}/apis
 

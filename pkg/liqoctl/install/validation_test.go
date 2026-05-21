@@ -198,7 +198,7 @@ var _ = Describe("Validation", func() {
 		DescribeTable("Service CIDR validation table",
 			func(c serviceCIDRValidatorTestcase) {
 				options.ServiceCIDR = serviceCIDR
-				options.Factory.KubeClient = fake.NewSimpleClientset(c.serviceList...)
+				options.KubeClient = fake.NewClientset(c.serviceList...)
 
 				err := options.validateServiceCIDR(ctx)
 				Expect(err).To(c.expectedOutput)
@@ -247,7 +247,7 @@ var _ = Describe("Validation", func() {
 		DescribeTable("Pod CIDR validation table",
 			func(c podCIDRValidatorTestcase) {
 				options.PodCIDR = podCIDR
-				options.Factory.KubeClient = fake.NewSimpleClientset(c.podList...)
+				options.KubeClient = fake.NewClientset(c.podList...)
 
 				err := options.validatePodCIDR(ctx)
 				Expect(err).To(c.expectedOutput)
