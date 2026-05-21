@@ -111,3 +111,28 @@ func FirstNIPsFromPrefix(prefix netip.Prefix, num uint32) iter.Seq[netip.Addr] {
 		}
 	}
 }
+
+// GetLocalIPFromObject retrieves the local (= as seen from the local cluster) IP address as string from the given IP object.
+func GetLocalIPFromObject(obj *ipamv1alpha1.IP) (string, error) {
+	if obj == nil {
+		return "", fmt.Errorf("IP object is nil")
+	}
+	if obj.Spec == (ipamv1alpha1.IPSpec{}) {
+		return "", fmt.Errorf("IP object has no local IP")
+	}
+
+	return obj.Spec.IP.String(), nil
+}
+
+// GetRemappedIPFromObject retrieves the remapped IP address as string from the given IP object.
+func GetRemappedIPFromObject(obj *ipamv1alpha1.IP) (string, error) {
+	if obj == nil {
+		return "", fmt.Errorf("IP object is nil")
+	}
+
+	if obj.Status == (ipamv1alpha1.IPStatus{}) {
+		return "", fmt.Errorf("IP object has no remapped IP")
+	}
+
+	return obj.Status.IP.String(), nil
+}

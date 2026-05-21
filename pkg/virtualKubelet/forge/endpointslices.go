@@ -30,6 +30,17 @@ import (
 // EndpointSliceManagedBy -> The manager associated with the reflected EndpointSlices.
 const EndpointSliceManagedBy = "endpointslice.reflection.liqo.io"
 
+const (
+	// IndirectEndpointSliceSuffix is the suffix appended to the name of the indirect ShadowEndpointSlice
+	// companion created alongside the direct one when a Service requests direct connection data.
+	IndirectEndpointSliceSuffix = "-indirect"
+
+	// IndirectEndpointSliceLabelKey is the label key used to mark an indirect ShadowEndpointSlice (and the
+	// resulting EndpointSlice). The indirect EPS carries IPAM-remapped addresses and intentionally does NOT
+	// have the kubernetes.io/service-name label, so kube-proxy on the provider cluster does not use it.
+	IndirectEndpointSliceLabelKey = "liqo.io/indirect-endpointslice"
+)
+
 // EndpointTranslator defines the function to translate between local and remote endpoint addresses.
 type EndpointTranslator func([]string) []string
 
@@ -85,6 +96,42 @@ func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *offload
 
 	return &offloadingv1beta1.ShadowEndpointSlice{
 		ObjectMeta: RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta, forgingOpts),
+		Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+			Template: offloadingv1beta1.EndpointSliceTemplate{
+				AddressType: local.AddressType,
+				Endpoints:   RemoteEndpointSliceEndpoints(local.Endpoints, localNodeClient, translator),
+				Ports:       RemoteEndpointSlicePorts(local.Ports),
+			},
+		},
+	}
+}
+
+// RemoteIndirectShadowEndpointSlice forges the indirect ShadowEndpointSlice companion for a local EndpointSlice
+// when the associated Service is annotated with consts.UseDirectConnectionAnnotationKey (direct connections enabled).
+//
+// The indirect ShadowEndpointSlice carries IPAM-remapped endpoint addresses and is intentionally
+// NOT bound to the Service in the provider cluster: the kubernetes.io/service-name label is removed so that
+// kube-proxy does not route traffic through it. The resulting EndpointSlice is available for inspection but
+// not in active use by the Service. It is used as a fallback mechanism to ensure connectivity when direct connections are
+// enabled, but the connection between provider clusters is down or not working properly. 
+func RemoteIndirectShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *offloadingv1beta1.ShadowEndpointSlice,
+	localNodeClient corev1listers.NodeLister, targetNamespace string, translator EndpointTranslator,
+	forgingOpts *ForgingOpts) *offloadingv1beta1.ShadowEndpointSlice {
+	indirectName := local.GetName() + IndirectEndpointSliceSuffix
+	if remote == nil {
+		remote = &offloadingv1beta1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: indirectName, Namespace: targetNamespace}}
+	}
+
+	objectMeta := RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta, forgingOpts)
+	// Override the name with the indirect suffix.
+	objectMeta.Name = indirectName
+	// Remove the service-name label so the resulting EndpointSlice is not used by the Service.
+	delete(objectMeta.Labels, discoveryv1.LabelServiceName)
+	// Add a marker label to identify this as an indirect (not-in-service) EndpointSlice.
+	objectMeta.Labels[IndirectEndpointSliceLabelKey] = "true"
+
+	return &offloadingv1beta1.ShadowEndpointSlice{
+		ObjectMeta: objectMeta,
 		Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
 			Template: offloadingv1beta1.EndpointSliceTemplate{
 				AddressType: local.AddressType,
@@ -153,4 +200,15 @@ func RemoteEndpointSlicePorts(locals []discoveryv1.EndpointPort) []discoveryv1.E
 		remotes = append(remotes, *local)
 	}
 	return remotes
+}
+
+// ForgeEndpointSliceAnnotations builds annotations for a reflected EndpointSlice,
+// filtering out keys that must not be propagated.
+func ForgeEndpointSliceAnnotations(shadow *offloadingv1beta1.ShadowEndpointSlice,
+	annotationsNotReflected []string) map[string]string {
+	if shadow == nil {
+		return nil
+	}
+
+	return FilterNotReflected(shadow.GetAnnotations(), annotationsNotReflected)
 }

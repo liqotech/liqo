@@ -96,4 +96,15 @@ const (
 	// RemotePVCStorageClassAnnotKey is the annotation key used to override the storage class of the remote PVC.
 	// If not set, the storage class configured in the liqo storage class is used.
 	RemotePVCStorageClassAnnotKey = "liqo.io/remote-storage-class"
+	// DirectConnectionDataAnnotationKey is the annotation key used to carry direct connection IP mapping data
+	// in a ShadowEndpointSlice, enabling direct pod-to-pod communication between provider clusters.
+	// This is relevant in (at least) 3-cluster topologies where a consumer offloads pods to two providers (B, C) that
+	// have a direct connection between each other, and the consumer needs to inform each provider of the
+	// actual pod IPs running on the other provider.
+	DirectConnectionDataAnnotationKey = "liqo.io/direct-connections-data"
+
+	// UseDirectConnectionAnnotationKey is the annotation key set on a Service in the consumer cluster to
+	// request that both a direct EndpointSlice (with provider-reachable IPs) and an indirect EndpointSlice
+	// (with IPAM-remapped IPs, not in use by the Service) are reflected to each provider cluster.
+	UseDirectConnectionAnnotationKey = "liqo.io/use-direct-connections"
 )
