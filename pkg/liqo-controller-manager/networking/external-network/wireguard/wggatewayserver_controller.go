@@ -17,6 +17,7 @@ package wireguard
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -94,6 +95,70 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if !wgServer.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(wgServer, consts.ClusterRoleBindingFinalizer) {
+			// Ensure all gateway pods are gone before revoking the ClusterRoleBinding.
+			// This gives the gateway pod time to remove FirewallConfigurationAttach finalizers
+			// before losing RBAC access.
+			//
+			// First: if the Deployment still exists, trigger foreground deletion so Kubernetes
+			// keeps the Deployment object in the API until pods have fully terminated.
+			deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
+			var deploy appsv1.Deployment
+			switch err = r.Get(ctx, deployNsName, &deploy); {
+			case apierrors.IsNotFound(err):
+				// Deployment is gone; fall through to pod check.
+			case err != nil:
+				return ctrl.Result{}, fmt.Errorf("getting gateway deployment %q: %w", deployNsName, err)
+			default:
+				// Deployment still present; trigger foreground deletion so pods terminate before
+				// the Deployment object is removed from the API.
+				if deploy.DeletionTimestamp.IsZero() {
+					if err = r.Delete(ctx, &deploy, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil &&
+						!apierrors.IsNotFound(err) {
+						return ctrl.Result{}, fmt.Errorf("deleting gateway deployment %q: %w", deployNsName, err)
+					}
+				}
+				klog.V(4).Infof("Waiting for deployment %q to terminate before removing ClusterRoleBinding for WgGatewayServer %q",
+					deployNsName, req.NamespacedName)
+				return ctrl.Result{RequeueAfter: time.Second}, nil
+			}
+
+			// Second: even if the Deployment is gone, the GC may have cascade-deleted it via
+			// background propagation before we could add the foreground finalizer, leaving pods
+			// still in Terminating state. Wait until no pods remain.
+			var podList corev1.PodList
+			if err = r.List(ctx, &podList,
+				client.InNamespace(wgServer.Namespace),
+				client.MatchingLabels{
+					consts.GatewayNameLabel:      wgServer.Name,
+					consts.GatewayNamespaceLabel: wgServer.Namespace,
+				}); err != nil {
+				return ctrl.Result{}, fmt.Errorf("listing gateway pods for WgGatewayServer %q: %w", req.NamespacedName, err)
+			}
+			if len(podList.Items) > 0 {
+				klog.V(4).Infof("Waiting for %d gateway pod(s) to terminate before removing ClusterRoleBinding for WgGatewayServer %q",
+					len(podList.Items), req.NamespacedName)
+				return ctrl.Result{RequeueAfter: time.Second}, nil
+			}
+
+			// All pods are gone. Remove the ServiceAccount finalizer so the GC can clean it up,
+			// then revoke the ClusterRoleBinding.
+			saName := wgServer.Spec.Deployment.Spec.Template.Spec.ServiceAccountName
+			if saName == "" {
+				saName = defaultServiceAccountName
+			}
+			var sa corev1.ServiceAccount
+			if err = r.Get(ctx, types.NamespacedName{Namespace: wgServer.Namespace, Name: saName}, &sa); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return ctrl.Result{}, fmt.Errorf("getting gateway service account %q: %w", saName, err)
+				}
+			} else if controllerutil.ContainsFinalizer(&sa, consts.GatewayServiceAccountFinalizer) {
+				patch := client.MergeFrom(sa.DeepCopy())
+				controllerutil.RemoveFinalizer(&sa, consts.GatewayServiceAccountFinalizer)
+				if err = r.Patch(ctx, &sa, patch); err != nil && !apierrors.IsNotFound(err) {
+					return ctrl.Result{}, fmt.Errorf("removing finalizer from gateway service account %q: %w", saName, err)
+				}
+			}
+
 			if err = enutils.DeleteClusterRoleBinding(ctx, r.Client, wgServer); err != nil {
 				return ctrl.Result{}, err
 			}
