@@ -119,7 +119,7 @@ func (p *LiqoNodeProvider) GetNode() *corev1.Node {
 // hydrate pre-populates the in-memory node state from the available source objects.
 // It does not publish node updates and does not patch the local Kubernetes Node object.
 func (p *LiqoNodeProvider) hydrate(
-	foreignCluster *liqov1beta1.ForeignCluster, virtualNode *offloadingv1beta1.VirtualNode,
+	foreignCluster *liqov1beta1.ForeignCluster, remoteNode *corev1.Node, virtualNode *offloadingv1beta1.VirtualNode,
 ) {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
@@ -130,6 +130,9 @@ func (p *LiqoNodeProvider) hydrate(
 	}
 	if foreignCluster != nil {
 		p.applyForeignCluster(foreignCluster)
+	}
+	if remoteNode != nil {
+		p.remoteNodeStatus = remoteNode.Status
 	}
 
 	p.recomputeNodeState()
