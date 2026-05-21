@@ -63,23 +63,24 @@ type InitConfig struct {
 
 	VirtualNode    *offloadingv1beta1.VirtualNode
 	ForeignCluster *liqov1beta1.ForeignCluster
+	RemoteNode     *corev1.Node
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
-func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo, providerID string) *LiqoNodeProvider {
+func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 	nodeProvider := &LiqoNodeProvider{
 		localClient:           kubernetes.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(cfg.RemoteConfig),
 		dynClient:             dynamic.NewForConfigOrDie(cfg.HomeConfig),
 		remoteDynClient:       dynamic.NewForConfigOrDie(cfg.RemoteConfig),
 
-		node:              node(cfg, remoteNodeInfo, providerID),
+		node:              node(cfg),
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
 		networkModuleEnabled: nil, // set once ForeignCluster is first observed
 		networkReady:         false,
-		watchRemoteNode:      remoteNodeInfo != nil, // watch the remote node only if we were able to retrieve its info
+		watchRemoteNode:      cfg.RemoteNode != nil, // watch the remote node only if we were able to retrieve its info
 		resyncPeriod:         cfg.InformerResyncPeriod,
 		pingDisabled:         cfg.PingDisabled,
 		checkNetworkStatus:   cfg.CheckNetworkStatus,
@@ -90,20 +91,24 @@ func NewLiqoNodeProvider(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo,
 		tenantNamespace:  cfg.Namespace,
 	}
 
-	nodeProvider.hydrate(cfg.ForeignCluster, cfg.VirtualNode)
+	// Set node status and metadata according to the ForeignCluster, RemoteNode and VirtualNode we retrieved at startup, if available.
+	nodeProvider.hydrate(cfg.ForeignCluster, cfg.RemoteNode, cfg.VirtualNode)
 
 	return nodeProvider
 }
 
-func node(cfg *InitConfig, remoteNodeInfo *corev1.NodeSystemInfo, providerID string) *corev1.Node {
+func node(cfg *InitConfig) *corev1.Node {
 	// Default values for the NodeInfo fields if they cannot be retrieved from the remote cluster.
 	nodeInfo := corev1.NodeSystemInfo{
 		KubeletVersion:  cfg.Version,
 		Architecture:    architecture,
 		OperatingSystem: linuxos,
 	}
-	if remoteNodeInfo != nil {
-		nodeInfo = *remoteNodeInfo
+
+	providerID := ""
+	remoteNode := cfg.RemoteNode
+	if remoteNode != nil && remoteNode.Spec.ProviderID != "" && strings.HasPrefix(remoteNode.Spec.ProviderID, "castai-omni://") {
+		providerID = remoteNode.Spec.ProviderID
 	}
 
 	lbls := map[string]string{

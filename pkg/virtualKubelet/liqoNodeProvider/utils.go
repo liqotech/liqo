@@ -146,6 +146,9 @@ func (p *LiqoNodeProvider) recomputeNodeState() {
 	}
 
 	p.node.Status.Addresses = []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: p.nodeIP}}
+	if p.watchRemoteNode {
+		p.node.Status.NodeInfo = p.remoteNodeStatus.NodeInfo
+	}
 }
 
 func (p *LiqoNodeProvider) patchLabels(ctx context.Context, labels map[string]string) error {
