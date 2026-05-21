@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 720" font-family="Arial,Helvetica,sans-serif" font-size="12">
+  <defs>
+    <marker id="rrArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#000"/>
+    </marker>
+    <marker id="rrArrowRet" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="410" y="22" text-anchor="middle" font-weight="bold" font-size="14">ResourceSlice → Quota + VirtualNode</text>
+
+  <!-- Lifeline header boxes -->
+  <g>
+    <rect x="60" y="40" width="160" height="34" fill="#5b9bd5" stroke="#1f4e79"/>
+    <text x="140" y="62" text-anchor="middle" fill="white" font-weight="bold">Consumer admin</text>
+
+    <rect x="300" y="40" width="200" height="34" fill="#5b9bd5" stroke="#1f4e79"/>
+    <text x="400" y="62" text-anchor="middle" fill="white" font-weight="bold">Consumer cluster</text>
+
+    <rect x="580" y="40" width="200" height="34" fill="#5b9bd5" stroke="#1f4e79"/>
+    <text x="680" y="62" text-anchor="middle" fill="white" font-weight="bold">Provider cluster</text>
+  </g>
+
+  <!-- Lifelines (dashed gray) -->
+  <g stroke="#aaa" stroke-width="1" stroke-dasharray="5,4">
+    <line x1="140" y1="74" x2="140" y2="680"/>
+    <line x1="400" y1="74" x2="400" y2="680"/>
+    <line x1="680" y1="74" x2="680" y2="680"/>
+  </g>
+
+  <!-- Activation (execution) bars -->
+  <g fill="#70ad47">
+    <rect x="136" y="90" width="8" height="30"/>
+    <rect x="396" y="105" width="8" height="475"/>
+    <rect x="676" y="180" width="8" height="285"/>
+    <rect x="136" y="560" width="8" height="30"/>
+  </g>
+
+  <!-- M1: Consumer admin → Consumer cluster (liqoctl) -->
+  <line x1="148" y1="110" x2="396" y2="110" stroke="#000" stroke-width="1.5" marker-end="url(#rrArrow)"/>
+  <text x="272" y="103" text-anchor="middle" font-size="11">liqoctl peer  /  liqoctl create resourceslice</text>
+
+  <!-- A1: ResourceSlice creation on consumer -->
+  <text x="412" y="140" font-size="11" font-weight="600">creates ResourceSlice (spec.resources)</text>
+  <text x="412" y="156" font-size="10" fill="#666" font-style="italic">in liqo-tenant-&lt;provider&gt; namespace, on the consumer cluster</text>
+
+  <!-- M2: forward replication -->
+  <line x1="404" y1="185" x2="676" y2="185" stroke="#000" stroke-width="1.5" marker-end="url(#rrArrow)"/>
+  <text x="540" y="178" text-anchor="middle" font-size="11">crd-replicator: copy ResourceSlice spec → provider</text>
+
+  <!-- ALT fragment: class controller branch -->
+  <g>
+    <rect x="555" y="205" width="240" height="180" fill="none" stroke="#888" stroke-width="1"/>
+    <polygon points="555,205 600,205 605,213 605,221 555,221" fill="#4472c4"/>
+    <text x="580" y="218" text-anchor="middle" fill="white" font-size="10" font-weight="bold">alt</text>
+    <text x="615" y="218" font-size="11" fill="#000">[class = default]</text>
+    <text x="565" y="244" font-size="10">RemoteResourceSliceReconciler fills</text>
+    <text x="565" y="258" font-size="10">status.resources =</text>
+    <text x="565" y="272" font-size="10">spec.resources ∪ defaultNodeResources</text>
+    <line x1="555" y1="295" x2="795" y2="295" stroke="#888" stroke-dasharray="3,3"/>
+    <text x="615" y="312" font-size="11" fill="#000">[class = custom]</text>
+    <text x="565" y="338" font-size="10">external controller decides:</text>
+    <text x="565" y="352" font-size="10">accept / deny / partial,</text>
+    <text x="565" y="366" font-size="10">writes status.resources</text>
+  </g>
+
+  <!-- A2: QuotaCreator creates Quota on provider -->
+  <text x="572" y="410" font-size="11" font-weight="600">QuotaCreator creates Quota</text>
+  <text x="572" y="426" font-size="10" fill="#666" font-style="italic">in liqo-tenant-&lt;consumer&gt; namespace, on the provider cluster</text>
+  <text x="572" y="440" font-size="10" fill="#666" font-style="italic">.spec = (resources, limitsEnforcement, cordoned)</text>
+
+  <!-- M3: backward replication of status -->
+  <line x1="676" y1="475" x2="404" y2="475" stroke="#666" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#rrArrowRet)"/>
+  <text x="540" y="468" text-anchor="middle" font-size="11">crd-replicator: ResourceSlice status → consumer</text>
+
+  <!-- A3: VirtualNode creation on consumer -->
+  <text x="412" y="503" font-size="11" font-weight="600">VirtualNodeCreator creates VirtualNode</text>
+  <text x="412" y="519" font-size="10" fill="#666" font-style="italic">in liqo-tenant-&lt;provider&gt; namespace, on the consumer cluster</text>
+  <text x="412" y="533" font-size="10" fill="#666" font-style="italic">.spec.resourceQuota.hard = status.resources</text>
+
+  <!-- A4: K8s Node materializes -->
+  <text x="412" y="558" font-size="11">virtual-kubelet exposes a K8s Node "Ready"</text>
+
+  <!-- M4: return to consumer admin -->
+  <line x1="396" y1="585" x2="148" y2="585" stroke="#666" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#rrArrowRet)"/>
+  <text x="272" y="578" text-anchor="middle" font-size="11">kubectl get nodes  →  VirtualNode Ready</text>
+
+  <!-- Section divider + footnote -->
+  <line x1="40" y1="625" x2="800" y2="625" stroke="#bbb" stroke-dasharray="2,2"/>
+  <text x="410" y="645" text-anchor="middle" font-size="11" font-style="italic" fill="#444">Once Ready, pods scheduled on the VirtualNode go through ShadowPod admission against the Quota.</text>
+
+  <!-- Lifeline end X marks -->
+  <g stroke="#888" stroke-width="2">
+    <line x1="134" y1="670" x2="146" y2="685"/>
+    <line x1="146" y1="670" x2="134" y2="685"/>
+    <line x1="394" y1="670" x2="406" y2="685"/>
+    <line x1="406" y1="670" x2="394" y2="685"/>
+    <line x1="674" y1="670" x2="686" y2="685"/>
+    <line x1="686" y1="670" x2="674" y2="685"/>
+  </g>
+</svg>
