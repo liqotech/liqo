@@ -131,10 +131,6 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 			}
 		}
 
-		if err = EnsureTableAbsence(tableID); err != nil {
-			return ctrl.Result{}, fmt.Errorf("ensuring table absence: %w", err)
-		}
-
 		if err = r.ensureRouteConfigurationFinalizerAbsence(ctx, routeconfiguration); err != nil {
 			return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
 		}
@@ -162,10 +158,6 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	klog.V(4).Infof("Applying routeconfiguration %s", req.String())
-
-	if err = EnsureTablePresence(routeconfiguration, tableID); err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensuring table presence: %w", err)
-	}
 
 	for i := range routeconfiguration.Spec.Table.Rules {
 		if err = EnsureRulePresence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
