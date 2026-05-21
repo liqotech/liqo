@@ -196,6 +196,11 @@ networking:
       # -- Enable/Disable the route monitor for the fabric pod.
       # It means that the fabric pod will monitor the routing rules and will restore them in case of changes.
       routeMonitor: true
+      # -- Enable/Disable the creation of the NOTRACK firewallconfiguration for the fabric pod.
+      # When enabled, UDP traffic on the geneve port is exempted from connection tracking,
+      # which reduces overhead and prevents the conntrack table from being flooded by tunnel traffic.
+      notrack:
+        enabled: true
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
       healthProbeBindAddressPort: "8081"

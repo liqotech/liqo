@@ -107,6 +107,7 @@ spec:
                                     - accept
                                     - drop
                                     - reject
+                                    - notrack
                                     type: string
                                   counter:
                                     default: true

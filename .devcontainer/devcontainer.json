@@ -1,6 +1,6 @@
 {
   "name": "Ubuntu Go",
-  "dockerFile": "Dockerfile",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "runArgs": [
     "--privileged",
     "--cap-add=NET_ADMIN",
