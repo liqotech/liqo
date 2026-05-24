@@ -78,9 +78,12 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		klog.Warning("EndpointIP is not set yet. Maybe the DNS resolution is still in progress")
 		return ctrl.Result{}, nil
 	}
-
-	if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey)); err != nil {
-		return ctrl.Result{}, err
+	// Get interface list
+	ports := GetWireguardPorts(r.Options)
+	for i, port := range ports {
+		if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey), i, port); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, EnsureConnection(ctx, r.Client, r.Scheme, r.Options)

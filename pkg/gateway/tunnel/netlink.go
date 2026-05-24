@@ -23,10 +23,24 @@ import (
 )
 
 const (
-	// ServerInterfaceIP is the IP address of the Wireguard interface in server mode.
-	ServerInterfaceIP = "169.254.18.1/30"
-	// ClientInterfaceIP is the IP address of the Wireguard interface in client mode.
-	ClientInterfaceIP = "169.254.18.2/30"
+	// wireguardNetworkBase is the base prefix of the /24 subnet reserved for Wireguard interfaces (169.254.18.0/24).
+	// Each tunnel is assigned a /30 block within this subnet.
+	wireguardNetworkBase = "169.254.18"
+	// serverOctetOffset is the offset of the server IP within each /30 block.
+	serverOctetOffset = 1
+	// clientOctetOffset is the offset of the client IP within each /30 block.
+	clientOctetOffset = 2
+	// subnetSize is the number of addresses in each /30 block, used to compute per-tunnel IP offsets.
+	subnetSize = 4
+	// maxWireguardInterfaces is the maximum number of Wireguard interfaces that can be created,
+	// derived from the available /30 blocks in the 169.254.18.0/24 subnet.
+	MaxWireguardInterfaces = 64
+	// ServerInterfaceIP (169.254.18.1/30) is the IP address of the Wireguard interface
+	// in server mode for tunnel index 0.
+	ServerInterfaceIP = wireguardNetworkBase + ".1/30"
+	// ClientInterfaceIP (169.254.18.2/30) is the IP address of the Wireguard interface
+	// in client mode for tunnel index 0.
+	ClientInterfaceIP = wireguardNetworkBase + ".2/30"
 )
 
 // AddAddress adds an IP address to the Wireguard interface.
@@ -46,27 +60,20 @@ func GetLink(name string) (netlink.Link, error) {
 
 // GetInterfaceIP returns the IP address of the Wireguard interface.
 func GetInterfaceIP(mode gateway.Mode, idx int) string {
-	var base int
+	var fourthOctet int
 
 	switch mode {
 	case gateway.ModeServer:
-		if idx == 0 {
-			return ServerInterfaceIP
-		}
-		base = 1
+		fourthOctet = (subnetSize * idx) + serverOctetOffset
+
 	case gateway.ModeClient:
-		if idx == 0 {
-			return ClientInterfaceIP
-		}
-		base = 2
+		fourthOctet = (subnetSize * idx) + clientOctetOffset
+
 	default:
 		return ""
 	}
 
-	totalOffset := (4 * idx) + base
-	thirdOctet := 18 + (totalOffset / 256)
-	fourthOctet := totalOffset % 256
-	return fmt.Sprintf("169.254.%d.%d/30", thirdOctet, fourthOctet)
+	return fmt.Sprintf("%s.%d/30", wireguardNetworkBase, fourthOctet)
 }
 
 func GetTunnelName(idx int) string {

@@ -150,15 +150,13 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Get interface list
 	ports := wireguard.GetWireguardPorts(options)
-	interfacecount := len(ports)
-
 	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).
-	for i := 0; i < interfacecount; i++ {
-		if err := wireguard.InitWireguardLink(cmd.Context(), options, i, ports); err != nil {
-			return fmt.Errorf("Failed to create WireGuard interface %d/%d: %v", i+1, interfacecount, err)
+	for i, port := range ports {
+		if err := wireguard.InitWireguardLink(cmd.Context(), options, i, port); err != nil {
+			return fmt.Errorf("failed to create WireGuard interface %d/%d: %w", i+1, len(ports), err)
 		}
 	}
-	klog.Infof("Successfully created all %d interfaces", interfacecount)
+	klog.Infof("Successfully created all %d interfaces", len(ports))
 
 	// Create the Prometheus collector and register it inside the controller-runtime metrics server.
 	promcollect, err := wireguard.NewPrometheusCollector(mgr.GetClient(), &wireguard.MetricsOptions{
