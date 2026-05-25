@@ -176,6 +176,10 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 				klog.V(3).Infof("Link not found for routeconfiguration %s, requeuing: %v", req.String(), err)
 				return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 			}
+			if errors.Is(err, ErrNetworkUnreachable) {
+				klog.Warningf("Network is unreachable for routeconfiguration %s, requeuing: %v", req.String(), err)
+				return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
+			}
 			return ctrl.Result{}, fmt.Errorf("ensuring routes presence: %w", err)
 		}
 	}

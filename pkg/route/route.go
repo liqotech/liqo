@@ -18,11 +18,16 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"syscall"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
+
+// ErrNetworkUnreachable is returned when a route cannot because the network gateway is not reachable.
+var ErrNetworkUnreachable = errors.New("network unreachable")
 
 // EnsureRoutesPresence ensures the presence of the given routes.
 func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) error {
@@ -38,11 +43,17 @@ func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) erro
 		if exists {
 			if !IsEqualRoute(route, existingroute) {
 				if err := netlink.RouteReplace(route); err != nil {
+					if isNetworkUnreachableError(err) {
+						return fmt.Errorf("%w: error replacing route %v: %w", ErrNetworkUnreachable, route, err)
+					}
 					return fmt.Errorf("error replacing route %v: %w", route, err)
 				}
 			}
 		} else {
 			if err := netlink.RouteAdd(route); err != nil {
+				if isNetworkUnreachableError(err) {
+					return fmt.Errorf("%w: error adding route %v: %w", ErrNetworkUnreachable, route, err)
+				}
 				return fmt.Errorf("error adding route %v: %w", route, err)
 			}
 		}
@@ -141,6 +152,16 @@ func IsContainedRoute(route *netlink.Route, routes []networkingv1beta1.Route) bo
 		if IsEqualRoute(route, r) {
 			return true
 		}
+	}
+	return false
+}
+
+// isNetworkUnreachableError returns true if the network is unreachable (gateway not reachable).
+func isNetworkUnreachableError(err error) bool {
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		// ENETUNREACH: network is unreachable (gateway not reachable)
+		return errno == unix.ENETUNREACH
 	}
 	return false
 }
