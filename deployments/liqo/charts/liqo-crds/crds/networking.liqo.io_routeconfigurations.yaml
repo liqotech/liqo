@@ -104,6 +104,10 @@ spec:
                                   description: NextHop is a single next-hop in a multipath
                                     route (ECMP).
                                   properties:
+                                    dev:
+                                      description: Dev is the local network interface
+                                        through which this next-hop is reachable.
+                                      type: string
                                     gw:
                                       description: Gw is the gateway (next hop) IP
                                         address.
@@ -119,6 +123,7 @@ spec:
                                       minimum: 0
                                       type: integer
                                   required:
+                                  - dev
                                   - gw
                                   type: object
                                 type: array
