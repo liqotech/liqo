@@ -261,22 +261,17 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 				weight = *nh.Weight
 			}
 
-			routes, err := netlink.RouteGet(nextHopGw)
+			link, err := netlink.LinkByName(nh.Dev)
 			if err != nil {
-				return nil, fmt.Errorf("cannot get route for next-hop %s: %w", nextHopGw, err)
-			}
-			if len(routes) == 0 {
-				return nil, fmt.Errorf("no route found for next-hop %s", nextHopGw)
-			}
-
-			r := routes[0]
-			if r.LinkIndex == 0 {
-				return nil, fmt.Errorf("inferred route for next-hop %s has no link index", nextHopGw)
+				if errors.As(err, &netlink.LinkNotFoundError{}) {
+					return nil, fmt.Errorf("link %s not found: %w", nh.Dev, err)
+				}
+				return nil, fmt.Errorf("getting link %s: %w", nh.Dev, err)
 			}
 
 			multiPath[i] = &netlink.NexthopInfo{
 				Gw:        nextHopGw,
-				LinkIndex: r.LinkIndex,
+				LinkIndex: link.Attrs().Index,
 				Hops:      weight,
 			}
 		}
