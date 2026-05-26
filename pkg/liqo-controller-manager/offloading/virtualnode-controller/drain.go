@@ -85,14 +85,27 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *offloadingv1b
 			}),
 		},
 	})
-	klog.Infof("Drain node %s -> %d pods found", vn.Name, len(podList.Items))
+
+	podListFiltered := &corev1.PodList{}
+	for i := range podList.Items {
+		if isDaemonSetPod(&podList.Items[i]) {
+			continue
+		}
+		if isMirrorPod(&podList.Items[i]) {
+			continue
+		}
+		podListFiltered.Items = append(podListFiltered.Items, podList.Items[i])
+	}
+
+	klog.Infof("Drain node %s -> %d pods found", vn.Name, len(podListFiltered.Items))
 	if err != nil {
 		return nil, err
 	}
-	for i := range podList.Items {
-		klog.V(4).Infof("Drain node %s -> pod %v/%v found", podList.Items[i].Spec.NodeName, podList.Items[i].Namespace, podList.Items[i].Name)
+	for i := range podListFiltered.Items {
+		klog.V(4).Infof("Drain node %s -> pod %v/%v found",
+			podListFiltered.Items[i].Spec.NodeName, podListFiltered.Items[i].Namespace, podListFiltered.Items[i].Name)
 	}
-	return podList, nil
+	return podListFiltered, nil
 }
 
 // evictPods performs the eviction of the provided list of pods in parallel, waiting for their deletion.
@@ -164,4 +177,18 @@ func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) er
 		}
 		return false, nil
 	})
+}
+
+func isDaemonSetPod(pod *corev1.Pod) bool {
+	for _, ref := range pod.OwnerReferences {
+		if ref.Kind == "DaemonSet" {
+			return true
+		}
+	}
+	return false
+}
+
+func isMirrorPod(pod *corev1.Pod) bool {
+	_, ok := pod.Annotations[corev1.MirrorPodAnnotationKey]
+	return ok
 }
