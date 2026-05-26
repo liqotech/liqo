@@ -241,10 +241,9 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 	// present, and the remote creation would fail as the corresponding service account is not present.
 	remote.AutomountServiceAccountToken = ptr.To(false)
 
-	// This fields are currently forced to false, to prevent invasive settings on the remote cluster (which might not work).
-	remote.HostIPC = false
-	remote.HostNetwork = false
-	remote.HostPID = false
+	remote.HostIPC = local.HostIPC
+	remote.HostNetwork = local.HostNetwork
+	remote.HostPID = local.HostPID
 
 	// Perform the additional mutations to implement advanced functionalities.
 	for _, mutator := range mutators {
