@@ -18,6 +18,7 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	unstructuredpkg "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -76,6 +77,50 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 	}
 
 	for _, item := range unstructured.Items {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// firewallConfigurationBindingControllerFinalizer is the finalizer set by the
+// firewall controller on FirewallConfigurationBinding resources.
+const firewallConfigurationBindingControllerFinalizer = "firewallconfigurationbinding-controller.liqo.io/finalizer"
+
+// DeleteFirewallConfigurationBindings deletes all FirewallConfigurationBinding resources,
+// first removing their controller finalizer so they are not stuck during uninstall.
+func DeleteFirewallConfigurationBindings(ctx context.Context, client dynamic.Interface) error {
+	r1 := client.Resource(networkingv1beta1.FirewallConfigurationBindingGroupVersionResource)
+	ul, err := r1.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for i := range ul.Items {
+		item := &ul.Items[i]
+		// Remove the controller finalizer so the binding can be deleted even if
+		// the fabric/gateway pod that owns it is already gone.
+		finalizers, found, err := unstructuredpkg.NestedStringSlice(item.Object, "metadata", "finalizers")
+		if err != nil {
+			return err
+		}
+		if found {
+			newFinalizers := make([]string, 0, len(finalizers))
+			for _, f := range finalizers {
+				if f != firewallConfigurationBindingControllerFinalizer {
+					newFinalizers = append(newFinalizers, f)
+				}
+			}
+			if err := unstructuredpkg.SetNestedStringSlice(item.Object, newFinalizers, "metadata", "finalizers"); err != nil {
+				return err
+			}
+			if _, err := r1.Namespace(item.GetNamespace()).Update(ctx, item, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+		}
+
 		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}

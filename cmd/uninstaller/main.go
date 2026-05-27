@@ -59,6 +59,7 @@ func init() {
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;patch;update;delete;
@@ -130,6 +131,11 @@ func main() {
 
 	if err := uninstaller.DeleteNetworks(ctx, dynClient); err != nil {
 		klog.Errorf("Unable to delete Network CIDRs: %s", err)
+		os.Exit(1)
+	}
+
+	if err := uninstaller.DeleteFirewallConfigurationBindings(ctx, dynClient); err != nil {
+		klog.Errorf("Unable to delete FirewallConfigurationBindings: %s", err)
 		os.Exit(1)
 	}
 
