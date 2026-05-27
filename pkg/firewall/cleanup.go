@@ -17,6 +17,7 @@ package firewall
 import (
 	"context"
 
+	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -24,14 +25,27 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 // CleanupPendingBindingFinalizers removes finalizers from any FirewallConfigurationBinding
 // resources pending deletion that match one of the given label sets.
+// If cleanupNftables is true, it also deletes the corresponding nftables table for each binding,
+// following the same approach used by the FirewallConfigurationBinding controller deletion path.
 // It is called after the manager has fully stopped to unblock resources that the
 // reconciler did not have time to process before the pod was terminated.
-func CleanupPendingBindingFinalizers(ctx context.Context, cl client.Client, labelsSets []labels.Set) {
+func CleanupPendingBindingFinalizers(ctx context.Context, cl client.Client, labelsSets []labels.Set, cleanupNftables bool) {
 	klog.Info("Gateway stopped: cleaning up pending FirewallConfigurationBinding finalizers")
+
+	var nftconn *nftables.Conn
+	if cleanupNftables {
+		var err error
+		nftconn, err = nftables.New()
+		if err != nil {
+			klog.Errorf("Shutdown cleanup: failed to create nftables connection: %v", err)
+		}
+	}
+
 	for k := range labelsSets {
 		bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
 		if err := cl.List(ctx, bindingList, client.MatchingLabels(labelsSets[k])); err != nil {
@@ -41,13 +55,13 @@ func CleanupPendingBindingFinalizers(ctx context.Context, cl client.Client, labe
 		}
 		for i := range bindingList.Items {
 			klog.Infof("Shutdown cleanup: processing FirewallConfigurationBinding %s/%s", bindingList.Items[i].Namespace, bindingList.Items[i].Name)
-			cleanupBinding(ctx, cl, &bindingList.Items[i])
+			cleanupBinding(ctx, cl, &bindingList.Items[i], nftconn)
 		}
 	}
 	klog.Info("Gateway stopped: completed cleanup of pending FirewallConfigurationBinding finalizers")
 }
 
-func cleanupBinding(ctx context.Context, cl client.Client, binding *networkingv1beta1.FirewallConfigurationBinding) {
+func cleanupBinding(ctx context.Context, cl client.Client, binding *networkingv1beta1.FirewallConfigurationBinding, nftconn *nftables.Conn) {
 	if binding.DeletionTimestamp.IsZero() {
 		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s is not pending deletion, skipping\n",
 			binding.Namespace, binding.Name)
@@ -57,6 +71,18 @@ func cleanupBinding(ctx context.Context, cl client.Client, binding *networkingv1
 		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s does not have the controller finalizer, skipping\n",
 			binding.Namespace, binding.Name)
 		return
+	}
+
+	if nftconn != nil && binding.Status.TableName != "" {
+		tableName := binding.Status.TableName
+		delTable(nftconn, &firewallapi.Table{Name: &tableName})
+		if err := nftconn.Flush(); err != nil {
+			klog.Errorf("Shutdown cleanup: failed to flush nftables for FirewallConfigurationBinding %s/%s: %v",
+				binding.Namespace, binding.Name, err)
+		} else {
+			klog.Infof("Shutdown cleanup: deleted nftables table %q for FirewallConfigurationBinding %s/%s",
+				tableName, binding.Namespace, binding.Name)
+		}
 	}
 
 	ctrlutil.RemoveFinalizer(binding, firewallConfigurationBindingControllerFinalizer)

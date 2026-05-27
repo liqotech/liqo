@@ -255,6 +255,6 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupPendingBindingFinalizers(cleanupCtx, cl, fwcr.LabelsSets)
+	firewall.CleanupPendingBindingFinalizers(cleanupCtx, cl, fwcr.LabelsSets, options.EnableNftMonitor)
 	return nil
 }

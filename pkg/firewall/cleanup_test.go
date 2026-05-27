@@ -75,7 +75,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 			true /* deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
 
 		// Removing the only finalizer on a deletion-timestamped object triggers fake-client GC,
 		// so the object should be gone.
@@ -88,7 +88,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
 
 		got := getBinding(cl, "no-label")
 		Expect(got).ToNot(BeNil())
@@ -101,7 +101,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 			false /* not deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
 
 		got := getBinding(cl, "alive")
 		Expect(got).ToNot(BeNil())
@@ -114,7 +114,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
 
 		got := getBinding(cl, "foreign-fin")
 		Expect(got).ToNot(BeNil())
@@ -129,7 +129,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a, b).Build()
 
 		CleanupPendingBindingFinalizers(ctx, cl,
-			[]labels.Set{{appLabelKey: fabricLabelVal}, {appLabelKey: gatewayLabelVal}})
+			[]labels.Set{{appLabelKey: fabricLabelVal}, {appLabelKey: gatewayLabelVal}}, false)
 
 		Expect(getBinding(cl, "a")).To(BeNil())
 		Expect(getBinding(cl, "b")).To(BeNil())
@@ -137,7 +137,7 @@ var _ = Describe("CleanupPendingBindingFinalizers", func() {
 
 	It("does not panic when given an empty label set list", func() {
 		Expect(func() {
-			CleanupPendingBindingFinalizers(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), nil)
+			CleanupPendingBindingFinalizers(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), nil, false)
 		}).ToNot(Panic())
 	})
 })
