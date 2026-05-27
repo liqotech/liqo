@@ -91,7 +91,7 @@ spec:
                 type: string
               tableName:
                 description: |-
-                  TableName is the name of the nftables table managed by this attach.
+                  TableName is the name of the nftables table managed by this binding.
                   Cached here so that cleanup can proceed even after the FirewallConfiguration is deleted.
                 type: string
               type:

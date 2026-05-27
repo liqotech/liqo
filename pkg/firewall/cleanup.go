@@ -26,45 +26,45 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-// CleanupPendingAttachFinalizers removes finalizers from any FirewallConfigurationBinding
+// CleanupPendingBindingFinalizers removes finalizers from any FirewallConfigurationBinding
 // resources pending deletion that match one of the given label sets.
 // It is called after the manager has fully stopped to unblock resources that the
 // reconciler did not have time to process before the pod was terminated.
-func CleanupPendingAttachFinalizers(ctx context.Context, cl client.Client, labelsSets []labels.Set) {
+func CleanupPendingBindingFinalizers(ctx context.Context, cl client.Client, labelsSets []labels.Set) {
 	klog.Info("Gateway stopped: cleaning up pending FirewallConfigurationBinding finalizers")
 	for k := range labelsSets {
-		attachList := &networkingv1beta1.FirewallConfigurationBindingList{}
-		if err := cl.List(ctx, attachList, client.MatchingLabels(labelsSets[k])); err != nil {
+		bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
+		if err := cl.List(ctx, bindingList, client.MatchingLabels(labelsSets[k])); err != nil {
 			klog.Errorf("Shutdown cleanup: failed to list FirewallConfigurationBinding for labels %v: %v",
 				labelsSets[k], err)
 			continue
 		}
-		for i := range attachList.Items {
-			klog.Infof("Shutdown cleanup: processing FirewallConfigurationBinding %s/%s", attachList.Items[i].Namespace, attachList.Items[i].Name)
-			cleanupAttach(ctx, cl, &attachList.Items[i])
+		for i := range bindingList.Items {
+			klog.Infof("Shutdown cleanup: processing FirewallConfigurationBinding %s/%s", bindingList.Items[i].Namespace, bindingList.Items[i].Name)
+			cleanupBinding(ctx, cl, &bindingList.Items[i])
 		}
 	}
 	klog.Info("Gateway stopped: completed cleanup of pending FirewallConfigurationBinding finalizers")
 }
 
-func cleanupAttach(ctx context.Context, cl client.Client, attach *networkingv1beta1.FirewallConfigurationBinding) {
-	if attach.DeletionTimestamp.IsZero() {
+func cleanupBinding(ctx context.Context, cl client.Client, binding *networkingv1beta1.FirewallConfigurationBinding) {
+	if binding.DeletionTimestamp.IsZero() {
 		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s is not pending deletion, skipping\n",
-			attach.Namespace, attach.Name)
+			binding.Namespace, binding.Name)
 		return
 	}
-	if !ctrlutil.ContainsFinalizer(attach, firewallConfigurationBindingControllerFinalizer) {
+	if !ctrlutil.ContainsFinalizer(binding, firewallConfigurationBindingControllerFinalizer) {
 		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s does not have the controller finalizer, skipping\n",
-			attach.Namespace, attach.Name)
+			binding.Namespace, binding.Name)
 		return
 	}
 
-	ctrlutil.RemoveFinalizer(attach, firewallConfigurationBindingControllerFinalizer)
-	if err := cl.Update(ctx, attach); err != nil && !apierrors.IsNotFound(err) {
+	ctrlutil.RemoveFinalizer(binding, firewallConfigurationBindingControllerFinalizer)
+	if err := cl.Update(ctx, binding); err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("Shutdown cleanup: failed to remove finalizer from FirewallConfigurationBinding %s/%s: %v",
-			attach.Namespace, attach.Name, err)
+			binding.Namespace, binding.Name, err)
 		return
 	}
 	klog.Infof("Shutdown cleanup: removed finalizer from FirewallConfigurationBinding %s/%s",
-		attach.Namespace, attach.Name)
+		binding.Namespace, binding.Name)
 }

@@ -36,16 +36,16 @@ import (
 )
 
 const (
-	attachTestNamespace            = "liqo-tenant"
-	attachDelName                  = "att-del"
-	attachNoFinName                = "att-nofin"
-	firewallAttachForeignFinalizer = "other.liqo.io/finalizer"
-	roleLabelKey                   = "role"
+	bindingTestNamespace            = "liqo-tenant"
+	bindingDelName                  = "att-del"
+	bindingNoFinName                = "att-nofin"
+	firewallBindingForeignFinalizer = "other.liqo.io/finalizer"
+	roleLabelKey                    = "role"
 )
 
-// newAttachReconciler builds a reconciler with a nil nftables connection. Callers
+// newBindingReconciler builds a reconciler with a nil nftables connection. Callers
 // must only exercise reconcile branches that do not touch the connection.
-func newAttachReconciler(objs ...client.Object) (*FirewallConfigurationBindingReconciler, *record.FakeRecorder) {
+func newBindingReconciler(objs ...client.Object) (*FirewallConfigurationBindingReconciler, *record.FakeRecorder) {
 	cb := fake.NewClientBuilder().WithScheme(scheme.Scheme).
 		WithStatusSubresource(&networkingv1beta1.FirewallConfigurationBinding{})
 	if len(objs) > 0 {
@@ -61,11 +61,11 @@ func newAttachReconciler(objs ...client.Object) (*FirewallConfigurationBindingRe
 	}, rec
 }
 
-func newAttach(name string, mutate func(a *networkingv1beta1.FirewallConfigurationBinding)) *networkingv1beta1.FirewallConfigurationBinding {
+func newBinding(name string, mutate func(a *networkingv1beta1.FirewallConfigurationBinding)) *networkingv1beta1.FirewallConfigurationBinding {
 	a := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: attachTestNamespace,
+			Namespace: bindingTestNamespace,
 		},
 	}
 	if mutate != nil {
@@ -82,59 +82,59 @@ var _ = Describe("FirewallConfigurationBindingReconciler.Reconcile (non-nft bran
 	})
 
 	It("returns nil when the FirewallConfigurationBinding is not found", func() {
-		r, _ := newAttachReconciler()
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "missing", Namespace: attachTestNamespace}})
+		r, _ := newBindingReconciler()
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "missing", Namespace: bindingTestNamespace}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 	})
 
 	It("removes the finalizer on deletion when no table name is cached (no nft calls)", func() {
 		now := metav1.Now()
-		a := newAttach(attachDelName, func(a *networkingv1beta1.FirewallConfigurationBinding) {
+		a := newBinding(bindingDelName, func(a *networkingv1beta1.FirewallConfigurationBinding) {
 			a.DeletionTimestamp = &now
 			a.Finalizers = []string{firewallConfigurationBindingControllerFinalizer}
 			// Status.TableName intentionally empty: the controller must skip nft calls.
 		})
-		r, _ := newAttachReconciler(a)
+		r, _ := newBindingReconciler(a)
 
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: attachDelName, Namespace: attachTestNamespace}})
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: bindingDelName, Namespace: bindingTestNamespace}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		// The object should have been deleted from the fake client because removing the
 		// last finalizer on a deletion-timestamped object triggers the fake's GC.
 		var got networkingv1beta1.FirewallConfigurationBinding
-		err = r.Get(ctx, types.NamespacedName{Name: attachDelName, Namespace: attachTestNamespace}, &got)
+		err = r.Get(ctx, types.NamespacedName{Name: bindingDelName, Namespace: bindingTestNamespace}, &got)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("is a no-op when the deletion timestamp is set but our finalizer is absent", func() {
 		now := metav1.Now()
-		a := newAttach(attachNoFinName, func(a *networkingv1beta1.FirewallConfigurationBinding) {
+		a := newBinding(bindingNoFinName, func(a *networkingv1beta1.FirewallConfigurationBinding) {
 			a.DeletionTimestamp = &now
 			// Keep at least one finalizer so the fake client accepts the deletion-timestamp object,
 			// but it is NOT ours.
-			a.Finalizers = []string{firewallAttachForeignFinalizer}
+			a.Finalizers = []string{firewallBindingForeignFinalizer}
 		})
-		r, _ := newAttachReconciler(a)
+		r, _ := newBindingReconciler(a)
 
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: attachNoFinName, Namespace: attachTestNamespace}})
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: bindingNoFinName, Namespace: bindingTestNamespace}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		// Object still exists and the foreign finalizer was not touched.
 		var got networkingv1beta1.FirewallConfigurationBinding
-		Expect(r.Get(ctx, types.NamespacedName{Name: attachNoFinName, Namespace: attachTestNamespace}, &got)).To(Succeed())
-		Expect(got.Finalizers).To(ContainElement(firewallAttachForeignFinalizer))
+		Expect(r.Get(ctx, types.NamespacedName{Name: bindingNoFinName, Namespace: bindingTestNamespace}, &got)).To(Succeed())
+		Expect(got.Finalizers).To(ContainElement(firewallBindingForeignFinalizer))
 	})
 
 	It("requeues after 5s and returns an error when the referenced FirewallConfiguration is missing", func() {
-		a := newAttach("att-orphan", func(a *networkingv1beta1.FirewallConfigurationBinding) {
+		a := newBinding("att-orphan", func(a *networkingv1beta1.FirewallConfigurationBinding) {
 			a.Spec.FirewallConfigurationRef = corev1.LocalObjectReference{Name: "missing-fwcfg"}
 		})
-		r, _ := newAttachReconciler(a)
+		r, _ := newBindingReconciler(a)
 
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "att-orphan", Namespace: attachTestNamespace}})
+		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "att-orphan", Namespace: bindingTestNamespace}})
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(`referenced firewallconfiguration "missing-fwcfg" not found`))
 		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
@@ -149,28 +149,28 @@ var _ = Describe("FirewallConfigurationBindingReconciler finalizer helpers", fun
 	})
 
 	It("ensureBindingFinalizerPresence adds our finalizer", func() {
-		a := newAttach("a", nil)
-		r, _ := newAttachReconciler(a)
+		a := newBinding("a", nil)
+		r, _ := newBindingReconciler(a)
 
 		Expect(r.ensureBindingFinalizerPresence(ctx, a)).To(Succeed())
 
 		var got networkingv1beta1.FirewallConfigurationBinding
-		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: attachTestNamespace}, &got)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
 		Expect(got.Finalizers).To(ContainElement(firewallConfigurationBindingControllerFinalizer))
 	})
 
 	It("ensureBindingFinalizerAbsence removes our finalizer and leaves others alone", func() {
-		a := newAttach("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
-			a.Finalizers = []string{firewallConfigurationBindingControllerFinalizer, firewallAttachForeignFinalizer}
+		a := newBinding("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
+			a.Finalizers = []string{firewallConfigurationBindingControllerFinalizer, firewallBindingForeignFinalizer}
 		})
-		r, _ := newAttachReconciler(a)
+		r, _ := newBindingReconciler(a)
 
 		Expect(r.ensureBindingFinalizerAbsence(ctx, a)).To(Succeed())
 
 		var got networkingv1beta1.FirewallConfigurationBinding
-		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: attachTestNamespace}, &got)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
 		Expect(got.Finalizers).ToNot(ContainElement(firewallConfigurationBindingControllerFinalizer))
-		Expect(got.Finalizers).To(ContainElement(firewallAttachForeignFinalizer))
+		Expect(got.Finalizers).To(ContainElement(firewallBindingForeignFinalizer))
 	})
 
 	It("exposes the same finalizer string under both internal and external names", func() {
@@ -186,13 +186,13 @@ var _ = Describe("updateStatus", func() {
 	})
 
 	It("sets ConditionTrue, Applied type, and emits an event on success", func() {
-		a := newAttach("a", nil)
-		r, rec := newAttachReconciler(a)
+		a := newBinding("a", nil)
+		r, rec := newBindingReconciler(a)
 
 		Expect(r.updateStatus(ctx, a, nil)).To(Succeed())
 
 		var got networkingv1beta1.FirewallConfigurationBinding
-		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: attachTestNamespace}, &got)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
 		Expect(got.Status.Type).To(Equal(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied))
 		Expect(got.Status.Status).To(Equal(metav1.ConditionTrue))
 		Expect(got.Status.LastTransitionTime.IsZero()).To(BeFalse())
@@ -200,25 +200,25 @@ var _ = Describe("updateStatus", func() {
 	})
 
 	It("sets ConditionFalse and returns the original reconcile error", func() {
-		a := newAttach("a", nil)
-		r, _ := newAttachReconciler(a)
+		a := newBinding("a", nil)
+		r, _ := newBindingReconciler(a)
 		recErr := errors.New("boom")
 
 		err := r.updateStatus(ctx, a, recErr)
 		Expect(err).To(MatchError(recErr))
 
 		var got networkingv1beta1.FirewallConfigurationBinding
-		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: attachTestNamespace}, &got)).To(Succeed())
+		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
 		Expect(got.Status.Status).To(Equal(metav1.ConditionFalse))
 	})
 
 	It("is a no-op when the new status equals the existing one", func() {
-		a := newAttach("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
+		a := newBinding("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
 			a.Status.Status = metav1.ConditionTrue
 			a.Status.Type = networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied
 			a.Status.LastTransitionTime = metav1.Now()
 		})
-		r, rec := newAttachReconciler(a)
+		r, rec := newBindingReconciler(a)
 
 		// Capture the time before; if no update is issued it should remain unchanged.
 		original := a.Status.LastTransitionTime
@@ -232,7 +232,7 @@ var _ = Describe("updateStatus", func() {
 var _ = Describe("forgeLabelsPredicate", func() {
 	makeObj := func(lbls map[string]string) client.Object {
 		return &networkingv1beta1.FirewallConfigurationBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "x", Namespace: attachTestNamespace, Labels: lbls},
+			ObjectMeta: metav1.ObjectMeta{Name: "x", Namespace: bindingTestNamespace, Labels: lbls},
 		}
 	}
 

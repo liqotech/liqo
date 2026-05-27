@@ -37,11 +37,11 @@ const (
 	foreignFinalizer = "other.liqo.io/finalizer"
 )
 
-func newAttachWith(name string, lbls map[string]string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
+func newBindingWith(name string, lbls map[string]string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
 	a := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       name,
-			Namespace:  attachTestNamespace,
+			Namespace:  bindingTestNamespace,
 			Labels:     lbls,
 			Finalizers: fins,
 		},
@@ -53,91 +53,91 @@ func newAttachWith(name string, lbls map[string]string, fins []string, deleting 
 	return a
 }
 
-func getAttach(c client.Client, name string) *networkingv1beta1.FirewallConfigurationBinding {
+func getBinding(c client.Client, name string) *networkingv1beta1.FirewallConfigurationBinding {
 	var a networkingv1beta1.FirewallConfigurationBinding
-	err := c.Get(context.Background(), types.NamespacedName{Name: name, Namespace: attachTestNamespace}, &a)
+	err := c.Get(context.Background(), types.NamespacedName{Name: name, Namespace: bindingTestNamespace}, &a)
 	if err != nil {
 		return nil
 	}
 	return &a
 }
 
-var _ = Describe("CleanupPendingAttachFinalizers", func() {
+var _ = Describe("CleanupPendingBindingFinalizers", func() {
 	var ctx context.Context
 
 	BeforeEach(func() {
 		ctx = context.Background()
 	})
 
-	It("removes our finalizer from a deletion-pending, label-matched attach", func() {
-		a := newAttachWith("match", map[string]string{appLabelKey: fabricLabelVal},
+	It("removes our finalizer from a deletion-pending, label-matched binding", func() {
+		a := newBindingWith("match", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			true /* deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
 		// Removing the only finalizer on a deletion-timestamped object triggers fake-client GC,
 		// so the object should be gone.
-		Expect(getAttach(cl, "match")).To(BeNil())
+		Expect(getBinding(cl, "match")).To(BeNil())
 	})
 
-	It("does NOT touch attaches whose labels do not match any set", func() {
-		a := newAttachWith("no-label", map[string]string{appLabelKey: otherLabelVal},
+	It("does NOT touch bindings whose labels do not match any set", func() {
+		a := newBindingWith("no-label", map[string]string{appLabelKey: otherLabelVal},
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
-		got := getAttach(cl, "no-label")
+		got := getBinding(cl, "no-label")
 		Expect(got).ToNot(BeNil())
 		Expect(got.Finalizers).To(ContainElement(firewallConfigurationBindingControllerFinalizer))
 	})
 
-	It("skips attaches that are NOT pending deletion", func() {
-		a := newAttachWith("alive", map[string]string{appLabelKey: fabricLabelVal},
+	It("skips bindings that are NOT pending deletion", func() {
+		a := newBindingWith("alive", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			false /* not deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
-		got := getAttach(cl, "alive")
+		got := getBinding(cl, "alive")
 		Expect(got).ToNot(BeNil())
 		Expect(got.Finalizers).To(ContainElement(firewallConfigurationBindingControllerFinalizer))
 	})
 
-	It("skips attaches that do NOT carry our finalizer", func() {
-		a := newAttachWith("foreign-fin", map[string]string{appLabelKey: fabricLabelVal},
+	It("skips bindings that do NOT carry our finalizer", func() {
+		a := newBindingWith("foreign-fin", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{foreignFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
+		CleanupPendingBindingFinalizers(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}})
 
-		got := getAttach(cl, "foreign-fin")
+		got := getBinding(cl, "foreign-fin")
 		Expect(got).ToNot(BeNil())
 		Expect(got.Finalizers).To(ContainElement(foreignFinalizer))
 	})
 
 	It("processes all provided label sets", func() {
-		a := newAttachWith("a", map[string]string{appLabelKey: fabricLabelVal},
+		a := newBindingWith("a", map[string]string{appLabelKey: fabricLabelVal},
 			[]string{firewallConfigurationBindingControllerFinalizer}, true)
-		b := newAttachWith("b", map[string]string{appLabelKey: gatewayLabelVal},
+		b := newBindingWith("b", map[string]string{appLabelKey: gatewayLabelVal},
 			[]string{firewallConfigurationBindingControllerFinalizer}, true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a, b).Build()
 
-		CleanupPendingAttachFinalizers(ctx, cl,
+		CleanupPendingBindingFinalizers(ctx, cl,
 			[]labels.Set{{appLabelKey: fabricLabelVal}, {appLabelKey: gatewayLabelVal}})
 
-		Expect(getAttach(cl, "a")).To(BeNil())
-		Expect(getAttach(cl, "b")).To(BeNil())
+		Expect(getBinding(cl, "a")).To(BeNil())
+		Expect(getBinding(cl, "b")).To(BeNil())
 	})
 
 	It("does not panic when given an empty label set list", func() {
 		Expect(func() {
-			CleanupPendingAttachFinalizers(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), nil)
+			CleanupPendingBindingFinalizers(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), nil)
 		}).ToNot(Panic())
 	})
 })

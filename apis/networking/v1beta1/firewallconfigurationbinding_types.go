@@ -56,7 +56,7 @@ type FirewallConfigurationBindingStatus struct {
 	Status metav1.ConditionStatus `json:"status,omitempty"`
 	// Last time the condition transitioned from one status to another.
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
-	// TableName is the name of the nftables table managed by this attach.
+	// TableName is the name of the nftables table managed by this binding.
 	// Cached here so that cleanup can proceed even after the FirewallConfiguration is deleted.
 	TableName string `json:"tableName,omitempty"`
 }

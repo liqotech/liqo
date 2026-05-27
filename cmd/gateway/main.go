@@ -221,12 +221,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
-	// Setup the firewall configuration attach controller.
+	// Setup the firewall configuration binding controller.
 	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
-		mgr.GetEventRecorderFor("firewall-attach-controller"),
+		mgr.GetEventRecorderFor("firewall-binding-controller"),
 		[]labels.Set{
 			gateway.ForgeFirewallBindingAllGatewaysTargetLabels(connoptions.GwOptions.Name),
 			gateway.ForgeFirewallBindingInternalTargetLabels(connoptions.GwOptions.Name),
@@ -235,12 +235,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create firewall configuration attach reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
 		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup firewall configuration attach reconciler: %w", err)
+		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {
@@ -266,7 +266,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	//
 	// Time budget: terminationGracePeriodSeconds (default 30s)
 	//   - GracefulShutdownTimeout:      10s  (manager waits for reconcilers)
-	//   - CleanupPendingAttachFinalizers: 15s (remaining budget)
+	//   - CleanupPendingBindingFinalizers: 15s (remaining budget)
 	// Total: 25s < 30s default grace period.
 	if err := mgr.Start(cmd.Context()); err != nil {
 		return err
@@ -274,6 +274,6 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupPendingAttachFinalizers(cleanupCtx, cl, fwcr.LabelsSets)
+	firewall.CleanupPendingBindingFinalizers(cleanupCtx, cl, fwcr.LabelsSets)
 	return nil
 }

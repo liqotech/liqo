@@ -41,12 +41,12 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
-// attachTarget represents a single entity (node or gateway) that needs a FirewallConfigurationBinding.
-type attachTarget struct {
+// bindingTarget represents a single entity (node or gateway) that needs a FirewallConfigurationBinding.
+type bindingTarget struct {
 	// entityName is the node name (for fabric) or gateway name (for gateway).
 	entityName string
-	// attachLabels are the labels to set on the FirewallConfigurationBinding resource.
-	attachLabels map[string]string
+	// bindingLabels are the labels to set on the FirewallConfigurationBinding resource.
+	bindingLabels map[string]string
 }
 
 // BindingCreatorReconciler reconciles FirewallConfiguration resources and creates
@@ -75,39 +75,39 @@ func (r *BindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if !fwcfg.DeletionTimestamp.IsZero() {
-		// FWCfg is being deleted; GC will handle the owned attaches via ownerRef.
+		// FWCfg is being deleted; GC will handle the owned bindings via ownerRef.
 		return ctrl.Result{}, nil
 	}
 
-	klog.V(4).Infof("Reconciling firewallconfiguration attach resources for %s", req.String())
+	klog.V(4).Infof("Reconciling firewallconfiguration binding resources for %s", req.String())
 
 	targets, err := r.getTargets(ctx, fwcfg)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("computing attach targets for %s: %w", req.String(), err)
+		return ctrl.Result{}, fmt.Errorf("computing binding targets for %s: %w", req.String(), err)
 	}
 
-	// Ensure an attach exists for each target.
+	// Ensure a binding exists for each target.
 	expectedNames := make(map[string]struct{}, len(targets))
 	for i := range targets {
 		t := &targets[i]
-		attachName := attachResourceName(fwcfg.Name, t.entityName)
-		expectedNames[attachName] = struct{}{}
-		if err := r.ensureAttach(ctx, fwcfg, attachName, t.attachLabels); err != nil {
-			return ctrl.Result{}, fmt.Errorf("ensuring attach %s: %w", attachName, err)
+		bindingName := bindingResourceName(fwcfg.Name, t.entityName)
+		expectedNames[bindingName] = struct{}{}
+		if err := r.ensureBinding(ctx, fwcfg, bindingName, t.bindingLabels); err != nil {
+			return ctrl.Result{}, fmt.Errorf("ensuring binding %s: %w", bindingName, err)
 		}
 	}
 
-	// Delete attaches that no longer have a corresponding target.
-	if err := r.deleteStaleAttaches(ctx, fwcfg, expectedNames); err != nil {
-		return ctrl.Result{}, fmt.Errorf("cleaning stale attaches for %s: %w", req.String(), err)
+	// Delete bindings that no longer have a corresponding target.
+	if err := r.deleteStaleBindings(ctx, fwcfg, expectedNames); err != nil {
+		return ctrl.Result{}, fmt.Errorf("cleaning stale bindings for %s: %w", req.String(), err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// getTargets derives the list of attach targets from the FirewallConfiguration labels.
+// getTargets derives the list of binding targets from the FirewallConfiguration labels.
 func (r *BindingCreatorReconciler) getTargets(ctx context.Context,
-	fwcfg *networkingv1beta1.FirewallConfiguration) ([]attachTarget, error) {
+	fwcfg *networkingv1beta1.FirewallConfiguration) ([]bindingTarget, error) {
 	category := fwcfg.Labels[firewallpkg.FirewallCategoryTargetKey]
 	subcategory := fwcfg.Labels[firewallpkg.FirewallSubCategoryTargetKey]
 	unique := fwcfg.Labels[firewallpkg.FirewallUniqueTargetKey]
@@ -125,15 +125,15 @@ func (r *BindingCreatorReconciler) getTargets(ctx context.Context,
 }
 
 // getFabricTargets enumerates targets for fabric-category FirewallConfigurations.
-func (r *BindingCreatorReconciler) getFabricTargets(ctx context.Context, subcategory, unique string) ([]attachTarget, error) {
+func (r *BindingCreatorReconciler) getFabricTargets(ctx context.Context, subcategory, unique string) ([]bindingTarget, error) {
 	switch subcategory {
 	case fabric.FirewallSubCategoryTargetAllNodesValue:
 		return r.allInternalNodeTargets(ctx, fabric.ForgeFirewallBindingTargetLabels)
 	case fabric.FirewallSubCategoryTargetSingleNodeValue:
-		// Single-node: one attach for the specific node indicated by unique.
-		return []attachTarget{{
-			entityName:   unique,
-			attachLabels: fabric.ForgeFirewallBindingTargetLabelsSingleNode(unique),
+		// Single-node: one binding for the specific node indicated by unique.
+		return []bindingTarget{{
+			entityName:    unique,
+			bindingLabels: fabric.ForgeFirewallBindingTargetLabelsSingleNode(unique),
 		}}, nil
 	case remapping.FirewallSubCategoryTargetValueIPMapping:
 		return r.allInternalNodeTargets(ctx, remapping.ForgeFirewallBindingTargetLabelsIPMappingFabric)
@@ -145,7 +145,7 @@ func (r *BindingCreatorReconciler) getFabricTargets(ctx context.Context, subcate
 
 // getGatewayTargets enumerates targets for gateway-category FirewallConfigurations.
 func (r *BindingCreatorReconciler) getGatewayTargets(ctx context.Context,
-	subcategory, unique string) ([]attachTarget, error) {
+	subcategory, unique string) ([]bindingTarget, error) {
 	switch subcategory {
 	case gateway.FirewallSubCategoryAllGatewaysTargetValue:
 		return r.allGatewayTargets(ctx, gateway.ForgeFirewallBindingAllGatewaysTargetLabels)
@@ -164,17 +164,17 @@ func (r *BindingCreatorReconciler) getGatewayTargets(ctx context.Context,
 
 // allInternalNodeTargets lists all InternalNodes and builds one target per node.
 func (r *BindingCreatorReconciler) allInternalNodeTargets(ctx context.Context,
-	forgeLabels func(nodeName string) map[string]string) ([]attachTarget, error) {
+	forgeLabels func(nodeName string) map[string]string) ([]bindingTarget, error) {
 	nodeList := &networkingv1beta1.InternalNodeList{}
 	if err := r.List(ctx, nodeList); err != nil {
 		return nil, fmt.Errorf("listing internalnodes: %w", err)
 	}
-	targets := make([]attachTarget, 0, len(nodeList.Items))
+	targets := make([]bindingTarget, 0, len(nodeList.Items))
 	for i := range nodeList.Items {
 		name := nodeList.Items[i].Name
-		targets = append(targets, attachTarget{
-			entityName:   name,
-			attachLabels: forgeLabels(name),
+		targets = append(targets, bindingTarget{
+			entityName:    name,
+			bindingLabels: forgeLabels(name),
 		})
 	}
 	return targets, nil
@@ -184,8 +184,8 @@ func (r *BindingCreatorReconciler) allInternalNodeTargets(ctx context.Context,
 // and builds one target per gateway. Gateways live in tenant namespaces (liqo-tenant-*),
 // not necessarily in the same namespace as the FirewallConfiguration.
 func (r *BindingCreatorReconciler) allGatewayTargets(ctx context.Context,
-	forgeLabels func(gwName string) map[string]string) ([]attachTarget, error) {
-	var targets []attachTarget
+	forgeLabels func(gwName string) map[string]string) ([]bindingTarget, error) {
+	var targets []bindingTarget
 
 	serverList := &networkingv1beta1.GatewayServerList{}
 	if err := r.List(ctx, serverList); err != nil {
@@ -193,9 +193,9 @@ func (r *BindingCreatorReconciler) allGatewayTargets(ctx context.Context,
 	}
 	for i := range serverList.Items {
 		name := serverList.Items[i].Name
-		targets = append(targets, attachTarget{
-			entityName:   name,
-			attachLabels: forgeLabels(name),
+		targets = append(targets, bindingTarget{
+			entityName:    name,
+			bindingLabels: forgeLabels(name),
 		})
 	}
 
@@ -205,9 +205,9 @@ func (r *BindingCreatorReconciler) allGatewayTargets(ctx context.Context,
 	}
 	for i := range clientList.Items {
 		name := clientList.Items[i].Name
-		targets = append(targets, attachTarget{
-			entityName:   name,
-			attachLabels: forgeLabels(name),
+		targets = append(targets, bindingTarget{
+			entityName:    name,
+			bindingLabels: forgeLabels(name),
 		})
 	}
 
@@ -215,7 +215,7 @@ func (r *BindingCreatorReconciler) allGatewayTargets(ctx context.Context,
 }
 
 // singleGatewayTarget finds the specific GatewayServer or GatewayClient for the given remoteID.
-func (r *BindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remoteID string) ([]attachTarget, error) {
+func (r *BindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remoteID string) ([]bindingTarget, error) {
 	gwServer, gwClient, err := getters.GetGatewaysByClusterID(ctx, r.Client, liqov1beta1.ClusterID(remoteID))
 	if err != nil {
 		return nil, fmt.Errorf("getting gateways for remoteID %q: %w", remoteID, err)
@@ -228,71 +228,71 @@ func (r *BindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remo
 	case gwClient != nil:
 		gwName = gwClient.Name
 	default:
-		klog.V(4).Infof("No gateway found for remoteID %q; skipping attach creation", remoteID)
+		klog.V(4).Infof("No gateway found for remoteID %q; skipping binding creation", remoteID)
 		return nil, nil
 	}
 
-	return []attachTarget{{
-		entityName:   gwName,
-		attachLabels: remapping.ForgeFirewallBindingTargetLabels(remoteID, gwName),
+	return []bindingTarget{{
+		entityName:    gwName,
+		bindingLabels: remapping.ForgeFirewallBindingTargetLabels(remoteID, gwName),
 	}}, nil
 }
 
-// ensureAttach creates or updates a FirewallConfigurationBinding for the given entity.
-func (r *BindingCreatorReconciler) ensureAttach(ctx context.Context,
-	fwcfg *networkingv1beta1.FirewallConfiguration, attachName string, labels map[string]string) error {
-	attach := &networkingv1beta1.FirewallConfigurationBinding{
+// ensureBinding creates or updates a FirewallConfigurationBinding for the given entity.
+func (r *BindingCreatorReconciler) ensureBinding(ctx context.Context,
+	fwcfg *networkingv1beta1.FirewallConfiguration, bindingName string, labels map[string]string) error {
+	binding := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      attachName,
+			Name:      bindingName,
 			Namespace: fwcfg.Namespace,
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, attach, func() error {
-		attach.Labels = labels
-		attach.Spec.FirewallConfigurationRef = corev1.LocalObjectReference{Name: fwcfg.Name}
-		return controllerutil.SetControllerReference(fwcfg, attach, r.Scheme)
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
+		binding.Labels = labels
+		binding.Spec.FirewallConfigurationRef = corev1.LocalObjectReference{Name: fwcfg.Name}
+		return controllerutil.SetControllerReference(fwcfg, binding, r.Scheme)
 	})
 	if err != nil {
-		return fmt.Errorf("creating/updating attach %s/%s: %w", fwcfg.Namespace, attachName, err)
+		return fmt.Errorf("creating/updating binding %s/%s: %w", fwcfg.Namespace, bindingName, err)
 	}
 	if op != controllerutil.OperationResultNone {
-		klog.V(4).Infof("FirewallConfigurationBinding %s/%s %s", fwcfg.Namespace, attachName, op)
+		klog.V(4).Infof("FirewallConfigurationBinding %s/%s %s", fwcfg.Namespace, bindingName, op)
 	}
 	return nil
 }
 
-// deleteStaleAttaches removes FirewallConfigurationBinding resources owned by fwcfg
+// deleteStaleBindings removes FirewallConfigurationBinding resources owned by fwcfg
 // whose names are not in expectedNames.
-func (r *BindingCreatorReconciler) deleteStaleAttaches(ctx context.Context,
+func (r *BindingCreatorReconciler) deleteStaleBindings(ctx context.Context,
 	fwcfg *networkingv1beta1.FirewallConfiguration, expectedNames map[string]struct{}) error {
-	attachList := &networkingv1beta1.FirewallConfigurationBindingList{}
-	if err := r.List(ctx, attachList, client.InNamespace(fwcfg.Namespace)); err != nil {
-		return fmt.Errorf("listing firewallconfigurationbindinges: %w", err)
+	bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
+	if err := r.List(ctx, bindingList, client.InNamespace(fwcfg.Namespace)); err != nil {
+		return fmt.Errorf("listing firewallconfigurationbindings: %w", err)
 	}
 
-	for i := range attachList.Items {
-		attach := &attachList.Items[i]
-		if !isOwnedBy(attach, fwcfg.UID) {
+	for i := range bindingList.Items {
+		binding := &bindingList.Items[i]
+		if !isOwnedBy(binding, fwcfg.UID) {
 			continue
 		}
-		if _, ok := expectedNames[attach.Name]; ok {
+		if _, ok := expectedNames[binding.Name]; ok {
 			continue
 		}
-		klog.V(4).Infof("Deleting stale FirewallConfigurationBinding %s/%s", attach.Namespace, attach.Name)
+		klog.V(4).Infof("Deleting stale FirewallConfigurationBinding %s/%s", binding.Namespace, binding.Name)
 		// Remove the gateway-pod finalizer before deleting so the resource is not stuck if the
 		// gateway pod is already gone (the pod cannot remove its own finalizer when it is dead).
-		if controllerutil.ContainsFinalizer(attach, firewallpkg.FirewallConfigurationBindingControllerFinalizer) {
-			original := attach.DeepCopy()
-			controllerutil.RemoveFinalizer(attach, firewallpkg.FirewallConfigurationBindingControllerFinalizer)
-			if err := r.Patch(ctx, attach, client.MergeFrom(original)); err != nil {
+		if controllerutil.ContainsFinalizer(binding, firewallpkg.FirewallConfigurationBindingControllerFinalizer) {
+			original := binding.DeepCopy()
+			controllerutil.RemoveFinalizer(binding, firewallpkg.FirewallConfigurationBindingControllerFinalizer)
+			if err := r.Patch(ctx, binding, client.MergeFrom(original)); err != nil {
 				if !apierrors.IsNotFound(err) && !apierrors.IsConflict(err) {
-					return fmt.Errorf("removing finalizer from stale attach %s/%s: %w", attach.Namespace, attach.Name, err)
+					return fmt.Errorf("removing finalizer from stale binding %s/%s: %w", binding.Namespace, binding.Name, err)
 				}
 			}
 		}
-		if err := r.Delete(ctx, attach); err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("deleting attach %s/%s: %w", attach.Namespace, attach.Name, err)
+		if err := r.Delete(ctx, binding); err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("deleting binding %s/%s: %w", binding.Namespace, binding.Name, err)
 		}
 	}
 	return nil
@@ -308,8 +308,8 @@ func isOwnedBy(obj metav1.Object, ownerUID types.UID) bool {
 	return false
 }
 
-// attachResourceName returns the deterministic name for a FirewallConfigurationBinding.
-func attachResourceName(fwcfgName, entityName string) string {
+// bindingResourceName returns the deterministic name for a FirewallConfigurationBinding.
+func bindingResourceName(fwcfgName, entityName string) string {
 	name := fmt.Sprintf("%s-%s", fwcfgName, entityName)
 	if len(name) > 253 {
 		// Preserve the entity suffix; truncate the fwcfg prefix.

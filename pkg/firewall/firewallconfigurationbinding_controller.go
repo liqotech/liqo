@@ -121,7 +121,7 @@ func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, 
 		Namespace: fwbinding.Namespace,
 	}, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Referenced firewallconfiguration %q not found for attach %s; requeuing",
+			klog.V(4).Infof("Referenced firewallconfiguration %q not found for binding %s; requeuing",
 				fwbinding.Spec.FirewallConfigurationRef.Name, req.String())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, fmt.Errorf("referenced firewallconfiguration %q not found",
 				fwbinding.Spec.FirewallConfigurationRef.Name)

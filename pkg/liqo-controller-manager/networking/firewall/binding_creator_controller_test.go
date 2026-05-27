@@ -44,22 +44,22 @@ const (
 
 // ---------- helpers (Phase 2) ----------
 
-var _ = Describe("attachResourceName helper", func() {
+var _ = Describe("bindingResourceName helper", func() {
 	It("returns <fwcfg>-<entity> when short enough", func() {
-		Expect(attachResourceName("fw", nodeAName)).To(Equal("fw-" + nodeAName))
+		Expect(bindingResourceName("fw", nodeAName)).To(Equal("fw-" + nodeAName))
 	})
 
 	It("preserves the entity suffix when the joined name exceeds 253 chars", func() {
 		longFw := strings.Repeat("a", 260)
 		entity := "node-suffix"
-		got := attachResourceName(longFw, entity)
+		got := bindingResourceName(longFw, entity)
 		Expect(len(got)).To(BeNumerically("<=", 253))
 		Expect(got).To(HaveSuffix("-" + entity))
 	})
 
 	It("returns names that match (i.e. is deterministic)", func() {
-		a := attachResourceName("fw", "n")
-		b := attachResourceName("fw", "n")
+		a := bindingResourceName("fw", "n")
+		b := bindingResourceName("fw", "n")
 		Expect(a).To(Equal(b))
 	})
 })
@@ -119,7 +119,7 @@ func req(name string) ctrl.Request {
 	return ctrl.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: fwcfgNamespace}}
 }
 
-func listAttaches(ctx context.Context, c client.Client) []networkingv1beta1.FirewallConfigurationBinding {
+func listBindings(ctx context.Context, c client.Client) []networkingv1beta1.FirewallConfigurationBinding {
 	var l networkingv1beta1.FirewallConfigurationBindingList
 	Expect(c.List(ctx, &l, client.InNamespace(fwcfgNamespace))).To(Succeed())
 	return l.Items
@@ -142,7 +142,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("when the FirewallConfiguration is being deleted", func() {
-		It("does not create any attach (GC handles cascade)", func() {
+		It("does not create any binding (GC handles cascade)", func() {
 			fwcfg := newFwcfg("fw-del", fabric.ForgeFirewallTargetLabels())
 			now := metav1.Now()
 			fwcfg.DeletionTimestamp = &now
@@ -152,12 +152,12 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			res, err := r.Reconcile(ctx, req("fw-del"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
-			Expect(listAttaches(ctx, r.Client)).To(BeEmpty())
+			Expect(listBindings(ctx, r.Client)).To(BeEmpty())
 		})
 	})
 
 	Context("when the FirewallConfiguration has an unknown category", func() {
-		It("returns successfully and creates no attaches", func() {
+		It("returns successfully and creates no bindings", func() {
 			fwcfg := newFwcfg("fw-unknown", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey: "bogus",
 			})
@@ -166,12 +166,12 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			res, err := r.Reconcile(ctx, req("fw-unknown"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
-			Expect(listAttaches(ctx, r.Client)).To(BeEmpty())
+			Expect(listBindings(ctx, r.Client)).To(BeEmpty())
 		})
 	})
 
 	Context("fabric / all-nodes", func() {
-		It("creates one attach per InternalNode with the expected labels, owner and spec", func() {
+		It("creates one binding per InternalNode with the expected labels, owner and spec", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
 			nodes := []client.Object{
 				&networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}},
@@ -183,7 +183,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-fabric"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(3))
 			seen := map[string]struct{}{}
 			for i := range items {
@@ -194,7 +194,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 				// Owner ref points to the FWCfg.
 				Expect(a.OwnerReferences).To(HaveLen(1))
 				Expect(a.OwnerReferences[0].UID).To(Equal(fwcfg.UID))
-				// Labels are derived from the node name suffix of the attach.
+				// Labels are derived from the node name suffix of the binding.
 				nodeName := strings.TrimPrefix(a.Name, "fw-fabric-")
 				Expect(a.Labels).To(Equal(fabric.ForgeFirewallBindingTargetLabels(nodeName)))
 			}
@@ -210,11 +210,11 @@ var _ = Describe("BindingCreatorReconciler", func() {
 
 			_, err := r.Reconcile(ctx, req("fw-fabric"))
 			Expect(err).ToNot(HaveOccurred())
-			before := listAttaches(ctx, r.Client)
+			before := listBindings(ctx, r.Client)
 
 			_, err = r.Reconcile(ctx, req("fw-fabric"))
 			Expect(err).ToNot(HaveOccurred())
-			after := listAttaches(ctx, r.Client)
+			after := listBindings(ctx, r.Client)
 
 			Expect(after).To(HaveLen(len(before)))
 			Expect(after[0].UID).To(Equal(before[0].UID))
@@ -222,7 +222,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("fabric / single-node", func() {
-		It("creates exactly one attach for the targeted node, ignoring other InternalNodes", func() {
+		It("creates exactly one binding for the targeted node, ignoring other InternalNodes", func() {
 			fwcfg := newFwcfg("fw-single", fabric.ForgeFirewallTargetLabelsSingleNode("node-target"))
 			objs := []client.Object{
 				fwcfg,
@@ -234,7 +234,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-single"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Name).To(Equal("fw-single-node-target"))
 			Expect(items[0].Labels).To(Equal(fabric.ForgeFirewallBindingTargetLabelsSingleNode("node-target")))
@@ -242,7 +242,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("fabric / ip-mapping", func() {
-		It("creates one attach per InternalNode with remapping-fabric labels", func() {
+		It("creates one binding per InternalNode with remapping-fabric labels", func() {
 			fwcfg := newFwcfg("fw-mapfab", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey:    fabric.FirewallCategoryTargetValue,
 				firewallpkg.FirewallSubCategoryTargetKey: remapping.FirewallSubCategoryTargetValueIPMapping,
@@ -256,7 +256,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-mapfab"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(2))
 			for i := range items {
 				nodeName := strings.TrimPrefix(items[i].Name, "fw-mapfab-")
@@ -266,7 +266,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("gateway / all-gateways", func() {
-		It("creates one attach per GatewayServer and per GatewayClient across all namespaces", func() {
+		It("creates one binding per GatewayServer and per GatewayClient across all namespaces", func() {
 			fwcfg := newFwcfg("fw-allgw", gateway.ForgeFirewallAllGatewaysTargetLabels())
 			r := newFakeReconciler(
 				fwcfg,
@@ -278,7 +278,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-allgw"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(3))
 			byName := map[string]networkingv1beta1.FirewallConfigurationBinding{}
 			for i := range items {
@@ -293,7 +293,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("gateway / fabric (internal)", func() {
-		It("creates one attach per gateway with internal labels", func() {
+		It("creates one binding per gateway with internal labels", func() {
 			fwcfg := newFwcfg("fw-gwfab", gateway.ForgeFirewallInternalTargetLabels())
 			r := newFakeReconciler(
 				fwcfg,
@@ -303,14 +303,14 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-gwfab"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Labels).To(Equal(gateway.ForgeFirewallBindingInternalTargetLabels("gw-s")))
 		})
 	})
 
 	Context("gateway / ip-mapping", func() {
-		It("creates one attach per gateway across servers and clients", func() {
+		It("creates one binding per gateway across servers and clients", func() {
 			fwcfg := newFwcfg("fw-gwmap", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey:    gateway.FirewallCategoryGwTargetValue,
 				firewallpkg.FirewallSubCategoryTargetKey: remapping.FirewallSubCategoryTargetValueIPMapping,
@@ -324,7 +324,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-gwmap"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(2))
 			for i := range items {
 				gwName := strings.TrimPrefix(items[i].Name, "fw-gwmap-")
@@ -334,7 +334,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 	})
 
 	Context("gateway / no-subcategory (single remote cluster)", func() {
-		It("creates one attach for the matching GatewayServer when only the server exists", func() {
+		It("creates one binding for the matching GatewayServer when only the server exists", func() {
 			fwcfg := newFwcfg("fw-rid", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey: gateway.FirewallCategoryGwTargetValue,
 				firewallpkg.FirewallUniqueTargetKey:   remoteCluster1ID,
@@ -351,13 +351,13 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-rid"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Name).To(Equal("fw-rid-gw-srv"))
 			Expect(items[0].Labels).To(Equal(remapping.ForgeFirewallBindingTargetLabels(remoteCluster1ID, "gw-srv")))
 		})
 
-		It("creates no attach when no gateway matches the remote cluster ID", func() {
+		It("creates no binding when no gateway matches the remote cluster ID", func() {
 			fwcfg := newFwcfg("fw-rid-missing", map[string]string{
 				firewallpkg.FirewallCategoryTargetKey: gateway.FirewallCategoryGwTargetValue,
 				firewallpkg.FirewallUniqueTargetKey:   "no-such-cluster",
@@ -366,15 +366,15 @@ var _ = Describe("BindingCreatorReconciler", func() {
 
 			_, err := r.Reconcile(ctx, req("fw-rid-missing"))
 			Expect(err).ToNot(HaveOccurred())
-			Expect(listAttaches(ctx, r.Client)).To(BeEmpty())
+			Expect(listBindings(ctx, r.Client)).To(BeEmpty())
 		})
 	})
 
-	Context("stale attach garbage-collection", func() {
-		It("deletes an owned attach whose name is no longer expected, and strips any leftover finalizer first", func() {
+	Context("stale binding garbage-collection", func() {
+		It("deletes an owned binding whose name is no longer expected, and strips any leftover finalizer first", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
 			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
-			// Pre-existing stale attach owned by the FWCfg but for a node that no longer exists.
+			// Pre-existing stale binding owned by the FWCfg but for a node that no longer exists.
 			stale := &networkingv1beta1.FirewallConfigurationBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fw-fabric-node-gone",
@@ -397,13 +397,13 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-fabric"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
-			// node-gone attach must have been removed; node-a attach must have been created.
+			items := listBindings(ctx, r.Client)
+			// node-gone binding must have been removed; node-a binding must have been created.
 			Expect(items).To(HaveLen(1))
 			Expect(items[0].Name).To(Equal("fw-fabric-node-a"))
 		})
 
-		It("does NOT delete an attach that is not owned by the FirewallConfiguration", func() {
+		It("does NOT delete a binding that is not owned by the FirewallConfiguration", func() {
 			fwcfg := newFwcfg("fw-fabric", fabric.ForgeFirewallTargetLabels())
 			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
 			foreign := &networkingv1beta1.FirewallConfigurationBinding{
@@ -418,7 +418,7 @@ var _ = Describe("BindingCreatorReconciler", func() {
 			_, err := r.Reconcile(ctx, req("fw-fabric"))
 			Expect(err).ToNot(HaveOccurred())
 
-			items := listAttaches(ctx, r.Client)
+			items := listBindings(ctx, r.Client)
 			names := map[string]struct{}{}
 			for i := range items {
 				names[items[i].Name] = struct{}{}
