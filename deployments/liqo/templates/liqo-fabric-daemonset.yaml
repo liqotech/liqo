@@ -18,6 +18,7 @@ spec:
     {{- if .Values.networking.fabric.pod.annotations }}
       annotations:
         {{- toYaml .Values.networking.fabric.pod.annotations | nindent 8 }}
+        "argocd.argoproj.io/sync-wave": "0"
     {{- end }}
       labels:
         {{- include "liqo.selectorLabels" $fabricConfig | nindent 8 }}

@@ -16,14 +16,18 @@ package uninstaller
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	unstructuredpkg "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // DeleteAllForeignClusters deletes all ForeignCluster resources.
@@ -85,44 +89,62 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 	return nil
 }
 
-// firewallConfigurationBindingControllerFinalizer is the finalizer set by the
-// firewall controller on FirewallConfigurationBinding resources.
-const firewallConfigurationBindingControllerFinalizer = "firewallconfigurationbinding-controller.liqo.io/finalizer"
-
-// DeleteFirewallConfigurationBindings deletes all FirewallConfigurationBinding resources,
-// first removing their controller finalizer so they are not stuck during uninstall.
-func DeleteFirewallConfigurationBindings(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(networkingv1beta1.FirewallConfigurationBindingGroupVersionResource)
-	ul, err := r1.List(ctx, metav1.ListOptions{})
+// DeleteHelmKeepResources deletes RBAC resources managed by Liqo that are annotated with
+// "helm.sh/resource-policy: keep". These resources are retained during helm uninstall
+// to allow the fabric DaemonSet pods to clean up their finalizers, and must be explicitly
+// deleted once the cleanup is complete.
+func DeleteHelmKeepResources(ctx context.Context, namespace string, client dynamic.Interface) error {
+	// Delete ClusterRoleBindings with the keep annotation managed by Liqo.
+	crbGVR := rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings")
+	crbList, err := client.Resource(crbGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("listing ClusterRoleBindings: %w", err)
+	}
+	for i := range crbList.Items {
+		item := &crbList.Items[i]
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
+			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+			klog.Infof("Deleting ClusterRoleBinding %s (%s: %s)", item.GetName(),
+				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
+			if err := client.Resource(crbGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("deleting ClusterRoleBinding %s: %w", item.GetName(), err)
+			}
+		}
 	}
 
-	for i := range ul.Items {
-		item := &ul.Items[i]
-		// Remove the controller finalizer so the binding can be deleted even if
-		// the fabric/gateway pod that owns it is already gone.
-		finalizers, found, err := unstructuredpkg.NestedStringSlice(item.Object, "metadata", "finalizers")
-		if err != nil {
-			return err
-		}
-		if found {
-			newFinalizers := make([]string, 0, len(finalizers))
-			for _, f := range finalizers {
-				if f != firewallConfigurationBindingControllerFinalizer {
-					newFinalizers = append(newFinalizers, f)
-				}
-			}
-			if err := unstructuredpkg.SetNestedStringSlice(item.Object, newFinalizers, "metadata", "finalizers"); err != nil {
-				return err
-			}
-			if _, err := r1.Namespace(item.GetNamespace()).Update(ctx, item, metav1.UpdateOptions{}); err != nil {
-				return err
+	// Delete ClusterRoles with the keep annotation managed by Liqo.
+	crGVR := rbacv1.SchemeGroupVersion.WithResource("clusterroles")
+	crList, err := client.Resource(crGVR).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("listing ClusterRoles: %w", err)
+	}
+	for i := range crList.Items {
+		item := &crList.Items[i]
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
+			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+			klog.Infof("Deleting ClusterRole %s (%s: %s)", item.GetName(),
+				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
+			if err := client.Resource(crGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("deleting ClusterRole %s: %w", item.GetName(), err)
 			}
 		}
+	}
 
-		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
-			return err
+	// Delete ServiceAccounts with the keep annotation managed by Liqo.
+	saGVR := corev1.SchemeGroupVersion.WithResource("serviceaccounts")
+	saList, err := client.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("listing ServiceAccounts: %w", err)
+	}
+	for i := range saList.Items {
+		item := &saList.Items[i]
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
+			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+			klog.Infof("Deleting ServiceAccount %s/%s (%s: %s)", item.GetNamespace(), item.GetName(),
+				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
+			if err := client.Resource(saGVR).Namespace(namespace).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("deleting ServiceAccount %s/%s: %w", item.GetNamespace(), item.GetName(), err)
+			}
 		}
 	}
 

@@ -59,7 +59,9 @@ func init() {
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;patch;update;delete;
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;delete;
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;delete;
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;patch;update;delete;
@@ -134,14 +136,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := uninstaller.DeleteFirewallConfigurationBindings(ctx, dynClient); err != nil {
-		klog.Errorf("Unable to delete FirewallConfigurationBindings: %s", err)
-		os.Exit(1)
-	}
-
 	// Wait for resources to be effectively deleted, to allow releasing possible finalizers.
 	if err := uninstaller.WaitForResources(dynClient, uninstaller.PhaseCleanup); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)
+		os.Exit(1)
+	}
+
+	// Delete RBAC resources annotated with helm.sh/resource-policy: keep that were
+	// retained to allow the fabric DaemonSet pods to clean up their finalizers.
+	if err := uninstaller.DeleteHelmKeepResources(ctx, namespace, dynClient); err != nil {
+		klog.Errorf("Unable to delete helm keep resources: %s", err)
 		os.Exit(1)
 	}
 }
