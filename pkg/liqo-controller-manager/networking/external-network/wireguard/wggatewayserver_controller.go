@@ -97,34 +97,7 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		if controllerutil.ContainsFinalizer(wgServer, consts.ClusterRoleBindingFinalizer) {
 			// Ensure all gateway pods are gone before revoking the ClusterRoleBinding.
 			// This gives the gateway pod time to remove FirewallConfigurationBinding finalizers
-			// before losing RBAC access.
-			//
-			// First: if the Deployment still exists, trigger foreground deletion so Kubernetes
-			// keeps the Deployment object in the API until pods have fully terminated.
-			deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
-			var deploy appsv1.Deployment
-			switch err = r.Get(ctx, deployNsName, &deploy); {
-			case apierrors.IsNotFound(err):
-				// Deployment is gone; fall through to pod check.
-			case err != nil:
-				return ctrl.Result{}, fmt.Errorf("getting gateway deployment %q: %w", deployNsName, err)
-			default:
-				// Deployment still present; trigger foreground deletion so pods terminate before
-				// the Deployment object is removed from the API.
-				if deploy.DeletionTimestamp.IsZero() {
-					if err = r.Delete(ctx, &deploy, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil &&
-						!apierrors.IsNotFound(err) {
-						return ctrl.Result{}, fmt.Errorf("deleting gateway deployment %q: %w", deployNsName, err)
-					}
-				}
-				klog.V(4).Infof("Waiting for deployment %q to terminate before removing ClusterRoleBinding for WgGatewayServer %q",
-					deployNsName, req.NamespacedName)
-				return ctrl.Result{RequeueAfter: time.Second}, nil
-			}
-
-			// Second: even if the Deployment is gone, the GC may have cascade-deleted it via
-			// background propagation before we could add the foreground finalizer, leaving pods
-			// still in Terminating state. Wait until no pods remain.
+			// before losing RBAC access. Wait until no pods remain.
 			var podList corev1.PodList
 			if err = r.List(ctx, &podList,
 				client.InNamespace(wgServer.Namespace),
