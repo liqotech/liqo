@@ -226,7 +226,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
-		mgr.GetEventRecorderFor("firewall-binding-controller"),
+		mgr.GetEventRecorder("firewall-binding-controller"),
 		[]labels.Set{
 			gateway.ForgeFirewallBindingAllGatewaysTargetLabels(connoptions.GwOptions.Name),
 			gateway.ForgeFirewallBindingInternalTargetLabels(connoptions.GwOptions.Name),

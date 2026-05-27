@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,14 +52,14 @@ type FirewallConfigurationBindingReconciler struct {
 	NftConnection *nftables.Conn
 	client.Client
 	Scheme         *runtime.Scheme
-	EventsRecorder record.EventRecorder
+	EventsRecorder events.EventRecorder
 	// LabelsSets are used to filter the reconciled FirewallConfigurationBinding resources.
 	LabelsSets []labels.Set
 }
 
 // NewFirewallConfigurationBindingReconciler returns a new FirewallConfigurationBindingReconciler.
 func NewFirewallConfigurationBindingReconciler(cl client.Client, s *runtime.Scheme, nodename string,
-	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationBindingReconciler, error) {
+	er events.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationBindingReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
@@ -214,7 +214,7 @@ func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Contex
 	fwbinding.Status.Status = newStatus
 	fwbinding.Status.LastTransitionTime = metav1.Now()
 
-	r.EventsRecorder.Eventf(fwbinding, "Normal", "FirewallConfigurationBindingUpdate",
+	r.EventsRecorder.Eventf(fwbinding, nil, "Normal", "FirewallConfigurationBindingUpdate", "Updated",
 		"FirewallConfigurationBinding %s/%s: %s", fwbinding.Namespace, fwbinding.Name, newStatus)
 	if clerr := r.Client.Status().Update(ctx, fwbinding); clerr != nil {
 		return errors.Join(reconcileErr, clerr)

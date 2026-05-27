@@ -185,7 +185,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		options.NodeName,
-		mgr.GetEventRecorderFor("firewall-binding-controller"),
+		mgr.GetEventRecorder("firewall-binding-controller"),
 		[]labels.Set{
 			fabric.ForgeFirewallBindingTargetLabels(options.NodeName),
 			remapping.ForgeFirewallBindingTargetLabelsIPMappingFabric(options.NodeName),
