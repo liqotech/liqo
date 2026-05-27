@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -45,13 +45,13 @@ const (
 
 // newBindingReconciler builds a reconciler with a nil nftables connection. Callers
 // must only exercise reconcile branches that do not touch the connection.
-func newBindingReconciler(objs ...client.Object) (*FirewallConfigurationBindingReconciler, *record.FakeRecorder) {
+func newBindingReconciler(objs ...client.Object) (*FirewallConfigurationBindingReconciler, *events.FakeRecorder) {
 	cb := fake.NewClientBuilder().WithScheme(scheme.Scheme).
 		WithStatusSubresource(&networkingv1beta1.FirewallConfigurationBinding{})
 	if len(objs) > 0 {
 		cb = cb.WithObjects(objs...)
 	}
-	rec := record.NewFakeRecorder(10)
+	rec := events.NewFakeRecorder(10)
 	return &FirewallConfigurationBindingReconciler{
 		NodeName:       "test-node",
 		NftConnection:  nil, // unused in tested branches
