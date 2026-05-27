@@ -41,6 +41,12 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
+// oldFirewallConfigurationFinalizer is the finalizer used by the legacy (pre-binding)
+// firewall controller. It is no longer needed because cleanup is now handled per-binding,
+// but it may still be present on FirewallConfiguration resources created before the
+// migration. The BindingCreatorReconciler automatically strips it.
+const oldFirewallConfigurationFinalizer = "firewallconfigurations-controller.liqo.io/finalizer"
+
 // bindingTarget represents a single entity (node or gateway) that needs a FirewallConfigurationBinding.
 type bindingTarget struct {
 	// entityName is the node name (for fabric) or gateway name (for gateway).
@@ -77,6 +83,19 @@ func (r *BindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if !fwcfg.DeletionTimestamp.IsZero() {
 		// FWCfg is being deleted; GC will handle the owned bindings via ownerRef.
 		return ctrl.Result{}, nil
+	}
+
+	// Remove the legacy finalizer that was managed by the old per-FirewallConfiguration
+	// controller. It is no longer needed because each binding now carries its own
+	// finalizer, but clusters upgraded from the previous architecture may still have
+	// it set. Stripping it here prevents the resource from being stuck during deletion.
+	if controllerutil.ContainsFinalizer(fwcfg, oldFirewallConfigurationFinalizer) {
+		original := fwcfg.DeepCopy()
+		controllerutil.RemoveFinalizer(fwcfg, oldFirewallConfigurationFinalizer)
+		if err := r.Patch(ctx, fwcfg, client.MergeFrom(original)); err != nil {
+			return ctrl.Result{}, fmt.Errorf("removing old finalizer from %s: %w", req.String(), err)
+		}
+		klog.Infof("Removed old finalizer from FirewallConfiguration %s", req.String())
 	}
 
 	klog.V(4).Infof("Reconciling firewallconfiguration binding resources for %s", req.String())

@@ -28,13 +28,13 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-// CleanupPendingBindingFinalizers removes finalizers from any FirewallConfigurationBinding
+// CleanupFirewallConfigurationBindings removes finalizers from any FirewallConfigurationBinding
 // resources pending deletion that match one of the given label sets.
 // If cleanupNftables is true, it also deletes the corresponding nftables table for each binding,
 // following the same approach used by the FirewallConfigurationBinding controller deletion path.
 // It is called after the manager has fully stopped to unblock resources that the
 // reconciler did not have time to process before the pod was terminated.
-func CleanupPendingBindingFinalizers(ctx context.Context, cl client.Client, labelsSets []labels.Set, cleanupNftables bool) {
+func CleanupFirewallConfigurationBindings(ctx context.Context, cl client.Client, labelsSets []labels.Set, cleanupNftables bool) {
 	klog.Info("Gateway stopped: cleaning up pending FirewallConfigurationBinding finalizers")
 
 	var nftconn *nftables.Conn

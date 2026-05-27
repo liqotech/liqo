@@ -247,7 +247,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	//
 	// Time budget: terminationGracePeriodSeconds (default 30s)
 	//   - GracefulShutdownTimeout:      10s  (manager waits for reconcilers)
-	//   - CleanupPendingBindingFinalizers: 15s (remaining budget)
+	//   - CleanupFirewallConfigurationBindings: 15s (remaining budget)
 	// Total: 25s < 30s default grace period.
 	if err := mgr.Start(cmd.Context()); err != nil {
 		return err
@@ -255,6 +255,6 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupPendingBindingFinalizers(cleanupCtx, cl, fwcr.LabelsSets, options.EnableNftMonitor)
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, fwcr.LabelsSets, true)
 	return nil
 }

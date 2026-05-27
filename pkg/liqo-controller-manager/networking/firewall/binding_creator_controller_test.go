@@ -156,6 +156,28 @@ var _ = Describe("BindingCreatorReconciler", func() {
 		})
 	})
 
+	Context("when the FirewallConfiguration has the old legacy finalizer", func() {
+		It("removes the old finalizer and still creates bindings", func() {
+			fwcfg := newFwcfg("fw-legacy", fabric.ForgeFirewallTargetLabels())
+			fwcfg.Finalizers = []string{oldFirewallConfigurationFinalizer}
+			node := &networkingv1beta1.InternalNode{ObjectMeta: metav1.ObjectMeta{Name: nodeAName}}
+			r := newFakeReconciler(fwcfg, node)
+
+			_, err := r.Reconcile(ctx, req("fw-legacy"))
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the old finalizer was removed.
+			var updated networkingv1beta1.FirewallConfiguration
+			Expect(r.Get(ctx, req("fw-legacy").NamespacedName, &updated)).To(Succeed())
+			Expect(updated.Finalizers).ToNot(ContainElement(oldFirewallConfigurationFinalizer))
+
+			// Verify bindings were still created normally.
+			items := listBindings(ctx, r.Client)
+			Expect(items).To(HaveLen(1))
+			Expect(items[0].Name).To(Equal("fw-legacy-node-a"))
+		})
+	})
+
 	Context("when the FirewallConfiguration has an unknown category", func() {
 		It("returns successfully and creates no bindings", func() {
 			fwcfg := newFwcfg("fw-unknown", map[string]string{
