@@ -33,7 +33,7 @@ const (
 	foreignFinalizer = "other.liqo.io/finalizer"
 )
 
-func newBindingWith(name string, targetID string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
+func newBindingWith(name, targetID string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
 	a := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       name,

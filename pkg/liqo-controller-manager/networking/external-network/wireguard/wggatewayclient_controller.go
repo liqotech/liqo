@@ -44,8 +44,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
-const defaultServiceAccountName = "default"
-
 // WgGatewayClientReconciler manage WgGatewayClient lifecycle.
 type WgGatewayClientReconciler struct {
 	client.Client

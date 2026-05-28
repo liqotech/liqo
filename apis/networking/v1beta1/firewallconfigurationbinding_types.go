@@ -40,7 +40,8 @@ type FirewallConfigurationBindingSpec struct {
 	FirewallConfigurationRef corev1.LocalObjectReference `json:"firewallConfigurationRef"`
 	// TargetID identifies the entity (e.g. fabric node name or gateway name) that should apply this binding.
 	// The FirewallConfigurationBinding controller running on the matching entity filters resources by this field.
-	// It must be unique across all FirewallConfigurationBinding controllers instances in the cluster, otherwise multiple entities will apply the same FirewallConfiguration, which may cause unexpected behavior.
+	// It must be unique across all FirewallConfigurationBinding controllers instances in the cluster,
+	// otherwise multiple entities will apply the same FirewallConfiguration, which may cause unexpected behavior.
 	TargetID string `json:"targetID,omitempty"`
 }
 
