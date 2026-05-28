@@ -333,19 +333,4 @@ There are two strategies to create `VirtualNodes` associated with the same provi
 
 ## Resource Enforcement
 
-To ensure that the pods scheduled on a Liqo virtual node do not exceed the resources granted by the ResourceSlice, pods should have resource `limits` set. This allows the consumer cluster scheduler to be aware of how many resources have already been allocated, and it can select another node for scheduling.
-
-By default, Liqo enables a server-side check that ensures the requests of the pod do not exceed the quota (`controllerManager.config.enableResourceEnforcement` option enabled).
-However, this is not a guarantee that the consumer is not using more than expected, as if limits are higher than requests or if the user does not set limits and requests at all, a consumer cluster can use more than the quota.
-To define how strict is the server-side resources enforcement, ensuring that the consumer cluster never exceeds the quota, it is possible to act on the `controllerManager.config.defaultLimitsEnforcement` option, which can assume the following values:
-
-* **None** (default): the offloaded pods might not have the resource `requests` or `limits`. Which involves that the consumer cluster might use more than the resources negotiated via the `ResourceSlice`.
-* **Soft**: it forces the offloaded pods to have the `requests` set, which implies that pre-allocated resources will never go over the quota, but if the pods go over the requests, the total used resources might go over the quota.
-* **Hard**: it forces the offloaded pods to have both `limits` and `requests` set, with `limits` equal to the `requests`. **This is the safest mode** as the consumer cluster cannot go over the quota negotiated via the `ResourceSlice`.
-
-These options [need to be set at installation time](../../installation/install.md#customization-options), by defining them in the `values.yaml` or providing them via the `--set` argument to `helm install` or `liqoctl install`.
-For example, to set the `defaultLimitsEnforcement` to `Hard`:
-
-```bash
-liqoctl install [...ARGS] --set controllerManager.config.defaultLimitsEnforcement=Hard
-```
+The `controllerManager.config.enableResourceEnforcement` and `controllerManager.config.defaultLimitsEnforcement` options control how strictly the provider enforces the `Quota` granted by a `ResourceSlice` at runtime. The two options, the three enforcement modes (`None`, `Soft`, `Hard`), and how to set them are described in detail in the [Resource quota enforcement](/usage/resource-reservation.md#resource-quota-enforcement) section of the resource reservation page.
