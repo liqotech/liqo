@@ -244,7 +244,7 @@ liqoctl info peer cl01 --get authentication.resourceslices
 
 ## Defining the amount of resources to share
 
-The default amounts requested by `liqoctl peer`, how to configure them, how to override them at peering time, and how to request custom resources are all described in detail in the proper section of the [resource reservation](/usage/resource-reservation.md#ResourceReservationDefaultSlice) page.
+The default amounts requested by `liqoctl peer`, how to configure them, how to override them at peering time, and how to request custom resources are all described in detail in the proper section of the [resource reservation](ResourceReservationDefaultSlice) page.
 
 ## Bidirectional peering
 
