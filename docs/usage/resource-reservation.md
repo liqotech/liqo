@@ -335,4 +335,3 @@ This section lists some information and/or actions that may be required, and tha
 * **Provision the capacity advertised by the provider.**
   The provider must actually have the physical or cloud capacity to honor what `offloading.defaultNodeResources` and granted `ResourceSlice` objects promise.
   The default class controller does not verify against real capacity, so over-promising surfaces only at runtime with pods resulting in a `Pending` state; cluster sizing — whether manual, via `cluster-autoscaler` or Karpenter, or through cloud quota requests — is the provider operator's job.
-
