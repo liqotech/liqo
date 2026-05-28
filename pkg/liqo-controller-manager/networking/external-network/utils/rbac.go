@@ -20,8 +20,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -44,12 +46,94 @@ func DeleteClusterRoleBinding(ctx context.Context, cl client.Client, obj client.
 
 	for i := range crbList.Items {
 		crb := &crbList.Items[i]
+		if controllerutil.ContainsFinalizer(crb, consts.ClusterRoleBindingFinalizer) {
+			patch := client.MergeFrom(crb.DeepCopy())
+			controllerutil.RemoveFinalizer(crb, consts.ClusterRoleBindingFinalizer)
+			if err := cl.Patch(ctx, crb, patch); err != nil && !apierrors.IsNotFound(err) {
+				klog.Errorf("error while removing finalizer from cluster role binding %q: %v", crb.Name, err)
+				return err
+			}
+		}
 		if err := client.IgnoreNotFound(cl.Delete(ctx, crb)); err != nil {
 			klog.Errorf("error while deleting cluster role binding %q: %v", crb.Name, err)
 			return err
 		}
 	}
 	return nil
+}
+
+// CleanupClusterRoleBindings handles the full cleanup sequence for orphaned ClusterRoleBindings
+// after the owning WgGateway resource has been deleted. It waits for gateway pods to terminate,
+// removes the ServiceAccount finalizer, and then removes the CRB finalizer and deletes the CRB.
+// Returns (requeue, error).
+func CleanupClusterRoleBindings(ctx context.Context, cl client.Client, name, namespace string) (bool, error) {
+	var crbList rbacv1.ClusterRoleBindingList
+	if err := cl.List(ctx, &crbList, client.MatchingLabels{
+		consts.GatewayNameLabel:      name,
+		consts.GatewayNamespaceLabel: namespace,
+	}); err != nil {
+		return false, fmt.Errorf("listing cluster role bindings for gateway %s/%s: %w", namespace, name, err)
+	}
+
+	// Filter to only CRBs that still carry our finalizer.
+	var pending []rbacv1.ClusterRoleBinding
+	for i := range crbList.Items {
+		if controllerutil.ContainsFinalizer(&crbList.Items[i], consts.ClusterRoleBindingFinalizer) {
+			pending = append(pending, crbList.Items[i])
+		}
+	}
+	if len(pending) == 0 {
+		return false, nil
+	}
+
+	// Wait for all gateway pods to terminate before revoking RBAC.
+	var podList corev1.PodList
+	if err := cl.List(ctx, &podList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{
+			consts.GatewayNameLabel:      name,
+			consts.GatewayNamespaceLabel: namespace,
+		}); err != nil {
+		return false, fmt.Errorf("listing gateway pods for %s/%s: %w", namespace, name, err)
+	}
+	if len(podList.Items) > 0 {
+		klog.V(4).Infof("Waiting for %d gateway pod(s) to terminate before removing ClusterRoleBinding for %s/%s",
+			len(podList.Items), namespace, name)
+		return true, nil
+	}
+
+	// All pods are gone. Remove the ServiceAccount finalizer so the GC can clean it up.
+	// Derive the SA name from the CRB subjects.
+	for i := range pending {
+		for _, subj := range pending[i].Subjects {
+			if subj.Kind == rbacv1.ServiceAccountKind && subj.Namespace == namespace {
+				var sa corev1.ServiceAccount
+				if err := cl.Get(ctx, types.NamespacedName{Namespace: namespace, Name: subj.Name}, &sa); err != nil {
+					if !apierrors.IsNotFound(err) {
+						return false, fmt.Errorf("getting gateway service account %q: %w", subj.Name, err)
+					}
+				} else if controllerutil.ContainsFinalizer(&sa, consts.GatewayServiceAccountFinalizer) {
+					patch := client.MergeFrom(sa.DeepCopy())
+					controllerutil.RemoveFinalizer(&sa, consts.GatewayServiceAccountFinalizer)
+					if err := cl.Patch(ctx, &sa, patch); err != nil && !apierrors.IsNotFound(err) {
+						return false, fmt.Errorf("removing finalizer from gateway service account %q: %w", subj.Name, err)
+					}
+				}
+			}
+		}
+
+		// Remove the finalizer from the CRB and delete it.
+		patch := client.MergeFrom(pending[i].DeepCopy())
+		controllerutil.RemoveFinalizer(&pending[i], consts.ClusterRoleBindingFinalizer)
+		if err := cl.Patch(ctx, &pending[i], patch); err != nil && !apierrors.IsNotFound(err) {
+			return false, fmt.Errorf("removing finalizer from cluster role binding %q: %w", pending[i].Name, err)
+		}
+		if err := client.IgnoreNotFound(cl.Delete(ctx, &pending[i])); err != nil {
+			return false, fmt.Errorf("deleting cluster role binding %q: %w", pending[i].Name, err)
+		}
+	}
+
+	return false, nil
 }
 
 // EnsureServiceAccountAndClusterRoleBinding ensures that the service account and the cluster role binding are created or deleted.
@@ -105,13 +189,13 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 			Name:      saName,
 			Namespace: namespace,
 		}}
+
+		controllerutil.AddFinalizer(crb, consts.ClusterRoleBindingFinalizer)
 		return nil
 	}); err != nil {
 		klog.Errorf("error while creating cluster role binding %q: %v", name, err)
 		return err
 	}
-
-	controllerutil.AddFinalizer(owner, consts.ClusterRoleBindingFinalizer)
 
 	return nil
 }

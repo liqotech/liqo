@@ -22,7 +22,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,6 +84,15 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err = r.Get(ctx, req.NamespacedName, wgClient); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("WireGuard gateway client %q not found", req.NamespacedName)
+			// The WgGatewayClient is gone. Clean up any orphaned ClusterRoleBindings
+			// that still carry our finalizer (waiting for pods to terminate first).
+			requeue, cleanupErr := enutils.CleanupClusterRoleBindings(ctx, r.Client, req.Name, req.Namespace)
+			if cleanupErr != nil {
+				return ctrl.Result{}, cleanupErr
+			}
+			if requeue {
+				return ctrl.Result{RequeueAfter: time.Second}, nil
+			}
 			return ctrl.Result{}, nil
 		}
 		klog.Errorf("Unable to get the WireGuard gateway client %q: %v", req.NamespacedName, err)
@@ -92,76 +100,16 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if !wgClient.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(wgClient, consts.ClusterRoleBindingFinalizer) {
-			// Ensure all gateway pods are gone before revoking the ClusterRoleBinding.
-			// This gives the gateway pod time to remove FirewallConfigurationBinding finalizers
-			// before losing RBAC access. Wait until no pods remain.
-			var podList corev1.PodList
-			if err = r.List(ctx, &podList,
-				client.InNamespace(wgClient.Namespace),
-				client.MatchingLabels{
-					consts.GatewayNameLabel:      wgClient.Name,
-					consts.GatewayNamespaceLabel: wgClient.Namespace,
-				}); err != nil {
-				return ctrl.Result{}, fmt.Errorf("listing gateway pods for WgGatewayClient %q: %w", req.NamespacedName, err)
-			}
-			if len(podList.Items) > 0 {
-				klog.V(4).Infof("Waiting for %d gateway pod(s) to terminate before removing ClusterRoleBinding for WgGatewayClient %q",
-					len(podList.Items), req.NamespacedName)
-				return ctrl.Result{RequeueAfter: time.Second}, nil
-			}
-
-			// All pods are gone. Remove the ServiceAccount finalizer so the GC can clean it up,
-			// then revoke the ClusterRoleBinding.
-			saName := wgClient.Spec.Deployment.Spec.Template.Spec.ServiceAccountName
-			if saName == "" {
-				saName = defaultServiceAccountName
-			}
-			var sa corev1.ServiceAccount
-			if err = r.Get(ctx, types.NamespacedName{Namespace: wgClient.Namespace, Name: saName}, &sa); err != nil {
-				if !apierrors.IsNotFound(err) {
-					return ctrl.Result{}, fmt.Errorf("getting gateway service account %q: %w", saName, err)
-				}
-			} else if controllerutil.ContainsFinalizer(&sa, consts.GatewayServiceAccountFinalizer) {
-				patch := client.MergeFrom(sa.DeepCopy())
-				controllerutil.RemoveFinalizer(&sa, consts.GatewayServiceAccountFinalizer)
-				if err = r.Patch(ctx, &sa, patch); err != nil && !apierrors.IsNotFound(err) {
-					return ctrl.Result{}, fmt.Errorf("removing finalizer from gateway service account %q: %w", saName, err)
-				}
-			}
-
-			if err = enutils.DeleteClusterRoleBinding(ctx, r.Client, wgClient); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			controllerutil.RemoveFinalizer(wgClient, consts.ClusterRoleBindingFinalizer)
-			if err = r.Update(ctx, wgClient); err != nil {
-				klog.Errorf("Unable to remove finalizer %q from WireGuard gateway client %q: %v",
-					consts.ClusterRoleBindingFinalizer, req.NamespacedName, err)
-				return ctrl.Result{}, err
-			}
-		}
-
-		// Resource is deleting and child resources are deleted as well by garbage collector. Nothing to do.
+		// Resource is deleting and child resources are deleted as well by garbage collector.
+		// The ClusterRoleBinding cleanup is handled in the NotFound path above once the
+		// WgGatewayClient is fully removed.
 		return ctrl.Result{}, nil
 	}
-
-	originalWgClient := wgClient.DeepCopy()
 
 	// Ensure ServiceAccount and ClusterRoleBinding (create or update)
 	if err = enutils.EnsureServiceAccountAndClusterRoleBinding(ctx, r.Client, r.Scheme, &wgClient.Spec.Deployment, wgClient,
 		r.clusterRoleName); err != nil {
 		return ctrl.Result{}, err
-	}
-
-	// update if the wgClient has been updated
-	if !equality.Semantic.DeepEqual(originalWgClient, wgClient) {
-		if err := r.Update(ctx, wgClient); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// we return here to avoid conflicts
-		return ctrl.Result{}, nil
 	}
 
 	deployNsName := types.NamespacedName{Namespace: wgClient.Namespace, Name: forge.GatewayResourceName(wgClient.Name)}

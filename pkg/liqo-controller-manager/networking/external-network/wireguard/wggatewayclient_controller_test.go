@@ -19,10 +19,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -33,48 +31,20 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/forge"
 )
 
 const (
-	wgNamespace   = "tenant-1"
-	wgName        = "wg-client-1"
-	clusterRole   = "liqo-gateway-role"
-	gwSAName      = "gw-sa"
-	keepFinalizer = "keep"
+	wgNamespace = "tenant-1"
+	wgName      = "wg-client-1"
+	clusterRole = "liqo-gateway-role"
+	gwSAName    = "gw-sa"
 )
-
-// wgClientPending builds a WgGatewayClient already in a deletion state and carrying
-// the ClusterRoleBindingFinalizer, which is the precondition for the new deletion
-// sequencing logic.
-func wgClientPending(saName string) *networkingv1beta1.WgGatewayClient {
-	now := metav1.Now()
-	o := &networkingv1beta1.WgGatewayClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              wgName,
-			Namespace:         wgNamespace,
-			DeletionTimestamp: &now,
-			Finalizers:        []string{consts.ClusterRoleBindingFinalizer},
-		},
-	}
-	o.Spec.Deployment.Spec.Template.Spec.ServiceAccountName = saName
-	return o
-}
 
 func wgClientReconciler(objs ...client.Object) *WgGatewayClientReconciler {
 	cb := fake.NewClientBuilder().WithScheme(scheme.Scheme).
 		WithStatusSubresource(&networkingv1beta1.WgGatewayClient{}).
 		WithObjects(objs...)
 	return NewWgGatewayClientReconciler(cb.Build(), scheme.Scheme, record.NewFakeRecorder(10), clusterRole)
-}
-
-func gwDeployment() *appsv1.Deployment {
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      forge.GatewayResourceName(wgName),
-			Namespace: wgNamespace,
-		},
-	}
 }
 
 func gwPod() *corev1.Pod {
@@ -111,6 +81,7 @@ func gwClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 				consts.GatewayNameLabel:      wgName,
 				consts.GatewayNamespaceLabel: wgNamespace,
 			},
+			Finalizers: []string{consts.ClusterRoleBindingFinalizer},
 		},
 	}
 }
@@ -126,70 +97,33 @@ var _ = Describe("WgGatewayClientReconciler deletion sequencing", func() {
 		ctx = context.Background()
 	})
 
-	It("triggers foreground deletion on the Deployment and requeues while pods still exist via the Deployment", func() {
-		wg := wgClientPending(gwSAName)
-		deploy := gwDeployment()
-		r := wgClientReconciler(wg, deploy)
+	// The WgGatewayClient is already gone (NotFound). The CRB carries the finalizer.
+	// The reconciler is triggered by the CRB watch and handles cleanup in the NotFound path.
+
+	It("requeues while gateway pods still exist", func() {
+		crb := gwClusterRoleBinding()
+		r := wgClientReconciler(crb, gwPod())
 
 		res, err := r.Reconcile(ctx, reqWgClient())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
 
-		// The Deployment must now carry a non-zero DeletionTimestamp (foreground propagation
-		// adds a finalizer + DeletionTimestamp in real clusters; the fake client at least sets
-		// the timestamp). We assert that the controller hit the Delete path.
-		var d appsv1.Deployment
-		err = r.Get(ctx, types.NamespacedName{Name: forge.GatewayResourceName(wgName), Namespace: wgNamespace}, &d)
-		// The fake client deletes immediately because there are no real finalizers; either way
-		// the requeue ensures we will return to the pod-check branch.
-		if err == nil {
-			Expect(d.DeletionTimestamp.IsZero()).To(BeFalse())
-		} else {
-			Expect(apierrors.IsNotFound(err)).To(BeTrue())
-		}
-
-		// WgGatewayClient finalizer must NOT have been removed yet.
-		var got networkingv1beta1.WgGatewayClient
-		Expect(r.Get(ctx, reqWgClient().NamespacedName, &got)).To(Succeed())
-		Expect(got.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
+		// CRB finalizer must NOT have been removed yet.
+		var gotCRB rbacv1.ClusterRoleBinding
+		Expect(r.Get(ctx, types.NamespacedName{Name: crb.Name}, &gotCRB)).To(Succeed())
+		Expect(gotCRB.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
 	})
 
-	It("does not re-issue Delete when the Deployment is already being deleted, and still requeues", func() {
-		wg := wgClientPending(gwSAName)
-		deploy := gwDeployment()
-		now := metav1.Now()
-		deploy.DeletionTimestamp = &now
-		deploy.Finalizers = []string{keepFinalizer} // required so the fake client accepts the deletion timestamp
-		r := wgClientReconciler(wg, deploy)
-
-		res, err := r.Reconcile(ctx, reqWgClient())
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
-
-		// CRB removal must NOT have been reached.
-		var got networkingv1beta1.WgGatewayClient
-		Expect(r.Get(ctx, reqWgClient().NamespacedName, &got)).To(Succeed())
-		Expect(got.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
-	})
-
-	It("requeues while gateway pods still exist after the Deployment is gone", func() {
-		wg := wgClientPending(gwSAName)
-		r := wgClientReconciler(wg, gwPod())
-
-		res, err := r.Reconcile(ctx, reqWgClient())
-		Expect(err).ToNot(HaveOccurred())
-		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
-
-		var got networkingv1beta1.WgGatewayClient
-		Expect(r.Get(ctx, reqWgClient().NamespacedName, &got)).To(Succeed())
-		Expect(got.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
-	})
-
-	It("removes the SA finalizer, deletes the CRB, and removes the wg finalizer once everything is gone", func() {
-		wg := wgClientPending(gwSAName)
+	It("removes the SA finalizer, removes the CRB finalizer, and deletes the CRB once pods are gone", func() {
 		sa := gwServiceAccount(gwSAName, true /* withFinalizer */)
 		crb := gwClusterRoleBinding()
-		r := wgClientReconciler(wg, sa, crb)
+		// Add the SA as a subject so CleanupClusterRoleBindings can find it.
+		crb.Subjects = []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      gwSAName,
+			Namespace: wgNamespace,
+		}}
+		r := wgClientReconciler(sa, crb)
 
 		res, err := r.Reconcile(ctx, reqWgClient())
 		Expect(err).ToNot(HaveOccurred())
@@ -207,36 +141,36 @@ var _ = Describe("WgGatewayClientReconciler deletion sequencing", func() {
 			consts.GatewayNamespaceLabel: wgNamespace,
 		})).To(Succeed())
 		Expect(crbList.Items).To(BeEmpty())
-
-		// WgGatewayClient: ClusterRoleBindingFinalizer is gone (either object removed, or finalizer absent).
-		var got networkingv1beta1.WgGatewayClient
-		err = r.Get(ctx, reqWgClient().NamespacedName, &got)
-		if err == nil {
-			Expect(got.Finalizers).ToNot(ContainElement(consts.ClusterRoleBindingFinalizer))
-		} else {
-			Expect(apierrors.IsNotFound(err)).To(BeTrue())
-		}
 	})
 
 	It("proceeds when the ServiceAccount is missing", func() {
-		wg := wgClientPending(gwSAName)
-		// No SA object in the client.
-		r := wgClientReconciler(wg, gwClusterRoleBinding())
+		crb := gwClusterRoleBinding()
+		crb.Subjects = []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      gwSAName,
+			Namespace: wgNamespace,
+		}}
+		r := wgClientReconciler(crb)
 
 		res, err := r.Reconcile(ctx, reqWgClient())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
-		// CRB was deleted; wg finalizer removed.
+		// CRB was deleted.
 		var crbList rbacv1.ClusterRoleBindingList
 		Expect(r.List(ctx, &crbList)).To(Succeed())
 		Expect(crbList.Items).To(BeEmpty())
 	})
 
 	It("does not require a SA finalizer to exist (leaves a plain SA untouched)", func() {
-		wg := wgClientPending(gwSAName)
 		sa := gwServiceAccount(gwSAName, false /* no finalizer */)
-		r := wgClientReconciler(wg, sa, gwClusterRoleBinding())
+		crb := gwClusterRoleBinding()
+		crb.Subjects = []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      gwSAName,
+			Namespace: wgNamespace,
+		}}
+		r := wgClientReconciler(sa, crb)
 
 		_, err := r.Reconcile(ctx, reqWgClient())
 		Expect(err).ToNot(HaveOccurred())
@@ -246,16 +180,12 @@ var _ = Describe("WgGatewayClientReconciler deletion sequencing", func() {
 		Expect(gotSA.Finalizers).To(BeEmpty())
 	})
 
-	It("defaults the SA name to '"+defaultServiceAccountName+"' when none is specified on the deployment template", func() {
-		wg := wgClientPending("" /* empty SA name */)
-		defaultSA := gwServiceAccount(defaultServiceAccountName, true)
-		r := wgClientReconciler(wg, defaultSA, gwClusterRoleBinding())
+	It("is a no-op when no CRBs with the finalizer exist", func() {
+		// No CRB, no WgGatewayClient — nothing to do.
+		r := wgClientReconciler()
 
-		_, err := r.Reconcile(ctx, reqWgClient())
+		res, err := r.Reconcile(ctx, reqWgClient())
 		Expect(err).ToNot(HaveOccurred())
-
-		var gotSA corev1.ServiceAccount
-		Expect(r.Get(ctx, types.NamespacedName{Name: defaultServiceAccountName, Namespace: wgNamespace}, &gotSA)).To(Succeed())
-		Expect(gotSA.Finalizers).ToNot(ContainElement(consts.GatewayServiceAccountFinalizer))
+		Expect(res).To(Equal(ctrl.Result{}))
 	})
 })
