@@ -38,6 +38,10 @@ var FirewallConfigurationBindingGroupVersionResource = GroupVersion.WithResource
 type FirewallConfigurationBindingSpec struct {
 	// FirewallConfigurationRef is the reference to the FirewallConfiguration to apply.
 	FirewallConfigurationRef corev1.LocalObjectReference `json:"firewallConfigurationRef"`
+	// TargetID identifies the entity (e.g. fabric node name or gateway name) that should apply this binding.
+	// The FirewallConfigurationBinding controller running on the matching entity filters resources by this field.
+	// It must be unique across all FirewallConfigurationBinding controllers instances in the cluster, otherwise multiple entities will apply the same FirewallConfiguration, which may cause unexpected behavior.
+	TargetID string `json:"targetID,omitempty"`
 }
 
 // FirewallConfigurationBindingConditionType is a type of FirewallConfigurationBinding condition.
@@ -67,6 +71,7 @@ type FirewallConfigurationBindingStatus struct {
 // +kubebuilder:printcolumn:name="Applied",type=string,JSONPath=`.status.status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="FirewallConfiguration",type=string,JSONPath=`.spec.firewallConfigurationRef.name`,priority=1
+// +kubebuilder:printcolumn:name="TargetID",type=string,JSONPath=`.spec.targetID`,priority=1
 
 // FirewallConfigurationBinding links an entity (e.g. a fabric pod or gateway) to a FirewallConfiguration.
 // The entity that owns this resource is responsible for applying the referenced FirewallConfiguration

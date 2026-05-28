@@ -30,6 +30,10 @@ spec:
       name: FirewallConfiguration
       priority: 1
       type: string
+    - jsonPath: .spec.targetID
+      name: TargetID
+      priority: 1
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -74,6 +78,12 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              targetID:
+                description: |-
+                  TargetID identifies the entity (e.g. fabric node name or gateway name) that should apply this binding.
+                  The FirewallConfigurationBinding controller running on the matching entity filters resources by this field.
+                  It must be unique across all FirewallConfigurationBinding controllers instances in the cluster, otherwise multiple entities will apply the same FirewallConfiguration, which may cause unexpected behavior.
+                type: string
             required:
             - firewallConfigurationRef
             type: object

@@ -43,7 +43,6 @@ import (
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -186,18 +185,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetScheme(),
 		options.NodeName,
 		mgr.GetEventRecorder("firewall-binding-controller"),
-		[]labels.Set{
-			fabric.ForgeFirewallBindingTargetLabels(options.NodeName),
-			remapping.ForgeFirewallBindingTargetLabelsIPMappingFabric(options.NodeName),
-			fabric.ForgeFirewallBindingTargetLabelsSingleNode(options.NodeName),
-		},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
-		options.EnableNftMonitor, options.ReconcileTimeout); err != nil {
+		options.NodeName, options.EnableNftMonitor, options.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
 
@@ -255,6 +249,6 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, fwcr.LabelsSets, true)
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, options.NodeName, true)
 	return nil
 }

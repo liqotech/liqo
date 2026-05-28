@@ -41,7 +41,6 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -227,19 +226,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
 		mgr.GetEventRecorder("firewall-binding-controller"),
-		[]labels.Set{
-			gateway.ForgeFirewallBindingAllGatewaysTargetLabels(connoptions.GwOptions.Name),
-			gateway.ForgeFirewallBindingInternalTargetLabels(connoptions.GwOptions.Name),
-			remapping.ForgeFirewallBindingTargetLabels(connoptions.GwOptions.RemoteClusterID, connoptions.GwOptions.Name),
-			remapping.ForgeFirewallBindingTargetLabelsIPMappingGw(connoptions.GwOptions.Name),
-		},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
-		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
+		connoptions.GwOptions.Name, connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
 
@@ -274,6 +267,6 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, fwcr.LabelsSets, false)
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, connoptions.GwOptions.Name, false)
 	return nil
 }

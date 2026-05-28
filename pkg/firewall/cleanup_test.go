@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,19 +30,18 @@ import (
 
 const (
 	appLabelKey      = "app"
-	fabricLabelVal   = "fabric"
-	otherLabelVal    = "other"
-	gatewayLabelVal  = "gateway"
 	foreignFinalizer = "other.liqo.io/finalizer"
 )
 
-func newBindingWith(name string, lbls map[string]string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
+func newBindingWith(name string, targetID string, fins []string, deleting bool) *networkingv1beta1.FirewallConfigurationBinding {
 	a := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       name,
 			Namespace:  bindingTestNamespace,
-			Labels:     lbls,
 			Finalizers: fins,
+		},
+		Spec: networkingv1beta1.FirewallConfigurationBindingSpec{
+			TargetID: targetID,
 		},
 	}
 	if deleting {
@@ -69,39 +67,39 @@ var _ = Describe("CleanupFirewallConfigurationBindings", func() {
 		ctx = context.Background()
 	})
 
-	It("removes our finalizer from a deletion-pending, label-matched binding", func() {
-		a := newBindingWith("match", map[string]string{appLabelKey: fabricLabelVal},
+	It("removes our finalizer from a deletion-pending, targetID-matched binding", func() {
+		a := newBindingWith("match", "fabric-node",
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			true /* deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupFirewallConfigurationBindings(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
+		CleanupFirewallConfigurationBindings(ctx, cl, "fabric-node", false)
 
 		// Removing the only finalizer on a deletion-timestamped object triggers fake-client GC,
 		// so the object should be gone.
 		Expect(getBinding(cl, "match")).To(BeNil())
 	})
 
-	It("does NOT touch bindings whose labels do not match any set", func() {
-		a := newBindingWith("no-label", map[string]string{appLabelKey: otherLabelVal},
+	It("does NOT touch bindings with a different spec.targetID", func() {
+		a := newBindingWith("no-match", "other-node",
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupFirewallConfigurationBindings(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
+		CleanupFirewallConfigurationBindings(ctx, cl, "fabric-node", false)
 
-		got := getBinding(cl, "no-label")
+		got := getBinding(cl, "no-match")
 		Expect(got).ToNot(BeNil())
 		Expect(got.Finalizers).To(ContainElement(firewallConfigurationBindingControllerFinalizer))
 	})
 
 	It("skips bindings that are NOT pending deletion", func() {
-		a := newBindingWith("alive", map[string]string{appLabelKey: fabricLabelVal},
+		a := newBindingWith("alive", "fabric-node",
 			[]string{firewallConfigurationBindingControllerFinalizer},
 			false /* not deleting */)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupFirewallConfigurationBindings(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
+		CleanupFirewallConfigurationBindings(ctx, cl, "fabric-node", false)
 
 		got := getBinding(cl, "alive")
 		Expect(got).ToNot(BeNil())
@@ -109,35 +107,34 @@ var _ = Describe("CleanupFirewallConfigurationBindings", func() {
 	})
 
 	It("skips bindings that do NOT carry our finalizer", func() {
-		a := newBindingWith("foreign-fin", map[string]string{appLabelKey: fabricLabelVal},
+		a := newBindingWith("foreign-fin", "fabric-node",
 			[]string{foreignFinalizer},
 			true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a).Build()
 
-		CleanupFirewallConfigurationBindings(ctx, cl, []labels.Set{{appLabelKey: fabricLabelVal}}, false)
+		CleanupFirewallConfigurationBindings(ctx, cl, "fabric-node", false)
 
 		got := getBinding(cl, "foreign-fin")
 		Expect(got).ToNot(BeNil())
 		Expect(got.Finalizers).To(ContainElement(foreignFinalizer))
 	})
 
-	It("processes all provided label sets", func() {
-		a := newBindingWith("a", map[string]string{appLabelKey: fabricLabelVal},
+	It("processes multiple bindings with the matching targetID", func() {
+		a := newBindingWith("a", "fabric-node",
 			[]string{firewallConfigurationBindingControllerFinalizer}, true)
-		b := newBindingWith("b", map[string]string{appLabelKey: gatewayLabelVal},
+		b := newBindingWith("b", "fabric-node",
 			[]string{firewallConfigurationBindingControllerFinalizer}, true)
 		cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(a, b).Build()
 
-		CleanupFirewallConfigurationBindings(ctx, cl,
-			[]labels.Set{{appLabelKey: fabricLabelVal}, {appLabelKey: gatewayLabelVal}}, false)
+		CleanupFirewallConfigurationBindings(ctx, cl, "fabric-node", false)
 
 		Expect(getBinding(cl, "a")).To(BeNil())
 		Expect(getBinding(cl, "b")).To(BeNil())
 	})
 
-	It("does not panic when given an empty label set list", func() {
+	It("does not panic when given an empty targetID", func() {
 		Expect(func() {
-			CleanupFirewallConfigurationBindings(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), nil, false)
+			CleanupFirewallConfigurationBindings(ctx, fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(), "", false)
 		}).ToNot(Panic())
 	})
 })

@@ -111,7 +111,7 @@ func (r *BindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		t := &targets[i]
 		bindingName := bindingResourceName(fwcfg.Name, t.entityName)
 		expectedNames[bindingName] = struct{}{}
-		if err := r.ensureBinding(ctx, fwcfg, bindingName, t.bindingLabels); err != nil {
+		if err := r.ensureBinding(ctx, fwcfg, bindingName, t.entityName, t.bindingLabels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("ensuring binding %s: %w", bindingName, err)
 		}
 	}
@@ -259,7 +259,7 @@ func (r *BindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remo
 
 // ensureBinding creates or updates a FirewallConfigurationBinding for the given entity.
 func (r *BindingCreatorReconciler) ensureBinding(ctx context.Context,
-	fwcfg *networkingv1beta1.FirewallConfiguration, bindingName string, labels map[string]string) error {
+	fwcfg *networkingv1beta1.FirewallConfiguration, bindingName, targetID string, labels map[string]string) error {
 	binding := &networkingv1beta1.FirewallConfigurationBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      bindingName,
@@ -270,6 +270,7 @@ func (r *BindingCreatorReconciler) ensureBinding(ctx context.Context,
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
 		binding.Labels = labels
 		binding.Spec.FirewallConfigurationRef = corev1.LocalObjectReference{Name: fwcfg.Name}
+		binding.Spec.TargetID = targetID
 		return controllerutil.SetControllerReference(fwcfg, binding, r.Scheme)
 	})
 	if err != nil {

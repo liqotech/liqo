@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,12 +28,12 @@ import (
 )
 
 // CleanupFirewallConfigurationBindings removes finalizers from any FirewallConfigurationBinding
-// resources pending deletion that match one of the given label sets.
+// resources pending deletion whose spec.targetID matches the given targetID.
 // If cleanupNftables is true, it also deletes the corresponding nftables table for each binding,
 // following the same approach used by the FirewallConfigurationBinding controller deletion path.
 // It is called after the manager has fully stopped to unblock resources that the
 // reconciler did not have time to process before the pod was terminated.
-func CleanupFirewallConfigurationBindings(ctx context.Context, cl client.Client, labelsSets []labels.Set, cleanupNftables bool) {
+func CleanupFirewallConfigurationBindings(ctx context.Context, cl client.Client, targetID string, cleanupNftables bool) {
 	klog.Info("Gateway stopped: cleaning up pending FirewallConfigurationBinding finalizers")
 
 	var nftconn *nftables.Conn
@@ -46,14 +45,13 @@ func CleanupFirewallConfigurationBindings(ctx context.Context, cl client.Client,
 		}
 	}
 
-	for k := range labelsSets {
-		bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
-		if err := cl.List(ctx, bindingList, client.MatchingLabels(labelsSets[k])); err != nil {
-			klog.Errorf("Shutdown cleanup: failed to list FirewallConfigurationBinding for labels %v: %v",
-				labelsSets[k], err)
-			continue
-		}
-		for i := range bindingList.Items {
+	bindingList := &networkingv1beta1.FirewallConfigurationBindingList{}
+	if err := cl.List(ctx, bindingList); err != nil {
+		klog.Errorf("Shutdown cleanup: failed to list FirewallConfigurationBinding resources: %v", err)
+		return
+	}
+	for i := range bindingList.Items {
+		if bindingList.Items[i].Spec.TargetID == targetID {
 			klog.Infof("Shutdown cleanup: processing FirewallConfigurationBinding %s/%s", bindingList.Items[i].Namespace, bindingList.Items[i].Name)
 			cleanupBinding(ctx, cl, &bindingList.Items[i], nftconn)
 		}

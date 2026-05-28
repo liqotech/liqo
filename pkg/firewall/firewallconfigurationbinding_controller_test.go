@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -40,7 +39,6 @@ const (
 	bindingDelName                  = "att-del"
 	bindingNoFinName                = "att-nofin"
 	firewallBindingForeignFinalizer = "other.liqo.io/finalizer"
-	roleLabelKey                    = "role"
 )
 
 // newBindingReconciler builds a reconciler with a nil nftables connection. Callers
@@ -229,31 +227,35 @@ var _ = Describe("updateStatus", func() {
 	})
 })
 
-var _ = Describe("forgeLabelsPredicate", func() {
-	makeObj := func(lbls map[string]string) client.Object {
+var _ = Describe("forgeTargetIDPredicate", func() {
+	makeObj := func(targetID string) client.Object {
 		return &networkingv1beta1.FirewallConfigurationBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "x", Namespace: bindingTestNamespace, Labels: lbls},
+			ObjectMeta: metav1.ObjectMeta{Name: "x", Namespace: bindingTestNamespace},
+			Spec:       networkingv1beta1.FirewallConfigurationBindingSpec{TargetID: targetID},
 		}
 	}
 
-	It("matches objects carrying any of the configured label sets", func() {
-		p, err := forgeLabelsPredicate([]labels.Set{
-			{roleLabelKey: fabricLabelVal},
-			{roleLabelKey: gatewayLabelVal},
-		})
-		Expect(err).ToNot(HaveOccurred())
+	It("matches objects whose spec.targetID equals the configured value", func() {
+		p := forgeTargetIDPredicate("my-node")
 
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: fabricLabelVal})})).To(BeTrue())
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: gatewayLabelVal})})).To(BeTrue())
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{roleLabelKey: otherLabelVal})})).To(BeFalse())
-		Expect(p.Create(event.CreateEvent{Object: makeObj(nil)})).To(BeFalse())
+		Expect(p.Create(event.CreateEvent{Object: makeObj("my-node")})).To(BeTrue())
+		Expect(p.Update(event.UpdateEvent{ObjectNew: makeObj("my-node")})).To(BeTrue())
+		Expect(p.Delete(event.DeleteEvent{Object: makeObj("my-node")})).To(BeTrue())
 	})
 
-	It("returns a predicate that never matches when no label sets are provided", func() {
-		p, err := forgeLabelsPredicate(nil)
-		Expect(err).ToNot(HaveOccurred())
-		// predicate.Or() over an empty list returns false for every event.
-		Expect(p.Create(event.CreateEvent{Object: makeObj(map[string]string{"any": "thing"})})).To(BeFalse())
+	It("does not match objects with a different spec.targetID", func() {
+		p := forgeTargetIDPredicate("my-node")
+
+		Expect(p.Create(event.CreateEvent{Object: makeObj("other-node")})).To(BeFalse())
+		Expect(p.Create(event.CreateEvent{Object: makeObj("")})).To(BeFalse())
+	})
+
+	It("does not match objects of a different type", func() {
+		p := forgeTargetIDPredicate("my-node")
+
+		Expect(p.Create(event.CreateEvent{Object: &networkingv1beta1.FirewallConfiguration{
+			ObjectMeta: metav1.ObjectMeta{Name: "x"},
+		}})).To(BeFalse())
 	})
 })
 

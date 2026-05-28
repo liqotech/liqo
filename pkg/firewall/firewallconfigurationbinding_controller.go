@@ -23,7 +23,6 @@ import (
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -53,13 +52,11 @@ type FirewallConfigurationBindingReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder events.EventRecorder
-	// LabelsSets are used to filter the reconciled FirewallConfigurationBinding resources.
-	LabelsSets []labels.Set
 }
 
 // NewFirewallConfigurationBindingReconciler returns a new FirewallConfigurationBindingReconciler.
 func NewFirewallConfigurationBindingReconciler(cl client.Client, s *runtime.Scheme, nodename string,
-	er events.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationBindingReconciler, error) {
+	er events.EventRecorder) (*FirewallConfigurationBindingReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
@@ -70,7 +67,6 @@ func NewFirewallConfigurationBindingReconciler(cl client.Client, s *runtime.Sche
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
-		LabelsSets:     labelsSets,
 	}, nil
 }
 
@@ -170,13 +166,11 @@ func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, 
 }
 
 // SetupWithManager registers the FirewallConfigurationBindingReconciler with the manager.
+// targetID is the identifier of the entity running this controller (e.g. fabric node name or gateway name);
+// only FirewallConfigurationBinding resources whose spec.targetID matches are reconciled.
 func (r *FirewallConfigurationBindingReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
-	enableNftMonitor bool, reconcileTimeout time.Duration) error {
-	klog.Infof("Starting FirewallConfigurationBinding controller with labels %v", r.LabelsSets)
-	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
-	if err != nil {
-		return err
-	}
+	targetID string, enableNftMonitor bool, reconcileTimeout time.Duration) error {
+	klog.Infof("Starting FirewallConfigurationBinding controller for targetID %q", targetID)
 
 	klog.Infof("nftables monitor enabled: %t", enableNftMonitor)
 	src := make(chan event.GenericEvent)
@@ -187,8 +181,8 @@ func (r *FirewallConfigurationBindingReconciler) SetupWithManager(ctx context.Co
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlFirewallConfigurationBinding).
-		For(&networkingv1beta1.FirewallConfigurationBinding{}, builder.WithPredicates(filterByLabelsPredicate)).
-		WatchesRawSource(NewFirewallBindingWatchSource(src, NewFirewallBindingWatchEventHandler(r.Client, r.LabelsSets))).
+		For(&networkingv1beta1.FirewallConfigurationBinding{}, builder.WithPredicates(forgeTargetIDPredicate(targetID))).
+		WatchesRawSource(NewFirewallBindingWatchSource(src, NewFirewallBindingWatchEventHandler(r.Client, targetID))).
 		WithOptions(controller.Options{
 			ReconciliationTimeout: reconcileTimeout,
 		}).
@@ -222,14 +216,14 @@ func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Contex
 	return reconcileErr
 }
 
-// forgeLabelsPredicate returns a predicate that matches resources with any of the given label sets.
-func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
-	var err error
-	labelPredicates := make([]predicate.Predicate, len(labelsSets))
-	for i := range labelsSets {
-		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
-			return nil, err
+// forgeTargetIDPredicate returns a predicate that matches FirewallConfigurationBinding resources
+// whose spec.targetID equals the given targetID.
+func forgeTargetIDPredicate(targetID string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		binding, ok := obj.(*networkingv1beta1.FirewallConfigurationBinding)
+		if !ok {
+			return false
 		}
-	}
-	return predicate.Or(labelPredicates...), nil
+		return binding.Spec.TargetID == targetID
+	})
 }
