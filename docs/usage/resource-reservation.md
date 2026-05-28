@@ -20,7 +20,8 @@ Once the slice is `Accepted`, two derived resources materialize the reservation:
 * On the **provider**, a `Quota` (`offloading.liqo.io/Quota`) is created in the tenant namespace, mirroring the accepted resources and the desired enforcement strictness.
 * On the **consumer**, a `VirtualNode` is created with `spec.resourceQuota.hard` set to the same quantities, and the corresponding Kubernetes `Node` advertises that capacity to the local scheduler.
 
-By default, a single `ResourceSlice` is shared across all of the consumer's [offloaded namespaces](/usage/namespace-offloading.md): pods consume from the same `Quota` regardless of which offloaded namespace they live in. With multiple `VirtualNode`s (one per `ResourceSlice`), pods route to slices by the `VirtualNode` they are scheduled on, not by namespace.
+By default, a single `ResourceSlice` is shared across all of the consumer's [offloaded namespaces](/usage/namespace-offloading.md): pods consume from the same `Quota` regardless of which offloaded namespace they live in.
+When multiple `VirtualNode`s are created (one per `ResourceSlice`), pods consume the quota based on the `VirtualNode` they are scheduled on, not by namespace.
 
 The diagram below summarizes the flow and makes explicit on which cluster each object is created.
 
