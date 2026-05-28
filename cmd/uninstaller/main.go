@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -35,6 +36,16 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/uninstaller"
 	"github.com/liqotech/liqo/pkg/utils"
+)
+
+// helmDeleteMode represents the mode in which the uninstaller is run.
+type helmDeleteMode string
+
+const (
+	// helmDeleteModePre is the pre-delete cleanup mode.
+	helmDeleteModePre helmDeleteMode = "pre"
+	// helmDeleteModePost is the post-delete cleanup mode.
+	helmDeleteModePost helmDeleteMode = "post"
 )
 
 var (
@@ -70,6 +81,10 @@ func init() {
 func main() {
 	log.SetLogger(klog.NewKlogr())
 
+	mode := flag.String("helm-delete-mode", string(helmDeleteModePre),
+		"Helm delete mode: 'pre' for pre-delete cleanup, 'post' for post-delete cleanup")
+	flag.Parse()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -77,6 +92,7 @@ func main() {
 		<-sig
 		cancel()
 	}()
+
 	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
 	if !ok {
 		kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
@@ -97,12 +113,35 @@ func main() {
 	dynClient := dynamic.NewForConfigOrDie(config)
 	klog.Infof("Loaded dynamic client: %s", kubeconfigPath)
 
-	// Get controller runtime client
-	cl, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		klog.Errorf("unable to create the client: %s", err)
+	switch helmDeleteMode(*mode) {
+	case helmDeleteModePost:
+		runPostDelete(ctx, namespace, dynClient)
+	case helmDeleteModePre:
+		// Get controller runtime client
+		cl, err := client.New(config, client.Options{Scheme: scheme})
+		if err != nil {
+			klog.Errorf("unable to create the client: %s", err)
+			os.Exit(1)
+		}
+		runPreDelete(ctx, namespace, dynClient, cl)
+	default:
+		klog.Fatalf("Invalid --helm-delete-mode value %q: must be 'pre' or 'post'", *mode)
+	}
+}
+
+func runPostDelete(ctx context.Context, namespace string, dynClient dynamic.Interface) {
+	klog.Info("Running post-delete cleanup")
+	// Delete RBAC resources annotated with helm.sh/resource-policy: keep that were
+	// retained to allow the fabric DaemonSet pods to clean up their finalizers.
+	if err := uninstaller.DeleteHelmKeepResources(ctx, namespace, dynClient); err != nil {
+		klog.Errorf("Unable to delete helm keep resources: %s", err)
 		os.Exit(1)
 	}
+	klog.Info("Post-delete cleanup completed")
+}
+
+func runPreDelete(ctx context.Context, namespace string, dynClient dynamic.Interface, cl client.Client) {
+	klog.Info("Running pre-delete cleanup")
 
 	// Run pre-uninstall checks
 	if err := utils.PreUninstall(ctx, cl); err != nil {
@@ -142,10 +181,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Delete RBAC resources annotated with helm.sh/resource-policy: keep that were
-	// retained to allow the fabric DaemonSet pods to clean up their finalizers.
-	if err := uninstaller.DeleteHelmKeepResources(ctx, namespace, dynClient); err != nil {
-		klog.Errorf("Unable to delete helm keep resources: %s", err)
-		os.Exit(1)
-	}
+	klog.Info("Pre-delete cleanup completed")
 }
