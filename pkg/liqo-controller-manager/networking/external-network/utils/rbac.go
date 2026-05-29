@@ -33,38 +33,9 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
-// DeleteClusterRoleBinding deletes the cluster role bindings owned by the given object.
-func DeleteClusterRoleBinding(ctx context.Context, cl client.Client, obj client.Object) error {
-	var crbList rbacv1.ClusterRoleBindingList
-	if err := cl.List(ctx, &crbList, client.MatchingLabels{
-		consts.GatewayNameLabel:      obj.GetName(),
-		consts.GatewayNamespaceLabel: obj.GetNamespace(),
-	}); err != nil {
-		klog.Errorf("error while listing cluster role bindings: %v", err)
-		return err
-	}
-
-	for i := range crbList.Items {
-		crb := &crbList.Items[i]
-		if controllerutil.ContainsFinalizer(crb, consts.ClusterRoleBindingFinalizer) {
-			patch := client.MergeFrom(crb.DeepCopy())
-			controllerutil.RemoveFinalizer(crb, consts.ClusterRoleBindingFinalizer)
-			if err := cl.Patch(ctx, crb, patch); err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("error while removing finalizer from cluster role binding %q: %v", crb.Name, err)
-				return err
-			}
-		}
-		if err := client.IgnoreNotFound(cl.Delete(ctx, crb)); err != nil {
-			klog.Errorf("error while deleting cluster role binding %q: %v", crb.Name, err)
-			return err
-		}
-	}
-	return nil
-}
-
 // CleanupClusterRoleBindings handles the full cleanup sequence for orphaned ClusterRoleBindings
 // after the owning WgGateway resource has been deleted. It waits for gateway pods to terminate,
-// removes the ServiceAccount finalizer, and then removes the CRB finalizer and deletes the CRB.
+// removes the ServiceAccount finalizer, and then deletes the CRB.
 // Returns (requeue, error).
 func CleanupClusterRoleBindings(ctx context.Context, cl client.Client, name, namespace string) (bool, error) {
 	var crbList rbacv1.ClusterRoleBindingList
@@ -75,14 +46,7 @@ func CleanupClusterRoleBindings(ctx context.Context, cl client.Client, name, nam
 		return false, fmt.Errorf("listing cluster role bindings for gateway %s/%s: %w", namespace, name, err)
 	}
 
-	// Filter to only CRBs that still carry our finalizer.
-	var pending []rbacv1.ClusterRoleBinding
-	for i := range crbList.Items {
-		if controllerutil.ContainsFinalizer(&crbList.Items[i], consts.ClusterRoleBindingFinalizer) {
-			pending = append(pending, crbList.Items[i])
-		}
-	}
-	if len(pending) == 0 {
+	if len(crbList.Items) == 0 {
 		return false, nil
 	}
 
@@ -104,8 +68,8 @@ func CleanupClusterRoleBindings(ctx context.Context, cl client.Client, name, nam
 
 	// All pods are gone. Remove the ServiceAccount finalizer so the GC can clean it up.
 	// Derive the SA name from the CRB subjects.
-	for i := range pending {
-		for _, subj := range pending[i].Subjects {
+	for i := range crbList.Items {
+		for _, subj := range crbList.Items[i].Subjects {
 			if subj.Kind == rbacv1.ServiceAccountKind && subj.Namespace == namespace {
 				var sa corev1.ServiceAccount
 				if err := cl.Get(ctx, types.NamespacedName{Namespace: namespace, Name: subj.Name}, &sa); err != nil {
@@ -122,14 +86,8 @@ func CleanupClusterRoleBindings(ctx context.Context, cl client.Client, name, nam
 			}
 		}
 
-		// Remove the finalizer from the CRB and delete it.
-		patch := client.MergeFrom(pending[i].DeepCopy())
-		controllerutil.RemoveFinalizer(&pending[i], consts.ClusterRoleBindingFinalizer)
-		if err := cl.Patch(ctx, &pending[i], patch); err != nil && !apierrors.IsNotFound(err) {
-			return false, fmt.Errorf("removing finalizer from cluster role binding %q: %w", pending[i].Name, err)
-		}
-		if err := client.IgnoreNotFound(cl.Delete(ctx, &pending[i])); err != nil {
-			return false, fmt.Errorf("deleting cluster role binding %q: %w", pending[i].Name, err)
+		if err := client.IgnoreNotFound(cl.Delete(ctx, &crbList.Items[i])); err != nil {
+			return false, fmt.Errorf("deleting cluster role binding %q: %w", crbList.Items[i].Name, err)
 		}
 	}
 
@@ -190,7 +148,6 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 			Namespace: namespace,
 		}}
 
-		controllerutil.AddFinalizer(crb, consts.ClusterRoleBindingFinalizer)
 		return nil
 	}); err != nil {
 		klog.Errorf("error while creating cluster role binding %q: %v", name, err)

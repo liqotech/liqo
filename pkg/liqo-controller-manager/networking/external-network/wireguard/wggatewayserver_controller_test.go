@@ -65,7 +65,6 @@ func gwServerClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 				consts.GatewayNameLabel:      wgServerName,
 				consts.GatewayNamespaceLabel: wgNamespace,
 			},
-			Finalizers: []string{consts.ClusterRoleBindingFinalizer},
 		},
 	}
 }
@@ -92,13 +91,12 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
 
-		// CRB finalizer must NOT have been removed yet.
+		// CRB must still exist (not deleted while pods are running).
 		var gotCRB rbacv1.ClusterRoleBinding
 		Expect(r.Get(ctx, types.NamespacedName{Name: crb.Name}, &gotCRB)).To(Succeed())
-		Expect(gotCRB.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
 	})
 
-	It("removes SA finalizer, removes CRB finalizer, and deletes CRB when everything is gone", func() {
+	It("removes SA finalizer and deletes CRB when everything is gone", func() {
 		sa := &corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       gwSAName,
@@ -144,7 +142,7 @@ var _ = Describe("WgGatewayServerReconciler deletion sequencing", func() {
 		Expect(res).To(Equal(ctrl.Result{}))
 	})
 
-	It("is a no-op when no CRBs with the finalizer exist", func() {
+	It("is a no-op when no CRBs exist", func() {
 		r := wgServerReconciler()
 
 		res, err := r.Reconcile(ctx, reqWgServer())

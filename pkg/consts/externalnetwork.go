@@ -37,9 +37,6 @@ const (
 	// PublicKeyField is the data field of the secrets containing public keys.
 	PublicKeyField = "publicKey"
 
-	// ClusterRoleBindingFinalizer is the finalizer added to the ClusterRoleBinding to prevent
-	// its deletion until all gateway pods have terminated and RBAC cleanup is complete.
-	ClusterRoleBindingFinalizer = "networking.liqo.io/clusterrolebinding"
 	// GatewayServiceAccountFinalizer is set on gateway ServiceAccounts to prevent the GC from
 	// cascade-deleting them while the gateway pod is still alive during shutdown.
 	GatewayServiceAccountFinalizer = "networking.liqo.io/gateway-serviceaccount"

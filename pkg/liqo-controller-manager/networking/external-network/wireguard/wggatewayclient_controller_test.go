@@ -81,7 +81,6 @@ func gwClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 				consts.GatewayNameLabel:      wgName,
 				consts.GatewayNamespaceLabel: wgNamespace,
 			},
-			Finalizers: []string{consts.ClusterRoleBindingFinalizer},
 		},
 	}
 }
@@ -108,13 +107,12 @@ var _ = Describe("WgGatewayClientReconciler deletion sequencing", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(res.RequeueAfter).To(BeNumerically(">", 0))
 
-		// CRB finalizer must NOT have been removed yet.
+		// CRB must still exist (not deleted while pods are running).
 		var gotCRB rbacv1.ClusterRoleBinding
 		Expect(r.Get(ctx, types.NamespacedName{Name: crb.Name}, &gotCRB)).To(Succeed())
-		Expect(gotCRB.Finalizers).To(ContainElement(consts.ClusterRoleBindingFinalizer))
 	})
 
-	It("removes the SA finalizer, removes the CRB finalizer, and deletes the CRB once pods are gone", func() {
+	It("removes the SA finalizer and deletes the CRB once pods are gone", func() {
 		sa := gwServiceAccount(gwSAName, true /* withFinalizer */)
 		crb := gwClusterRoleBinding()
 		// Add the SA as a subject so CleanupClusterRoleBindings can find it.
@@ -180,7 +178,7 @@ var _ = Describe("WgGatewayClientReconciler deletion sequencing", func() {
 		Expect(gotSA.Finalizers).To(BeEmpty())
 	})
 
-	It("is a no-op when no CRBs with the finalizer exist", func() {
+	It("is a no-op when no CRBs exist", func() {
 		// No CRB, no WgGatewayClient — nothing to do.
 		r := wgClientReconciler()
 
