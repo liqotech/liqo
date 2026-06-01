@@ -23,7 +23,27 @@ rules:
   - networking.liqo.io
   resources:
   - firewallconfigurationbindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - firewallconfigurationbindings/finalizers
+  - firewallconfigurations/finalizers
+  - routeconfigurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - firewallconfigurationbindings/status
+  - firewallconfigurations
   - internalnodes
   - internalnodes/status
   - routeconfigurations
@@ -37,14 +57,6 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurationbindings/finalizers
-  - routeconfigurations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - firewallconfigurations
   - genevetunnels
   - internalfabrics
   verbs:

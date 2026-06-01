@@ -235,6 +235,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to add geneve cleanup runnable: %w", err)
 	}
 
+	// Setup the fabric firewall configuration binding creator controller.
+	fabricBindingCreator := fabric.NewFabricBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
+	if err := fabricBindingCreator.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup fabric firewall configuration binding creator: %w", err)
+	}
+
 	// Start the manager. On clean shutdown (SIGTERM) mgr.Start returns nil after all
 	// reconcilers have stopped, and we remove any finalizers that the reconciler did not
 	// have time to process before the pod was terminated.

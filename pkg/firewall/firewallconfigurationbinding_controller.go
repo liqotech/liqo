@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -192,21 +193,23 @@ func (r *FirewallConfigurationBindingReconciler) SetupWithManager(ctx context.Co
 // updateStatus updates the status of the given FirewallConfigurationBinding.
 func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Context,
 	fwbinding *networkingv1beta1.FirewallConfigurationBinding, reconcileErr error) error {
-	fwbinding.Status.Type = networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied
-
-	var newStatus metav1.ConditionStatus
-	if reconcileErr == nil {
-		newStatus = metav1.ConditionTrue
-	} else {
+	newStatus := metav1.ConditionTrue
+	if reconcileErr != nil {
 		newStatus = metav1.ConditionFalse
 	}
 
-	if fwbinding.Status.Status == newStatus {
+	condType := string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied)
+	existing := apimeta.FindStatusCondition(fwbinding.Status.Conditions, condType)
+	if existing != nil && existing.Status == newStatus {
 		return nil
 	}
 
-	fwbinding.Status.Status = newStatus
-	fwbinding.Status.LastTransitionTime = metav1.Now()
+	apimeta.SetStatusCondition(&fwbinding.Status.Conditions, metav1.Condition{
+		Type:               condType,
+		Status:             newStatus,
+		ObservedGeneration: fwbinding.Generation,
+		Reason:             "Applied",
+	})
 
 	r.EventsRecorder.Eventf(fwbinding, nil, "Normal", "FirewallConfigurationBindingUpdate", "Updated",
 		"FirewallConfigurationBinding %s/%s: %s", fwbinding.Namespace, fwbinding.Name, newStatus)

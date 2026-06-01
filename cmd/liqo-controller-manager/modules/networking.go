@@ -34,7 +34,6 @@ import (
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/wireguard"
-	firewallctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/firewall"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/client-controller"
 	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/configuration-controller"
 	gwmasqbypass "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/gw-masq-bypass"
@@ -264,12 +263,6 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 			klog.Errorf("Unable to start the gw-masq-bypass reconciler: %v", err)
 			return err
 		}
-	}
-
-	bindingCreator := firewallctrl.NewBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
-	if err := bindingCreator.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the firewallConfigurationBindingCreatorReconciler: %v", err)
-		return err
 	}
 
 	return nil

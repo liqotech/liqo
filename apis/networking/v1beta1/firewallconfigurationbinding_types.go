@@ -55,12 +55,13 @@ const (
 
 // FirewallConfigurationBindingStatus defines the observed state of FirewallConfigurationBinding.
 type FirewallConfigurationBindingStatus struct {
-	// Type of FirewallConfigurationBinding condition.
-	Type FirewallConfigurationBindingConditionType `json:"type,omitempty"`
-	// Status of the condition, one of True, False, Unknown.
-	Status metav1.ConditionStatus `json:"status,omitempty"`
-	// Last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+	// Conditions contains the conditions of the FirewallConfigurationBinding.
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// TableName is the name of the nftables table managed by this binding.
 	// Cached here so that cleanup can proceed even after the FirewallConfiguration is deleted.
 	TableName string `json:"tableName,omitempty"`
@@ -69,7 +70,7 @@ type FirewallConfigurationBindingStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo,path=firewallconfigurationbindings,shortName=fwbinding;fwcfgbinding
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Applied",type=string,JSONPath=`.status.status`
+// +kubebuilder:printcolumn:name="Applied",type=string,JSONPath=`.status.conditions[?(@.type=='Applied')].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="FirewallConfiguration",type=string,JSONPath=`.spec.firewallConfigurationRef.name`,priority=1
 // +kubebuilder:printcolumn:name="TargetID",type=string,JSONPath=`.spec.targetID`,priority=1

@@ -55,29 +55,28 @@ func ForgeFirewallTargetLabelsIPMappingFabric() map[string]string {
 	}
 }
 
-// ForgeFirewallBindingTargetLabels returns the labels used by the firewallconfigurationbinding controller
-// to reconcile only resources related to a single gateway, for the given gateway.
-// The remoteID is stored as subcategory to preserve the remote cluster identity alongside the gateway name.
-func ForgeFirewallBindingTargetLabels(remoteID, gatewayName string) map[string]string {
+// ForgeFirewallBindingTargetLabels returns the labels used to select a FirewallConfigurationBinding
+// for a specific remote cluster and gateway.
+func ForgeFirewallBindingTargetLabels(remoteClusterID, gwName string) map[string]string {
 	return map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
-		firewall.FirewallSubCategoryTargetKey: remoteID,
-		firewall.FirewallUniqueTargetKey:      gatewayName,
+		firewall.FirewallSubCategoryTargetKey: remoteClusterID,
+		firewall.FirewallUniqueTargetKey:      gwName,
 	}
 }
 
-// ForgeFirewallBindingTargetLabelsIPMappingGw returns the labels used by the firewallconfigurationbinding
-// controller to reconcile only resources related to the IP mapping for a specific gateway.
-func ForgeFirewallBindingTargetLabelsIPMappingGw(gatewayName string) map[string]string {
+// ForgeFirewallBindingTargetLabelsIPMappingGw returns the labels used to select a FirewallConfigurationBinding
+// for the IP-mapping firewall configuration on a gateway.
+func ForgeFirewallBindingTargetLabelsIPMappingGw(gwName string) map[string]string {
 	return map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
 		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
-		firewall.FirewallUniqueTargetKey:      gatewayName,
+		firewall.FirewallUniqueTargetKey:      gwName,
 	}
 }
 
-// ForgeFirewallBindingTargetLabelsIPMappingFabric returns the labels used by the firewallconfigurationbinding
-// controller to reconcile only resources related to the IP mapping for a specific fabric node.
+// ForgeFirewallBindingTargetLabelsIPMappingFabric returns the labels used to select a FirewallConfigurationBinding
+// for the IP-mapping firewall configuration on a fabric node.
 func ForgeFirewallBindingTargetLabelsIPMappingFabric(nodeName string) map[string]string {
 	return map[string]string{
 		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueFabric,

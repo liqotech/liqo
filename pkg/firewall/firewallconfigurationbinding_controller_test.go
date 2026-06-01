@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -191,9 +192,10 @@ var _ = Describe("updateStatus", func() {
 
 		var got networkingv1beta1.FirewallConfigurationBinding
 		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
-		Expect(got.Status.Type).To(Equal(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied))
-		Expect(got.Status.Status).To(Equal(metav1.ConditionTrue))
-		Expect(got.Status.LastTransitionTime.IsZero()).To(BeFalse())
+		cond := apimeta.FindStatusCondition(got.Status.Conditions, string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied))
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+		Expect(cond.LastTransitionTime.IsZero()).To(BeFalse())
 		Eventually(rec.Events).Should(Receive(ContainSubstring("FirewallConfigurationBindingUpdate")))
 	})
 
@@ -207,21 +209,27 @@ var _ = Describe("updateStatus", func() {
 
 		var got networkingv1beta1.FirewallConfigurationBinding
 		Expect(r.Get(ctx, types.NamespacedName{Name: "a", Namespace: bindingTestNamespace}, &got)).To(Succeed())
-		Expect(got.Status.Status).To(Equal(metav1.ConditionFalse))
+		cond := apimeta.FindStatusCondition(got.Status.Conditions, string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied))
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 	})
 
 	It("is a no-op when the new status equals the existing one", func() {
 		a := newBinding("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
-			a.Status.Status = metav1.ConditionTrue
-			a.Status.Type = networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied
-			a.Status.LastTransitionTime = metav1.Now()
+			apimeta.SetStatusCondition(&a.Status.Conditions, metav1.Condition{
+				Type:   string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied),
+				Status: metav1.ConditionTrue,
+				Reason: "Applied",
+			})
 		})
 		r, rec := newBindingReconciler(a)
 
 		// Capture the time before; if no update is issued it should remain unchanged.
-		original := a.Status.LastTransitionTime
+		original := apimeta.FindStatusCondition(a.Status.Conditions,
+			string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied)).LastTransitionTime
 		Expect(r.updateStatus(ctx, a, nil)).To(Succeed())
-		Expect(a.Status.LastTransitionTime).To(Equal(original))
+		Expect(apimeta.FindStatusCondition(a.Status.Conditions,
+			string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied)).LastTransitionTime).To(Equal(original))
 		// No event should be emitted.
 		Consistently(rec.Events).ShouldNot(Receive())
 	})

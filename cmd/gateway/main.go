@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
@@ -60,6 +61,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1beta1.AddToScheme(scheme))
 }
 
@@ -234,6 +236,12 @@ func run(cmd *cobra.Command, _ []string) error {
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
 		connoptions.GwOptions.Name, connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
+	}
+
+	// Setup the gateway firewall configuration binding creator controller.
+	gatewayBindingCreator := gateway.NewGatewayBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
+	if err := gatewayBindingCreator.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup gateway firewall configuration binding creator: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {
