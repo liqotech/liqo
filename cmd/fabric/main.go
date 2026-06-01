@@ -144,10 +144,20 @@ func run(cmd *cobra.Command, _ []string) error {
 		HealthProbeBindAddress:  options.ProbeAddr,
 		GracefulShutdownTimeout: &gracefulShutdownTimeout,
 		LeaderElection:          false,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&networkingv1beta1.FirewallConfigurationBinding{},
+				},
+			},
+		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.NewSelector().Add(*reqGatewayPods).Add(*reqActiveGatewayPods),
+				},
+				&networkingv1beta1.FirewallConfigurationBinding{}: {
+					Label: firewall.BindingTargetSelector(options.NodeName),
 				},
 			}
 			return cache.New(config, opts)

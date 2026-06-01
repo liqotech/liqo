@@ -15,11 +15,11 @@ spec:
       {{- include "liqo.selectorLabels" $fabricConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.networking.fabric.pod.annotations }}
       annotations:
-        {{- toYaml .Values.networking.fabric.pod.annotations | nindent 8 }}
         "argocd.argoproj.io/sync-wave": "0"
-    {{- end }}
+        {{- if .Values.networking.fabric.pod.annotations }}
+        {{- toYaml .Values.networking.fabric.pod.annotations | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "liqo.selectorLabels" $fabricConfig | nindent 8 }}
         {{- if .Values.networking.fabric.pod.labels }}

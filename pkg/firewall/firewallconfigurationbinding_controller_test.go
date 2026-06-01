@@ -217,9 +217,10 @@ var _ = Describe("updateStatus", func() {
 	It("is a no-op when the new status equals the existing one", func() {
 		a := newBinding("a", func(a *networkingv1beta1.FirewallConfigurationBinding) {
 			apimeta.SetStatusCondition(&a.Status.Conditions, metav1.Condition{
-				Type:   string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied),
-				Status: metav1.ConditionTrue,
-				Reason: "Applied",
+				Type:    string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied),
+				Status:  metav1.ConditionTrue,
+				Reason:  "Applied",
+				Message: string(metav1.ConditionTrue),
 			})
 		})
 		r, rec := newBindingReconciler(a)

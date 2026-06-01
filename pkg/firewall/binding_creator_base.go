@@ -17,6 +17,7 @@ package firewall
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -186,10 +187,16 @@ func IsOwnedBy(obj metav1.Object, ownerUID types.UID) bool {
 // BindingResourceName returns the deterministic name for a FirewallConfigurationBinding.
 func BindingResourceName(fwcfgName, entityName string) string {
 	name := fmt.Sprintf("%s-%s", fwcfgName, entityName)
-	if len(name) > 253 {
-		// Preserve the entity suffix; truncate the fwcfg prefix.
-		prefixLen := 253 - 1 - len(entityName)
-		name = fmt.Sprintf("%s-%s", fwcfgName[:prefixLen], entityName)
+	if len(name) <= 253 {
+		return name
 	}
-	return name
+	// entityName alone is too long to leave room for any fwcfgName prefix:
+	// fall back to a fully-hashed name that is always short and deterministic.
+	prefixLen := 253 - 1 - len(entityName)
+	if prefixLen <= 0 {
+		h := fnv.New64a()
+		_, _ = fmt.Fprintf(h, "%s/%s", fwcfgName, entityName)
+		return fmt.Sprintf("fwb-%x", h.Sum64())
+	}
+	return fmt.Sprintf("%s-%s", fwcfgName[:prefixLen], entityName)
 }

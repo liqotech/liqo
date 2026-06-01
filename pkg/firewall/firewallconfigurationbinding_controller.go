@@ -137,9 +137,12 @@ func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, 
 	fwbinding.Status.TableName = ptr.Deref(fwcfg.Spec.Table.Name, "")
 
 	defer func() {
-		err = r.updateStatus(ctx, fwbinding, err)
-		if err != nil {
-			err = fmt.Errorf("updating status: %w", err)
+		// Use a NEW variable for the status update error
+		updateErr := r.updateStatus(ctx, fwbinding, err)
+		if updateErr != nil {
+			updateErr = fmt.Errorf("updating status: %w", updateErr)
+			// Combine the original 'err' with the new 'updateErr'
+			err = errors.Join(err, updateErr)
 		}
 	}()
 
@@ -211,6 +214,7 @@ func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Contex
 		Status:             newStatus,
 		ObservedGeneration: fwbinding.Generation,
 		Reason:             string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied),
+		Message:            string(newStatus),
 	})
 
 	r.EventsRecorder.Eventf(fwbinding, nil, "Normal", "FirewallConfigurationBindingUpdate", "Updated",

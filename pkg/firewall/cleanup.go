@@ -61,7 +61,7 @@ func CleanupFirewallConfigurationBindings(ctx context.Context, cl client.Client,
 
 func cleanupBinding(ctx context.Context, cl client.Client, binding *networkingv1beta1.FirewallConfigurationBinding, nftconn *nftables.Conn) {
 	if binding.DeletionTimestamp.IsZero() {
-		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s is not pending deletion, skipping\n",
+		klog.Infof("Shutdown cleanup: FirewallConfigurationBinding %s/%s is not pending deletion, skipping",
 			binding.Namespace, binding.Name)
 		return
 	}

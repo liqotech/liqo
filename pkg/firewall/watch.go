@@ -62,21 +62,22 @@ func NewFirewallBindingWatchSource(src <-chan event.GenericEvent, eh handler.Eve
 }
 
 // NewFirewallBindingWatchEventHandler creates a new EventHandler for FirewallConfigurationBinding resources.
-// It enqueues all bindings whose spec.targetID matches the given targetID.
+// It enqueues all bindings for the given targetID by querying the API server with a label selector.
 func NewFirewallBindingWatchEventHandler(cl client.Client, targetID string) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			list := &networkingv1beta1.FirewallConfigurationBindingList{}
-			if err := cl.List(ctx, list); err != nil {
+			if err := cl.List(ctx, list,
+				client.MatchingLabels{FirewallUniqueTargetKey: targetID}); err != nil {
 				klog.Error(err)
 				return nil
 			}
-			var requests []reconcile.Request
+			requests := make([]reconcile.Request, len(list.Items))
 			for i := range list.Items {
-				if list.Items[i].Spec.TargetID == targetID {
-					item := &list.Items[i]
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: item.Name, Namespace: item.Namespace}})
-				}
+				requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+					Name:      list.Items[i].Name,
+					Namespace: list.Items[i].Namespace,
+				}}
 			}
 			return requests
 		})

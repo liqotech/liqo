@@ -26,9 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -171,6 +173,21 @@ func run(cmd *cobra.Command, _ []string) error {
 		LeaseDuration:                 &connoptions.GwOptions.LeaderElectionLeaseDuration,
 		RenewDeadline:                 &connoptions.GwOptions.LeaderElectionRenewDeadline,
 		RetryPeriod:                   &connoptions.GwOptions.LeaderElectionRetryPeriod,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&networkingv1beta1.FirewallConfigurationBinding{},
+				},
+			},
+		},
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&networkingv1beta1.FirewallConfigurationBinding{}: {
+					Label: firewall.BindingTargetSelector(connoptions.GwOptions.Name),
+				},
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)

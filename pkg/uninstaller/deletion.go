@@ -20,6 +20,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
@@ -47,7 +48,7 @@ func DeleteInternalNodes(ctx context.Context, client dynamic.Interface) error {
 	}
 
 	for _, item := range unstructured.Items {
-		if err := r1.Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err := r1.Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -64,7 +65,7 @@ func DeleteNetworks(ctx context.Context, client dynamic.Interface) error {
 	}
 
 	for _, item := range unstructured.Items {
-		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -81,7 +82,7 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 	}
 
 	for _, item := range unstructured.Items {
-		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -96,17 +97,18 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 func DeleteHelmKeepResources(ctx context.Context, namespace string, client dynamic.Interface) error {
 	// Delete ClusterRoleBindings with the keep annotation managed by Liqo.
 	crbGVR := rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings")
-	crbList, err := client.Resource(crbGVR).List(ctx, metav1.ListOptions{})
+	crbList, err := client.Resource(crbGVR).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
 		return fmt.Errorf("listing ClusterRoleBindings: %w", err)
 	}
 	for i := range crbList.Items {
 		item := &crbList.Items[i]
-		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
-			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue {
 			klog.Infof("Deleting ClusterRoleBinding %s (%s: %s)", item.GetName(),
 				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
-			if err := client.Resource(crbGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			if err := client.Resource(crbGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf("deleting ClusterRoleBinding %s: %w", item.GetName(), err)
 			}
 		}
@@ -114,17 +116,18 @@ func DeleteHelmKeepResources(ctx context.Context, namespace string, client dynam
 
 	// Delete ClusterRoles with the keep annotation managed by Liqo.
 	crGVR := rbacv1.SchemeGroupVersion.WithResource("clusterroles")
-	crList, err := client.Resource(crGVR).List(ctx, metav1.ListOptions{})
+	crList, err := client.Resource(crGVR).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
 		return fmt.Errorf("listing ClusterRoles: %w", err)
 	}
 	for i := range crList.Items {
 		item := &crList.Items[i]
-		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
-			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue {
 			klog.Infof("Deleting ClusterRole %s (%s: %s)", item.GetName(),
 				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
-			if err := client.Resource(crGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			if err := client.Resource(crGVR).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf("deleting ClusterRole %s: %w", item.GetName(), err)
 			}
 		}
@@ -132,17 +135,19 @@ func DeleteHelmKeepResources(ctx context.Context, namespace string, client dynam
 
 	// Delete ServiceAccounts with the keep annotation managed by Liqo.
 	saGVR := corev1.SchemeGroupVersion.WithResource("serviceaccounts")
-	saList, err := client.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	saList, err := client.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
 		return fmt.Errorf("listing ServiceAccounts: %w", err)
 	}
 	for i := range saList.Items {
 		item := &saList.Items[i]
-		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue &&
-			item.GetLabels()[consts.K8sAppPartOfKey] == consts.K8sAppPartOfLiqoValue {
+		if item.GetAnnotations()[consts.HelmResourcePolicyAnnotationKey] == consts.HelmResourcePolicyAnnotationKeepValue {
 			klog.Infof("Deleting ServiceAccount %s/%s (%s: %s)", item.GetNamespace(), item.GetName(),
 				consts.HelmResourcePolicyAnnotationKey, consts.HelmResourcePolicyAnnotationKeepValue)
-			if err := client.Resource(saGVR).Namespace(namespace).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			err := client.Resource(saGVR).Namespace(namespace).Delete(ctx, item.GetName(), metav1.DeleteOptions{})
+			if err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf("deleting ServiceAccount %s/%s: %w", item.GetNamespace(), item.GetName(), err)
 			}
 		}
