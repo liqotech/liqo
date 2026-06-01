@@ -77,9 +77,8 @@ func NewFirewallConfigurationBindingReconciler(cl client.Client, s *runtime.Sche
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch
 
-// Reconcile manages FirewallConfigurationBindinges, applying nftables configuration from the referenced FirewallConfiguration.
-func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var err error
+// Reconcile manages FirewallConfigurationBindings, applying nftables configuration from the referenced FirewallConfiguration.
+func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	fwbinding := &networkingv1beta1.FirewallConfigurationBinding{}
 	if err = r.Get(ctx, req.NamespacedName, fwbinding); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -126,20 +125,23 @@ func (r *FirewallConfigurationBindingReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, fmt.Errorf("getting referenced firewallconfiguration: %w", err)
 	}
 
-	// Cache the table name in the status so it is available during cleanup even after
-	// the FirewallConfiguration has been deleted.
-	fwbinding.Status.TableName = ptr.Deref(fwcfg.Spec.Table.Name, "")
-
-	defer func() {
-		err = r.updateStatus(ctx, fwbinding, err)
-	}()
-
 	if !ctrlutil.ContainsFinalizer(fwbinding, firewallConfigurationBindingControllerFinalizer) {
 		if err = r.ensureBindingFinalizerPresence(ctx, fwbinding); err != nil {
 			return ctrl.Result{}, fmt.Errorf("adding finalizer: %w", err)
 		}
 		return ctrl.Result{}, nil
 	}
+
+	// Cache the table name in the status so it is available during cleanup even after
+	// the FirewallConfiguration has been deleted.
+	fwbinding.Status.TableName = ptr.Deref(fwcfg.Spec.Table.Name, "")
+
+	defer func() {
+		err = r.updateStatus(ctx, fwbinding, err)
+		if err != nil {
+			err = fmt.Errorf("updating status: %w", err)
+		}
+	}()
 
 	// Remove outdated chains/rules that are no longer in the spec, and flush deletions before adding new ones.
 	if err = cleanTable(r.NftConnection, &fwcfg.Spec.Table); err != nil {
@@ -200,7 +202,7 @@ func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Contex
 
 	condType := string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied)
 	existing := apimeta.FindStatusCondition(fwbinding.Status.Conditions, condType)
-	if existing != nil && existing.Status == newStatus {
+	if existing != nil && existing.Status == newStatus && existing.ObservedGeneration == fwbinding.Generation {
 		return nil
 	}
 
@@ -208,7 +210,7 @@ func (r *FirewallConfigurationBindingReconciler) updateStatus(ctx context.Contex
 		Type:               condType,
 		Status:             newStatus,
 		ObservedGeneration: fwbinding.Generation,
-		Reason:             "Applied",
+		Reason:             string(networkingv1beta1.FirewallConfigurationBindingConditionTypeApplied),
 	})
 
 	r.EventsRecorder.Eventf(fwbinding, nil, "Normal", "FirewallConfigurationBindingUpdate", "Updated",

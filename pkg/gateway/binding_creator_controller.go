@@ -39,23 +39,23 @@ import (
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayservers;gatewayclients,verbs=get;list;watch
 
-// GatewayBindingCreatorReconciler reconciles FirewallConfiguration resources with the
+// BindingCreatorReconciler reconciles FirewallConfiguration resources with the
 // gateway category and creates the corresponding FirewallConfigurationBinding resources
 // for each GatewayServer and GatewayClient.
-type GatewayBindingCreatorReconciler struct {
+type BindingCreatorReconciler struct {
 	firewallpkg.BindingCreatorBase
 }
 
-// NewGatewayBindingCreatorReconciler returns a new GatewayBindingCreatorReconciler.
-func NewGatewayBindingCreatorReconciler(cl client.Client, s *runtime.Scheme) *GatewayBindingCreatorReconciler {
-	return &GatewayBindingCreatorReconciler{
+// NewGatewayBindingCreatorReconciler returns a new BindingCreatorReconciler.
+func NewGatewayBindingCreatorReconciler(cl client.Client, s *runtime.Scheme) *BindingCreatorReconciler {
+	return &BindingCreatorReconciler{
 		BindingCreatorBase: firewallpkg.BindingCreatorBase{Client: cl, Scheme: s},
 	}
 }
 
 // Reconcile creates or deletes FirewallConfigurationBinding resources for each gateway
 // referenced by the given gateway-category FirewallConfiguration.
-func (r *GatewayBindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	fwcfg := &networkingv1beta1.FirewallConfiguration{}
 	if err := r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -90,7 +90,7 @@ func (r *GatewayBindingCreatorReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // getGatewayTargets enumerates targets for gateway-category FirewallConfigurations.
-func (r *GatewayBindingCreatorReconciler) getGatewayTargets(ctx context.Context,
+func (r *BindingCreatorReconciler) getGatewayTargets(ctx context.Context,
 	fwcfg *networkingv1beta1.FirewallConfiguration) ([]firewallpkg.BindingTarget, error) {
 	subcategory := fwcfg.Labels[firewallpkg.FirewallSubCategoryTargetKey]
 	unique := fwcfg.Labels[firewallpkg.FirewallUniqueTargetKey]
@@ -114,7 +114,7 @@ func (r *GatewayBindingCreatorReconciler) getGatewayTargets(ctx context.Context,
 // allGatewayTargets lists all GatewayServer and GatewayClient across all namespaces
 // and builds one target per gateway. Gateways live in tenant namespaces (liqo-tenant-*),
 // not necessarily in the same namespace as the FirewallConfiguration.
-func (r *GatewayBindingCreatorReconciler) allGatewayTargets(ctx context.Context,
+func (r *BindingCreatorReconciler) allGatewayTargets(ctx context.Context,
 	forgeLabels func(gwName string) map[string]string) ([]firewallpkg.BindingTarget, error) {
 	var targets []firewallpkg.BindingTarget
 
@@ -146,7 +146,7 @@ func (r *GatewayBindingCreatorReconciler) allGatewayTargets(ctx context.Context,
 }
 
 // singleGatewayTarget finds the specific GatewayServer or GatewayClient for the given remoteID.
-func (r *GatewayBindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remoteID string) ([]firewallpkg.BindingTarget, error) {
+func (r *BindingCreatorReconciler) singleGatewayTarget(ctx context.Context, remoteID string) ([]firewallpkg.BindingTarget, error) {
 	gwServer, gwClient, err := getters.GetGatewaysByClusterID(ctx, r.Client, liqov1beta1.ClusterID(remoteID))
 	if err != nil {
 		return nil, fmt.Errorf("getting gateways for remoteID %q: %w", remoteID, err)
@@ -170,7 +170,7 @@ func (r *GatewayBindingCreatorReconciler) singleGatewayTarget(ctx context.Contex
 }
 
 // SetupWithManager registers the GatewayBindingCreatorReconciler with the manager.
-func (r *GatewayBindingCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BindingCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	gatewayFWCfgMapper := func(ctx context.Context, _ client.Object) []reconcile.Request {
 		return r.EnqueueFirewallConfigurationsByCategory(ctx, FirewallCategoryGwTargetValue)
 	}

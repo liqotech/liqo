@@ -37,23 +37,23 @@ import (
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurationbindings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 
-// FabricBindingCreatorReconciler reconciles FirewallConfiguration resources with the
+// BindingCreatorReconciler reconciles FirewallConfiguration resources with the
 // fabric category and creates the corresponding FirewallConfigurationBinding resources
 // for each InternalNode.
-type FabricBindingCreatorReconciler struct {
+type BindingCreatorReconciler struct {
 	firewallpkg.BindingCreatorBase
 }
 
-// NewFabricBindingCreatorReconciler returns a new FabricBindingCreatorReconciler.
-func NewFabricBindingCreatorReconciler(cl client.Client, s *runtime.Scheme) *FabricBindingCreatorReconciler {
-	return &FabricBindingCreatorReconciler{
+// NewFabricBindingCreatorReconciler returns a new BindingCreatorReconciler.
+func NewFabricBindingCreatorReconciler(cl client.Client, s *runtime.Scheme) *BindingCreatorReconciler {
+	return &BindingCreatorReconciler{
 		BindingCreatorBase: firewallpkg.BindingCreatorBase{Client: cl, Scheme: s},
 	}
 }
 
 // Reconcile creates or deletes FirewallConfigurationBinding resources for each InternalNode
 // referenced by the given fabric-category FirewallConfiguration.
-func (r *FabricBindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	fwcfg := &networkingv1beta1.FirewallConfiguration{}
 	if err := r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -88,7 +88,7 @@ func (r *FabricBindingCreatorReconciler) Reconcile(ctx context.Context, req ctrl
 }
 
 // getFabricTargets enumerates targets for fabric-category FirewallConfigurations.
-func (r *FabricBindingCreatorReconciler) getFabricTargets(ctx context.Context,
+func (r *BindingCreatorReconciler) getFabricTargets(ctx context.Context,
 	fwcfg *networkingv1beta1.FirewallConfiguration) ([]firewallpkg.BindingTarget, error) {
 	subcategory := fwcfg.Labels[firewallpkg.FirewallSubCategoryTargetKey]
 	unique := fwcfg.Labels[firewallpkg.FirewallUniqueTargetKey]
@@ -111,7 +111,7 @@ func (r *FabricBindingCreatorReconciler) getFabricTargets(ctx context.Context,
 }
 
 // allInternalNodeTargets lists all InternalNodes and builds one target per node.
-func (r *FabricBindingCreatorReconciler) allInternalNodeTargets(ctx context.Context,
+func (r *BindingCreatorReconciler) allInternalNodeTargets(ctx context.Context,
 	forgeLabels func(nodeName string) map[string]string) ([]firewallpkg.BindingTarget, error) {
 	nodeList := &networkingv1beta1.InternalNodeList{}
 	if err := r.List(ctx, nodeList); err != nil {
@@ -129,7 +129,7 @@ func (r *FabricBindingCreatorReconciler) allInternalNodeTargets(ctx context.Cont
 }
 
 // SetupWithManager registers the FabricBindingCreatorReconciler with the manager.
-func (r *FabricBindingCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BindingCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	fabricFWCfgMapper := func(ctx context.Context, _ client.Object) []reconcile.Request {
 		return r.EnqueueFirewallConfigurationsByCategory(ctx, FirewallCategoryTargetValue)
 	}

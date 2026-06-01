@@ -15,6 +15,10 @@
 package firewall
 
 const (
+	// FirewallCategoryTargetValueGw is the category value used to target gateway entities.
+	FirewallCategoryTargetValueGw = "gateway"
+	// FirewallCategoryTargetValueFabric is the category value used to target fabric node entities.
+	FirewallCategoryTargetValueFabric = "fabric"
 	// FirewallSubCategoryTargetValueIPMapping is the value used by the firewallconfiguration controller
 	// to reconcile only resources related to the IP mapping.
 	FirewallSubCategoryTargetValueIPMapping = "ip-mapping"
@@ -25,7 +29,7 @@ const (
 // The remoteID is stored as subcategory to preserve the remote cluster identity alongside the gateway name.
 func ForgeFirewallBindingTargetLabelsRemapping(remoteID, gatewayName string) map[string]string {
 	return map[string]string{
-		FirewallCategoryTargetKey:    "gateway",
+		FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
 		FirewallSubCategoryTargetKey: remoteID,
 		FirewallUniqueTargetKey:      gatewayName,
 	}
@@ -35,7 +39,7 @@ func ForgeFirewallBindingTargetLabelsRemapping(remoteID, gatewayName string) map
 // controller to reconcile only resources related to the IP mapping for a specific gateway.
 func ForgeFirewallBindingTargetLabelsIPMappingGw(gatewayName string) map[string]string {
 	return map[string]string{
-		FirewallCategoryTargetKey:    "gateway",
+		FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
 		FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 		FirewallUniqueTargetKey:      gatewayName,
 	}
@@ -45,7 +49,7 @@ func ForgeFirewallBindingTargetLabelsIPMappingGw(gatewayName string) map[string]
 // controller to reconcile only resources related to the IP mapping for a specific fabric node.
 func ForgeFirewallBindingTargetLabelsIPMappingFabric(nodeName string) map[string]string {
 	return map[string]string{
-		FirewallCategoryTargetKey:    "fabric",
+		FirewallCategoryTargetKey:    FirewallCategoryTargetValueFabric,
 		FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 		FirewallUniqueTargetKey:      nodeName,
 	}
