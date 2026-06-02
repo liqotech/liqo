@@ -65,20 +65,12 @@ type Options struct {
 	PrivateKey  wgtypes.Key
 	InterfaceIP string
 
-	// ListenPort is the port used by the WireGuard server.
-	// This field is kept for backward compatibility; if ListenPorts is provided, this value is ignored.
-	ListenPort int
 	// ListenPorts is the list of ports used by the multi-tunnel WireGuard server.
-	// If not empty, it takes precedence over ListenPort.
 	ListenPorts []int
 
 	EndpointAddress string
 
-	// EndpointPort is the port used by the WireGuard client.
-	// This field is kept for backward compatibility; if EndpointPorts is provided, this value is ignored.
-	EndpointPort int
 	// EndpointPorts is the list of ports used by the multi-tunnel WireGuard client.
-	// If not empty, it takes precedence over EndpointPort.
 	EndpointPorts []int
 
 	KeysDir string

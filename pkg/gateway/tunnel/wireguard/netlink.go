@@ -187,29 +187,23 @@ func existsLink(idx int) (bool, error) {
 }
 
 // GetWireguardPorts returns the list of ports to be used for WireGuard interfaces.
-func GetWireguardPorts(opts *Options) []int {
+func GetWireguardPorts(opts *Options) ([]int, error) {
 	var ports []int
 
 	switch opts.GwOptions.Mode {
 	case gateway.ModeClient:
-		if len(opts.EndpointPorts) > 0 {
-			ports = opts.EndpointPorts
-		} else if opts.EndpointPort != 0 {
-			ports = []int{opts.EndpointPort}
-		}
+		ports = opts.EndpointPorts
 
 	case gateway.ModeServer:
-		if len(opts.ListenPorts) > 0 {
-			ports = opts.ListenPorts
-		} else if opts.ListenPort != 0 {
-			ports = []int{opts.ListenPort}
-		}
-	}
+		ports = opts.ListenPorts
 
+	default:
+		return nil, fmt.Errorf("invalid mode %v", opts.GwOptions.Mode)
+	}
 	if len(ports) > tunnel.MaxWireguardInterfaces {
 		klog.Warningf("Requested %d WireGuard interfaces, capping to maximum of %d", len(ports), tunnel.MaxWireguardInterfaces)
 		ports = ports[:tunnel.MaxWireguardInterfaces]
 	}
 
-	return ports
+	return ports, nil
 }

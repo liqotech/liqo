@@ -149,7 +149,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Get interface list
-	ports := wireguard.GetWireguardPorts(options)
+	ports, err := wireguard.GetWireguardPorts(options)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve ports: %w", err)
+	}
 	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).
 	for i, port := range ports {
 		if err := wireguard.InitWireguardLink(cmd.Context(), options, i, port); err != nil {

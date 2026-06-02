@@ -79,7 +79,10 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 	// Get interface list
-	ports := GetWireguardPorts(r.Options)
+	ports, err := GetWireguardPorts(r.Options)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to retrieve ports: %w", err)
+	}
 	for i, port := range ports {
 		if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey), i, port); err != nil {
 			return ctrl.Result{}, err
