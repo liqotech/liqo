@@ -32,7 +32,7 @@ const (
 	clientOctetOffset = 2
 	// subnetSize is the number of addresses in each /30 block, used to compute per-tunnel IP offsets.
 	subnetSize = 4
-	// maxWireguardInterfaces is the maximum number of Wireguard interfaces that can be created,
+	// MaxWireguardInterfaces is the maximum number of Wireguard interfaces that can be created,
 	// derived from the available /30 blocks in the 169.254.18.0/24 subnet.
 	MaxWireguardInterfaces = 64
 	// ServerInterfaceIP (169.254.18.1/30) is the IP address of the Wireguard interface
@@ -76,6 +76,7 @@ func GetInterfaceIP(mode gateway.Mode, idx int) string {
 	return fmt.Sprintf("%s.%d/30", wireguardNetworkBase, fourthOctet)
 }
 
+// GetTunnelName returns the name of the Wireguard interface for the given index.
 func GetTunnelName(idx int) string {
 	if idx == 0 {
 		return TunnelInterfaceName

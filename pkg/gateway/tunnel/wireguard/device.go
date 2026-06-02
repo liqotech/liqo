@@ -30,7 +30,7 @@ import (
 
 var errWgEndpointPeerNotFound = errors.New("wg endpoint peer not found")
 
-func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key, idx int, port int) error {
+func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key, idx, port int) error {
 	confdev := wgtypes.Config{
 		PrivateKey: &options.PrivateKey,
 		ListenPort: nil,

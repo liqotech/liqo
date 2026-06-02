@@ -33,7 +33,7 @@ import (
 )
 
 // InitWireguardLink inits the Wireguard interface.
-func InitWireguardLink(ctx context.Context, options *Options, idx int, port int) error {
+func InitWireguardLink(ctx context.Context, options *Options, idx, port int) error {
 	name := tunnel.GetTunnelName(idx)
 	exists, err := existsLink(idx)
 	if err != nil {
@@ -62,7 +62,7 @@ func InitWireguardLink(ctx context.Context, options *Options, idx int, port int)
 }
 
 // createLink creates a new Wireguard interface.
-func createLink(ctx context.Context, options *Options, idx int, port int) error {
+func createLink(ctx context.Context, options *Options, idx, port int) error {
 	var err error
 	klog.Infof("Selected wireguard %s implementation", options.Implementation)
 
