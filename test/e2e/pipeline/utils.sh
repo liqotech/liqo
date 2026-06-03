@@ -42,7 +42,7 @@ function setup_arch_and_os() {
   armv5*) ARCH="armv5" ;;
   armv6*) ARCH="armv6" ;;
   armv7*) ARCH="arm" ;;
-  aarch64) ARCH="arm64" ;;
+  aarch64 | arm64) ARCH="arm64" ;;
   x86) ARCH="386" ;;
   x86_64) ARCH="amd64" ;;
   i686) ARCH="386" ;;
@@ -197,9 +197,15 @@ function login_az() {
 function install_kyverno() {
   local kubeconfig=$1
 
+  # Pin to a chart version compatible with Kubernetes < 1.31.
+  # Newer Kyverno charts use selectableFields in CRDs which requires K8s >= 1.31
+  # and causes Helm v4 to fail with a typed patch error on older clusters.
+  local KYVERNO_CHART_VERSION="3.2.7"
+
   "${HELM}" repo add kyverno https://kyverno.github.io/kyverno/
   "${HELM}" repo update
-  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}"
+  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace \
+    --version "${KYVERNO_CHART_VERSION}" --kubeconfig "${kubeconfig}"
 }
 
 function wait_kyverno() {

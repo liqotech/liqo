@@ -81,7 +81,7 @@ function wait_calico() {
 function install_cilium() {
   local kubeconfig=$1
 
-  if [ ! -f "${BINDIR}/cilium}" ]; then
+  if [ ! -f "${BINDIR}/cilium" ]; then
     setup_arch_and_os
     local CILIUM_CLI_VERSION
     CILIUM_CLI_VERSION="v0.18.8"

@@ -16,14 +16,14 @@
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 error() {
-   local sourcefile=$1
-   local lineno=$2
-   echo "An error occurred at $sourcefile:$lineno."
+	local sourcefile=$1
+	local lineno=$2
+	echo "An error occurred at $sourcefile:$lineno."
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
@@ -35,7 +35,7 @@ WORKDIR=$(dirname "$FILEPATH")
 source "$WORKDIR/../../utils.sh"
 
 # shellcheck disable=SC1091
-# shellcheck source=../cni.sh 
+# shellcheck source=../cni.sh
 source "$WORKDIR/../cni.sh"
 
 KIND="${BINDIR}/kind"
@@ -53,15 +53,19 @@ export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
 CLUSTER_TEMPLATE_FILE=${CLUSTER_TEMPLATE_FILE:-cluster-templates.yaml.tmpl}
 
-for i in $(seq 1 "${CLUSTER_NUMBER}");
-do
+for i in $(seq 1 "${CLUSTER_NUMBER}"); do
 	if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-	envsubst < "${TEMPLATE_DIR}/templates/$CLUSTER_TEMPLATE_FILE" > "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml"
+	envsubst <"${TEMPLATE_DIR}/templates/$CLUSTER_TEMPLATE_FILE" >"${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml"
 	echo "Creating cluster ${CLUSTER_NAME}${i}..."
-	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" --wait 2m
+	KIND_WAIT_FLAG="--wait 2m"
+	if [[ ${DISABLE_KINDNET} == "true" ]]; then
+		# When kindnet is disabled the nodes won't be Ready until the CNI is installed, skip the wait.
+		KIND_WAIT_FLAG=""
+	fi
+	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" ${KIND_WAIT_FLAG}
 
 	# Install CNI if kindnet disabled
 	if [[ ${DISABLE_KINDNET} == "true" ]]; then
@@ -71,4 +75,3 @@ do
 	# Install metrics-server
 	install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
-
