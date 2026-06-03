@@ -242,8 +242,9 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 	remote.AutomountServiceAccountToken = ptr.To(false)
 
 	remote.HostIPC = local.HostIPC
-	remote.HostNetwork = local.HostNetwork
 	remote.HostPID = local.HostPID
+	// TODO: Add support for host network
+	remote.HostNetwork = false
 
 	// Perform the additional mutations to implement advanced functionalities.
 	for _, mutator := range mutators {
