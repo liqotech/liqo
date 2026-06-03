@@ -29,8 +29,12 @@ func RunChecksPodToExternal(ctx context.Context, cl *client.Client,
 
 	target := []string{"http://1.1.1.1"}
 
-	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-		opts, cl.ConsumerName, target, false, ExecCurl)
+	consumerPods, err := listPods(ctx, cl.Consumer, cl.ConsumerName, false)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list consumer pods: %w", err)
+	}
+	successCount, errorCount, err = RunCheckToTargets(ctx, consumerPods, cfg[cl.ConsumerName],
+		opts, target, ExecCurl)
 	successCountTot += successCount
 	errorCountTot += errorCount
 	if err != nil {
@@ -38,8 +42,12 @@ func RunChecksPodToExternal(ctx context.Context, cl *client.Client,
 	}
 
 	for k := range cl.Providers {
-		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k], cfg[k],
-			opts, k, target, false, ExecCurl)
+		providerPods, err := listPods(ctx, cl.Providers[k], k, false)
+		if err != nil {
+			return successCountTot, errorCountTot, fmt.Errorf("failed to list provider %q pods: %w", k, err)
+		}
+		successCount, errorCount, err := RunCheckToTargets(ctx, providerPods, cfg[k],
+			opts, target, ExecCurl)
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {

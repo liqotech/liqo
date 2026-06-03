@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	testutils "github.com/liqotech/liqo/pkg/liqoctl/test/utils"
@@ -38,13 +37,9 @@ type ExecFunc func(ctx context.Context, pod *corev1.Pod, clset *kubernetes.Clien
 	cfg *rest.Config, quiet bool, endpoint string, logger *pterm.Logger) (ok bool, err error)
 
 // RunCheckToTargets runs the checks to the targets.
-func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Config, opts *flags.Options,
-	owner string, targets []string, hostnetwork bool, execFunc ExecFunc) (successCount, errorCount int32, err error) {
+func RunCheckToTargets(ctx context.Context, pods *corev1.PodList, cfg *rest.Config, opts *flags.Options,
+	targets []string, execFunc ExecFunc) (successCount, errorCount int32, err error) {
 	logger := opts.Topts.LocalFactory.Printer.Logger
-	pods, err := listPods(ctx, cl, owner, hostnetwork)
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to list pods: %w", err)
-	}
 
 	clset, err := InitClientSet(cfg)
 	if err != nil {

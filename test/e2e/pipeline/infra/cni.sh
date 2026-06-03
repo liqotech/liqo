@@ -84,7 +84,7 @@ function install_cilium() {
   if [ ! -f "${BINDIR}/cilium" ]; then
     setup_arch_and_os
     local CILIUM_CLI_VERSION
-    CILIUM_CLI_VERSION="v0.18.8"
+    CILIUM_CLI_VERSION="v0.19.2"
 
     echo "Downloading Cilium CLI ${CILIUM_CLI_VERSION} for ${OS}-${ARCH}"
     curl -L --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-${OS}-${ARCH}.tar.gz{,.sha256sum}"
@@ -95,6 +95,8 @@ function install_cilium() {
   fi
 
   cat <<EOF >cilium-values.yaml
+MTU: 0
+devices: "eth0"
 ipam:
   operator:
     clusterPoolIPv4PodCIDRList: ${POD_CIDR}

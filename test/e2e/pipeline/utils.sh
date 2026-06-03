@@ -116,7 +116,7 @@ function install_helm() {
   local supported="darwin-amd64\ndarwin-arm64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nlinux-s390x\nwindows-amd64"
   check_supported_arch_and_os "${supported}" "${os}" "${arch}" helm
 
-  HELM_VERSION="v3.15.3"
+  HELM_VERSION="v4.2.0"
 
   if ! command -v "${HELM}" &>/dev/null; then
     echo "WARNING: helm could not be found. Downloading and installing it locally..."
