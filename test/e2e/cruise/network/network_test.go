@@ -289,6 +289,7 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 
 func overrideArgsKubeadm(args *networkTestsArgs) {
 	args.loadBalancer = false
+	args.podNodePort = false
 }
 
 func overrideArgsK3s(args *networkTestsArgs) {
