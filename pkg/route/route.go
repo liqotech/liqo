@@ -108,7 +108,6 @@ func ExistsRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route
 
 // IsEqualRoute checks if the two routes are equal.
 func IsEqualRoute(route1, route2 *netlink.Route) bool {
-
 	if route1.Dst != nil && route2.Dst != nil && route1.Dst.String() != route2.Dst.String() {
 		return false
 	}
