@@ -83,8 +83,8 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to retrieve ports: %w", err)
 	}
-	for i, port := range ports {
-		if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey), i, port); err != nil {
+	for i := range ports {
+		if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey), i); err != nil {
 			return ctrl.Result{}, err
 		}
 	}

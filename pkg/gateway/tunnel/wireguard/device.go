@@ -30,7 +30,7 @@ import (
 
 var errWgEndpointPeerNotFound = errors.New("wg endpoint peer not found")
 
-func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key, idx, port int) error {
+func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key, idx int) error {
 	confdev := wgtypes.Config{
 		PrivateKey: &options.PrivateKey,
 		ListenPort: nil,
@@ -45,7 +45,7 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 
 	switch options.GwOptions.Mode {
 	case gateway.ModeServer:
-		confdev.ListenPort = &port
+		confdev.ListenPort = &options.ListenPorts[idx]
 		if options.PreserveClientEndpoint {
 			endpoint, err := getExistingPeerEndpoint(wgcl, peerPubKey, idx)
 			switch {
@@ -61,7 +61,7 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 	case gateway.ModeClient:
 		confdev.Peers[0].Endpoint = &net.UDPAddr{
 			IP:   options.EndpointIP,
-			Port: port,
+			Port: options.EndpointPorts[idx],
 		}
 	}
 	name := tunnel.GetTunnelName(idx)

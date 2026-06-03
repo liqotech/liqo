@@ -33,7 +33,7 @@ import (
 )
 
 // InitWireguardLink inits the Wireguard interface.
-func InitWireguardLink(ctx context.Context, options *Options, idx, port int) error {
+func InitWireguardLink(ctx context.Context, options *Options, idx int) error {
 	name := tunnel.GetTunnelName(idx)
 	exists, err := existsLink(idx)
 	if err != nil {
@@ -44,7 +44,7 @@ func InitWireguardLink(ctx context.Context, options *Options, idx, port int) err
 		return nil
 	}
 
-	if err := createLink(ctx, options, idx, port); err != nil {
+	if err := createLink(ctx, options, idx); err != nil {
 		return fmt.Errorf("cannot create Wireguard interface %q: %w", name, err)
 	}
 
@@ -62,7 +62,7 @@ func InitWireguardLink(ctx context.Context, options *Options, idx, port int) err
 }
 
 // createLink creates a new Wireguard interface.
-func createLink(ctx context.Context, options *Options, idx, port int) error {
+func createLink(ctx context.Context, options *Options, idx int) error {
 	var err error
 	klog.Infof("Selected wireguard %s implementation", options.Implementation)
 
@@ -87,7 +87,7 @@ func createLink(ctx context.Context, options *Options, idx, port int) error {
 		defer wgcl.Close()
 
 		if err := wgcl.ConfigureDevice(tunnel.GetTunnelName(idx), wgtypes.Config{
-			ListenPort: &port,
+			ListenPort: &options.ListenPorts[idx],
 		}); err != nil {
 			return fmt.Errorf("cannot configure Wireguard interface %q: %w", tunnel.GetTunnelName(idx), err)
 		}
