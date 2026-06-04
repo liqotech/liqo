@@ -65,7 +65,7 @@ for i in $(seq 1 "${CLUSTER_NUMBER}"); do
 		# When kindnet is disabled the nodes won't be Ready until the CNI is installed, skip the wait.
 		KIND_WAIT_FLAG=""
 	fi
-	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" ${KIND_WAIT_FLAG}
+	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" "${KIND_WAIT_FLAG}"
 
 	# Install CNI if kindnet disabled
 	if [[ ${DISABLE_KINDNET} == "true" ]]; then

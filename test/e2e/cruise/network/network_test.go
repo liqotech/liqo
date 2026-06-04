@@ -127,7 +127,7 @@ var _ = Describe("Liqo E2E", func() {
 
 	Context("Network", func() {
 		When("\"liqoctl test network\" runs", func() {
-			It("should succeed both before and after gateway pods restart", func() {
+			/* It("should succeed both before and after gateway pods restart", func() {
 				// Run the tests.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
@@ -161,9 +161,9 @@ var _ = Describe("Liqo E2E", func() {
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
 				}, timeout, interval).Should(Succeed())
-			})
+			}) */
 
-			/* It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
+			It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
 				args := defaultArgs
 				args.basic = true
 				args.remove = false
@@ -198,7 +198,7 @@ var _ = Describe("Liqo E2E", func() {
 						return runLiqoctlNetworkTests(args)
 					}, timeout, interval).Should(Succeed())
 				}
-			}) */
+			})
 		})
 	})
 })
