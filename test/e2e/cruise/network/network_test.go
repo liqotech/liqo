@@ -78,6 +78,7 @@ var (
 	defaultArgs = networkTestsArgs{
 		nodePortNodes: networkflags.NodePortNodesAll,
 		nodePortExt:   true,
+		nodeToPod:     true,
 		podNodePort:   true,
 		ip:            true,
 		loadBalancer:  true,
@@ -214,6 +215,7 @@ type networkTestsArgs struct {
 	nodePortNodes networkflags.NodePortNodes
 	nodePortExt   bool
 	podNodePort   bool
+	nodeToPod     bool
 	ip            bool
 	loadBalancer  bool
 	info          bool
@@ -258,6 +260,9 @@ func forgeFlags(args networkTestsArgs) []string {
 	if args.nodePortExt {
 		flags = append(flags, "--np-ext")
 	}
+	if args.nodeToPod {
+		flags = append(flags, "--node-pod")
+	}
 	if args.podNodePort {
 		flags = append(flags, "--pod-np")
 	}
@@ -290,6 +295,7 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 func overrideArgsKubeadm(args *networkTestsArgs) {
 	args.loadBalancer = false
 	args.podNodePort = false
+	args.nodeToPod = false
 }
 
 func overrideArgsK3s(args *networkTestsArgs) {
