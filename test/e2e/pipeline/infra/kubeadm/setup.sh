@@ -72,7 +72,7 @@ for i in $(seq 1 "${CLUSTER_NUMBER}"); do
     --control-plane-machine-count 1 \
     --worker-machine-count 2 \
     --target-namespace "$TARGET_NAMESPACE" \
-    --infrastructure kubevirt | sed "s/10.243.0.0\/16/$POD_CIDR_ESC/g" | ${KUBECTL} apply -f -
+    --infrastructure kubevirt:v0.1.9 | sed "s/10.243.0.0\/16/$POD_CIDR_ESC/g" | ${KUBECTL} apply -f -
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}"); do
