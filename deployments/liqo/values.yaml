@@ -90,7 +90,7 @@ networking:
       implementation: "kernel"
       # -- Preserve the existing peer endpoint when configuring the server-side WireGuard device.
       # This preserves the discovered endpoint across PublicKey reconciliations.
-      preserveClientEndpoint: false
+      preserveClientEndpoint: true
     # -- Set the number of replicas for the gateway deployments
     replicas: 1
     # -- Set the options to configure the gateway ping used to check connection
