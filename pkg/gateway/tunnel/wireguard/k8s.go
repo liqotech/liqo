@@ -16,6 +16,7 @@ package wireguard
 
 import (
 	"context"
+	"fmt"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -85,15 +87,16 @@ func CreateKeysSecret(ctx context.Context, cl client.Client, opts *gateway.Optio
 // EnsureConnection creates or updates the connection resource.
 func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Scheme, opts *Options) error {
 	conn := &networkingv1beta1.Connection{ObjectMeta: metav1.ObjectMeta{
-		Name: forge.GatewayResourceName(opts.GwOptions.Name), Namespace: opts.GwOptions.Namespace,
-		Labels: map[string]string{
-			string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
-		},
+		Name:      forge.GatewayResourceName(opts.GwOptions.Name),
+		Namespace: opts.GwOptions.Namespace,
 	}}
 
-	klog.Infof("Creating connection %q", conn.Name)
+	op, err := resource.CreateOrUpdate(ctx, cl, conn, func() error {
+		if conn.Labels == nil {
+			conn.Labels = make(map[string]string)
+		}
+		conn.Labels[string(consts.RemoteClusterID)] = opts.GwOptions.RemoteClusterID
 
-	_, err := resource.CreateOrUpdate(ctx, cl, conn, func() error {
 		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, conn, scheme); err != nil {
 			return err
 		}
@@ -111,13 +114,17 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 		}
 		return nil
 	})
-
 	if err != nil {
-		return err
+		return fmt.Errorf("creating or updating the connection: %w", err)
+	}
+	if op != controllerutil.OperationResultNone {
+		klog.Infof("Connection %q %s successfully", conn.Name, op)
 	}
 
-	klog.Infof("Connection %q created", conn.Name)
+	if conn.Status.Value == "" {
+		conn.Status.Value = networkingv1beta1.Connecting
+		return cl.Status().Update(ctx, conn)
+	}
 
-	conn.Status.Value = networkingv1beta1.Connecting
-	return cl.Status().Update(ctx, conn)
+	return nil
 }
