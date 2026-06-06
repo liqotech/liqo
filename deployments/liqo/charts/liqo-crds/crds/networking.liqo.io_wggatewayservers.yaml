@@ -10454,6 +10454,7 @@ spec:
                     items:
                       format: int32
                       type: integer
+                    maxItems: 64
                     type: array
                   protocol:
                     description: Protocol specifies the protocol of the endpoint.
@@ -10465,6 +10466,11 @@ spec:
                 x-kubernetes-validations:
                 - message: port must match ports[0]
                   rule: '!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])'
+                - message: at least one of port or ports must be set
+                  rule: has(self.port) || (has(self.ports) && size(self.ports) > 0)
+                - message: ports must not contain duplicates
+                  rule: '!(has(self.ports)) || self.ports.all(p, self.ports.filter(q,
+                    q == p).size() == 1)'
               internalEndpoint:
                 description: InternalEndpoint specifies the endpoint for the internal
                   network.

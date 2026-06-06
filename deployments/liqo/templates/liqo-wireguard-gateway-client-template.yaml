@@ -133,7 +133,7 @@ spec:
                 - --container-name=wireguard
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
-                - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
+                - --endpoint-ports={{ printf "{{ if .Spec.Endpoint.Ports }}{{ range $i, $p := .Spec.Endpoint.Ports }}{{ if $i }},{{ end }}{{ $p }}{{ end }}{{ else }}{{ .Spec.Endpoint.Port }}{{ end }}" }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
                 {{- end }}
