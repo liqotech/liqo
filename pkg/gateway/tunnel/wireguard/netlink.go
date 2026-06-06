@@ -37,7 +37,7 @@ func InitWireguardLink(ctx context.Context, options *Options, idx int) error {
 	name := tunnel.GetTunnelName(idx)
 	exists, err := existsLink(idx)
 	if err != nil {
-		return fmt.Errorf("cannot check if Wireguard interface %q exists: %w", name, err)
+		return fmt.Errorf("checking if Wireguard interface %q exists: %w", name, err)
 	}
 	if exists {
 		klog.Infof("Wireguard interface %q already exists", name)
@@ -45,12 +45,12 @@ func InitWireguardLink(ctx context.Context, options *Options, idx int) error {
 	}
 
 	if err := createLink(ctx, options, idx); err != nil {
-		return fmt.Errorf("cannot create Wireguard interface %q: %w", name, err)
+		return fmt.Errorf("creating Wireguard interface %q: %w", name, err)
 	}
 
 	link, err := tunnel.GetLink(name)
 	if err != nil {
-		return fmt.Errorf("cannot get Wireguard interface %q: %w", name, err)
+		return fmt.Errorf("getting Wireguard interface %q: %w", name, err)
 	}
 
 	klog.Infof("Setting up Wireguard interface %q with IP %q", name, tunnel.GetInterfaceIP(options.GwOptions.Mode, idx))
@@ -98,16 +98,17 @@ func createLink(ctx context.Context, options *Options, idx int) error {
 
 // createLinkKernel creates a new Wireguard interface using the kernel module.
 func createLinkKernel(options *Options, idx int) error {
+	intName := tunnel.GetTunnelName(idx)
 	link := netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  options.MTU,
-			Name: tunnel.GetTunnelName(idx),
+			Name: intName,
 		},
 	}
 
 	err := netlink.LinkAdd(&link)
 	if err != nil {
-		return fmt.Errorf("cannot add Wireguard interface %q: %w", tunnel.GetTunnelName(idx), err)
+		return fmt.Errorf("getting Wireguard interface %q: %w", intName, err)
 	}
 	return nil
 }
@@ -115,14 +116,15 @@ func createLinkKernel(options *Options, idx int) error {
 // createLinkUserspace creates a new Wireguard interface using the userspace implementation (wireguard-go)
 // embedded as a library. The device is kept running in-process for the lifetime of the gateway.
 func createLinkUserspace(ctx context.Context, options *Options, idx int) error {
+	intName := tunnel.GetTunnelName(idx)
 	mtu := options.MTU
 	if mtu <= 0 {
 		mtu = device.DefaultMTU
 	}
 
-	tunDev, err := tun.CreateTUN(tunnel.GetTunnelName(idx), mtu)
+	tunDev, err := tun.CreateTUN(intName, mtu)
 	if err != nil {
-		return fmt.Errorf("failed to create wireguard TUN device %q: %w", tunnel.GetTunnelName(idx), err)
+		return fmt.Errorf("creating wireguard TUN device %q: %w", intName, err)
 	}
 
 	name, err := tunDev.Name()
@@ -187,22 +189,20 @@ func existsLink(idx int) (bool, error) {
 }
 
 // GetWireguardPorts returns the list of ports to be used for WireGuard interfaces.
+// The number of ports must not exceed tunnel.MaxWireguardInterfaces, otherwise an error is returned.
 func GetWireguardPorts(opts *Options) ([]int, error) {
 	var ports []int
 
 	switch opts.GwOptions.Mode {
 	case gateway.ModeClient:
 		ports = opts.EndpointPorts
-
 	case gateway.ModeServer:
 		ports = opts.ListenPorts
-
 	default:
 		return nil, fmt.Errorf("invalid mode %v", opts.GwOptions.Mode)
 	}
 	if len(ports) > tunnel.MaxWireguardInterfaces {
-		klog.Warningf("Requested %d WireGuard interfaces, capping to maximum of %d", len(ports), tunnel.MaxWireguardInterfaces)
-		ports = ports[:tunnel.MaxWireguardInterfaces]
+		return nil, fmt.Errorf("requested %d WireGuard interfaces, maximum allowed is %d", len(ports), tunnel.MaxWireguardInterfaces)
 	}
 
 	return ports, nil

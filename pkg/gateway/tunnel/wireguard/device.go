@@ -68,7 +68,7 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 	klog.Infof("Configuring device %s", name)
 
 	if err := wgcl.ConfigureDevice(name, confdev); err != nil {
-		return fmt.Errorf("an error occurred while configuring the device %q: %w", name, err)
+		return fmt.Errorf("configuring the device %q: %w", name, err)
 	}
 	klog.Infof("Device %s configured", name)
 

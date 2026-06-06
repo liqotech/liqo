@@ -39,20 +39,20 @@ var GatewayServerGroupVersionResource = GroupVersion.WithResource(GatewayServerR
 // +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
 // +kubebuilder:validation:XValidation:rule="!(has(self.nodePort)&&has(self.nodePorts)&&self.nodePort!=self.nodePorts[0])",message="nodePort must match nodePorts[0]"
 type Endpoint struct {
+	// Deprecated: use Ports instead
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
 	// Ports specifies the ports of the endpoint.
-	// This field is preferred over the legacy Port field, which is kept for backward compatibility.
 	Ports []int32 `json:"ports,omitempty"`
 	// ServiceType specifies the type of the service.
 	// +kubebuilder:default=ClusterIP
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;ExternalName
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// Deprecated: use NodePorts instead
 	// NodePort allocates a static port for the NodePort service.
 	// +optional
 	NodePort *int32 `json:"nodePort,omitempty"`
 	// NodePorts allocates a list of static ports for the NodePort service.
-	// This field is preferred over the legacy NodePort field, which is kept for backward compatibility.
 	// +optional
 	NodePorts []int32 `json:"nodePorts,omitempty"`
 	// LoadBalancerIP override the LoadBalancer IP to use a specific IP address (e.g., static LB). It is used only if service type is LoadBalancer.
@@ -87,13 +87,13 @@ type GatewayServerSpec struct {
 type EndpointStatus struct {
 	// Addresses specifies the addresses of the endpoint.
 	Addresses []string `json:"addresses,omitempty"`
+	// Deprecated: use Ports instead
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
 	// Protocol specifies the protocol of the endpoint.
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
 	// Ports specifies the ports of the endpoint.
-	// This field is preferred over the legacy Port field, which is kept for backward compatibility.
 	Ports []int32 `json:"ports,omitempty"`
 }
 
