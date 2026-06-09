@@ -185,6 +185,10 @@ func (spv *Validator) HandleUpdate(ctx context.Context, req *admission.Request) 
 
 // HandleDelete is the function in charge of handling Deletion requests.
 func (spv *Validator) HandleDelete(ctx context.Context, req *admission.Request) admission.Response {
+	if !spv.enableResourceValidation {
+		return admission.Allowed("")
+	}
+
 	shadowpod, err := decodeShadowPod(spv.decoder, req.OldObject)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
@@ -194,10 +198,6 @@ func (spv *Validator) HandleDelete(ctx context.Context, req *admission.Request) 
 	if !found {
 		klog.Warningf("Missing creator label on ShadowPod %q", shadowpod.Name)
 		return admission.Denied("missing creator label")
-	}
-
-	if !spv.enableResourceValidation {
-		return admission.Allowed("")
 	}
 
 	// TODO: use the creator label to get the user
@@ -250,15 +250,17 @@ var _ webhook.AdmissionHandler = &Mutator{}
 
 // Mutator is the handler used by the Mutating Webhook to mutate shadow pods.
 type Mutator struct {
-	client  client.Client
-	decoder admission.Decoder
+	client                   client.Client
+	decoder                  admission.Decoder
+	enableResourceValidation bool
 }
 
 // NewMutator creates a new shadow pod mutator.
-func NewMutator(c client.Client) *webhook.Admission {
+func NewMutator(c client.Client, enableResourceValidation bool) *webhook.Admission {
 	return &webhook.Admission{Handler: &Mutator{
-		client:  c,
-		decoder: admission.NewDecoder(runtime.NewScheme()),
+		client:                   c,
+		enableResourceValidation: enableResourceValidation,
+		decoder:                  admission.NewDecoder(runtime.NewScheme()),
 	}}
 }
 
@@ -282,6 +284,10 @@ func (spm *Mutator) Handle(_ context.Context, req admission.Request) admission.R
 
 // HandleCreate is the function in charge of handling Creation requests.
 func (spm *Mutator) HandleCreate(req *admission.Request) admission.Response {
+	if !spm.enableResourceValidation {
+		return admission.Allowed("")
+	}
+
 	sp, err := decodeShadowPod(spm.decoder, req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding shadow pod: %v", err)
@@ -310,6 +316,10 @@ func (spm *Mutator) HandleCreate(req *admission.Request) admission.Response {
 
 // HandleUpdate is the function in charge of handling Update requests.
 func (spm *Mutator) HandleUpdate(req *admission.Request) admission.Response {
+	if !spm.enableResourceValidation {
+		return admission.Allowed("")
+	}
+
 	oldSp, err := decodeShadowPod(spm.decoder, req.OldObject)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))

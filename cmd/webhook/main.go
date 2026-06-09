@@ -176,9 +176,11 @@ func main() {
 
 	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
 
-	if err := mgr.Add(manager.RunnableFunc(spv.CacheRefresher(*refreshInterval))); err != nil {
-		klog.Errorf("Unable to add the resource validator cache refresher to the manager: %v", err)
-		os.Exit(1)
+	if *enableResourceValidation {
+		if err := mgr.Add(manager.RunnableFunc(spv.CacheRefresher(*refreshInterval))); err != nil {
+			klog.Errorf("Unable to add the resource validator cache refresher to the manager: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	// Options for the virtual kubelet.
@@ -191,7 +193,7 @@ func main() {
 	// Register the webhooks.
 	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
-	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient(), *enableResourceValidation))
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *liqoRuntimeClassName))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
