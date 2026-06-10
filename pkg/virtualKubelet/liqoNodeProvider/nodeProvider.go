@@ -121,6 +121,7 @@ func (p *LiqoNodeProvider) hydrate(
 
 	if virtualNode != nil {
 		p.applyVirtualNodeMetadata(virtualNode)
+		p.setProviderID(virtualNode)
 		p.applyVirtualNodeStatus(virtualNode)
 	}
 	if foreignCluster != nil {
