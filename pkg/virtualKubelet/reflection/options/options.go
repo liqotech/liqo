@@ -41,6 +41,7 @@ type ReflectorOpts struct {
 	LocalClient      kubernetes.Interface
 	LocalPodInformer corev1informers.PodInformer
 	EventBroadcaster record.EventBroadcaster
+	ForgingOpts      *forge.ForgingOpts
 
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
@@ -64,9 +65,15 @@ func (ro *ReflectorOpts) WithReadinessFunc(ready func() bool) *ReflectorOpts {
 	return ro
 }
 
-// WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
+// WithEventBroadcaster configures the event broadcaster of the ReflectorOpts.
 func (ro *ReflectorOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *ReflectorOpts {
 	ro.EventBroadcaster = broadcaster
+	return ro
+}
+
+// WithForgingOpts configures the reflection options of the ReflectorOpts.
+func (ro *ReflectorOpts) WithForgingOpts(opts *forge.ForgingOpts) *ReflectorOpts {
+	ro.ForgingOpts = opts
 	return ro
 }
 

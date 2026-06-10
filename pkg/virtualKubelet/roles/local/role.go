@@ -42,3 +42,7 @@ package local
 // Additional permissions necessary for the networking module
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
+
+// Permissions for DRA reflection of ResourceSlices, ResourceClaims and DeviceClasses.
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceslices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims;deviceclasses,verbs=get;list;watch

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package remoteclusterwide defines the ClusterRole containing the permissions required by the virtual kubelet in the remote cluster.
-package remoteclusterwide
-
-// +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape/metrics,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
-
-// Permissions for DRA reflection of ResourceSlices.
-// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceslices,verbs=get;list;watch
-// +kubebuilder:rbac:groups=resource.k8s.io,resources=deviceclasses,verbs=get;list;watch;create
+// Package dra provides Dynamic Resource Allocation (DRA) support detection and reflection utilities
+// for the Liqo virtual kubelet.
+package dra

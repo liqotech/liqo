@@ -36,6 +36,11 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
+const (
+	fakeNICValue               = "nic"
+	fakeGarbageFromRemoteValue = "garbage-from-remote"
+)
+
 var _ = Describe("Pod forging", func() {
 	Translator := func(input string) string { return input + "-reflected" }
 	SASecretRetriever := func(input string) string { return input + "-secret" }
@@ -1050,6 +1055,160 @@ var _ = Describe("Pod forging", func() {
 				Expect(output.Memory.UsageBytes).To(PointTo(BeNumerically("==", 10*1e6)))
 				Expect(output.Memory.WorkingSetBytes).To(PointTo(BeNumerically("==", 10*1e6)))
 			})
+		})
+	})
+
+	Describe("the CheckDRAClaimStatusesReady function", func() {
+		var pod *corev1.Pod
+
+		BeforeEach(func() {
+			pod = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: "ns"}}
+		})
+
+		It("should return nil for a pod with no ResourceClaims", func() {
+			Expect(forge.CheckDRAClaimStatusesReady(pod)).To(Succeed())
+		})
+
+		It("should return nil when all references are direct ResourceClaimName", func() {
+			pod.Spec.ResourceClaims = []corev1.PodResourceClaim{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("my-claim")},
+				{Name: fakeNICValue, ResourceClaimName: ptr.To("my-claim-2")},
+			}
+			Expect(forge.CheckDRAClaimStatusesReady(pod)).To(Succeed())
+		})
+
+		It("should return nil when every template is matched in Status.ResourceClaimStatuses", func() {
+			pod.Spec.ResourceClaims = []corev1.PodResourceClaim{
+				{Name: fakeGPUValue, ResourceClaimTemplateName: ptr.To("gpu-tpl")},
+			}
+			pod.Status.ResourceClaimStatuses = []corev1.PodResourceClaimStatus{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("p-gpu-abc123")},
+			}
+			Expect(forge.CheckDRAClaimStatusesReady(pod)).To(Succeed())
+		})
+
+		It("should return an error when a template has no matching status", func() {
+			pod.Spec.ResourceClaims = []corev1.PodResourceClaim{
+				{Name: fakeGPUValue, ResourceClaimTemplateName: ptr.To("gpu-tpl")},
+			}
+			err := forge.CheckDRAClaimStatusesReady(pod)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(fakeGPUValue))
+		})
+
+		It("should return an error when only some of multiple templates are matched", func() {
+			pod.Spec.ResourceClaims = []corev1.PodResourceClaim{
+				{Name: fakeGPUValue, ResourceClaimTemplateName: ptr.To("gpu-tpl")},
+				{Name: fakeNICValue, ResourceClaimTemplateName: ptr.To("nic-tpl")},
+			}
+			pod.Status.ResourceClaimStatuses = []corev1.PodResourceClaimStatus{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("p-gpu-abc")},
+			}
+			err := forge.CheckDRAClaimStatusesReady(pod)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(fakeNICValue))
+		})
+
+		It("should not flag direct refs even when other templates are unresolved", func() {
+			pod.Spec.ResourceClaims = []corev1.PodResourceClaim{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("my-claim")},
+				{Name: fakeNICValue, ResourceClaimTemplateName: ptr.To("nic-tpl")},
+			}
+			err := forge.CheckDRAClaimStatusesReady(pod)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(fakeNICValue))
+			Expect(err.Error()).ToNot(ContainSubstring("alias \"" + fakeGPUValue + "\""))
+		})
+	})
+
+	Describe("the DRAClaimRewriteMutator function", func() {
+		It("should leave direct ResourceClaimName references unchanged", func() {
+			spec := &corev1.PodSpec{
+				ResourceClaims: []corev1.PodResourceClaim{
+					{Name: fakeGPUValue, ResourceClaimName: ptr.To("my-claim")},
+				},
+			}
+			forge.DRAClaimRewriteMutator(nil)(spec)
+			Expect(spec.ResourceClaims[0].ResourceClaimName).To(PointTo(Equal("my-claim")))
+			Expect(spec.ResourceClaims[0].ResourceClaimTemplateName).To(BeNil())
+		})
+
+		It("should rewrite a template ref to the resolved ResourceClaimName", func() {
+			spec := &corev1.PodSpec{
+				ResourceClaims: []corev1.PodResourceClaim{
+					{Name: fakeGPUValue, ResourceClaimTemplateName: ptr.To("gpu-tpl")},
+				},
+			}
+			statuses := []corev1.PodResourceClaimStatus{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("p-gpu-abc")},
+			}
+			forge.DRAClaimRewriteMutator(statuses)(spec)
+			Expect(spec.ResourceClaims).To(HaveLen(1))
+			Expect(spec.ResourceClaims[0].ResourceClaimName).To(PointTo(Equal("p-gpu-abc")))
+			Expect(spec.ResourceClaims[0].ResourceClaimTemplateName).To(BeNil())
+		})
+
+		It("should rewrite templates while preserving direct refs in a mixed list", func() {
+			spec := &corev1.PodSpec{
+				ResourceClaims: []corev1.PodResourceClaim{
+					{Name: fakeGPUValue, ResourceClaimName: ptr.To("my-claim")},
+					{Name: fakeNICValue, ResourceClaimTemplateName: ptr.To("nic-tpl")},
+				},
+			}
+			statuses := []corev1.PodResourceClaimStatus{
+				{Name: fakeNICValue, ResourceClaimName: ptr.To("p-nic-xyz")},
+			}
+			forge.DRAClaimRewriteMutator(statuses)(spec)
+			Expect(spec.ResourceClaims).To(HaveLen(2))
+			Expect(spec.ResourceClaims[0].ResourceClaimName).To(PointTo(Equal("my-claim")))
+			Expect(spec.ResourceClaims[0].ResourceClaimTemplateName).To(BeNil())
+			Expect(spec.ResourceClaims[1].ResourceClaimName).To(PointTo(Equal("p-nic-xyz")))
+			Expect(spec.ResourceClaims[1].ResourceClaimTemplateName).To(BeNil())
+		})
+	})
+
+	Describe("the PreserveResourceClaimStatusesMutator function", func() {
+		It("should overwrite remote ResourceClaimStatuses with the local ones", func() {
+			localStatuses := []corev1.PodResourceClaimStatus{
+				{Name: fakeGPUValue, ResourceClaimName: ptr.To("p-gpu")},
+			}
+			remoteStatus := &corev1.PodStatus{
+				ResourceClaimStatuses: []corev1.PodResourceClaimStatus{
+					{Name: fakeGarbageFromRemoteValue},
+				},
+			}
+			forge.PreserveResourceClaimStatusesMutator(localStatuses)(remoteStatus)
+			Expect(remoteStatus.ResourceClaimStatuses).To(Equal(localStatuses))
+		})
+
+		It("should clear remote ResourceClaimStatuses", func() {
+			remoteStatus := &corev1.PodStatus{
+				ResourceClaimStatuses: []corev1.PodResourceClaimStatus{
+					{Name: fakeGarbageFromRemoteValue},
+				},
+			}
+			forge.PreserveResourceClaimStatusesMutator(nil)(remoteStatus)
+			Expect(remoteStatus.ResourceClaimStatuses).To(BeNil())
+		})
+	})
+
+	Describe("the RemotePodSpec function (DRA ResourceClaims propagation)", func() {
+		It("should copy local.ResourceClaims into the freshly forged remote spec", func() {
+			local := &corev1.PodSpec{
+				ResourceClaims: []corev1.PodResourceClaim{
+					{Name: fakeGPUValue, ResourceClaimName: ptr.To("my-claim")},
+				},
+			}
+			remote := &corev1.PodSpec{}
+			out := forge.RemotePodSpec(true /* creation */, local, remote)
+			Expect(out.ResourceClaims).To(HaveLen(1))
+			Expect(out.ResourceClaims[0].Name).To(Equal(fakeGPUValue))
+			Expect(out.ResourceClaims[0].ResourceClaimName).To(PointTo(Equal("my-claim")))
+		})
+
+		It("should leave the remote spec ResourceClaims nil when local has none", func() {
+			out := forge.RemotePodSpec(true, &corev1.PodSpec{}, &corev1.PodSpec{})
+			Expect(out.ResourceClaims).To(BeNil())
 		})
 	})
 })

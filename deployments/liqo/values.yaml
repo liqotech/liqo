@@ -373,6 +373,16 @@ offloading:
       workers: 3
       # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
       type: DenyList
+    resourceslice:
+      # -- The number of workers used for the DRA ResourceSlice reflector (leader-only).
+      # Set 0 to disable the reflection of ResourceSlices. Reflection is also automatically
+      # skipped if the resource.k8s.io/v1 API is not available on either cluster.
+      workers: 1
+    resourceclaim:
+      # -- The number of workers used for the DRA ResourceClaim reflector. Set 0 to disable
+      # the reflection of ResourceClaims. Reflection is also automatically skipped if the
+      # resource.k8s.io/v1 API is not available on either cluster.
+      workers: 3
 
 storage:
   # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to

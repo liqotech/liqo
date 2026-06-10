@@ -337,12 +337,21 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 		return ip
 	}
 
+	// If the pod has ResourceClaims from templates, wait until the local kubelet has
+	// resolved all of them into concrete ResourceClaim names (written to Status.ResourceClaimStatuses).
+	// Until then, requeue rather than reflecting an incomplete spec to the remote.
+	if err := forge.CheckDRAClaimStatusesReady(local); err != nil {
+		return nil, fmt.Errorf("checking DRA claim statuses: %w", err)
+	}
+
 	var mutators []forge.RemotePodSpecMutator
 
 	mutators = append(mutators,
 		forge.APIServerSupportMutator(npr.config.APIServerSupport, local.Annotations, pod.ServiceAccountName(local),
 			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
-		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))
+		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations),
+		forge.DRAClaimRewriteMutator(local.Status.ResourceClaimStatuses),
+	)
 
 	if forgingOpts != nil {
 		mutators = append(mutators,
@@ -431,7 +440,10 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 		info.RemoteUID = remote.GetUID()
 	}
 
-	mutators := []forge.RemotePodStatusMutator{}
+	mutators := []forge.RemotePodStatusMutator{
+		// ResourceClaimStatuses are managed locally never overwrite them with the remote pod's view.
+		forge.PreserveResourceClaimStatusesMutator(local.Status.ResourceClaimStatuses),
+	}
 	if npr.config.DisableIPReflection {
 		// If the IP reflection is disabled, we need to not reflect the IP address of the remote pod.
 		mutators = append(mutators, forge.OpaqueIPTranslationMutator())

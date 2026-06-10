@@ -112,6 +112,10 @@ func GetRestConfig(configPath string) (config *rest.Config, err error) {
 		config, err = rest.InClusterConfig()
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	config.Timeout = 10 * time.Second
 
 	return config, err

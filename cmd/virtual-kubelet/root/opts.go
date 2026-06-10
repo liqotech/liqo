@@ -57,6 +57,8 @@ var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
 	resources.ServiceAccount:        3,
 	resources.PersistentVolumeClaim: 3,
 	resources.Event:                 3,
+	resources.ResourceSlice:         1,
+	resources.ResourceClaim:         3,
 }
 
 // DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
@@ -69,6 +71,8 @@ var DefaultReflectorsTypes = map[resources.ResourceReflected]offloadingv1beta1.R
 	resources.ServiceAccount:        offloadingv1beta1.CustomLiqo,
 	resources.PersistentVolumeClaim: offloadingv1beta1.CustomLiqo,
 	resources.Event:                 offloadingv1beta1.DenyList,
+	resources.ResourceSlice:         offloadingv1beta1.CustomLiqo,
+	resources.ResourceClaim:         offloadingv1beta1.CustomLiqo,
 }
 
 // Opts stores all the options for configuring the root virtual-kubelet command.

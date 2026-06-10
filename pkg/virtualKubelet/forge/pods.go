@@ -98,6 +98,15 @@ func LocalPodOffloadedLabel(local *corev1.Pod) (*corev1apply.PodApplyConfigurati
 		WithLabels(map[string]string{liqoconst.LocalPodLabelKey: liqoconst.LocalPodLabelValue}), true
 }
 
+// PreserveResourceClaimStatusesMutator returns a RemotePodStatusMutator that restores
+// the local pod's ResourceClaimStatuses after the remote status is applied. These are
+// managed by the local kubelet and must not be overwritten with the remote's view.
+func PreserveResourceClaimStatusesMutator(local []corev1.PodResourceClaimStatus) RemotePodStatusMutator {
+	return func(remote *corev1.PodStatus) {
+		remote.ResourceClaimStatuses = local
+	}
+}
+
 // LocalPodStatus forges the status of the local pod, given the remote one.
 func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restarts int32, mutators ...RemotePodStatusMutator) corev1.PodStatus {
 	// Translate the relevant IPs
@@ -217,6 +226,8 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 	remote.Containers = local.Containers
 	remote.InitContainers = local.InitContainers
 
+	remote.Resources = local.Resources
+	remote.ResourceClaims = local.ResourceClaims
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
 	remote.Volumes = local.Volumes
 
@@ -269,6 +280,50 @@ func TerminateContainerState(cs *corev1.ContainerStatus, phase corev1.PodPhase, 
 			},
 			Waiting: nil,
 			Running: nil,
+		}
+	}
+}
+
+// CheckDRAClaimStatusesReady returns an error if any ResourceClaimTemplateName
+// entry in the pod spec has not yet been resolved by the local kubelet into a
+// concrete ResourceClaim name in Status.ResourceClaimStatuses. The caller should
+// requeue on non-nil to wait for kubelet population.
+func CheckDRAClaimStatusesReady(pod *corev1.Pod) error {
+	resolved := make(map[string]bool, len(pod.Status.ResourceClaimStatuses))
+	for i := range pod.Status.ResourceClaimStatuses {
+		resolved[pod.Status.ResourceClaimStatuses[i].Name] = true
+	}
+	for i := range pod.Spec.ResourceClaims {
+		rc := &pod.Spec.ResourceClaims[i]
+		if rc.ResourceClaimTemplateName != nil && !resolved[rc.Name] {
+			return fmt.Errorf("waiting for ResourceClaimStatus for pod %q claim alias %q", pod.Name, rc.Name)
+		}
+	}
+	return nil
+}
+
+// DRAClaimRewriteMutator returns a RemotePodSpecMutator that rewrites any
+// ResourceClaimTemplateName entries in pod.Spec.ResourceClaims to the concrete
+// ResourceClaimName created in the local cluster, preventing the remote
+// cluster from expanding the template and creating a divergent claim.
+func DRAClaimRewriteMutator(statuses []corev1.PodResourceClaimStatus) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		resolved := make(map[string]string, len(statuses))
+		for i := range statuses {
+			s := &statuses[i]
+			if s.ResourceClaimName != nil {
+				resolved[s.Name] = *s.ResourceClaimName
+			}
+		}
+
+		for i := range remote.ResourceClaims {
+			rc := &remote.ResourceClaims[i]
+			if rc.ResourceClaimTemplateName != nil {
+				if name, ok := resolved[rc.Name]; ok {
+					rc.ResourceClaimName = &name
+					rc.ResourceClaimTemplateName = nil
+				}
+			}
 		}
 	}
 }

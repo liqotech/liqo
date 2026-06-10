@@ -408,7 +408,11 @@ func getVersion(config *rest.Config) string {
 }
 
 func isReflectionTypeNotCustomizable(resource resources.ResourceReflected) bool {
-	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim
+	return resource == resources.Pod ||
+		resource == resources.ServiceAccount ||
+		resource == resources.PersistentVolumeClaim ||
+		resource == resources.ResourceSlice ||
+		resource == resources.ResourceClaim
 }
 
 func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig, error) {
