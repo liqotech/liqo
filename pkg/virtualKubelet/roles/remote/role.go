@@ -28,3 +28,6 @@ package remote
 
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowendpointslices,verbs=get;list;watch;create;update;patch;delete
+
+// Permissions for DRA reflection of ResourceSlices, ResourceClaims and DeviceClasses.
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims,verbs=get;list;watch;create;update;patch;delete

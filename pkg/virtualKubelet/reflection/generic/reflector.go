@@ -398,6 +398,12 @@ func WithoutFallback() FallbackReflectorFactoryFunc {
 	return func(ro *options.ReflectorOpts) manager.FallbackReflector { return nil }
 }
 
+// NewDummyReflector returns a dummy reflector that can be used when no workers are specified, to avoid starting the working queue and
+// registering the informers.
+func NewDummyReflector(name string) manager.Reflector {
+	return &dummyreflector{name: name}
+}
+
 type dummyreflector struct{ name string }
 
 // String returns the name of the dummy reflector.

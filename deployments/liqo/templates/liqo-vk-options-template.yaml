@@ -69,6 +69,10 @@ spec:
     event:
       workers: {{ .Values.offloading.reflection.event.workers }}
       type: {{ .Values.offloading.reflection.event.type }}
+    resourceslice:
+      workers: {{ .Values.offloading.reflection.resourceslice.workers }}
+    resourceclaim:
+      workers: {{ .Values.offloading.reflection.resourceclaim.workers }}
   {{- if .Values.virtualKubelet.extra.resources }}
   resources:
     {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}

@@ -37,6 +37,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/dra"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -154,6 +155,20 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	if !cfg.DisableIPReflection {
 		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDRs, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
+	}
+
+	draSupported, err := dra.IsDRASupportedOnBothClusters(localClient, remoteClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check whether DRA is supported")
+	}
+	if draSupported {
+		klog.Infof("DRA support detected on both clusters: registering DRA reflectors")
+		reflectionManager.
+			With(dra.NewResourceSliceReflector(localClient, remoteClient, cfg.InformerResyncPeriod,
+				ptr.To(cfg.ReflectorsConfigs[resources.ResourceSlice]))).
+			With(dra.NewResourceClaimReflector(ptr.To(cfg.ReflectorsConfigs[resources.ResourceClaim])))
+	} else {
+		klog.Info("DRA support is not enabled: resource.k8s.io/v1 is not available on local and/or remote cluster")
 	}
 
 	reflectionManager.Start(ctx)

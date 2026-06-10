@@ -158,6 +158,8 @@
 | offloading.reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
 | offloading.reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
 | offloading.reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
+| offloading.reflection.resourceclaim.workers | int | `3` | The number of workers used for the DRA ResourceClaim reflector. Set 0 to disable the reflection of ResourceClaims. Reflection is also automatically skipped if the resource.k8s.io/v1 API is not available on either cluster. |
+| offloading.reflection.resourceslice.workers | int | `1` | The number of workers used for the DRA ResourceSlice reflector (leader-only). Set 0 to disable the reflection of ResourceSlices. Reflection is also automatically skipped if the resource.k8s.io/v1 API is not available on either cluster. |
 | offloading.reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList". |
 | offloading.reflection.secret.workers | int | `3` | The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets. |
 | offloading.reflection.service.loadBalancerClasses | list | `[]` | List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is. Example: loadBalancerClasses: - name: public   default: true - name: internal |
