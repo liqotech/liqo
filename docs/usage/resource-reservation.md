@@ -235,7 +235,7 @@ Verify that the workloads being offloaded already comply, or set sensible defaul
 
 By default, the `ResourceSlice` class controller shipped with Liqo accepts every incoming request and only fills in the missing keys with `offloading.defaultNodeResources`. This behavior can be customized by defining a **custom `ResourceSlice` class** to implement stricter or cluster-wide policies (for example, capping the total accepted slices at a fraction of cluster capacity, or per-tenant quotas).
 
-A reusable starting point is provided by the [resource-slice-class-controller-template](https://github.com/liqotech/resource-slice-class-controller-template) repository, and the general mechanics of class controllers are described in the [Custom Resource Allocation](/advanced/peering/offloading-in-depth.md#custom-resource-allocation) section of the offloading-in-depth page.
+A reusable starting point is provided by the [resource-slice-class-controller-template](https://github.com/liqotech/resource-slice-class-controller-template) repository, and the general mechanics of class controllers are described in the [Custom ResourceSlice classes](/advanced/peering/offloading-in-depth.md#custom-resourceslice-classes) section of the offloading-in-depth page.
 
 ```{warning}
 The class is chosen by the **consumer**, and the built-in default class controller is always running alongside any custom one — Liqo does not provide a built-in way to disable it.
