@@ -113,7 +113,7 @@ cluster-1-md-0-dzl4s            Ready    <none>          29m   v1.27.4
 mypool                          Ready    agent           67s   v1.27.4
 ```
 
-### Custom Resource Allocation
+### Custom ResourceSlice classes
 
 The amount of resources shared by the provider cluster is managed by the _ResourceSlice class controller_, which decides whether to accept or deny a ResourceSlice based on a set of criteria and the available resources in the cluster.
 
@@ -123,7 +123,7 @@ While this might seem problematic, it can be **useful in scenarios where the clu
 
 To support more complex scenarios and specific use cases, Liqo allows the definition of _custom ResourceSlice classes_.
 These classes enable the implementation of **custom logic to determine whether to accept or reject a ResourceSlice** (e.g., based on a tenant's resource quota) and how much resources the provider cluster can share.
-**This logic should be implemented in a _custom ResourceSlice class controller_**, whose template is available [in this repository](https://github.com/liqotech/resource-slice-class-controller-template).
+**This logic should be implemented in a _custom ResourceSlice class controller_**, whose template and implementation guide are available in the [resource-slice-class-controller-template](https://github.com/liqotech/resource-slice-class-controller-template) repository.
 
 The ResourceSlice class can be specified either in the YAML manifest or by using the `--class` flag with `liqoctl`:
 
@@ -152,10 +152,6 @@ spec:
 Once a custom class is defined in the `ResourceSlice` spec, the custom ResourceSlice controller will be responsible for accepting or denying the ResourceSlices and updating their status with the amount of granted resources.
 The custom controller might deny the request, fully accept it, or partially accept it by providing only a portion of the requested resources.
 The `VirtualNode` in the consumer cluster and the `Quota` in the provider cluster will be created based on the resources granted by the custom controller.
-
-This approach allows for more flexible and dynamic resource allocation based on specific policies or requirements defined by the provider cluster.
-
-For more information on implementing a custom Resource Slice controller, refer to the [Liqo Resource Slice Controller template repository](https://github.com/liqotech/resource-slice-class-controller-template).
 
 ### Delete ResourceSlice
 
