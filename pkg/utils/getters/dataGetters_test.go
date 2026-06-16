@@ -193,4 +193,40 @@ var _ = Describe("DataGetters", func() {
 		})
 
 	})
+
+	Describe("CollectLoadBalancerAddresses", func() {
+		It("should prefer IP before hostname for each ingress entry", func() {
+			addresses := getters.CollectLoadBalancerAddresses([]corev1.LoadBalancerIngress{
+				{Hostname: "a661a6e31140e48e4ba8e5e10351dfed", IP: "45.76.36.212"},
+			})
+			Expect(addresses).To(Equal([]string{"45.76.36.212", "a661a6e31140e48e4ba8e5e10351dfed"}))
+		})
+
+		It("should return hostname when IP is not set", func() {
+			addresses := getters.CollectLoadBalancerAddresses([]corev1.LoadBalancerIngress{
+				{Hostname: "gateway.example.com"},
+			})
+			Expect(addresses).To(Equal([]string{"gateway.example.com"}))
+		})
+
+		It("should return IP when hostname is not set", func() {
+			addresses := getters.CollectLoadBalancerAddresses([]corev1.LoadBalancerIngress{
+				{IP: "203.0.113.8"},
+			})
+			Expect(addresses).To(Equal([]string{"203.0.113.8"}))
+		})
+
+		It("should preserve ingress order across multiple entries", func() {
+			addresses := getters.CollectLoadBalancerAddresses([]corev1.LoadBalancerIngress{
+				{Hostname: "internal-1", IP: "1.1.1.1"},
+				{Hostname: "internal-2", IP: "2.2.2.2"},
+			})
+			Expect(addresses).To(Equal([]string{"1.1.1.1", "internal-1", "2.2.2.2", "internal-2"}))
+		})
+
+		It("should return an empty slice for empty ingress", func() {
+			Expect(getters.CollectLoadBalancerAddresses(nil)).To(BeEmpty())
+			Expect(getters.CollectLoadBalancerAddresses([]corev1.LoadBalancerIngress{})).To(BeEmpty())
+		})
+	})
 })

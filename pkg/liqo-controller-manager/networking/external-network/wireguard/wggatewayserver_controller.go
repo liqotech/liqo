@@ -41,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -420,15 +421,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 	port := service.Spec.Ports[0].Port
 	protocol := &service.Spec.Ports[0].Protocol
 
-	var addresses []string
-	for i := range service.Status.LoadBalancer.Ingress {
-		if hostName := service.Status.LoadBalancer.Ingress[i].Hostname; hostName != "" {
-			addresses = append(addresses, hostName)
-		}
-		if ip := service.Status.LoadBalancer.Ingress[i].IP; ip != "" {
-			addresses = append(addresses, ip)
-		}
-	}
+	addresses := getters.CollectLoadBalancerAddresses(service.Status.LoadBalancer.Ingress)
 
 	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
