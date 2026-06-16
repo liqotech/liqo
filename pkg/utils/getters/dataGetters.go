@@ -89,6 +89,21 @@ func RetrieveEndpointFromService(svc *corev1.Service, svcType corev1.ServiceType
 	return endpointIP, endpointPort, err
 }
 
+// CollectLoadBalancerAddresses returns the addresses from the LoadBalancer ingress status,
+// listing IP addresses before hostnames for each ingress entry.
+func CollectLoadBalancerAddresses(ingress []corev1.LoadBalancerIngress) []string {
+	addresses := make([]string, 0, len(ingress))
+	for _, ing := range ingress {
+		if ip := ing.IP; ip != "" {
+			addresses = append(addresses, ip)
+		}
+		if hostName := ing.Hostname; hostName != "" {
+			addresses = append(addresses, hostName)
+		}
+	}
+	return addresses
+}
+
 // retrieveIPFromService given a service and the type of the service, the function
 // returns the ip address for the service based on the type. The nodePort service type
 // does not have a specific ip address, so we return an error.
@@ -101,21 +116,16 @@ func retrieveIPFromService(svc *corev1.Service, serviceType corev1.ServiceType) 
 		return "", fmt.Errorf("the clusterIP address for service {%s/%s} of type {%s} has not been set",
 			svc.Namespace, svc.Name, svc.Spec.Type)
 	case corev1.ServiceTypeLoadBalancer:
-		var endpointIP string
 		errorMsg := fmt.Sprintf("the ingress address for service {%s/%s} of type {%s} has not been set",
 			svc.Namespace, svc.Name, svc.Spec.Type)
 		// Check if the ingress IP has been set.
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return "", errors.New(errorMsg)
 		}
-		// Retrieve the endpoint address
-		if svc.Status.LoadBalancer.Ingress[0].IP != "" {
-			endpointIP = svc.Status.LoadBalancer.Ingress[0].IP
-		} else if svc.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			endpointIP = svc.Status.LoadBalancer.Ingress[0].Hostname
-		}
-		if endpointIP != "" {
-			return endpointIP, nil
+		// Retrieve the endpoint address, preferring IP over hostname.
+		addresses := CollectLoadBalancerAddresses(svc.Status.LoadBalancer.Ingress)
+		if len(addresses) > 0 {
+			return addresses[0], nil
 		}
 		return "", errors.New(errorMsg)
 	default:
