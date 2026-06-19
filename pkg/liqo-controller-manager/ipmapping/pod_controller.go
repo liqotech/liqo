@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -60,7 +61,7 @@ func (r *OffloadedPodReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			klog.V(6).Infof("There is no pod %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("unable to fetch Pod %s: %w", req.String(), err)
+		return ctrl.Result{}, fmt.Errorf("fetching pod %s: %w", req.String(), err)
 	}
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
@@ -69,11 +70,13 @@ func (r *OffloadedPodReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
-	if err := CreateOrUpdateIP(ctx, r.Client, r.Scheme, pod); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to create or update IP: %w", err)
+	op, err := CreateOrUpdateIP(ctx, r.Client, r.Scheme, pod)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("creating or updating IP for pod %s: %w", req.String(), err)
 	}
-
-	klog.Infof("IP resource created or updated for pod %s", req.String())
+	if op != controllerutil.OperationResultNone {
+		klog.Infof("IP %s for pod %q", op, req.String())
+	}
 
 	return ctrl.Result{}, nil
 }
