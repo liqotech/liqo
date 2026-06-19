@@ -31,17 +31,14 @@ import (
 )
 
 // CreateOrUpdateIP creates or updates an IP resource for the given pod.
-func CreateOrUpdateIP(ctx context.Context, cl client.Client, scheme *runtime.Scheme, pod *corev1.Pod) error {
+func CreateOrUpdateIP(ctx context.Context, cl client.Client, scheme *runtime.Scheme, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
 		},
 	}
-	if _, err := resource.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, scheme)); err != nil {
-		return fmt.Errorf("unable to create or update IP %q: %w", ip.Name, err)
-	}
-	return nil
+	return resource.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, scheme))
 }
 
 func mutateIP(ip *ipamv1alpha1.IP, pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
