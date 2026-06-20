@@ -39,7 +39,7 @@ func EnableWireguardThreadedMode(ifaceName string) (bool, error) {
 
 	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("reading sysfs file %q: %w", path, err)
 	}
 
 	if len(data) > 0 && data[0] == '1' {
@@ -47,7 +47,7 @@ func EnableWireguardThreadedMode(ifaceName string) (bool, error) {
 	}
 
 	if err := os.WriteFile(path, []byte("1\n"), 0o600); err != nil {
-		return false, err
+		return false, fmt.Errorf("writing '1' to sysfs file %q: %w", path, err)
 	}
 
 	return true, nil
@@ -55,18 +55,19 @@ func EnableWireguardThreadedMode(ifaceName string) (bool, error) {
 
 // RemountSysfsRW remounts /sys as read-write, retrying up to 100 times.
 func RemountSysfsRW() error {
+	var err error
 	for attempt := range MaxMountAttempts {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * MountBackoffBase)
 		}
-		err := unix.Mount("sysfs", "/sys", "sysfs", unix.MS_REMOUNT, "rw")
+		err = unix.Mount("sysfs", "/sys", "sysfs", unix.MS_REMOUNT, "rw")
 		if err == nil {
-			klog.Infof("Remounted /sys as read-write after %d/%d retries", attempt+1, MaxMountAttempts)
+			klog.Infof("remounted /sys as read-write after %d/%d retries", attempt+1, MaxMountAttempts)
 			return nil
 		}
-		klog.Infof("Failed to remount /sys as read-write (attempt %d/%d): %v", attempt+1, MaxMountAttempts, err)
+		klog.Infof("unable to remount /sys as read-write (attempt %d/%d): %v", attempt+1, MaxMountAttempts, err)
 	}
-	return fmt.Errorf("failed to remount /sys as read-write after %d attempts", MaxMountAttempts)
+	return fmt.Errorf("failed after %d remounting attempts: %w", MaxMountAttempts, err)
 }
 
 // RemountSysfsRO remounts /sys as read-only for security, retrying indefinitely until successful.
@@ -74,25 +75,24 @@ func RemountSysfsRO() {
 	for {
 		err := unix.Mount("sysfs", "/sys", "sysfs", unix.MS_REMOUNT|unix.MS_RDONLY, "")
 		if err == nil {
-			klog.Info("Successfully remounted /sys as read-only")
+			klog.Info("remounted /sys as read-only")
 			break
 		}
 
-		klog.Infof("Failed to remount /sys as read-only, retrying in %v...: %v", MountBackoffBase, err)
+		klog.Infof("unable to remount /sys as read-only, retrying in %v: %v", MountBackoffBase, err)
 		time.Sleep(MountBackoffBase)
 	}
 }
 
 // IsThreadedNAPISupported checks if the kernel supports threaded NAPI by probing the sysfs entry for the given interface.
-func IsThreadedNAPISupported(iface string) bool {
+func IsThreadedNAPISupported(iface string) error {
 	path := fmt.Sprintf("/sys/class/net/%s/threaded", iface)
 	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return false
+		return fmt.Errorf("threaded NAPI sysfs entry not found: %w", err)
 	}
 	if err != nil {
-		klog.Warningf("Unexpected error checking threaded NAPI support for %s: %v", iface, err)
-		return false
+		return fmt.Errorf("unexpected error probing sysfs path %q: %w", path, err)
 	}
-	return true
+	return nil
 }

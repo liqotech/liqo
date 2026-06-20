@@ -99,9 +99,10 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Enable threaded NAPI on kernel WireGuard interfaces only when running more than one tunnel.
 	if len(ports) > 1 && r.Options.Implementation == WgImplementationKernel {
-		EnsureThreadedNAPI(len(ports))
+		if err := EnsureThreadedNAPI(len(ports)); err != nil {
+			klog.Warningf("Skipped threaded NAPI setup: %v", err)
+		}
 	}
-
 	return ctrl.Result{}, EnsureConnection(ctx, r.Client, r.Scheme, r.Options)
 }
 
