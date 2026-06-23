@@ -121,18 +121,30 @@ networking:
           name: "ghcr.io/liqotech/gateway"
           # -- Custom version for the gateway image. If not specified, the global tag is used.
           version: ""
+        # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the gateway container.
+        resources:
+          limits: {}
+          requests: {}
       wireguard:
         image:
           # -- Image repository for the wireguard container.
           name: "ghcr.io/liqotech/gateway/wireguard"
           # -- Custom version for the wireguard image. If not specified, the global tag is used.
           version: ""
+        # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the wireguard container.
+        resources:
+          limits: {}
+          requests: {}
       geneve:
         image:
           # -- Image repository for the geneve container.
           name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
+        # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the geneve container.
+        resources:
+          limits: {}
+          requests: {}
     # -- Enable/Disable the nftables monitor for the gateway pods.
     # It means that the gateway pods will monitor the nftables rules and will restore them in case of changes.
     nftablesMonitor: true

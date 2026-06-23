@@ -46,6 +46,10 @@ spec:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
+                {{- with .Values.networking.gatewayTemplates.container.gateway.resources }}
+                resources:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
@@ -116,6 +120,10 @@ spec:
               - name: wireguard
                 image: {{ .Values.networking.gatewayTemplates.container.wireguard.image.name }}{{ include "liqo.suffix" $wireguardConfig }}:{{ include "liqo.version" $wireguardConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
+                {{- with .Values.networking.gatewayTemplates.container.wireguard.resources }}
+                resources:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
@@ -165,6 +173,10 @@ spec:
               - name: geneve
                 image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
+                {{- with .Values.networking.gatewayTemplates.container.geneve.resources }}
+                resources:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
