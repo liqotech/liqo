@@ -32,8 +32,12 @@ func RunChecksNodeToPod(ctx context.Context, cl *client.Client, cfg client.Confi
 		return 0, 0, fmt.Errorf("failed to forge targets: %w", err)
 	}
 
-	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-		opts, cl.ConsumerName, targets[cl.ConsumerName], true, ExecCurl)
+	consumerPods, err := listPods(ctx, cl.Consumer, cl.ConsumerName, true)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list consumer pods: %w", err)
+	}
+	successCount, errorCount, err = RunCheckToTargets(ctx, consumerPods, cfg[cl.ConsumerName],
+		opts, targets[cl.ConsumerName], ExecCurl)
 	if err != nil {
 		return 0, 0, fmt.Errorf("consumer failed to run checks: %w", err)
 	}
@@ -41,8 +45,12 @@ func RunChecksNodeToPod(ctx context.Context, cl *client.Client, cfg client.Confi
 	errorCountTot += errorCount
 
 	for k := range cl.Providers {
-		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k],
-			cfg[k], opts, k, targets[k], true, ExecCurl)
+		providerPods, err := listPods(ctx, cl.Providers[k], k, true)
+		if err != nil {
+			return successCountTot, errorCountTot, fmt.Errorf("failed to list provider %q pods: %w", k, err)
+		}
+		successCount, errorCount, err := RunCheckToTargets(ctx, providerPods,
+			cfg[k], opts, targets[k], ExecCurl)
 		if err != nil {
 			return 0, 0, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}

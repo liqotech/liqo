@@ -92,6 +92,8 @@ type Options struct {
 	LoadBalancer bool
 	// PodToNodePort
 	PodToNodePort bool
+	// NodeToPod enables node to pod checks
+	NodeToPod bool
 	// IpRemapping
 	IPRemapping bool
 }

@@ -46,6 +46,13 @@ const (
 	// PreinstalledAnnotValue is the annotation value used to mark a resource created at install-time by Liqo.
 	PreinstalledAnnotValue = "true"
 
+	// HelmResourcePolicyAnnotationKey is the annotation key used by Helm to retain
+	// resources during uninstall (e.g., RBAC needed by DaemonSet pods for finalizer cleanup).
+	HelmResourcePolicyAnnotationKey = "helm.sh/resource-policy"
+	// HelmResourcePolicyAnnotationKeepValue is the annotation value that tells Helm
+	// to keep the resource during uninstall.
+	HelmResourcePolicyAnnotationKeepValue = "keep"
+
 	// WebhookServiceNameAnnotationKey is the constant representing
 	// the key of the annotation containing the Webhook service name.
 	WebhookServiceNameAnnotationKey = "liqo.io/webhook-service-name"

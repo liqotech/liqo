@@ -16,30 +16,34 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -59,6 +63,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1beta1.AddToScheme(scheme))
 }
 
@@ -66,6 +71,8 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 
 func main() {
+	defer klog.Flush()
+
 	var cmd = cobra.Command{
 		Use:  "liqo-gateway",
 		RunE: run,
@@ -99,6 +106,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, _ []string) error {
+	cmd.SetContext(ctrl.SetupSignalHandler())
+
 	var err error
 
 	// Check if the minimum kernel version is satisfied.
@@ -144,14 +153,16 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Create the manager.
+	gracefulShutdownTimeout := 10 * time.Second
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
 			BindAddress: connoptions.GwOptions.MetricsAddress,
 		},
-		HealthProbeBindAddress: connoptions.GwOptions.ProbeAddr,
-		LeaderElection:         connoptions.GwOptions.LeaderElection,
+		HealthProbeBindAddress:  connoptions.GwOptions.ProbeAddr,
+		GracefulShutdownTimeout: &gracefulShutdownTimeout,
+		LeaderElection:          connoptions.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.connections.liqo.io",
 			connoptions.GwOptions.Name, connoptions.GwOptions.Namespace, connoptions.GwOptions.Mode,
@@ -162,6 +173,21 @@ func run(cmd *cobra.Command, _ []string) error {
 		LeaseDuration:                 &connoptions.GwOptions.LeaderElectionLeaseDuration,
 		RenewDeadline:                 &connoptions.GwOptions.LeaderElectionRenewDeadline,
 		RetryPeriod:                   &connoptions.GwOptions.LeaderElectionRetryPeriod,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&networkingv1beta1.FirewallConfigurationBinding{},
+				},
+			},
+		},
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&networkingv1beta1.FirewallConfigurationBinding{}: {
+					Label: firewall.BindingTargetSelector(connoptions.GwOptions.Name),
+				},
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
@@ -213,26 +239,26 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
-	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
+	// Setup the firewall configuration binding controller.
+	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		connoptions.GwOptions.Name,
-		mgr.GetEventRecorderFor("firewall-controller"),
-		[]labels.Set{
-			gateway.ForgeFirewallAllGatewaysTargetLabels(),
-			gateway.ForgeFirewallInternalTargetLabels(),
-			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
-			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
-		},
+		mgr.GetEventRecorder("firewall-binding-controller"),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
 	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
-		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+		connoptions.GwOptions.Name, connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
+		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
+	}
+
+	// Setup the gateway firewall configuration binding creator controller.
+	gatewayBindingCreator := gateway.NewGatewayBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme())
+	if err := gatewayBindingCreator.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup gateway firewall configuration binding creator: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {
@@ -252,6 +278,20 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Start the manager.
-	return mgr.Start(cmd.Context())
+	// Start the manager. On clean shutdown (SIGTERM) mgr.Start returns nil after all
+	// reconcilers have stopped, and we remove any finalizers that the reconciler did not
+	// have time to process before the pod was terminated.
+	//
+	// Time budget: terminationGracePeriodSeconds (default 30s)
+	//   - GracefulShutdownTimeout:      10s  (manager waits for reconcilers)
+	//   - CleanupFirewallConfigurationBindings: 15s (remaining budget)
+	// Total: 25s < 30s default grace period.
+	if err := mgr.Start(cmd.Context()); err != nil {
+		return err
+	}
+
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, connoptions.GwOptions.Name, false)
+	return nil
 }

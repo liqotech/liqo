@@ -14,6 +14,8 @@
 
 package firewall
 
+import "k8s.io/apimachinery/pkg/labels"
+
 const (
 	// FirewallCategoryTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a group.
 	FirewallCategoryTargetKey = "networking.liqo.io/firewall-category"
@@ -22,3 +24,10 @@ const (
 	// FirewallUniqueTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a single component.
 	FirewallUniqueTargetKey = "networking.liqo.io/firewall-unique"
 )
+
+// BindingTargetSelector returns a labels.Selector that matches
+// FirewallConfigurationBinding objects whose target equals the given targetID.
+// Use this as the ByObject.Label value when scoping the manager cache.
+func BindingTargetSelector(targetID string) labels.Selector {
+	return labels.SelectorFromSet(labels.Set{FirewallUniqueTargetKey: targetID})
+}

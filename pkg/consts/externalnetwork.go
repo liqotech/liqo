@@ -37,8 +37,9 @@ const (
 	// PublicKeyField is the data field of the secrets containing public keys.
 	PublicKeyField = "publicKey"
 
-	// ClusterRoleBindingFinalizer is the finalizer added ti the owner when a ClusterRoleBinding is created.
-	ClusterRoleBindingFinalizer = "networking.liqo.io/clusterrolebinding"
+	// GatewayServiceAccountFinalizer is set on gateway ServiceAccounts to prevent the GC from
+	// cascade-deleting them while the gateway pod is still alive during shutdown.
+	GatewayServiceAccountFinalizer = "networking.liqo.io/gateway-serviceaccount"
 	// GatewayNameLabel is the label added to a resource to identify the Gateway it belongs to.
 	GatewayNameLabel = "networking.liqo.io/gateway-name"
 	// GatewayNamespaceLabel is the label added to a resource to identify the namespace of the Gateway it belongs to.

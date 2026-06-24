@@ -59,3 +59,23 @@ func ForgeRouteTargetLabels() map[string]string {
 		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
 	}
 }
+
+// ForgeFirewallBindingTargetLabels returns the labels used by the firewallconfigurationbinding controller
+// to reconcile only resources related to network fabric on all nodes, for the given node.
+func ForgeFirewallBindingTargetLabels(nodeName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetAllNodesValue,
+		firewall.FirewallUniqueTargetKey:      nodeName,
+	}
+}
+
+// ForgeFirewallBindingTargetLabelsSingleNode returns the labels used by the firewallconfigurationbinding controller
+// to reconcile only resources related to network fabric on a specific node.
+func ForgeFirewallBindingTargetLabelsSingleNode(nodeName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetSingleNodeValue,
+		firewall.FirewallUniqueTargetKey:      nodeName,
+	}
+}

@@ -43,8 +43,12 @@ func RunChecksPodToExternalRemappedIP(ctx context.Context, cl *client.Client,
 		return 0, 0, fmt.Errorf("failed to forge targets: %w", err)
 	}
 
-	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-		opts, cl.ConsumerName, targets[cl.ConsumerName], false, ExecNetcatTCPConnect)
+	consumerPods, err := listPods(ctx, cl.Consumer, cl.ConsumerName, false)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list consumer pods: %w", err)
+	}
+	successCount, errorCount, err = RunCheckToTargets(ctx, consumerPods, cfg[cl.ConsumerName],
+		opts, targets[cl.ConsumerName], ExecNetcatTCPConnect)
 	successCountTot += successCount
 	errorCountTot += errorCount
 	if err != nil {
@@ -52,8 +56,12 @@ func RunChecksPodToExternalRemappedIP(ctx context.Context, cl *client.Client,
 	}
 
 	for k := range cl.Providers {
-		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k], cfg[k],
-			opts, k, targets[k], false, ExecNetcatTCPConnect)
+		providerPods, err := listPods(ctx, cl.Providers[k], k, false)
+		if err != nil {
+			return successCountTot, errorCountTot, fmt.Errorf("failed to list provider %q pods: %w", k, err)
+		}
+		successCount, errorCount, err := RunCheckToTargets(ctx, providerPods, cfg[k],
+			opts, targets[k], ExecNetcatTCPConnect)
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {

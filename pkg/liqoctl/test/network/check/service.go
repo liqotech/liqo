@@ -59,9 +59,13 @@ func RunCheckPodToClusterIPService(ctx context.Context, cl *client.Client, cfg c
 
 	svcName := fmt.Sprintf("%s.%s", setup.DeploymentName, setup.NamespaceName)
 
+	consumerPods, err := listPods(ctx, cl.Consumer, cl.ConsumerName, false)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list consumer pods: %w", err)
+	}
 	for i := 0; i < int(totreplicas*2); i++ {
-		successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-			opts, cl.ConsumerName, []string{svcName}, false, ExecCurl)
+		successCount, errorCount, err = RunCheckToTargets(ctx, consumerPods, cfg[cl.ConsumerName],
+			opts, []string{svcName}, ExecCurl)
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {
@@ -70,11 +74,15 @@ func RunCheckPodToClusterIPService(ctx context.Context, cl *client.Client, cfg c
 	}
 
 	for k := range cl.Providers {
+		providerPods, err := listPods(ctx, cl.Providers[k], k, false)
+		if err != nil {
+			return successCountTot, errorCountTot, fmt.Errorf("failed to list provider %q pods: %w", k, err)
+		}
 		// The test is repeated twice for each provider and consumer pods.
 		// This is to ensure that all pods have been contacted from each other pods through the service.
 		for i := 0; i < int(totreplicas*2); i++ {
-			successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k], cfg[k],
-				opts, k, []string{svcName}, false, ExecCurl)
+			successCount, errorCount, err := RunCheckToTargets(ctx, providerPods, cfg[k],
+				opts, []string{svcName}, ExecCurl)
 			successCountTot += successCount
 			errorCountTot += errorCount
 			if err != nil {
@@ -258,6 +266,11 @@ func RunsCheckPodToNodePortServiceWithClient(ctx context.Context, cl ctrlclient.
 		return 0, 0, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
+	pods, err := listPods(ctx, cl, name, false)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list pods: %w", err)
+	}
+
 	var successCountTot, errorCountTot int32
 	for i := 0; i < int(totreplicas*2); i++ {
 		for i := range nodes.Items {
@@ -271,8 +284,8 @@ func RunsCheckPodToNodePortServiceWithClient(ctx context.Context, cl ctrlclient.
 				continue
 			}
 			nodeip := GetNodeAddress(&nodes.Items[i])
-			successCount, errorCount, err = RunCheckToTargets(ctx, cl, cfg[name],
-				opts, name, []string{fmt.Sprintf("http://%s:%d", nodeip, nodeport)}, false, ExecCurl)
+			successCount, errorCount, err = RunCheckToTargets(ctx, pods, cfg[name],
+				opts, []string{fmt.Sprintf("http://%s:%d", nodeip, nodeport)}, ExecCurl)
 			successCountTot += successCount
 			errorCountTot += errorCount
 			if err != nil {

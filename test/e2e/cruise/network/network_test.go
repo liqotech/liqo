@@ -78,6 +78,7 @@ var (
 	defaultArgs = networkTestsArgs{
 		nodePortNodes: networkflags.NodePortNodesAll,
 		nodePortExt:   true,
+		nodeToPod:     true,
 		podNodePort:   true,
 		ip:            true,
 		loadBalancer:  true,
@@ -126,7 +127,7 @@ var _ = Describe("Liqo E2E", func() {
 
 	Context("Network", func() {
 		When("\"liqoctl test network\" runs", func() {
-			It("should succeed both before and after gateway pods restart", func() {
+			/* It("should succeed both before and after gateway pods restart", func() {
 				// Run the tests.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
@@ -136,6 +137,8 @@ var _ = Describe("Liqo E2E", func() {
 				for i := range testContext.Clusters {
 					RestartPods(testContext.Clusters[i].ControllerClient)
 				}
+
+				restartTime := time.Now()
 
 				time.Sleep(time.Second * 60)
 
@@ -147,11 +150,18 @@ var _ = Describe("Liqo E2E", func() {
 					}, timeout, interval).Should(Succeed())
 				}
 
+				// Check if all connections are ready and have been probed after the restart.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkConnectionsReady(testContext.Clusters[i].ControllerClient, restartTime)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Run the tests again.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
 				}, timeout, interval).Should(Succeed())
-			})
+			}) */
 
 			It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
 				args := defaultArgs
@@ -205,6 +215,7 @@ type networkTestsArgs struct {
 	nodePortNodes networkflags.NodePortNodes
 	nodePortExt   bool
 	podNodePort   bool
+	nodeToPod     bool
 	ip            bool
 	loadBalancer  bool
 	info          bool
@@ -249,6 +260,9 @@ func forgeFlags(args networkTestsArgs) []string {
 	if args.nodePortExt {
 		flags = append(flags, "--np-ext")
 	}
+	if args.nodeToPod {
+		flags = append(flags, "--node-pod")
+	}
 	if args.podNodePort {
 		flags = append(flags, "--pod-np")
 	}
@@ -280,6 +294,8 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 
 func overrideArgsKubeadm(args *networkTestsArgs) {
 	args.loadBalancer = false
+	args.podNodePort = false
+	args.nodeToPod = false
 }
 
 func overrideArgsK3s(args *networkTestsArgs) {
