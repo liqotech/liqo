@@ -37,6 +37,10 @@ const (
 	RemoteNamespaceManagedByAnnotationKey = "liqo.io/managed-by-namespace-map"
 	// RemoteNamespaceOriginalNameAnnotationKey is the annotation that identifies the original name of a remote namespace.
 	RemoteNamespaceOriginalNameAnnotationKey = "liqo.io/original-name"
+	// SkipNamespaceMapCreationAnnotationKey is the annotation to prevent the creation of the NamespaceMap from the controlplane secret.
+	SkipNamespaceMapCreationAnnotationKey = "liqo.io/skip-namespacemap-creation"
+	// SkipNamespaceMapCreationAnnotationValue is the annotation value to prevent the creation of the NamespaceMap from the controlplane secret.
+	SkipNamespaceMapCreationAnnotationValue = "true"
 	// RemoteNamespaceClusterRoleName is the name of the cluster role used to grant permissions to the virtual kubelet in remote namespaces.
 	RemoteNamespaceClusterRoleName = "liqo-virtual-kubelet-remote"
 )
