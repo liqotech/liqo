@@ -349,6 +349,65 @@ var _ = Describe("FilterRuleWrapper", func() {
 		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
 	})
 
+	It("Equal should return true for ActionNotrack", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:   ptr.To("notrack-rule"),
+			Action: firewallv1beta1.ActionNotrack,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for ActionNotrack with UDP port match", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name: ptr.To("notrack-geneve-dport"),
+			Match: []firewallv1beta1.Match{
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					Proto: &firewallv1beta1.MatchProto{
+						Value: firewallv1beta1.L4ProtoUDP,
+					},
+				},
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					Port: &firewallv1beta1.MatchPort{
+						Value:    "6081",
+						Position: firewallv1beta1.MatchPositionDst,
+					},
+				},
+			},
+			Action:  firewallv1beta1.ActionNotrack,
+			Counter: true,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
+	It("Equal should return true for ActionNotrack with Counter", func() {
+		fr := &firewallv1beta1.FilterRule{
+			Name:    ptr.To("notrack-counter-rule"),
+			Action:  firewallv1beta1.ActionNotrack,
+			Counter: true,
+		}
+		wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+		expectedRule, err := forgeFilterRule(fr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
 	Context("Error handling", func() {
 		It("should handle invalid CtMark value", func() {
 			fr := &firewallv1beta1.FilterRule{

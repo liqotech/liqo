@@ -1,0 +1,80 @@
+{{- if and .Values.networking.enabled .Values.networking.fabric.config.notrack.enabled }}
+{{- $genevePort := .Values.networking.genevePort | toString }}
+{{- range list
+  (dict "name" "fabric-notrack" "category" "fabric" "subcategory" "all-nodes")
+  (dict "name" "gw-notrack"     "category" "gateway" "subcategory" "all-gateways")
+}}
+---
+apiVersion: networking.liqo.io/v1beta1
+kind: FirewallConfiguration
+metadata:
+  name: {{ .name }}
+  labels:
+    networking.liqo.io/firewall-category: {{ .category }}
+    networking.liqo.io/firewall-subcategory: {{ .subcategory }}
+    liqo.io/webhook-skip: "true"
+spec:
+  table:
+    family: IPV4
+    name: liqo-notrack
+    chains:
+      - name: prerouting
+        type: filter
+        hook: prerouting
+        policy: accept
+        priority: -300
+        rules:
+          filterRules:
+            - name: notrack-geneve-dport
+              counter: true
+              action: notrack
+              match:
+                - op: eq
+                  proto:
+                    value: udp
+                - op: eq
+                  port:
+                    position: dst
+                    value: {{ $genevePort | quote }}
+            - name: notrack-geneve-sport
+              counter: true
+              action: notrack
+              match:
+                - op: eq
+                  proto:
+                    value: udp
+                - op: eq
+                  port:
+                    position: src
+                    value: {{ $genevePort | quote }}
+      - name: output
+        type: filter
+        hook: output
+        policy: accept
+        priority: -300
+        rules:
+          filterRules:
+            - name: notrack-geneve-dport
+              counter: true
+              action: notrack
+              match:
+                - op: eq
+                  proto:
+                    value: udp
+                - op: eq
+                  port:
+                    position: dst
+                    value: {{ $genevePort | quote }}
+            - name: notrack-geneve-sport
+              counter: true
+              action: notrack
+              match:
+                - op: eq
+                  proto:
+                    value: udp
+                - op: eq
+                  port:
+                    position: src
+                    value: {{ $genevePort | quote }}
+{{- end }}
+{{- end }}
