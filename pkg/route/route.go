@@ -22,6 +22,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"k8s.io/utils/ptr"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
@@ -123,6 +124,25 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 	if route1.Flags != route2.Flags {
 		return false
 	}
+	multipathLen1 := len(route1.MultiPath)
+	multipathLen2 := len(route2.MultiPath)
+	if multipathLen1 > 0 || multipathLen2 > 0 {
+		if multipathLen1 != multipathLen2 {
+			return false
+		}
+		for _, nh1 := range route1.MultiPath {
+			found := false
+			for _, nh2 := range route2.MultiPath {
+				if nh1.Equal(*nh2) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -190,14 +210,10 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 	}
 
 	if route.Dev != nil {
-		link, err := netlink.LinkByName(*route.Dev)
+		linkIndex, err = getLinkIDByName(*route.Dev)
 		if err != nil {
-			if errors.As(err, &netlink.LinkNotFoundError{}) {
-				return nil, fmt.Errorf("link %s not found: %w", *route.Dev, err)
-			}
-			return nil, fmt.Errorf("getting link %s: %w", *route.Dev, err)
+			return nil, err
 		}
-		linkIndex = link.Attrs().Index
 	}
 
 	if route.Onlink != nil && *route.Onlink {
@@ -219,14 +235,48 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 		default:
 		}
 	}
+	var multiPath []*netlink.NexthopInfo
+	if len(route.NextHops) > 0 {
+		// MultiPath (ECMP) routes must not have a main gateway or a main link index
+		// All next-hop specific information is contained within the MultiPath slice.
+		gw = nil
+		linkIndex = 0
+		multiPath = make([]*netlink.NexthopInfo, len(route.NextHops))
+		for i, nh := range route.NextHops {
+			nextHopGw := net.ParseIP(nh.Gw.String())
+			weight := ptr.Deref(nh.Weight, 0)
+			linkID, err := getLinkIDByName(nh.Dev)
+			if err != nil {
+				return nil, fmt.Errorf("getting link for nexthop %d: %w", i, err)
+			}
+
+			multiPath[i] = &netlink.NexthopInfo{
+				Gw:        nextHopGw,
+				LinkIndex: linkID,
+				Hops:      weight,
+			}
+		}
+	}
 
 	return &netlink.Route{
 		Dst:       dst,
 		Gw:        gw,
+		MultiPath: multiPath,
 		Src:       src,
 		LinkIndex: linkIndex,
 		Table:     int(tableID),
 		Flags:     flags,
 		Scope:     scope,
 	}, nil
+}
+
+func getLinkIDByName(name string) (int, error) {
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return 0, fmt.Errorf("link %s not found: %w", name, err)
+		}
+		return 0, fmt.Errorf("getting link with name %q: %w", name, err)
+	}
+	return link.Attrs().Index, nil
 }

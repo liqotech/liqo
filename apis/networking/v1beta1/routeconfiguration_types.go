@@ -51,7 +51,25 @@ const (
 	NowhereScope Scope = "nowhere"
 )
 
+// NextHop is a single next-hop in a multipath route (ECMP).
+type NextHop struct {
+	// Gw is the gateway (next hop) IP address.
+	// +kubebuilder:validation:Required
+	Gw IP `json:"gw"`
+	// Dev is the local network interface through which this next-hop is reachable.
+	// +kubebuilder:validation:Required
+	Dev string `json:"dev"`
+	// Weight is the weight of this next-hop for load balancing.
+	// Lower weight means more traffic.
+	// Default is 0, which is translated to a kernel weight of 1.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=255
+	// +kubebuilder:default=0
+	Weight *int `json:"weight,omitempty"`
+}
+
 // Route is the route of the RouteConfiguration.
+// +kubebuilder:validation:XValidation:rule="!(has(self.gw) && has(self.nextHops))",message="cannot specify both gw and nextHops"
 type Route struct {
 	// Dst is the destination of the RouteConfiguration.
 	Dst *CIDR `json:"dst"`
@@ -59,9 +77,13 @@ type Route struct {
 	Src *IP `json:"src,omitempty"`
 	// Gw is the gateway of the RouteConfiguration.
 	Gw *IP `json:"gw,omitempty"`
+	// NextHops is the list of next-hops for ECMP (Equal-Cost Multi-Path) routing.
+	// Mutually exclusive with Gw.
+	// +optional
+	NextHops []NextHop `json:"nextHops,omitempty"`
 	// Dev is the device of the RouteConfiguration.
 	Dev *string `json:"dev,omitempty"`
-	// Onlink enables the onlink falg inside the route.
+	// Onlink enables the onlink flag inside the route.
 	Onlink *bool `json:"onlink,omitempty"`
 	// Scope is the scope of the RouteConfiguration.
 	// +kubebuilder:validation:Enum=global;link;host;site;nowhere

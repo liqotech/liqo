@@ -96,8 +96,39 @@ spec:
                                 description: Gw is the gateway of the RouteConfiguration.
                                 format: ipv4
                                 type: string
+                              nextHops:
+                                description: |-
+                                  NextHops is the list of next-hops for ECMP (Equal-Cost Multi-Path) routing.
+                                  Mutually exclusive with Gw.
+                                items:
+                                  description: NextHop is a single next-hop in a multipath
+                                    route (ECMP).
+                                  properties:
+                                    dev:
+                                      description: Dev is the local network interface
+                                        through which this next-hop is reachable.
+                                      type: string
+                                    gw:
+                                      description: Gw is the gateway (next hop) IP
+                                        address.
+                                      format: ipv4
+                                      type: string
+                                    weight:
+                                      default: 0
+                                      description: |-
+                                        Weight is the weight of this next-hop for load balancing.
+                                        Lower weight means more traffic.
+                                        Default is 0, which is translated to a kernel weight of 1.
+                                      maximum: 255
+                                      minimum: 0
+                                      type: integer
+                                  required:
+                                  - dev
+                                  - gw
+                                  type: object
+                                type: array
                               onlink:
-                                description: Onlink enables the onlink falg inside
+                                description: Onlink enables the onlink flag inside
                                   the route.
                                 type: boolean
                               scope:
@@ -161,6 +192,9 @@ spec:
                             required:
                             - dst
                             type: object
+                            x-kubernetes-validations:
+                            - message: cannot specify both gw and nextHops
+                              rule: '!(has(self.gw) && has(self.nextHops))'
                           type: array
                         src:
                           description: Src is the source of the Rule.
