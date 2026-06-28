@@ -17,6 +17,7 @@ package wireguard
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -33,6 +34,13 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
+)
+
+const (
+	// maxNAPIAttempts defines the maximum number of retries to enable threaded NAPI on each interface.
+	maxNAPIAttempts = 3
+	// napiBackoffBase is the baseline duration to wait between retry attempts.
+	napiBackoffBase = 200 * time.Millisecond
 )
 
 // cluster-role
@@ -78,11 +86,23 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		klog.Warning("EndpointIP is not set yet. Maybe the DNS resolution is still in progress")
 		return ctrl.Result{}, nil
 	}
-
-	if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey)); err != nil {
-		return ctrl.Result{}, err
+	// Get interface list
+	ports, err := GetWireguardPorts(r.Options)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("parsing wireguard ports: %w", err)
+	}
+	for i := range ports {
+		if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey), i); err != nil {
+			return ctrl.Result{}, fmt.Errorf("configuring interface %d: %w", i, err)
+		}
 	}
 
+	// Enable threaded NAPI on kernel WireGuard interfaces only when running more than one tunnel.
+	if len(ports) > 1 && r.Options.Implementation == WgImplementationKernel {
+		if err := EnsureThreadedNAPI(len(ports)); err != nil {
+			klog.Warningf("Skipped threaded NAPI setup: %v", err)
+		}
+	}
 	return ctrl.Result{}, EnsureConnection(ctx, r.Client, r.Scheme, r.Options)
 }
 

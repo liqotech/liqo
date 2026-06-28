@@ -36,16 +36,32 @@ var GatewayServerGroupResource = schema.GroupResource{Group: GroupVersion.Group,
 var GatewayServerGroupVersionResource = GroupVersion.WithResource(GatewayServerResource)
 
 // Endpoint defines the endpoint of the gatewayserver.
+// +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
+// +kubebuilder:validation:XValidation:rule="!(has(self.nodePort)&&has(self.nodePorts)&&self.nodePort!=self.nodePorts[0])",message="nodePort must match nodePorts[0]"
+// +kubebuilder:validation:XValidation:rule="has(self.port) || (has(self.ports) && size(self.ports) > 0)",message="at least one of port or ports must be set"
+// +kubebuilder:validation:XValidation:rule="!(has(self.ports)) || self.ports.all(p, self.ports.filter(q, q == p).size() == 1)",message="ports must not contain duplicates"
+// +kubebuilder:validation:XValidation:rule="!(has(self.nodePorts)) || self.nodePorts.all(p, self.nodePorts.filter(q, q == p).size() == 1)",message="nodePorts must not contain duplicates"
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 type Endpoint struct {
+	// Deprecated: use Ports instead
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
+	// Ports specifies the ports of the endpoint.
+	// +kubebuilder:validation:MaxItems=64
+	Ports []int32 `json:"ports,omitempty"`
 	// ServiceType specifies the type of the service.
 	// +kubebuilder:default=ClusterIP
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;ExternalName
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// Deprecated: use NodePorts instead
 	// NodePort allocates a static port for the NodePort service.
 	// +optional
 	NodePort *int32 `json:"nodePort,omitempty"`
+	// NodePorts allocates a list of static ports for the NodePort service.
+	// +optional
+	// +kubebuilder:validation:MaxItems=64
+	NodePorts []int32 `json:"nodePorts,omitempty"`
 	// LoadBalancerIP override the LoadBalancer IP to use a specific IP address (e.g., static LB). It is used only if service type is LoadBalancer.
 	// LoadBalancer provider must support this feature.
 	// +optional
@@ -74,14 +90,23 @@ type GatewayServerSpec struct {
 }
 
 // EndpointStatus defines the observed state of the endpoint.
+// +kubebuilder:validation:XValidation:rule="!(has(self.port)&&has(self.ports)&&self.port!=self.ports[0])",message="port must match ports[0]"
+// +kubebuilder:validation:XValidation:rule="has(self.port) || (has(self.ports) && size(self.ports) > 0)",message="at least one of port or ports must be set"
+// +kubebuilder:validation:XValidation:rule="!(has(self.ports)) || self.ports.all(p, self.ports.filter(q, q == p).size() == 1)",message="ports must not contain duplicates"
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 type EndpointStatus struct {
 	// Addresses specifies the addresses of the endpoint.
 	Addresses []string `json:"addresses,omitempty"`
+	// Deprecated: use Ports instead
 	// Port specifies the port of the endpoint.
 	Port int32 `json:"port,omitempty"`
 	// Protocol specifies the protocol of the endpoint.
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
+	// Ports specifies the ports of the endpoint.
+	// +kubebuilder:validation:MaxItems=64
+	Ports []int32 `json:"ports,omitempty"`
 }
 
 // InternalGatewayEndpoint defines the endpoint for the internal network.

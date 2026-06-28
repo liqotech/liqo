@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/conn"
@@ -30,65 +31,68 @@ import (
 
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/utils/kernel"
 )
 
 // InitWireguardLink inits the Wireguard interface.
-func InitWireguardLink(ctx context.Context, options *Options) error {
-	exists, err := existsLink()
+func InitWireguardLink(ctx context.Context, options *Options, idx int) error {
+	name := tunnel.GetTunnelName(idx)
+	exists, err := existsLink(name)
 	if err != nil {
-		return fmt.Errorf("cannot check if Wireguard interface exists: %w", err)
+		return fmt.Errorf("checking if Wireguard interface %q exists: %w", name, err)
 	}
 	if exists {
-		klog.Infof("Wireguard interface %q already exists", tunnel.TunnelInterfaceName)
+		klog.Infof("Wireguard interface %q already exists", name)
 		return nil
 	}
 
-	if err := createLink(ctx, options); err != nil {
-		return fmt.Errorf("cannot create Wireguard interface: %w", err)
+	if err := createLink(ctx, options, idx); err != nil {
+		return fmt.Errorf("creating Wireguard interface %q: %w", name, err)
 	}
 
-	link, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
+	link, err := tunnel.GetLink(name)
 	if err != nil {
-		return fmt.Errorf("cannot get Wireguard interface: %w", err)
+		return fmt.Errorf("getting Wireguard interface %q: %w", name, err)
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, tunnel.GetInterfaceIP(options.GwOptions.Mode))
-	if err := tunnel.AddAddress(link, tunnel.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
+	klog.Infof("Setting up Wireguard interface %q with IP %q", name, tunnel.GetInterfaceIP(options.GwOptions.Mode, idx))
+	if err := tunnel.AddAddress(link, tunnel.GetInterfaceIP(options.GwOptions.Mode, idx)); err != nil {
 		return err
 	}
 
 	return netlink.LinkSetUp(link)
 }
 
-// CreateLink creates a new Wireguard interface.
-func createLink(ctx context.Context, options *Options) error {
+// createLink creates a new Wireguard interface.
+func createLink(ctx context.Context, options *Options, idx int) error {
 	var err error
+	name := tunnel.GetTunnelName(idx)
 	klog.Infof("Selected wireguard %s implementation", options.Implementation)
 
 	switch options.Implementation {
 	case WgImplementationKernel:
-		err = createLinkKernel(options)
+		err = createLinkKernel(options, name)
 	case WgImplementationUserspace:
-		err = createLinkUserspace(ctx, options)
+		err = createLinkUserspace(ctx, options, name)
 	default:
 		err = fmt.Errorf("invalid wireguard implementation: %s", options.Implementation)
 	}
 
 	if err != nil {
-		return fmt.Errorf("cannot create Wireguard interface: %w", err)
+		return fmt.Errorf("cannot create Wireguard interface %q: %w", name, err)
 	}
 
 	if options.GwOptions.Mode == gateway.ModeServer {
 		wgcl, err := wgctrl.New()
 		if err != nil {
-			return fmt.Errorf("cannot create Wireguard client: %w", err)
+			return fmt.Errorf("cannot create Wireguard client (interface %q): %w", name, err)
 		}
 		defer wgcl.Close()
 
-		if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, wgtypes.Config{
-			ListenPort: &options.ListenPort,
+		if err := wgcl.ConfigureDevice(name, wgtypes.Config{
+			ListenPort: &options.ListenPorts[idx],
 		}); err != nil {
-			return fmt.Errorf("cannot configure Wireguard interface: %w", err)
+			return fmt.Errorf("cannot configure Wireguard interface %q: %w", name, err)
 		}
 	}
 
@@ -96,32 +100,32 @@ func createLink(ctx context.Context, options *Options) error {
 }
 
 // createLinkKernel creates a new Wireguard interface using the kernel module.
-func createLinkKernel(options *Options) error {
+func createLinkKernel(options *Options, name string) error {
 	link := netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  options.MTU,
-			Name: tunnel.TunnelInterfaceName,
+			Name: name,
 		},
 	}
 
 	err := netlink.LinkAdd(&link)
 	if err != nil {
-		return fmt.Errorf("cannot add Wireguard interface: %w", err)
+		return fmt.Errorf("getting Wireguard interface %q: %w", name, err)
 	}
 	return nil
 }
 
 // createLinkUserspace creates a new Wireguard interface using the userspace implementation (wireguard-go)
 // embedded as a library. The device is kept running in-process for the lifetime of the gateway.
-func createLinkUserspace(ctx context.Context, options *Options) error {
+func createLinkUserspace(ctx context.Context, options *Options, intName string) error {
 	mtu := options.MTU
 	if mtu <= 0 {
 		mtu = device.DefaultMTU
 	}
 
-	tunDev, err := tun.CreateTUN(tunnel.TunnelInterfaceName, mtu)
+	tunDev, err := tun.CreateTUN(intName, mtu)
 	if err != nil {
-		return fmt.Errorf("failed to create wireguard TUN device %q: %w", tunnel.TunnelInterfaceName, err)
+		return fmt.Errorf("creating wireguard TUN device %q: %w", intName, err)
 	}
 
 	name, err := tunDev.Name()
@@ -174,8 +178,8 @@ func createLinkUserspace(ctx context.Context, options *Options) error {
 	return nil
 }
 
-func existsLink() (bool, error) {
-	_, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
+func existsLink(name string) (bool, error) {
+	_, err := tunnel.GetLink(name)
 	if err != nil {
 		if errors.As(err, &netlink.LinkNotFoundError{}) {
 			return false, nil
@@ -183,4 +187,65 @@ func existsLink() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// GetWireguardPorts returns the list of ports to be used for WireGuard interfaces.
+// The number of ports must not exceed tunnel.MaxWireguardInterfaces, otherwise an error is returned.
+func GetWireguardPorts(opts *Options) ([]int, error) {
+	var ports []int
+
+	switch opts.GwOptions.Mode {
+	case gateway.ModeClient:
+		ports = opts.EndpointPorts
+	case gateway.ModeServer:
+		ports = opts.ListenPorts
+	default:
+		return nil, fmt.Errorf("invalid mode %v", opts.GwOptions.Mode)
+	}
+	if len(ports) > tunnel.MaxWireguardInterfaces {
+		return nil, fmt.Errorf("requested %d WireGuard interfaces, maximum allowed is %d", len(ports), tunnel.MaxWireguardInterfaces)
+	}
+
+	return ports, nil
+}
+
+// EnsureThreadedNAPI enables threaded NAPI for all WireGuard interfaces.
+// Retry up to maxNAPIAttempts times per interface to handle transient failures.
+func EnsureThreadedNAPI(interfaces int) error {
+	if err := kernel.IsThreadedNAPISupported(tunnel.GetTunnelName(0)); err != nil {
+		return fmt.Errorf("checking kernel support: %w", err)
+	}
+
+	if err := kernel.RemountSysfsRW(); err != nil {
+		return fmt.Errorf("remounting sysfs as R/W: %w", err)
+	}
+	defer kernel.RemountSysfsRO()
+
+	for i := range interfaces {
+		name := tunnel.GetTunnelName(i)
+
+		var err error
+		for attempt := range maxNAPIAttempts {
+			if attempt > 0 {
+				time.Sleep(time.Duration(attempt) * napiBackoffBase)
+			}
+			var changed bool
+			changed, err = kernel.EnableWireguardThreadedMode(name)
+			if err == nil {
+				if changed {
+					klog.Infof("threaded NAPI enabled for interface %s (attempt %d/%d)", name, attempt+1, maxNAPIAttempts)
+				} else {
+					klog.Infof("threaded NAPI already enabled for interface %s", name)
+				}
+				break
+			}
+			klog.Infof("unable to enable threaded NAPI for interface %s (attempt %d/%d): %v", name, attempt+1, maxNAPIAttempts, err)
+		}
+
+		if err != nil {
+			return fmt.Errorf("configuring interface %s failed after %d attempts: %w", name, maxNAPIAttempts, err)
+		}
+	}
+
+	return nil
 }
