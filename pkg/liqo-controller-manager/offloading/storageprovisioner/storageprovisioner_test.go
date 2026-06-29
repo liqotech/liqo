@@ -339,7 +339,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 								return &policy
 							}(),
 						},
-					}, RemoteNamespace, storageClass, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
+					}, RemoteNamespace, virtualStorageClassName, storageClass, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
 
 					if err != nil {
 						return err
@@ -413,10 +413,11 @@ var _ = Describe("Test Storage Provisioner", func() {
 						},
 						ReclaimPolicy: func() *corev1.PersistentVolumeReclaimPolicy {
 							policy := corev1.PersistentVolumeReclaimDelete
+
 							return &policy
 						}(),
 					},
-				}, RemoteNamespace, realStorageClassName, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
+				}, RemoteNamespace, virtualStorageClassName, realStorageClassName, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
 
 				Expect(err).ToNot(HaveOccurred())
 				Expect(state).To(Equal(controller.ProvisioningFinished))

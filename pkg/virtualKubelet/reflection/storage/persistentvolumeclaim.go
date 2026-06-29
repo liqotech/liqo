@@ -29,6 +29,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/util"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -188,7 +189,8 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 			}
 
 			pv, state, err := liqostorageprovisioner.ProvisionRemotePVC(ctx,
-				options, npvcr.RemoteNamespace(), npvcr.remoteRealStorageClassName,
+				options, npvcr.RemoteNamespace(),
+				util.GetPersistentVolumeClaimClass(local), npvcr.remoteRealStorageClassName,
 				npvcr.remotePersistentVolumeClaims, npvcr.remotePersistentVolumesClaimsClient,
 				npvcr.ForgingOpts)
 			if err == nil && state == controller.ProvisioningFinished {

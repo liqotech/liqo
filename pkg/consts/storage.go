@@ -28,4 +28,7 @@ const (
 
 	// StorageNamespaceLabel is the label used to mark the liqo storage namespace.
 	StorageNamespaceLabel = "liqo.io/storage-provisioner"
+
+	// OmniStorageClassPrefix is the prefix used to mark OMNI storage classes.
+	OmniStorageClassPrefix = "omni-"
 )
