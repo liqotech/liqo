@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -65,7 +66,8 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) shouldProvision(claim *co
 	if provisioner, found := claim.Annotations[annStorageProvisioner]; found {
 		if npvcr.knownProvisioner(provisioner) {
 			claimClass := util.GetPersistentVolumeClaimClass(claim)
-			if claimClass != npvcr.virtualStorageClassName {
+			// We need to provision if storage class is liqo or omni one.
+			if claimClass != npvcr.virtualStorageClassName && !strings.HasPrefix(claimClass, consts.OmniStorageClassPrefix) {
 				return false, nil
 			}
 

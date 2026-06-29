@@ -35,7 +35,7 @@ import (
 // ProvisionRemotePVC ensures the existence of a remote PVC and returns a virtual PV for that remote storage device.
 func ProvisionRemotePVC(ctx context.Context,
 	options controller.ProvisionOptions,
-	remoteNamespace, remoteRealStorageClass string,
+	remoteNamespace, localVirtualStorageClass, remoteRealStorageClass string,
 	remotePvcLister corev1listers.PersistentVolumeClaimNamespaceLister,
 	remotePvcClient corev1clients.PersistentVolumeClaimInterface,
 	forgingOpts *forge.ForgingOpts) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
@@ -48,6 +48,10 @@ func ProvisionRemotePVC(ctx context.Context,
 	switch {
 	case apierrors.IsNotFound(err):
 		remoteStorageClass = remoteRealStorageClass
+		// if the local storage class is an OMNI one, we need to remove the prefix to get the real remote storage class
+		if strings.HasPrefix(localVirtualStorageClass, consts.OmniStorageClassPrefix) {
+			remoteStorageClass = strings.TrimPrefix(localVirtualStorageClass, consts.OmniStorageClassPrefix)
+		}
 	case err != nil && !apierrors.IsNotFound(err):
 		return nil, controller.ProvisioningInBackground, err
 	case remotePvc.Spec.StorageClassName != nil:
