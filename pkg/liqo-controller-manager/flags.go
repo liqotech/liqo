@@ -108,6 +108,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.ShadowPodWorkers, "shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	flagset.IntVar(&opts.ShadowEndpointSliceWorkers, "shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
+	flagset.IntVar(&opts.ShadowIngressStatusWorkers, "shadow-ingress-status-ctrl-workers", 10,
+		"The number of workers used to reconcile ShadowIngressStatus resources.")
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerIPRemapping, "enable-api-server-ip-remapping", true, "Enable the API server IP remapping")
