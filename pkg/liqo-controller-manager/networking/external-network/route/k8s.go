@@ -92,9 +92,17 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		return nil
 	}
 
-	remoteInterfaceIP, err := tunnel.GetRemoteInterfaceIP(mode)
+	interfaces, err := GetGatewayInterfaces(ctx, cl, remoteClusterID)
 	if err != nil {
 		return err
+	}
+	var remoteInterfaceIPs []string
+	var localInterfaceNames []string
+	for i := range interfaces {
+		ip := tunnel.GetRemoteInterfaceIP(mode, i)
+		remoteInterfaceIPs = append(remoteInterfaceIPs, ip)
+		name := tunnel.GetTunnelName(i)
+		localInterfaceNames = append(localInterfaceNames, name)
 	}
 
 	// Ensure the FirewallConfiguration that marks traffic arriving on Geneve interfaces.
@@ -116,7 +124,7 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		},
 	}
 	_, err = resource.CreateOrUpdate(ctx, cl, routecfg,
-		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP))
+		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIPs, localInterfaceNames))
 	return err
 }
 
@@ -183,7 +191,7 @@ func forgeMutateFirewallConfiguration(cfg *networkingv1beta1.Configuration,
 func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 	routecfg *networkingv1beta1.RouteConfiguration, scheme *runtime.Scheme,
 	remoteClusterID liqov1beta1.ClusterID,
-	remoteInterfaceIP string) func() error {
+	remoteInterfaceIPs []string, localInterfaceNames []string) func() error {
 	return func() error {
 		var err error
 
@@ -203,15 +211,25 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 		mark := gwExtMark
 		for j := range remoteCIDRs {
 			dst := &remoteCIDRs[j]
+			route := networkingv1beta1.Route{
+				Dst: dst,
+			}
+			if len(remoteInterfaceIPs) == 1 {
+				route.Gw = ptr.To(networkingv1beta1.IP(remoteInterfaceIPs[0]))
+			} else {
+				for interfaceID, ip := range remoteInterfaceIPs {
+					route.NextHops = append(route.NextHops, networkingv1beta1.NextHop{
+						Gw:     networkingv1beta1.IP(ip),
+						Weight: ptr.To(0),
+						Dev:    localInterfaceNames[interfaceID],
+					})
+				}
+			}
+
 			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
 				FwMark: &mark,
 				Dst:    dst,
-				Routes: []networkingv1beta1.Route{
-					{
-						Dst: dst,
-						Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
-					},
-				},
+				Routes: []networkingv1beta1.Route{route},
 			})
 		}
 		return nil
@@ -237,4 +255,36 @@ func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID liqov
 	}
 
 	return "", fmt.Errorf("unable to determine Gateway mode for cluster %s", remoteClusterID)
+}
+
+// GetGatewayInterfaces returns the list of interfaces (ports) of the Gateway related to the Configuration.
+func GetGatewayInterfaces(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) ([]int32, error) {
+	gwserver, gwclient, err := getters.GetGatewaysByClusterID(ctx, cl, remoteClusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case gwclient == nil && gwserver != nil:
+		//nolint:staticcheck // Port is intentionally used for backward compatibility.
+		return getPorts(gwserver.Spec.Endpoint.Ports, gwserver.Spec.Endpoint.Port), nil
+
+	case gwclient != nil && gwserver == nil:
+		//nolint:staticcheck // Port is intentionally used for backward compatibility.
+		return getPorts(gwclient.Spec.Endpoint.Ports, gwclient.Spec.Endpoint.Port), nil
+	}
+
+	return nil, fmt.Errorf("unable to determine interfaces for cluster %s", remoteClusterID)
+}
+
+func getPorts(ports []int32, port int32) []int32 {
+	if len(ports) > 0 {
+		return ports
+	}
+
+	if port != 0 {
+		return []int32{port}
+	}
+
+	return nil
 }
