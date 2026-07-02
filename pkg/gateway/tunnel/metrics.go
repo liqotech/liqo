@@ -14,7 +14,11 @@
 
 package tunnel
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"math"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 // PrometheusMetrics is a struct that implements the prometheus.Collector interface's Describe method and other utilities.
 type PrometheusMetrics struct{}
@@ -26,6 +30,8 @@ var (
 	MetricsPeerTransmittedBytes *prometheus.Desc
 	// MetricsPeerLatency is the metric that exposes the latency towards a given peer.
 	MetricsPeerLatency *prometheus.Desc
+	// MetricsPeerLatencyHistogram is the metric that exposes the latency distribution towards a given peer.
+	MetricsPeerLatencyHistogram *prometheus.HistogramVec
 	// MetricsPeerIsConnected is the metric that outputs the connection status.
 	MetricsPeerIsConnected *prometheus.Desc
 	// MetricsLabels is the labels that are used for the metrics.
@@ -57,6 +63,12 @@ func init() {
 		nil,
 	)
 
+	MetricsPeerLatencyHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "liqo_peer_latency_histogram_us",
+		Help:    "Round-trip latency distribution of a given peer in microseconds.",
+		Buckets: GenerateFocusBuckets(10000, 5000, 3, 16250, 8, 1.1892, 4),
+	}, MetricsLabels)
+
 	MetricsPeerIsConnected = prometheus.NewDesc(
 		"liqo_peer_is_connected",
 		"Status of the connectivity to a given peer (true = Liqo tunnel is up and gateways are pinging each other).",
@@ -71,6 +83,7 @@ func (m *PrometheusMetrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- MetricsPeerTransmittedBytes
 	ch <- MetricsPeerLatency
 	ch <- MetricsPeerIsConnected
+	MetricsPeerLatencyHistogram.Describe(ch)
 }
 
 // MetricsErrorHandler is a function that handles metrics errors.
@@ -79,4 +92,80 @@ func (m *PrometheusMetrics) MetricsErrorHandler(err error, ch chan<- prometheus.
 	ch <- prometheus.NewInvalidMetric(MetricsPeerTransmittedBytes, err)
 	ch <- prometheus.NewInvalidMetric(MetricsPeerLatency, err)
 	ch <- prometheus.NewInvalidMetric(MetricsPeerIsConnected, err)
+}
+
+// GenerateFocusBuckets builds a Prometheus-style histogram bucket layout that
+// concentrates resolution where it matters most: the latency range you actually
+// expect to observe. It does so by stitching together three independent
+// sequences into a single, monotonically increasing slice of boundaries.
+//
+// The three phases are:
+//
+//  1. INITIAL (linear, wide steps) — covers the very low end of the range.
+//     Useful when sub-millisecond or fast-path latencies are common and you
+//     want a few coarse buckets to distinguish "very fast" from "fast".
+//
+//  2. CENTRAL (linear, narrow steps) — covers the "hot zone" where most
+//     observations are expected to land. This is where you spend the bulk of
+//     your bucket budget to maximize precision in the range that drives SLOs.
+//
+//  3. FINAL (exponential, growing steps) — covers the long tail of anomalous
+//     or worst-case latencies. The multiplicative growth keeps the bucket
+//     count low while still spanning one or more orders of magnitude.
+//
+// Parameters:
+//
+//   - lowStart, lowStep, lowCount: starting value, step size, and number of
+//     buckets for the initial phase. The last bucket of this phase is
+//     lowStart + (lowCount-1) * lowStep.
+//   - midStep, midCount: step size and number of buckets for the central
+//     phase. The central phase begins one midStep after the last bucket of
+//     the initial phase, so the two phases connect without overlap or gap.
+//   - highFactor, highCount: multiplicative factor and number of buckets for
+//     the final phase. The final phase begins one highFactor multiple after
+//     the last bucket of the central phase.
+//
+// The total number of buckets returned is lowCount + midCount + highCount.
+//
+// Example: GenerateFocusBuckets(1000, 9500, 3, 16250, 8, 1.1892, 4) produces
+// 15 buckets that start at 1 ms, reach 20 ms after the initial phase, span
+// 20–150 ms with 8 dense buckets in the central phase, and grow exponentially
+// from 150 ms to ~300 ms in the final phase.
+func GenerateFocusBuckets(
+	lowStart, lowStep float64, lowCount int,
+	midStep float64, midCount int,
+	highFactor float64, highCount int,
+) []float64 {
+	var buckets []float64
+
+	// 1. INITIAL PHASE (Wide - for very low values)
+	current := lowStart
+	for i := 0; i < lowCount; i++ {
+		buckets = append(buckets, math.Floor(current))
+		if i < lowCount-1 {
+			current += lowStep
+		}
+	}
+
+	// 2. CENTRAL PHASE (Narrow/Dense - for the "hot" latency zone)
+	// Increment before the loop to avoid duplicating the last value of phase 1.
+	current += midStep
+	for i := 0; i < midCount; i++ {
+		buckets = append(buckets, math.Floor(current))
+		if i < midCount-1 {
+			current += midStep
+		}
+	}
+
+	// 3. FINAL PHASE (Exponential/Wide - for anomalous peaks)
+	// Increment before the loop to avoid duplicating the last value of phase 2.
+	current *= highFactor
+	for i := 0; i < highCount; i++ {
+		buckets = append(buckets, math.Floor(current))
+		if i < highCount-1 {
+			current *= highFactor
+		}
+	}
+
+	return buckets
 }

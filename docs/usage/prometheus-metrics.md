@@ -21,6 +21,7 @@ These metrics are available for each peered remote cluster, providing statistics
 - **liqo_peer_receive_bytes_total**: the total number of bytes received from a remote cluster.
 - **liqo_peer_transmit_bytes_total**: the total number of bytes transmitted to a remote cluster.
 - **liqo_peer_latency_us**: the round-trip (RTT) latency between the local cluster and a remote cluster, in micro seconds, measured by a periodic UDP `ping` between the two Liqo gateways and sent within the Liqo tunnel itself.
+- **liqo_peer_latency_histogram_us**: like **liqo_peer_latency_us**, but exposed as a Prometheus histogram, allowing the computation of percentiles and other aggregations.
 - **liqo_peer_is_connected**: boolean keeping the status of the network interconnection between clusters, i.e., whether the peering is established and works properly, derived from the `ping` measurement above.
 
 ### Grafana dashboard
