@@ -126,21 +126,21 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 		labels...,
 	)
 
+	ch <- prometheus.MustNewConstMetric(
+		tunnel.MetricsPeerReceivedBytes,
+		prometheus.CounterValue,
+		float64(peer.ReceiveBytes),
+		labels...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		tunnel.MetricsPeerTransmittedBytes,
+		prometheus.CounterValue,
+		float64(peer.TransmitBytes),
+		labels...,
+	)
+
 	if connected {
-		ch <- prometheus.MustNewConstMetric(
-			tunnel.MetricsPeerReceivedBytes,
-			prometheus.CounterValue,
-			float64(peer.ReceiveBytes),
-			labels...,
-		)
-
-		ch <- prometheus.MustNewConstMetric(
-			tunnel.MetricsPeerTransmittedBytes,
-			prometheus.CounterValue,
-			float64(peer.TransmitBytes),
-			labels...,
-		)
-
 		latency, err := getLatency(conn)
 		if err != nil {
 			ch <- prometheus.NewInvalidMetric(tunnel.MetricsPeerLatency, err)
@@ -151,7 +151,14 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(latency.Microseconds()),
 			labels...,
 		)
+
+		tunnel.MetricsPeerLatencyHistogram.With(prometheus.Labels{
+			tunnel.MetricsLabels[0]: driverLabelValue,
+			tunnel.MetricsLabels[1]: pc.metricsOptions.RemoteClusterID,
+		}).Observe(float64(latency.Microseconds()))
 	}
+
+	tunnel.MetricsPeerLatencyHistogram.Collect(ch)
 }
 
 func isConnected(conn *networkingv1beta1.Connection) bool {
