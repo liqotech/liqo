@@ -55,6 +55,7 @@ type OffloadingOption struct {
 	EnableNodeFailureController bool
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
+	DenyDirectConnections       bool
 	ResyncPeriod                time.Duration
 }
 
@@ -72,6 +73,7 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 		EnableNodeFailureController: opts.EnableNodeFailureController,
 		ShadowPodWorkers:            opts.ShadowPodWorkers,
 		ShadowEndpointSliceWorkers:  opts.ShadowEndpointSliceWorkers,
+		DenyDirectConnections:       opts.DenyDirectConnections,
 		ResyncPeriod:                opts.ResyncPeriod,
 	}
 }
@@ -124,8 +126,9 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	}
 
 	shadowEpsReconciler := &shadowepsctrl.Reconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		DenyDirectConnections: opts.DenyDirectConnections,
 	}
 	if err = shadowEpsReconciler.SetupWithManager(ctx, mgr, opts.ShadowEndpointSliceWorkers); err != nil {
 		klog.Errorf("Unable to setup the shadowendpointslice reconciler: %v", err)

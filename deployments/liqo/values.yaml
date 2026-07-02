@@ -56,6 +56,9 @@ networking:
   enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
+  # -- Prevents the usage of direct connections by provider clusters.
+  # When enabled, the provider cluster will not route traffic directed to another provider through their direct connection.
+  denyDirectConnections: false
   # -- The port used by the geneve tunnels.
   genevePort: 6091
   # -- Set the list of resources that implement the GatewayServer

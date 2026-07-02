@@ -17,6 +17,7 @@ package shadowendpointslicectrl
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,17 +42,25 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
+	"github.com/liqotech/liqo/pkg/utils/directconnection"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-const ctrlFieldManager = "shadow-endpointslice-controller"
+const (
+	ctrlFieldManager = "shadow-endpointslice-controller"
+)
 
 // Reconciler reconciles a ShadowEndpointSlice object.
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	// DenyDirectConnections, when true, prevents endpoints reachable through a direct
+	// provider-to-provider connection (i.e. the ones listed in the direct-connection annotation
+	// data) from being added to the forged EndpointSlice.
+	DenyDirectConnections bool
 }
 
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowendpointslices,verbs=get;list;watch;create;update;patch;delete
@@ -97,16 +106,38 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Check foreign API server status
 	apiServerReady := foreigncluster.IsAPIServerReadyOrDisabled(fc)
 
-	// Get the endpoints from the shadowendpointslice and remap them if necessary.
-	// If the networking module is disabled, we do not need to remap the endpoints.
-	remappedEndpoints := shadowEps.Spec.Template.Endpoints
-	if foreigncluster.IsNetworkingModuleEnabled(fc) {
-		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
-		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints); err != nil {
-			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
-			return ctrl.Result{}, err
+	// Check if direct connections data is provided
+	var remoteConnectionsData directconnection.ClusterAddresses
+	if val, ok := shadowEps.Annotations[consts.DirectConnectionDataAnnotationKey]; ok {
+		if err := remoteConnectionsData.FromJSON([]byte(val)); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to unmarshal direct connection data for shadowendpointslice %q: %w", nsName, err)
 		}
 	}
+	// Get the endpoints from the shadowendpointslice and remap them if necessary.
+	remappedEndpoints := shadowEps.Spec.Template.Endpoints
+	rcindex := remoteConnectionsData.BuildIndex()
+
+	// If direct connections are denied, drop every endpoint referring to a pod reachable only
+	// through a direct provider-to-provider connection, so it is not added to the EndpointSlice.
+	if r.DenyDirectConnections {
+		remappedEndpoints = FilterOutDirectConnectionEndpoints(remappedEndpoints, rcindex)
+	}
+
+	if foreigncluster.IsNetworkingModuleEnabled(fc) {
+		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
+		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints, rcindex); err != nil {
+			return ctrl.Result{}, fmt.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %w", nsName, err)
+		}
+	} else if rcindex != nil {
+		// Networking between consumer and provider is disabled, but direct provider-to-provider connections
+		// may still be present. Remap only those addresses so they can be reached via the direct link.
+		if err := MapOnlyDirectConnectionEndpoints(ctx, r.Client, remappedEndpoints, rcindex); err != nil {
+			return ctrl.Result{}, fmt.Errorf("an error occurred while remapping direct-connection endpoints for shadowendpointslice %q: %w", nsName, err)
+		}
+	}
+
+	// Direct connections data annotation is not propagated to the EndpointSlice
+	annotations := removeDirectConnectionAnnotation(shadowEps.GetAnnotations())
 
 	// Forge the endpointslice given the shadowendpointslice
 	newEps := discoveryv1.EndpointSlice{
@@ -115,7 +146,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Namespace: shadowEps.Namespace,
 			Labels: labels.Merge(shadowEps.Labels, labels.Set{
 				consts.ManagedByLabelKey: consts.ManagedByShadowEndpointSliceValue}),
-			Annotations: shadowEps.Annotations,
+			Annotations: annotations,
 		},
 		AddressType: shadowEps.Spec.Template.AddressType,
 		Endpoints:   remappedEndpoints,
@@ -255,4 +286,14 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 			r.getForeignClusterEventHandler(ctx), builder.WithPredicates(fcPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
+}
+
+// removeDirectConnectionAnnotation returns a copy of annotations without direct-connection data.
+func removeDirectConnectionAnnotation(annotations map[string]string) map[string]string {
+	if annotations == nil {
+		return nil
+	}
+	filtered := maps.Clone(annotations)
+	delete(filtered, consts.DirectConnectionDataAnnotationKey)
+	return filtered
 }

@@ -15,6 +15,8 @@
 package exposition_test
 
 import (
+	"encoding/json"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -39,6 +41,7 @@ import (
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/directconnection"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -391,6 +394,107 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 				})
 			})
+
+			When("the service has the use-direct-connections annotation", func() {
+				BeforeEach(func() {
+					local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
+					local.AddressType = discoveryv1.AddressTypeIPv4
+					local.Endpoints = []discoveryv1.Endpoint{{
+						NodeName:  ptr.To(ThirdClusterNodeName),
+						Addresses: []string{"10.10.0.5"},
+						TargetRef: &corev1.ObjectReference{Name: "pod-1", Namespace: LocalNamespace},
+					}}
+					CreateEndpointSlice(&local)
+
+					CreateService(&corev1.Service{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: ServiceName, Namespace: LocalNamespace,
+							Annotations: map[string]string{consts.UseDirectConnectionAnnotationKey: "true"},
+						},
+						Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+					})
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the shadow endpointslice should have the direct-connections-data annotation", func() {
+					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+					Expect(remoteAfter.Annotations).To(HaveKey(consts.DirectConnectionDataAnnotationKey))
+				})
+				It("the annotation should contain the third cluster endpoint IPs", func() {
+					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+					raw := remoteAfter.Annotations[consts.DirectConnectionDataAnnotationKey]
+					var dcData directconnection.ClusterAddresses
+					Expect(json.Unmarshal([]byte(raw), &dcData)).To(Succeed())
+					Expect(dcData.Clusters).To(HaveKey(ThirdClusterID))
+					Expect(dcData.Clusters[ThirdClusterID]).To(ContainElement("10.10.0.5"))
+				})
+				It("the endpoint IP in the shadow endpointslice should not be IPAM-translated", func() {
+					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+					Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(1))
+					Expect(remoteAfter.Spec.Template.Endpoints[0].Addresses).To(ContainElement("10.10.0.5"))
+				})
+			})
+
+			When("the service has the use-direct-connections annotation but no cross-provider endpoints", func() {
+				BeforeEach(func() {
+					local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
+					local.AddressType = discoveryv1.AddressTypeIPv4
+					// LocalClusterNodeName is not a virtual node, so ShouldIncludeDataFromNode returns false.
+					local.Endpoints = []discoveryv1.Endpoint{{
+						NodeName:  ptr.To(LocalClusterNodeName),
+						Addresses: []string{"10.168.0.25"},
+						TargetRef: &corev1.ObjectReference{Name: "pod-local", Namespace: LocalNamespace},
+					}}
+					CreateEndpointSlice(&local)
+					CreateIP("ip-local", LocalNamespace, "10.168.0.25", "192.168.200.25")
+
+					CreateService(&corev1.Service{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: ServiceName, Namespace: LocalNamespace,
+							Annotations: map[string]string{consts.UseDirectConnectionAnnotationKey: "true"},
+						},
+						Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+					})
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the shadow endpointslice should not have the direct-connections-data annotation", func() {
+					remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+					Expect(remoteAfter.Annotations).ToNot(HaveKey(consts.DirectConnectionDataAnnotationKey))
+				})
+			})
+
+			When("the direct connection data exceeds the maximum annotation size", func() {
+				BeforeEach(func() {
+					local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
+					local.AddressType = discoveryv1.AddressTypeIPv4
+					local.Endpoints = []discoveryv1.Endpoint{{
+						NodeName:  ptr.To(ThirdClusterNodeName),
+						Addresses: []string{"10.10.0.6"},
+						TargetRef: &corev1.ObjectReference{Name: "pod-oversize", Namespace: LocalNamespace},
+					}}
+					// Fill up most of the 256 KiB annotation budget with an existing annotation on the
+					// local EPS, so the small DirectConnectionData payload pushes it over the limit.
+					local.SetAnnotations(map[string]string{
+						"padding": strings.Repeat("x", 256*1024-10),
+					})
+					CreateEndpointSlice(&local)
+
+					CreateService(&corev1.Service{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: ServiceName, Namespace: LocalNamespace,
+							Annotations: map[string]string{consts.UseDirectConnectionAnnotationKey: "true"},
+						},
+						Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+					})
+				})
+
+				It("should return an error", func() { Expect(err).To(HaveOccurred()) })
+				It("the shadow endpointslice should not be created", func() {
+					_, getErr := liqoClient.OffloadingV1beta1().ShadowEndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+			})
 		})
 
 		Context("address translation", func() {
@@ -409,7 +513,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			When("translating a set of IP addresses", func() {
 				JustBeforeEach(func() {
 					output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-						MapEndpointIPs(EndpointSliceName, input)
+						MapEndpointIPs(EndpointSliceName, input, false)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -418,7 +522,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				When("translating again the same set of IP addresses", func() {
 					JustBeforeEach(func() {
 						output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-							MapEndpointIPs(EndpointSliceName, input)
+							MapEndpointIPs(EndpointSliceName, input, false)
 					})
 
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
