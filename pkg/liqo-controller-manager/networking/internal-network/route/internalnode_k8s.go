@@ -301,13 +301,13 @@ func forgeRouteConfigurationExtCIDRRules(internalnode *networkingv1beta1.Interna
 			dst := &podCIDRs[j]
 			rules = append(rules, networkingv1beta1.Rule{
 				Dst:    dst,
-				Iif:    ptr.To(tunnel.TunnelInterfaceName),
+				Iif:    ptr.To(fmt.Sprintf("%s*", tunnel.TunnelInterfaceName)),
 				Routes: forgeRouteConfigurationExtCIDRRoutes(internalnode, dst),
 			})
 		}
 	}
 	rules = append(rules, networkingv1beta1.Rule{
-		Iif:    ptr.To(tunnel.TunnelInterfaceName),
+		Iif:    ptr.To(fmt.Sprintf("%s*", tunnel.TunnelInterfaceName)),
 		Routes: forgeRouteConfigurationExtCIDRRoutesIP(internalnode, ips),
 	})
 	return rules

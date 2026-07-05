@@ -95,6 +95,7 @@ spec:
                 - --enable-nft-monitor={{ .Values.networking.gatewayTemplates.nftablesMonitor }}
                 - --enable-route-monitor={{ .Values.networking.gatewayTemplates.routeMonitor }}
                 - --enable-multipath-hash-policy={{ printf "{{ if gt (len .Spec.Endpoint.Ports) 1 }}true{{ else }}false{{ end }}" }}
+                - --num-interfaces={{ "{{ if .Spec.Endpoint.Ports }}{{ len .Spec.Endpoint.Ports }}{{ else }}1{{ end }}" }}
                 volumeMounts:
                 - name: ipc
                   mountPath: /ipc

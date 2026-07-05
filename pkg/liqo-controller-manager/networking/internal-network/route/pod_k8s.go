@@ -123,7 +123,7 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1beta1.InternalNode, r
 
 		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 2 {
 			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{})
-			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
+			routecfg.Spec.Table.Rules[1].Iif = ptr.To(fmt.Sprintf("%s*", tunnel.TunnelInterfaceName))
 		}
 
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
