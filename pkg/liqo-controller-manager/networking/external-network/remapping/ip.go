@@ -21,8 +21,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -47,7 +49,9 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 			Namespace: ip.Namespace,
 		},
 	}
-	_, err := resource.CreateOrUpdate(ctx, cl, fwcfg, mutateFirewallConfiguration(fwcfg, ip))
+	if err := createOrUpdateFirewallConfiguration(ctx, cl, fwcfg, mutateFirewallConfiguration(fwcfg, ip)); err != nil {
+		return err
+	}
 
 	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
 		fwcfgMasq := &networkingv1beta1.FirewallConfiguration{
@@ -56,10 +60,12 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 				Namespace: ip.Namespace,
 			},
 		}
-		_, err = resource.CreateOrUpdate(ctx, cl, fwcfgMasq, mutateFirewallConfigurationMasquerade(fwcfgMasq, ip))
+		return createOrUpdateFirewallConfiguration(ctx, cl, fwcfgMasq, mutateFirewallConfigurationMasquerade(fwcfgMasq, ip))
 	}
 
-	return err
+	// Masquerade is disabled (nil or false): ensure no masquerade firewall rules are left
+	// over from a previous state where Masquerade was true.
+	return ensureFirewallConfigurationMasqueradeAbsence(ctx, cl, ip)
 }
 
 // DeleteNatMappingIP deletes the NAT mapping for an IP.
@@ -69,31 +75,46 @@ func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.
 	err := cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPGwName(ip), Namespace: ip.Namespace}, &fwcfg)
 	switch {
 	case errors.IsNotFound(err):
-		return nil
+		// Nothing to delete for the gateway mapping; fall through to also clean up
+		// any leftover masquerade firewall configuration.
 	case err != nil:
 		return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, generateNatMappingIPGwName(ip), err)
-	}
-
-	err = deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, &fwcfg)
-	if err != nil {
-		return err
-	}
-
-	// When the IP resource map and IP from the outside of the cluster
-	// we need to insert a masquerade rule on the node, in order to
-	// allow the traffic to return.
-	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
-		err = cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPFabricName(ip), Namespace: ip.Namespace}, &fwcfg)
-		if err != nil {
-			return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, generateNatMappingIPFabricName(ip), err)
-		}
-
-		err = deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, &fwcfg)
-		if err != nil {
+	default:
+		if err := deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, &fwcfg); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	// Always ensure absence of masquerade firewall rules: they may have been created
+	// when Spec.Masquerade was previously true, even if it is now false/nil.
+	return ensureFirewallConfigurationMasqueradeAbsence(ctx, cl, ip)
+}
+
+// createOrUpdateFirewallConfiguration wraps resource.CreateOrUpdate with the standard logging
+// performed on every firewall configuration managed by this controller.
+func createOrUpdateFirewallConfiguration(ctx context.Context, cl client.Client,
+	fwcfg *networkingv1beta1.FirewallConfiguration, mutate func() error) error {
+	op, err := resource.CreateOrUpdate(ctx, cl, fwcfg, mutate)
+	if op != controllerutil.OperationResultNone {
+		klog.Infof("FirewallConfiguration %s/%s %s", fwcfg.Namespace, fwcfg.Name, op)
+	}
+	return err
+}
+
+// ensureFirewallConfigurationMasqueradeAbsence ensures the absence of the masquerade
+// firewall configuration associated with the given IP: it removes the IP's NAT rules
+// and deletes the FirewallConfiguration when no rules remain. Safe to call when the
+// resource does not exist.
+func ensureFirewallConfigurationMasqueradeAbsence(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
+	fwcfg := &networkingv1beta1.FirewallConfiguration{}
+	err := cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPFabricName(ip), Namespace: ip.Namespace}, fwcfg)
+	switch {
+	case errors.IsNotFound(err):
+		return nil
+	case err != nil:
+		return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, generateNatMappingIPFabricName(ip), err)
+	}
+	return deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, fwcfg)
 }
 
 // deleteNatMappingIPWithFirewallconfiguration deletes the NAT mapping for an IP in a specific firewallconfiguration.
@@ -130,8 +151,12 @@ func deleteFirewallConfiguration(ctx context.Context, cl client.Client, fwcfg *n
 	}
 
 	if allChainsVoid {
-		if err := cl.Delete(ctx, fwcfg); err != nil {
+		err := cl.Delete(ctx, fwcfg)
+		if client.IgnoreNotFound(err) != nil {
 			return err
+		}
+		if err == nil {
+			klog.Infof("Deleted firewall configuration %s/%s", fwcfg.Namespace, fwcfg.Name)
 		}
 	}
 	return nil
