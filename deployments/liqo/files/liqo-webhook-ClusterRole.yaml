@@ -77,6 +77,15 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ipam.liqo.io
+  resources:
+  - ips
+  - networks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - networking.liqo.io
   resources:
   - firewallconfigurations
