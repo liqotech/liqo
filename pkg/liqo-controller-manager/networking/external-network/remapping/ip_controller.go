@@ -73,7 +73,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 				return ctrl.Result{}, fmt.Errorf("unable to delete the NAT mapping for the IP %q: %w", req.NamespacedName, err)
 			}
 			if err := r.ensureIPMappingFinalizerAbsence(ctx, ip); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, fmt.Errorf("ensuring finalizer absence for the IP %q: %w", req.NamespacedName, err)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -87,7 +87,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	if !containsFinalizer {
 		if err := r.ensureIPMappingFinalizerPresence(ctx, ip); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("ensuring finalizer presence for the IP %q: %w", req.NamespacedName, err)
 		}
 		return ctrl.Result{}, nil
 	}
