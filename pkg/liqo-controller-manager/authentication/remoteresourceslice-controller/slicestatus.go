@@ -34,6 +34,9 @@ type SliceStatusOptions struct {
 	LoadBalancerClasses       argutils.ClassNameList
 	ClusterLabels             map[string]string
 	DefaultResourceQuantity   corev1.ResourceList
+	// DefaultResourceSliceClassEnabled enables the built-in default ResourceSlice class.
+	// When false, ResourceSlices of the default (or empty) class are denied instead of accepted.
+	DefaultResourceSliceClassEnabled bool
 }
 
 func getIngressClasses(opts *SliceStatusOptions) []liqov1beta1.IngressType {

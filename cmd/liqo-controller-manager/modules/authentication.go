@@ -64,12 +64,13 @@ func NewAuthOption(identityProvider identitymanager.IdentityProvider, namespaceM
 		TrustedCA:                opts.TrustedCA,
 		TLSCompatibilityMode:     opts.TLSCompatibilityMode,
 		SliceStatusOptions: &remoteresourceslicecontroller.SliceStatusOptions{
-			EnableStorage:             opts.EnableStorage,
-			LocalRealStorageClassName: opts.RealStorageClassName,
-			IngressClasses:            opts.IngressClasses,
-			LoadBalancerClasses:       opts.LoadBalancerClasses,
-			ClusterLabels:             opts.ClusterLabels.StringMap,
-			DefaultResourceQuantity:   opts.DefaultNodeResources.ToResourceList(),
+			EnableStorage:                    opts.EnableStorage,
+			LocalRealStorageClassName:        opts.RealStorageClassName,
+			IngressClasses:                   opts.IngressClasses,
+			LoadBalancerClasses:              opts.LoadBalancerClasses,
+			ClusterLabels:                    opts.ClusterLabels.StringMap,
+			DefaultResourceQuantity:          opts.DefaultNodeResources.ToResourceList(),
+			DefaultResourceSliceClassEnabled: opts.DefaultResourceSliceClassEnabled,
 		},
 	}
 }
