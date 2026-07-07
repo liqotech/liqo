@@ -112,5 +112,5 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"Prevents the usage of direct connections between provider clusters.")
 
 	// Cross module
-	flagset.BoolVar(&opts.EnableAPIServerIPRemapping, "enable-api-server-ip-remapping", true, "Enable the API server IP remapping")
+	flagset.BoolVar(&opts.EnableAPIServerProxyIPRemapping, "enable-api-server-proxy-ip-remapping", true, "Enable the API server proxy IP remapping")
 }
