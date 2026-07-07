@@ -91,6 +91,7 @@
 | metrics.enabled | bool | `false` | Enable/Disable the metrics server in every liqo component. |
 | metrics.prometheusOperator.enabled | bool | `false` | Enable/Disable the creation of a Prometheus servicemonitor/podmonitor for the metrics servers. Turn on this flag when the Prometheus Operator runs in your cluster. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
+| networking.apiServerAccessThroughEndpointSlices | bool | `false` | Access remote API server through its Kubernetes service EndpointSlices instead of its ClusterIP. This is useful when the consumer CNI or VPC security groups are preventing the access to the remote API server through its ClusterIP service; known examples are GKE dataplane v2 and EKS. When enabled, the consumer cluster will access the remote API server through the endpointslices of the Kubernetes service. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.denyDirectConnections | bool | `false` | Prevents the usage of direct connections by provider clusters. When enabled, the provider cluster will not route traffic directed to another provider through their direct connection. |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |

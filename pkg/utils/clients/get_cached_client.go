@@ -32,29 +32,38 @@ import (
 // the scheme. The necessary rest.Config is passed as third parameter, it must not be nil.
 func GetCachedClientWithConfig(ctx context.Context,
 	scheme *runtime.Scheme, mapper meta.RESTMapper, conf *rest.Config, cacheOptions *ctrlcache.Options) (client.Client, error) {
+	cl, _, err := GetCachedClientAndCacheWithConfig(ctx, scheme, mapper, conf, cacheOptions)
+	return cl, err
+}
+
+// GetCachedClientAndCacheWithConfig returns a controller runtime client with the cache initialized only for the resources
+// added to the scheme, together with the underlying cache. The necessary rest.Config is passed as third parameter, it must
+// not be nil.
+func GetCachedClientAndCacheWithConfig(ctx context.Context,
+	scheme *runtime.Scheme, mapper meta.RESTMapper, conf *rest.Config, cacheOptions *ctrlcache.Options) (client.Client, ctrlcache.Cache, error) {
 	cache, err := ctrlcache.New(conf, *cacheOptions)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create the pod cache: %w", err)
+		return nil, nil, fmt.Errorf("unable to create the cache: %w", err)
 	}
 
 	go func() {
-		klog.Info("starting pod cache")
+		klog.Info("starting cache")
 		if err := cache.Start(ctx); err != nil {
-			klog.Errorf("error starting pod cache: %s", err)
+			klog.Errorf("error starting cache: %s", err)
 			os.Exit(1)
 		}
 	}()
 
-	klog.Info("waiting for pod cache sync")
+	klog.Info("waiting for cache sync")
 
 	if ok := cache.WaitForCacheSync(ctx); !ok {
-		return nil, fmt.Errorf("unable to sync pod cache")
+		return nil, nil, fmt.Errorf("unable to sync cache")
 	}
 
-	klog.Info("pod cache synced")
+	klog.Info("cache synced")
 
 	if conf == nil {
-		return nil, fmt.Errorf("the rest.Config parameter is nil")
+		return nil, nil, fmt.Errorf("the rest.Config parameter is nil")
 	}
 
 	cl, err := client.New(conf, client.Options{
@@ -66,8 +75,8 @@ func GetCachedClientWithConfig(ctx context.Context,
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to create the client: %w", err)
+		return nil, nil, fmt.Errorf("unable to create the client: %w", err)
 	}
 
-	return cl, nil
+	return cl, cache, nil
 }

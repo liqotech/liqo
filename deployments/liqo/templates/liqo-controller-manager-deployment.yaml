@@ -132,6 +132,9 @@ spec:
           - --enable-leader-election=true
           {{- end }}
           - --enable-api-server-proxy-ip-remapping={{ .Values.proxy.enabled }}
+          {{- if .Values.networking.apiServerAccessThroughEndpointSlices }}
+          - --api-server-ip-use-endpointslices=true
+          {{- end }}
         env:
           - name: CLUSTER_ID
             valueFrom:
