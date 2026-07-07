@@ -95,7 +95,7 @@ type PodReflectorConfig struct {
 	HomeAPIServerHost   string
 	HomeAPIServerPort   string
 
-	KubernetesServiceIPMapper func(context.Context) (string, error)
+	KubernetesServiceIPMapper func(context.Context) ([]string, error)
 	NetConfiguration          *networkingv1beta1.Configuration
 }
 
@@ -246,26 +246,26 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 }
 
 // KubernetesServiceIPGetter returns a function to retrieve the IP associated with the kubernetes.default service.
-func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) (string, error) {
-	var address string
+func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) ([]string, error) {
+	var addresses []string
 	var lock sync.Mutex
 
-	return func(ctx context.Context) (string, error) {
+	return func(ctx context.Context) ([]string, error) {
 		lock.Lock()
 		defer lock.Unlock()
 
-		// If the address has already been saved in cache, then return it directly.
-		if address != "" {
-			return address, nil
+		// If the addresses have already been saved in cache, then return them directly.
+		if len(addresses) > 0 {
+			return addresses, nil
 		}
 
 		var err error
-		address, err = pr.config.KubernetesServiceIPMapper(ctx)
+		addresses, err = pr.config.KubernetesServiceIPMapper(ctx)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return address, nil
+		return addresses, nil
 	}
 }
 

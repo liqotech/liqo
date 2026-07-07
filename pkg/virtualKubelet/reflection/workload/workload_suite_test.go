@@ -51,9 +51,9 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	fakeAPIServerRemapping = func(ip string) func(ctx context.Context) (string, error) {
-		return func(ctx context.Context) (string, error) {
-			return ip, nil
+	fakeAPIServerRemapping = func(ips []string) func(ctx context.Context) ([]string, error) {
+		return func(ctx context.Context) ([]string, error) {
+			return ips, nil
 		}
 	}
 )

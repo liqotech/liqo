@@ -262,8 +262,26 @@ func run(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("unable to start the configuration reconciler: %w", err)
 		}
 
-		if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
-			return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
+		if !opts.APIServerIPUseEndpointSlices {
+			if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
+				return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
+			}
+		} else {
+			// To not watch all the EndpointSlices in the cluster, we create custom cache to watch only endpointslices in default namespace.
+			// Additionally we add a predicate to filter only endpointslices associated to the kubernetes service, which is the only one we are interested in.
+			endpointSliceReconciler, err := ipmapping.NewEndpointSliceIPReconciler(
+				cmd.Context(),
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				config,
+				opts.LiqoNamespace,
+			)
+			if err != nil {
+				return fmt.Errorf("creating endpointslice reconciler: %w", err)
+			}
+			if err := endpointSliceReconciler.SetupWithManager(mgr); err != nil {
+				return fmt.Errorf("unable to start the endpointslice reconciler: %w", err)
+			}
 		}
 
 		if opts.EnableAPIServerProxyIPRemapping {

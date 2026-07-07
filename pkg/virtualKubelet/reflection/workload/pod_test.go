@@ -50,7 +50,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping([]string{""}), nil}, &reflectorConfig)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -58,9 +58,9 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 	Describe("kubernetes.default service IP remapping", func() {
 		var (
-			kubernetesServiceIPGetter func(ctx context.Context) (string, error)
+			kubernetesServiceIPGetter func(ctx context.Context) ([]string, error)
 
-			output string
+			output []string
 			err    error
 		)
 
@@ -72,7 +72,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			}
 			reflector := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
-					fakeAPIServerRemapping("192.168.200.1"), &networkingv1beta1.Configuration{
+					fakeAPIServerRemapping([]string{"192.168.200.1", "192.168.200.2"}), &networkingv1beta1.Configuration{
 						ObjectMeta: metav1.ObjectMeta{Generation: 1},
 						Spec: networkingv1beta1.ConfigurationSpec{
 							Remote: networkingv1beta1.ClusterConfig{
@@ -106,7 +106,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 		Context("the IP resource is correctly set", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-			It("should return the correct IP address", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
+			It("should return the correct IP address", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })
 
 			When("retrieving again the remapped IP address", func() {
 				JustBeforeEach(func() {
@@ -115,7 +115,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 				// The IPAMClient is configured to return an error if the same translation is requested twice.
 				It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
-				It("should return the same translations", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
+				It("should return the same translations", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })
 			})
 		})
 	})
@@ -145,7 +145,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector = workload.NewPodReflector(nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping([]string{""}), nil}, &reflectorConfig)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).

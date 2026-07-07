@@ -77,8 +77,9 @@ type RemotePodStatusMutator func(remote *corev1.PodStatus)
 // SASecretRetriever defines the function to retrieve the secret associated with a given service account.
 type SASecretRetriever func(string) string
 
-// KubernetesServiceIPGetter defines the function to get the remapped IP associated with the local kubernetes.default service.
-type KubernetesServiceIPGetter func() string
+// KubernetesServiceIPGetter defines the function to get the remapped IP associated with the local kubernetes.default service
+// or its endpointslices.
+type KubernetesServiceIPGetter func() []string
 
 // LocalPod forges the object meta and status of the local pod, given the remote one.
 func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts int32, mutators ...RemotePodStatusMutator) *corev1.Pod {
@@ -604,13 +605,18 @@ func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName, h
 // RemoteHostAliasesAPIServerSupport forges the host aliases to override the IP address associated with the kubernetes.default
 // service to enable offloaded containers to contact back the local API server, instead of the remote one.
 func RemoteHostAliasesAPIServerSupport(aliases []corev1.HostAlias, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
-	address := retriever()
-	if address == "" {
+	addresses := retriever()
+	if len(addresses) == 0 {
 		return aliases
 	}
 
-	return append(aliases, corev1.HostAlias{
-		IP: address, Hostnames: []string{KubernetesAPIService, KubernetesAPIService + ".svc"}})
+	for _, address := range addresses {
+		if address != "" {
+			aliases = append(aliases, corev1.HostAlias{
+				IP: address, Hostnames: []string{KubernetesAPIService, KubernetesAPIService + ".svc"}})
+		}
+	}
+	return aliases
 }
 
 // RemoteTolerations forges the tolerations for a reflected pod.

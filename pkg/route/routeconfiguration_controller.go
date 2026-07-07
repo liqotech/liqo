@@ -34,11 +34,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
+	utilpredicates "github.com/liqotech/liqo/pkg/utils/predicates"
 )
 
 // RouteConfigurationReconciler manage Configuration lifecycle.
@@ -203,10 +203,7 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 		}()
 	}
 
-	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
-	if err != nil {
-		return err
-	}
+	filterByLabelsPredicate := utilpredicates.NewAnyLabelsSetPredicate(r.LabelsSets)
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlRouteConfiguration).
 		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
@@ -215,18 +212,6 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 			ReconciliationTimeout: reconcileTimeout,
 		}).
 		Complete(r)
-}
-
-// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
-func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
-	var err error
-	labelPredicates := make([]predicate.Predicate, len(labelsSets))
-	for i := range labelsSets {
-		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
-			return nil, err
-		}
-	}
-	return predicate.Or(labelPredicates...), nil
 }
 
 func getConditionRef(rcfg *networkingv1beta1.RouteConfiguration, podname string) *networkingv1beta1.RouteConfigurationStatusCondition {

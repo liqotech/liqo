@@ -56,6 +56,9 @@ const (
 	// IPTypeAPIServerProxy is the constant representing an IP of type APIServerProxy.
 	IPTypeAPIServerProxy = "api-server-proxy"
 
+	// IPEndpointSliceNameLabelKey is the label key used to indicate the name of the EndpointSlice from which an IP was created.
+	IPEndpointSliceNameLabelKey = "ipam.liqo.io/endpointslice"
+
 	// NetworkNamespaceLabelKey is the label key used to indicate the namespace of a Network.
 	NetworkNamespaceLabelKey = "ipam.liqo.io/network-namespace"
 	// NetworkNameLabelKey is the label key used to indicate the name of a Network.

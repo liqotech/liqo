@@ -121,17 +121,26 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		DisableIPReflection: cfg.DisableIPReflection,
 		HomeAPIServerHost:   cfg.HomeAPIServerHost,
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
-		KubernetesServiceIPMapper: func(ctx context.Context) (string, error) {
-			ip, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).Get(ctx, consts.IPTypeAPIServer, metav1.GetOptions{})
+		KubernetesServiceIPMapper: func(ctx context.Context) ([]string, error) {
+			ips, err := localLiqoClient.IpamV1alpha1().IPs("").List(ctx, metav1.ListOptions{
+				LabelSelector: consts.IPTypeLabelKey + "=" + consts.IPTypeAPIServer,
+			})
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 
-			if ip.Status.IP == "" {
-				return "", errors.New("no IP mapping found for the remote cluster API server")
+			if len(ips.Items) == 0 {
+				return nil, errors.New("no IP mapping found for the remote cluster API server")
 			}
 
-			return string(ip.Status.IP), nil
+			var result []string
+			for i := range ips.Items {
+				ip := ips.Items[i].Status.IP.String()
+				if ip != "" {
+					result = append(result, ip)
+				}
+			}
+			return result, nil
 		},
 		NetConfiguration: cfg.NetConfiguration,
 	}
