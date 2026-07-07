@@ -35,11 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
+	utilspredicates "github.com/liqotech/liqo/pkg/utils/predicates"
 )
 
 // FirewallConfigurationReconciler manage Configuration lifecycle.
@@ -168,10 +168,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager,
 	enableNftMonitor bool, reconcileTimeout time.Duration) error {
 	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.LabelsSets)
-	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
-	if err != nil {
-		return err
-	}
+	filterByLabelsPredicate := utilspredicates.NewAnyLabelsSetPredicate(r.LabelsSets)
 
 	klog.Infof("nftables monitor enabled: %t", enableNftMonitor)
 	src := make(chan event.GenericEvent)
@@ -188,18 +185,6 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 			ReconciliationTimeout: reconcileTimeout,
 		}).
 		Complete(r)
-}
-
-// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
-func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
-	var err error
-	labelPredicates := make([]predicate.Predicate, len(labelsSets))
-	for i := range labelsSets {
-		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
-			return nil, err
-		}
-	}
-	return predicate.Or(labelPredicates...), nil
 }
 
 func getConditionRef(fwcfg *networkingv1beta1.FirewallConfiguration, podname string) *networkingv1beta1.FirewallConfigurationStatusCondition {

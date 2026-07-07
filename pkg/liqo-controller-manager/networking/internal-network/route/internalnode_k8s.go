@@ -56,7 +56,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 
 	if _, err := resource.CreateOrUpdate(ctx, cl, fwcfg,
 		forgeFirewallConfigurationMutateFunction(internalnode, fwcfg, mark, nodePortSrcIP)); err != nil {
-		return fmt.Errorf("an error occurred while creating or updating the firewall configuration: %w", err)
+		return fmt.Errorf("ensuring firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
 	routecfg := &networkingv1beta1.RouteConfiguration{
@@ -65,7 +65,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 
 	if _, err := resource.CreateOrUpdate(ctx, cl, routecfg,
 		forgeRouteConfigurationMutateFunction(internalnode, routecfg, scheme, mark, nodePortSrcIP)); err != nil {
-		return fmt.Errorf("an error occurred while creating or updating the route configuration: %w", err)
+		return fmt.Errorf("ensuring route configuration %q: %w", routecfg.Name, err)
 	}
 
 	return nil
@@ -80,18 +80,18 @@ func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 		// If the firewall configuration does not exist no needs to clean things up.
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("unable to get firewall configuration: %w", err)
+		return fmt.Errorf("getting firewall configuration %q: %w", configurationNameSvc, err)
 	}
 
 	// We need to remove from the firewall configurations all the rules related to the InternalNode to be remove
 	cleanFirewallConfigurationChains(fwcfg, internalnode)
 	if err := cl.Update(ctx, fwcfg); err != nil {
-		return fmt.Errorf("an error occurred while cleaning the firewall configuration: %w", err)
+		return fmt.Errorf("cleaning firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
 	// If there are no firewall configurations left, delete the resource
 	if err := deleteVoidFwcfg(ctx, cl, fwcfg); err != nil {
-		return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
+		return fmt.Errorf("deleting firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
 	// We don't need to clean routeconfigurations since they have an owner reference on the node.
@@ -101,7 +101,7 @@ func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 func deleteVoidFwcfg(ctx context.Context, cl client.Client, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	if len(fwcfg.Spec.Table.Chains) > 0 && len(fwcfg.Spec.Table.Chains[0].Rules.FilterRules) == 0 {
 		if err := cl.Delete(ctx, fwcfg); err != nil {
-			return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
+			return fmt.Errorf("deleting firewall configuration %q: %w", fwcfg.Name, err)
 		}
 	}
 	return nil
@@ -273,7 +273,7 @@ func enforceRouteConfigurationExtCIDR(ctx context.Context, cl client.Client,
 
 	if _, err := resource.CreateOrUpdate(ctx, cl, routecfg,
 		forgeRouteConfigurationExtCIDRMutateFunction(internalnode, routecfg, configurations, ips, scheme)); err != nil {
-		return fmt.Errorf("an error occurred while creating or updating the route configuration: %w", err)
+		return fmt.Errorf("ensuring route configuration %q: %w", routecfg.Name, err)
 	}
 	return nil
 }

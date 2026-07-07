@@ -39,7 +39,7 @@ import (
 var _ = Describe("Pod forging", func() {
 	Translator := func(input string) string { return input + "-reflected" }
 	SASecretRetriever := func(input string) string { return input + "-secret" }
-	KubernetesServiceIPGetter := func() string { return "k8ssvcaddr" }
+	KubernetesServiceIPGetter := func() []string { return []string{"k8ssvcaddr-1", "k8ssvcaddr-2"} }
 
 	Describe("the LocalPod function", func() {
 		const restarts = 3
@@ -853,9 +853,14 @@ var _ = Describe("Pod forging", func() {
 
 		It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
 		It("should append the alias corresponding to the kubernetes.default service", func() {
-			Expect(output).To(ContainElement(corev1.HostAlias{
-				Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
-			}))
+			ips := KubernetesServiceIPGetter()
+			expectedAliases := []corev1.HostAlias{}
+			for _, ip := range ips {
+				expectedAliases = append(expectedAliases, corev1.HostAlias{
+					Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: ip,
+				})
+			}
+			Expect(output).To(ContainElements(expectedAliases))
 		})
 	})
 

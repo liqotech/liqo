@@ -113,4 +113,6 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerProxyIPRemapping, "enable-api-server-proxy-ip-remapping", true, "Enable the API server proxy IP remapping")
+	flagset.BoolVar(&opts.APIServerIPUseEndpointSlices, "api-server-ip-use-endpointslices", false,
+		"Access the API server from offloaded pods through IP remapped on Kubernetes service endpointslices instead of ClusterIP")
 }

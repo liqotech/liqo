@@ -81,6 +81,7 @@ type Options struct {
 
 	// Cross module
 	EnableAPIServerProxyIPRemapping bool
+	APIServerIPUseEndpointSlices    bool
 }
 
 // NewOptions creates a new Options struct with default values.

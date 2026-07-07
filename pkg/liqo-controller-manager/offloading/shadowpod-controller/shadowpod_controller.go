@@ -197,8 +197,6 @@ func (r *Reconciler) mutatePodSpec(ctx context.Context,
 
 		// Update the HostAliases with the remapped IP.
 		podSpec.HostAliases[i].IP = rIP
-
-		return nil
 	}
 
 	return nil
