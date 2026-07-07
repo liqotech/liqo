@@ -262,14 +262,14 @@ func run(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("unable to start the configuration reconciler: %w", err)
 		}
 
-		if opts.EnableAPIServerIPRemapping {
-			if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
-				return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
-			}
+		if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
+			return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
 		}
 
-		if err := ipamips.EnforceAPIServerProxyIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
-			return fmt.Errorf("unable to enforce the API server proxy IP remapping: %w", err)
+		if opts.EnableAPIServerProxyIPRemapping {
+			if err := ipamips.EnforceAPIServerProxyIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
+				return fmt.Errorf("unable to enforce the API server proxy IP remapping: %w", err)
+			}
 		}
 	}
 

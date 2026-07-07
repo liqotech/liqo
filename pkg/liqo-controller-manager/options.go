@@ -80,7 +80,7 @@ type Options struct {
 	DenyDirectConnections       bool
 
 	// Cross module
-	EnableAPIServerIPRemapping bool
+	EnableAPIServerProxyIPRemapping bool
 }
 
 // NewOptions creates a new Options struct with default values.
