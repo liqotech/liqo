@@ -89,6 +89,9 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.BoolVar(&opts.TrustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
 	flagset.BoolVar(&opts.TLSCompatibilityMode, "tls-compatibility-mode", false,
 		"Enable TLS compatibility mode for client certificates and keys (use RSA instead of Ed25519)")
+	flagset.BoolVar(&opts.DefaultResourceSliceClassEnabled, "default-resource-slice-class-enabled", true,
+		"Enable the built-in default ResourceSlice class. When disabled, the provider denies ResourceSlices "+
+			"that use the \"default\" class, so consumers must use an explicit provider-approved class")
 	flagset.StringVar(&opts.AWSConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")

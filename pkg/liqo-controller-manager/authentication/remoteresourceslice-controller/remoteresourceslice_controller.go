@@ -256,6 +256,17 @@ func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Contex
 			return nil
 		}
 
+		// If the built-in default ResourceSlice class has been administratively disabled on the provider,
+		// deny slices of the default (or empty) class instead of accepting them.
+		if !r.sliceStatusOptions.DefaultResourceSliceClassEnabled {
+			klog.V(4).Infof("ResourceSlice %q denied: the built-in default ResourceSlice class is administratively disabled",
+				client.ObjectKeyFromObject(resourceSlice))
+			denyResourcesWithReason(resourceSlice, r.eventRecorder,
+				"DefaultResourceSliceClassDisabled",
+				"the default ResourceSlice class has been administratively disabled on the provider")
+			return nil
+		}
+
 		// Default class: accept requested resources and set the default values for the resources not specified.
 		findOrDefault := func(resource corev1.ResourceName, val resource.Quantity) resource.Quantity {
 			v, ok := resourceSlice.Spec.Resources[resource]
@@ -419,21 +430,25 @@ func acceptResources(resourceSlice *authv1beta1.ResourceSlice, er record.EventRe
 }
 
 func denyResources(resourceSlice *authv1beta1.ResourceSlice, er record.EventRecorder) {
+	denyResourcesWithReason(resourceSlice, er, "ResourceSliceResourcesDenied", "ResourceSlice resources denied")
+}
+
+func denyResourcesWithReason(resourceSlice *authv1beta1.ResourceSlice, er record.EventRecorder, reason, message string) {
 	switch authentication.EnsureCondition(
 		resourceSlice,
 		authv1beta1.ResourceSliceConditionTypeResources,
 		authv1beta1.ResourceSliceConditionDenied,
-		"ResourceSliceResourcesDenied",
-		"ResourceSlice resources denied",
+		reason,
+		message,
 	) {
 	case controllerutil.OperationResultNone:
 		klog.V(4).Infof("ResourceSlice resources %q already denied", resourceSlice.Name)
 	case controllerutil.OperationResultUpdated:
 		klog.Infof("ResourceSlice resources %q denied", resourceSlice.Name)
-		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesDenied", "ResourceSlice resources updated")
+		er.Event(resourceSlice, corev1.EventTypeNormal, reason, "ResourceSlice resources updated")
 	case controllerutil.OperationResultCreated:
 		klog.Infof("ResourceSlice resources %q denied", resourceSlice.Name)
-		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesDenied", "ResourceSlice resources denied")
+		er.Event(resourceSlice, corev1.EventTypeNormal, reason, "ResourceSlice resources denied")
 	default:
 		return
 	}
