@@ -46,6 +46,10 @@ type GatewayClientSpec struct {
 	// SecretRef specifies the reference to the secret containing configurations.
 	// Leave it empty to let the operator create a new secret.
 	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	// Affinity specifies the scheduling constraints for the gateway client pod.
+	// If set, it overrides the affinity defined in the client template.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // GatewayClientStatus defines the observed state of GatewayClient.

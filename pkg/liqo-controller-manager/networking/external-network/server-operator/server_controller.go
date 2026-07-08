@@ -245,6 +245,11 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 		mergeServiceMetadataField(spec, "annotations", gwServer.Spec.ServiceAnnotations)
 		mergeServiceMetadataField(spec, "labels", gwServer.Spec.ServiceLabels)
 
+		// Merge custom affinity from GatewayServer into the rendered deployment pod spec.
+		if gwServer.Spec.Affinity != nil {
+			mergePodAffinity(spec, gwServer.Spec.Affinity)
+		}
+
 		objChild.Object["spec"] = spec
 		return nil
 	})
@@ -298,6 +303,40 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
 		For(&networkingv1beta1.GatewayServer{}).
 		Complete(r)
+}
+
+// mergePodAffinity sets the affinity in spec.deployment.spec.template.spec.affinity.
+// The affinity from the GatewayServer takes precedence over any affinity defined in the server template.
+func mergePodAffinity(spec interface{}, affinity *corev1.Affinity) {
+	specMap, ok := spec.(map[string]interface{})
+	if !ok {
+		return
+	}
+	deploy, _ := specMap["deployment"].(map[string]interface{})
+	if deploy == nil {
+		deploy = map[string]interface{}{}
+		specMap["deployment"] = deploy
+	}
+	deploySpec, _ := deploy["spec"].(map[string]interface{})
+	if deploySpec == nil {
+		deploySpec = map[string]interface{}{}
+		deploy["spec"] = deploySpec
+	}
+	template, _ := deploySpec["template"].(map[string]interface{})
+	if template == nil {
+		template = map[string]interface{}{}
+		deploySpec["template"] = template
+	}
+	podSpec, _ := template["spec"].(map[string]interface{})
+	if podSpec == nil {
+		podSpec = map[string]interface{}{}
+		template["spec"] = podSpec
+	}
+	converted, err := runtime.DefaultUnstructuredConverter.ToUnstructured(affinity)
+	if err != nil {
+		return
+	}
+	podSpec["affinity"] = converted
 }
 
 // mergeServiceMetadataField merges the given key-value pairs into spec.service.metadata.<field>.

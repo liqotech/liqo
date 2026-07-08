@@ -71,6 +71,10 @@ type GatewayServerSpec struct {
 	// These labels take precedence over any labels defined in the server template.
 	// +optional
 	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
+	// Affinity specifies the scheduling constraints for the gateway server pod.
+	// If set, it overrides the affinity defined in the server template.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // EndpointStatus defines the observed state of the endpoint.

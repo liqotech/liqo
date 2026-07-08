@@ -240,6 +240,12 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 		if err != nil {
 			return fmt.Errorf("unable to render the template spec: %w", err)
 		}
+
+		// Merge custom affinity from GatewayClient into the rendered deployment pod spec.
+		if gwClient.Spec.Affinity != nil {
+			mergePodAffinity(spec, gwClient.Spec.Affinity)
+		}
+
 		objChild.Object["spec"] = spec
 		return nil
 	})
@@ -270,6 +276,40 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 	}
 
 	return nil
+}
+
+// mergePodAffinity sets the affinity in spec.deployment.spec.template.spec.affinity.
+// The affinity from the GatewayClient takes precedence over any affinity defined in the client template.
+func mergePodAffinity(spec interface{}, affinity *corev1.Affinity) {
+	specMap, ok := spec.(map[string]interface{})
+	if !ok {
+		return
+	}
+	deploy, _ := specMap["deployment"].(map[string]interface{})
+	if deploy == nil {
+		deploy = map[string]interface{}{}
+		specMap["deployment"] = deploy
+	}
+	deploySpec, _ := deploy["spec"].(map[string]interface{})
+	if deploySpec == nil {
+		deploySpec = map[string]interface{}{}
+		deploy["spec"] = deploySpec
+	}
+	template, _ := deploySpec["template"].(map[string]interface{})
+	if template == nil {
+		template = map[string]interface{}{}
+		deploySpec["template"] = template
+	}
+	podSpec, _ := template["spec"].(map[string]interface{})
+	if podSpec == nil {
+		podSpec = map[string]interface{}{}
+		template["spec"] = podSpec
+	}
+	converted, err := runtime.DefaultUnstructuredConverter.ToUnstructured(affinity)
+	if err != nil {
+		return
+	}
+	podSpec["affinity"] = converted
 }
 
 // SetupWithManager register the ClientReconciler to the manager.
