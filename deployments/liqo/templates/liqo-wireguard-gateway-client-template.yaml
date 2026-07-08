@@ -42,6 +42,10 @@ spec:
               tolerations:
               {{- toYaml .Values.networking.gatewayTemplates.pod.tolerations | nindent 14 }}
               {{- end }}
+              {{- with .Values.networking.gatewayTemplates.pod.affinity }}
+              affinity:
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
