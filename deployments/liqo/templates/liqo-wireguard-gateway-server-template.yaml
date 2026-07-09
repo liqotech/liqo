@@ -58,6 +58,14 @@ spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
               {{- include "liqo.imagePullSecrets" . | nindent 14 }}
+              {{- if .Values.networking.gatewayTemplates.pod.nodeSelector }}
+              nodeSelector:
+              {{- toYaml .Values.networking.gatewayTemplates.pod.nodeSelector | nindent 16 }}
+              {{- end }}
+              {{- if .Values.networking.gatewayTemplates.pod.affinity }}
+              affinity:
+              {{- toYaml .Values.networking.gatewayTemplates.pod.affinity | nindent 16 }}
+              {{- end }}
               {{- if .Values.networking.gatewayTemplates.pod.tolerations }}
               tolerations:
               {{- toYaml .Values.networking.gatewayTemplates.pod.tolerations | nindent 14 }}
