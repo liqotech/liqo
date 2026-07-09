@@ -117,6 +117,10 @@ networking:
       priorityClassName: ""
       # -- Additional tolerations for gateway pods
       tolerations: []
+      # -- NodeSelector for the gateway pods.
+      nodeSelector: {}
+      # -- Affinity for the gateway pods.
+      affinity: {}
     container:
       gateway:
         image:
