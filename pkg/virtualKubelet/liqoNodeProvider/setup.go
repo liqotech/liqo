@@ -39,6 +39,8 @@ const (
 	labelNodeExcludeBalancersAlpha = "alpha.service-controller.kubernetes.io/exclude-balancer"
 	roleLabelKey                   = "kubernetes.io/role"
 	roleLabelValue                 = "agent"
+	typeLabelKey                   = "type"
+	virtualKubeletType             = "virtual-kubelet"
 )
 
 // InitConfig is the config passed to initialize the LiqoNodeProvider.
@@ -101,7 +103,10 @@ func node(cfg *InitConfig) *corev1.Node {
 		corev1.LabelOSStable:   strings.ToLower(linuxos),
 		corev1.LabelArchStable: architecture,
 
-		liqoconst.TypeLabel:       liqoconst.TypeNode,
+		liqoconst.TypeLabel: liqoconst.TypeNode,
+		// Standard label for virtual-kubelet nodes. This is especially useful for
+		// the K8s node autoscaler. When this label is present, the autoscaler skips provider ID parsing.
+		typeLabelKey:              virtualKubeletType,
 		liqoconst.RemoteClusterID: string(cfg.RemoteClusterID),
 
 		corev1.LabelNodeExcludeBalancers: strconv.FormatBool(true),
