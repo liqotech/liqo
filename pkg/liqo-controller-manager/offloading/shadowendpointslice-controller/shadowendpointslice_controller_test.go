@@ -235,6 +235,37 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		klog.Flush()
 	})
 
+	When("network configuration changes and shadowendpointslices exist", func() {
+		BeforeEach(func() {
+			testShadowEps = newShadowEps(true)
+			testFc = newFc(true, true)
+			// start with non-remapped config
+			testConf = newConfiguration(false)
+			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
+		})
+
+		It("should use updated network config for endpoint remapping", func() {
+			// first reconcile with non-remapped config — addresses unchanged
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.10.0.1"}))
+
+			// update config to remapped CIDRs and reconcile again
+			remappedConf := networkingv1beta1.Configuration{}
+			Expect(fakeClient.Get(ctx, client.ObjectKey{Name: testConf.Name, Namespace: shadowEpsNamespace}, &remappedConf)).To(Succeed())
+			remappedConf.Status.Remote = newConfiguration(true).Status.Remote
+			Expect(fakeClient.Update(ctx, &remappedConf)).To(Succeed())
+
+			r := &Reconciler{Client: fakeClient, Scheme: scheme.Scheme}
+			_, err := r.Reconcile(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			Expect(eps.Endpoints[0].Addresses[0]).To(HavePrefix("10.30."))
+		})
+	})
+
 	When("shadowendpointslice is not found", func() {
 		BeforeEach(func() {
 			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
@@ -629,6 +660,219 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.40.0.1"}))
 				Expect(eps.Endpoints[1].Addresses).To(Equal([]string{"10.30.0.1"}))
 			})
+		})
+	})
+})
+
+var _ = Describe("ShadowEndpointSlice Predicates", func() {
+	const (
+		shadowEpsNamespace string = "default"
+		testFcID           string = "test-fc-id"
+	)
+
+	var (
+		r      *Reconciler
+		ctx    context.Context
+		buffer *bytes.Buffer
+
+		newFc = func(networkReady, apiServerReady bool) *liqov1beta1.ForeignCluster {
+			networkStatus := liqov1beta1.ConditionStatusEstablished
+			if !networkReady {
+				networkStatus = liqov1beta1.ConditionStatusError
+			}
+
+			apiServerStatus := liqov1beta1.ConditionStatusEstablished
+			if !apiServerReady {
+				apiServerStatus = liqov1beta1.ConditionStatusError
+			}
+
+			return &liqov1beta1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: testFcID,
+					Labels: map[string]string{
+						consts.RemoteClusterID: testFcID,
+					},
+				},
+				Spec: liqov1beta1.ForeignClusterSpec{
+					ClusterID: liqov1beta1.ClusterID(testFcID),
+				},
+				Status: liqov1beta1.ForeignClusterStatus{
+					Modules: liqov1beta1.Modules{
+						Networking: liqov1beta1.Module{
+							Enabled: true,
+							Conditions: []liqov1beta1.Condition{{
+								Type:   liqov1beta1.NetworkConnectionStatusCondition,
+								Status: networkStatus,
+							}},
+						},
+					},
+					Conditions: []liqov1beta1.Condition{{
+						Type:   liqov1beta1.APIServerStatusCondition,
+						Status: apiServerStatus,
+					}},
+				},
+			}
+		}
+
+		newConfiguration = func(remapped bool) *networkingv1beta1.Configuration {
+			var remappedPodCIDRs, remappedExternalCIDRs []string
+			if remapped {
+				remappedPodCIDRs = []string{"10.30.0.0/16", "10.50.0.0/16"}
+				remappedExternalCIDRs = []string{"10.40.0.0/16", "10.60.0.0/16"}
+			} else {
+				remappedPodCIDRs = []string{"10.10.0.0/16", "10.11.0.0/16"}
+				remappedExternalCIDRs = []string{"10.20.0.0/16", "10.21.0.0/16"}
+			}
+
+			return &networkingv1beta1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test",
+					Namespace:  "default",
+					Generation: 1,
+					Labels: map[string]string{
+						consts.RemoteClusterID: testFcID,
+					},
+				},
+				Spec: networkingv1beta1.ConfigurationSpec{
+					Remote: networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod:      cidrutils.FromStrings([]string{"10.10.0.0/16", "10.11.0.0/16"}),
+							External: cidrutils.FromStrings([]string{"10.20.0.0/16", "10.21.0.0/16"}),
+						},
+					},
+				},
+				Status: networkingv1beta1.ConfigurationStatus{
+					Conditions: []metav1.Condition{{
+						Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
+						Status:             metav1.ConditionTrue,
+						Reason:             "NetworkCIDRsConfigured",
+						Message:            "All network CIDRs are configured",
+						ObservedGeneration: 1,
+						LastTransitionTime: metav1.Now(),
+					}},
+					Remote: &networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod:      cidrutils.FromStrings(remappedPodCIDRs),
+							External: cidrutils.FromStrings(remappedExternalCIDRs),
+						},
+					},
+				},
+			}
+		}
+	)
+
+	BeforeEach(func() {
+		ctx = context.TODO()
+		buffer = &bytes.Buffer{}
+		klog.SetOutput(buffer)
+		r = &Reconciler{Scheme: scheme.Scheme}
+	})
+
+	When("validateNetworkConfigOnCreate predicate", func() {
+		It("should return true when CIDRs are configured", func() {
+			nc := newConfiguration(false)
+			Expect(r.validateNetworkConfigOnCreate(nc)).To(BeTrue())
+		})
+
+		It("should return false when CIDRs are not configured", func() {
+			nc := &networkingv1beta1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-nc",
+					Namespace: shadowEpsNamespace,
+				},
+				Status: networkingv1beta1.ConfigurationStatus{
+					Conditions: []metav1.Condition{{
+						Type:   networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
+						Status: metav1.ConditionFalse,
+					}},
+				},
+			}
+			Expect(r.validateNetworkConfigOnCreate(nc)).To(BeFalse())
+		})
+
+		It("should return false when object is not a valid Configuration", func() {
+			fc := newFc(true, true)
+			Expect(r.validateNetworkConfigOnCreate(fc)).To(BeFalse())
+		})
+	})
+
+	When("validateNetworkConfigOnUpdate predicate", func() {
+		It("should return true when pod CIDRs changed", func() {
+			oldNC := newConfiguration(false)
+			newNC := newConfiguration(true) // different remapped CIDRs
+			Expect(r.validateNetworkConfigOnUpdate(newNC, oldNC)).To(BeTrue())
+		})
+
+		It("should return false when CIDRs are unchanged", func() {
+			oldNC := newConfiguration(false)
+			newNC := newConfiguration(false) // identical CIDRs
+			Expect(r.validateNetworkConfigOnUpdate(newNC, oldNC)).To(BeFalse())
+		})
+
+		It("should return false when old object is not a valid Configuration", func() {
+			fc := newFc(true, true)
+			newNC := newConfiguration(false)
+			Expect(r.validateNetworkConfigOnUpdate(newNC, fc)).To(BeFalse())
+		})
+
+		It("should return false when new object is not a valid Configuration", func() {
+			oldNC := newConfiguration(false)
+			fc := newFc(true, true)
+			Expect(r.validateNetworkConfigOnUpdate(fc, oldNC)).To(BeFalse())
+		})
+	})
+
+	When("validateForeignClusterOnUpdate predicate", func() {
+		It("should return true when network status changes from not ready to ready", func() {
+			oldFc := newFc(false, true)
+			newFc := newFc(true, true)
+			Expect(r.validateForeignClusterOnUpdate(newFc, oldFc)).To(BeTrue())
+		})
+
+		It("should return true when network status changes from ready to not ready", func() {
+			oldFc := newFc(true, true)
+			newFc := newFc(false, true)
+			Expect(r.validateForeignClusterOnUpdate(newFc, oldFc)).To(BeTrue())
+		})
+
+		It("should return true when API server status changes", func() {
+			oldFc := newFc(true, true)
+			newFc := newFc(true, false)
+			Expect(r.validateForeignClusterOnUpdate(newFc, oldFc)).To(BeTrue())
+		})
+
+		It("should return false when neither network nor API server status changed", func() {
+			oldFc := newFc(true, true)
+			newFc := newFc(true, true)
+			Expect(r.validateForeignClusterOnUpdate(newFc, oldFc)).To(BeFalse())
+		})
+
+		It("should return false when old object is not a ForeignCluster", func() {
+			nc := newConfiguration(false)
+			newFc := newFc(true, true)
+			Expect(r.validateForeignClusterOnUpdate(newFc, nc)).To(BeFalse())
+		})
+
+		It("should return false when new object is not a ForeignCluster", func() {
+			oldFc := newFc(true, true)
+			nc := newConfiguration(false)
+			Expect(r.validateForeignClusterOnUpdate(nc, oldFc)).To(BeFalse())
+		})
+	})
+
+	When("network configuration has no RemoteClusterID label", func() {
+		It("getShadowEndpointSlicesFromNetworkConfig should return nil and log error", func() {
+			testConf := &networkingv1beta1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: shadowEpsNamespace,
+				},
+			}
+
+			result := r.getShadowEndpointSlicesFromNetworkConfig(ctx, testConf)
+			Expect(result).To(BeNil())
+			klog.Flush()
+			Expect(buffer.String()).To(ContainSubstring("has no label"))
 		})
 	})
 })
