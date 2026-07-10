@@ -124,10 +124,10 @@ formatters:
     - goimports
   settings:
     gci:
-        sections:
-        - standard                          # Captures all standard packages if they do not match another section.
-        - default                           # Contains all imports that could not be matched to another section type.
-        - prefix(github.com/liqotech/liqo)  # Groups all imports with the specified Prefix.
+      sections:
+        - standard # Captures all standard packages if they do not match another section.
+        - default # Contains all imports that could not be matched to another section type.
+        - prefix(github.com/liqotech/liqo) # Groups all imports with the specified Prefix.
     goimports:
       local-prefixes:
         - github.com/liqotech/liqo

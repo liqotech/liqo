@@ -79,6 +79,8 @@ networking:
     - apiVersion: networking.liqo.io/v1beta1
       resource: wggatewayclients
   gateway:
+    # -- Enable watching of custom GatewayTemplate CRDs.
+    gatewayTemplateWatchEnabled: true
     # -- Enable the TCP MSS clamping on tunnel interfaces.
     # Tunneling technologies introduce extra overhead that reduces the MTU, causing standard-sized Internet
     # packets to exceed the tunnel's capacity and be dropped. TCP MSS Clamping resolves this by intercepting

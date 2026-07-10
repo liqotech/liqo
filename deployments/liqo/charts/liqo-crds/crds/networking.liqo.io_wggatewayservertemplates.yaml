@@ -4,6 +4,8 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
+  labels:
+    networking.liqo.io/gatewaytemplate: "true"
   name: wggatewayservertemplates.networking.liqo.io
 spec:
   group: networking.liqo.io

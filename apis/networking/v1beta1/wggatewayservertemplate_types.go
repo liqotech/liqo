@@ -46,6 +46,7 @@ type WgGatewayServerTemplateSpec struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo,shortName=wggst;wgst
+// +kubebuilder:metadata:labels="networking.liqo.io/gatewaytemplate=true"
 
 // WgGatewayServerTemplate contains a template for a wireguard gateway server.
 type WgGatewayServerTemplate struct {

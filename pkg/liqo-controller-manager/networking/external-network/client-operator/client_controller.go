@@ -31,6 +31,8 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -83,6 +85,7 @@ func NewClientReconciler(cl client.Client, dynClient dynamic.Interface,
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclients/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclients/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayclienttemplates,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list
 
 // Reconcile manage GatewayClient lifecycle.
 func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -273,7 +276,7 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 }
 
 // SetupWithManager register the ClientReconciler to the manager.
-func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager, templateGVKs []schema.GroupVersionKind) error {
 	ownerEnqueuer := enutils.NewOwnerEnqueuer(networkingv1beta1.GatewayClientKind)
 	factorySource := dynamicutils.NewFactorySource(r.Factory)
 
@@ -285,8 +288,37 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		factorySource.ForResource(gvr)
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayClientExternal).
+	builder := ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayClientExternal).
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
-		For(&networkingv1beta1.GatewayClient{}).
-		Complete(r)
+		For(&networkingv1beta1.GatewayClient{})
+
+	enutils.WatchByGVKs(builder, templateGVKs, forgeGWKMapFunc(r.Client))
+
+	return builder.Complete(r)
+}
+
+func forgeGWKMapFunc(cl client.Client) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		var gwClientList networkingv1beta1.GatewayClientList
+		if err := cl.List(ctx, &gwClientList); err != nil {
+			klog.Errorf("Unable to list GatewayClients: %s", err)
+			return nil
+		}
+
+		for i := range gwClientList.Items {
+			gwClient := &gwClientList.Items[i]
+			gwClientTemplateRef := gwClient.Spec.ClientTemplateRef
+			if gwClientTemplateRef.Kind == obj.GetObjectKind().GroupVersionKind().Kind &&
+				gwClientTemplateRef.APIVersion == obj.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
+				gwClientTemplateRef.Name == obj.GetName() {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(gwClient),
+				})
+			}
+		}
+
+		return requests
+	}
 }
