@@ -15,32 +15,41 @@
 package remapping
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/liqotech/liqo/pkg/firewall"
 )
 
-// ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller
-// to reconcile only resources related to a single gateway.
-func ForgeFirewallTargetLabels(remoteID string) map[string]string {
-	return map[string]string{
+func TestForgeFirewallTargetLabels(t *testing.T) {
+	got := ForgeFirewallTargetLabels("cluster-x")
+	want := map[string]string{
 		firewall.FirewallCategoryTargetKey: firewall.FirewallCategoryTargetValueGw,
-		firewall.FirewallUniqueTargetKey:   remoteID,
+		firewall.FirewallUniqueTargetKey:   "cluster-x",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ForgeFirewallTargetLabels(cluster-x) = %v, want %v", got, want)
 	}
 }
 
-// ForgeFirewallTargetLabelsIPMappingGw returns the labels used by the firewallconfiguration
-// controller to reconcile only resources related to the IP mapping.
-func ForgeFirewallTargetLabelsIPMappingGw() map[string]string {
-	return map[string]string{
+func TestForgeFirewallTargetLabelsIPMappingGw(t *testing.T) {
+	got := ForgeFirewallTargetLabelsIPMappingGw()
+	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    firewall.FirewallCategoryTargetValueGw,
 		firewall.FirewallSubCategoryTargetKey: firewall.FirewallSubCategoryTargetValueIPMapping,
 	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ForgeFirewallTargetLabelsIPMappingGw() = %v, want %v", got, want)
+	}
 }
 
-// ForgeFirewallTargetLabelsIPMappingFabric returns the labels used by the firewallconfiguration
-// controller to reconcile only resources related to the IP mapping.
-func ForgeFirewallTargetLabelsIPMappingFabric() map[string]string {
-	return map[string]string{
+func TestForgeFirewallTargetLabelsIPMappingFabric(t *testing.T) {
+	got := ForgeFirewallTargetLabelsIPMappingFabric()
+	want := map[string]string{
 		firewall.FirewallCategoryTargetKey:    firewall.FirewallCategoryTargetValueFabric,
 		firewall.FirewallSubCategoryTargetKey: firewall.FirewallSubCategoryTargetValueIPMapping,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ForgeFirewallTargetLabelsIPMappingFabric() = %v, want %v", got, want)
 	}
 }

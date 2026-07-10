@@ -169,6 +169,15 @@ Pre-delete hook Annotations
 {{- end }}
 
 {{/*
+Post-delete hook Annotations
+*/}}
+{{- define "liqo.postDeleteAnnotations" -}}
+"helm.sh/hook": post-delete
+"helm.sh/hook-weight": "-5"
+"helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+{{- end }}
+
+{{/*
 Concatenates a values dictionary into a string in the form "--commandName=key1=val1,key2=val2"
 */}}
 {{- define "liqo.concatenateMap" -}}

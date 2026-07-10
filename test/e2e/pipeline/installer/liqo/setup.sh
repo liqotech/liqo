@@ -18,18 +18,18 @@
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 # AZ_SUBSCRIPTION_ID    -> the ID of the Azure subscription to use (only for AKS)
 
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 error() {
-   local sourcefile=$1
-   local lineno=$2
-   echo "An error occurred at $sourcefile:$lineno."
+  local sourcefile=$1
+  local lineno=$2
+  echo "An error occurred at $sourcefile:$lineno."
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 # shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "${SCRIPT_DIR}/../../utils.sh"
@@ -44,17 +44,17 @@ install_helm "${OS}" "${ARCH}"
 function get_cluster_labels() {
   case $1 in
   1)
-  echo "provider=Azure,region=A"
-  ;;
+    echo "provider=Azure,region=A"
+    ;;
   2)
-  echo "provider=AWS,region=B"
-  ;;
+    echo "provider=AWS,region=B"
+    ;;
   3)
-  echo "provider=GKE,region=C"
-  ;;
+    echo "provider=GKE,region=C"
+    ;;
   4)
-  echo "provider=GKE,region=D"
-  ;;
+    echo "provider=GKE,region=D"
+    ;;
   esac
 }
 
@@ -63,25 +63,24 @@ LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
-export HA_REPLICAS=2
+export HA_REPLICAS=1
 
-for i in $(seq 1 "${CLUSTER_NUMBER}");
-do
+for i in $(seq 1 "${CLUSTER_NUMBER}"); do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   CLUSTER_LABELS="$(get_cluster_labels "${i}")"
   CLUSTER_NAME=$(forge_clustername "${i}")
-  
+
   if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
-		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
-		export POD_CIDR="10.$((i * 10)).0.0/16"
-	fi
+    # this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
+    export POD_CIDR="10.$((i * 10)).0.0/16"
+  fi
 
   COMMON_ARGS=(--cluster-id "${CLUSTER_NAME}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set metrics.enabled=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
-  
+
   if [[ "${INFRA}" == "k3s" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
   fi
@@ -104,20 +103,20 @@ do
     fi
     set -u
   fi
-  
+
   if [[ "${INFRA}" == "aks" ]]; then
     AKS_RESOURCE_GROUP="liqo${i}"
     COMMON_ARGS=("${COMMON_ARGS[@]}" --subscription-id "${AZ_SUBSCRIPTION_ID}" --resource-group-name "${AKS_RESOURCE_GROUP}" --resource-name "${CLUSTER_NAME}")
   fi
 
   if [[ "${INFRA}" == "gke" ]]; then
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --project-id "${GCLOUD_PROJECT_ID}" --zone "${GKE_ZONES[$i-1]}" --credentials-path "${BINDIR}/gke_key_file.json")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --project-id "${GCLOUD_PROJECT_ID}" --zone "${GKE_ZONES[$i - 1]}" --credentials-path "${BINDIR}/gke_key_file.json")
   fi
 
   if [[ "${INFRA}" == "kubeadm" ]]; then
     LIQO_PROVIDER="kubeadm"
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.gatewayTemplates.replicas=$HA_REPLICAS" )
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "ipam.internal.replicas=$HA_REPLICAS" )
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.gatewayTemplates.replicas=$HA_REPLICAS")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "ipam.internal.replicas=$HA_REPLICAS")
   else
     LIQO_PROVIDER="${INFRA}"
   fi
@@ -129,10 +128,9 @@ do
   else
     "${LIQOCTL}" install "${LIQO_PROVIDER}" "${COMMON_ARGS[@]}"
   fi
-done;
+done
 
-for i in $(seq 1 "${CLUSTER_NUMBER}");
-do
+for i in $(seq 1 "${CLUSTER_NUMBER}"); do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   "${KUBECTL}" wait --for=condition=Ready pods --all -n liqo
-done;
+done

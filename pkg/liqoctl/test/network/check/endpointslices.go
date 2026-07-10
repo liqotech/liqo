@@ -51,7 +51,7 @@ func ForgePodTargets(ctx context.Context, cl *client.Client, totalReplicas int32
 func ForgePodTargetForProvider(ctx context.Context, cl *client.Client, name string, totalReplicas int32, target Targets) error {
 	eps := discoveryv1.EndpointSliceList{}
 
-	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if err := wait.PollUntilContextCancel(timeout, 5*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		if err := cl.Providers[name].List(ctx, &eps,
@@ -89,7 +89,7 @@ func ForgePodTargetForProvider(ctx context.Context, cl *client.Client, name stri
 func ForgePodTargetForConsumer(ctx context.Context, cl *client.Client, totalReplicas int32, target Targets) error {
 	eps := discoveryv1.EndpointSliceList{}
 
-	timeout, cancel := context.WithTimeout(ctx, 60*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if err := wait.PollUntilContextCancel(timeout, 5*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		if err := cl.Consumer.List(ctx, &eps,

@@ -21,4 +21,12 @@ const (
 	FirewallSubCategoryTargetKey = "networking.liqo.io/firewall-subcategory"
 	// FirewallUniqueTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a single component.
 	FirewallUniqueTargetKey = "networking.liqo.io/firewall-unique"
+
+	// FirewallCategoryTargetValueGw is the category value used to target gateway entities.
+	FirewallCategoryTargetValueGw = "gateway"
+	// FirewallCategoryTargetValueFabric is the category value used to target fabric node entities.
+	FirewallCategoryTargetValueFabric = "fabric"
+	// FirewallSubCategoryTargetValueIPMapping is the value used by the firewallconfiguration controller
+	// to reconcile only resources related to the IP mapping.
+	FirewallSubCategoryTargetValueIPMapping = "ip-mapping"
 )
