@@ -51,6 +51,7 @@ type Options struct {
 	WgGatewayClientClusterRoleName string
 	FabricFullMasqueradeEnabled    bool
 	GwmasqbypassEnabled            bool
+	GatewayTemplateWatchEnabled    bool
 	NetworkWorkers                 int
 	IPWorkers                      int
 	GenevePort                     uint16

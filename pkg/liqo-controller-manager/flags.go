@@ -72,6 +72,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"Enable the full masquerade on the fabric network")
 	flagset.BoolVar(&opts.GwmasqbypassEnabled, "gateway-masquerade-bypass-enabled", false,
 		"Enable the gateway masquerade bypass")
+	flagset.BoolVar(&opts.GatewayTemplateWatchEnabled, "gateway-template-watch-enabled", true,
+		"Enable watching of custom GatewayTemplate CRDs")
 	flagset.IntVar(&opts.NetworkWorkers, "network-ctrl-workers", 1,
 		"The number of workers used to reconcile Network resources.")
 	flagset.IntVar(&opts.IPWorkers, "ip-ctrl-workers", 1,

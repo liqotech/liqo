@@ -31,6 +31,8 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -83,6 +85,7 @@ func NewServerReconciler(cl client.Client, dynClient dynamic.Interface,
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayservers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=wggatewayservertemplates,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list
 
 // Reconcile manage GatewayServer lifecycle.
 func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -282,7 +285,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 }
 
 // SetupWithManager register the ServerReconciler to the manager.
-func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager, templateGVKs []schema.GroupVersionKind) error {
 	ownerEnqueuer := enutils.NewOwnerEnqueuer(networkingv1beta1.GatewayServerKind)
 	factorySource := dynamicutils.NewFactorySource(r.Factory)
 
@@ -294,10 +297,39 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		factorySource.ForResource(gvr)
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayServerExternal).
+	builder := ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayServerExternal).
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
-		For(&networkingv1beta1.GatewayServer{}).
-		Complete(r)
+		For(&networkingv1beta1.GatewayServer{})
+
+	enutils.WatchByGVKs(builder, templateGVKs, forgeGWKMapFunc(r.Client))
+
+	return builder.Complete(r)
+}
+
+func forgeGWKMapFunc(cl client.Client) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		var gwServerList networkingv1beta1.GatewayServerList
+		if err := cl.List(ctx, &gwServerList); err != nil {
+			klog.Errorf("Unable to list GatewayServers: %s", err)
+			return nil
+		}
+
+		for i := range gwServerList.Items {
+			gwServer := &gwServerList.Items[i]
+			gwServerTemplateRef := gwServer.Spec.ServerTemplateRef
+			if gwServerTemplateRef.Kind == obj.GetObjectKind().GroupVersionKind().Kind &&
+				gwServerTemplateRef.APIVersion == obj.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
+				gwServerTemplateRef.Name == obj.GetName() {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(gwServer),
+				})
+			}
+		}
+
+		return requests
+	}
 }
 
 // mergeServiceMetadataField merges the given key-value pairs into spec.service.metadata.<field>.
