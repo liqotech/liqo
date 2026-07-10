@@ -15,6 +15,8 @@
 package utils
 
 import (
+	"slices"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,4 +47,19 @@ func AreConfigurationNetworkCIDRsConfiguredPredicate() predicate.Predicate {
 		}
 		return AreConfigurationNetworkCIDRsConfigured(cfg)
 	})
+}
+
+// AreConfigurationNetworkCIDRsEqual reports whether the two Network Configuration objects have equal network CIDRs.
+func AreConfigurationNetworkCIDRsEqual(cfg1, cfg2 *networkingv1beta1.Configuration) bool {
+	if !AreConfigurationNetworkCIDRsConfigured(cfg1) || !AreConfigurationNetworkCIDRsConfigured(cfg2) {
+		return false
+	}
+	if !slices.Equal(cfg1.Status.Remote.CIDR.External, cfg2.Status.Remote.CIDR.External) {
+		return false
+	}
+	if !slices.Equal(cfg1.Status.Remote.CIDR.Pod, cfg2.Status.Remote.CIDR.Pod) {
+		return false
+	}
+
+	return true
 }
