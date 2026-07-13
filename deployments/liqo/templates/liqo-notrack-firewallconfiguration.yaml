@@ -1,4 +1,4 @@
-{{- if and .Values.networking.enabled .Values.networking.fabric.config.notrack.enabled }}
+{{- if and .Values.networking.enabled .Values.networking.notrack.enabled }}
 {{- $genevePort := .Values.networking.genevePort | toString }}
 {{- range list
   (dict "name" "fabric-notrack" "category" "fabric" "subcategory" "all-nodes")
@@ -32,7 +32,6 @@ spec:
                 - op: eq
                   proto:
                     value: udp
-                - op: eq
                   port:
                     position: dst
                     value: {{ $genevePort | quote }}
@@ -43,7 +42,6 @@ spec:
                 - op: eq
                   proto:
                     value: udp
-                - op: eq
                   port:
                     position: src
                     value: {{ $genevePort | quote }}
@@ -61,7 +59,6 @@ spec:
                 - op: eq
                   proto:
                     value: udp
-                - op: eq
                   port:
                     position: dst
                     value: {{ $genevePort | quote }}
@@ -72,7 +69,6 @@ spec:
                 - op: eq
                   proto:
                     value: udp
-                - op: eq
                   port:
                     position: src
                     value: {{ $genevePort | quote }}

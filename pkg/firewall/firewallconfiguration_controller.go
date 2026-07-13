@@ -69,7 +69,7 @@ func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, pod
 
 	conntrackClient, err := newConntrackConn()
 	if err != nil {
-		klog.Warningf("unable to create conntrack connection: %v", err)
+		return nil, fmt.Errorf("unable to create conntrack connection: %w", err)
 	}
 
 	return &FirewallConfigurationReconciler{

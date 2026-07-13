@@ -81,7 +81,7 @@ func (r *FirewallConfigurationReconciler) flushConntrackForNotrackRules(ctx cont
 	deleted := 0
 	for i := range flows {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return fmt.Errorf("context canceled while deleting conntrack flows: %w", ctx.Err())
 		}
 		if !flowMatchesNotrackRules(&flows[i], notrackRules) {
 			continue
@@ -92,8 +92,10 @@ func (r *FirewallConfigurationReconciler) flushConntrackForNotrackRules(ctx cont
 		deleted++
 	}
 
-	klog.Infof("Deleted %d conntrack flows matching notrack rules in firewallconfiguration %s/%s",
-		deleted, fwcfg.Namespace, fwcfg.Name)
+	if deleted > 0 {
+		klog.Infof("Deleted %d conntrack flows matching notrack rules in firewallconfiguration %s/%s",
+			deleted, fwcfg.Namespace, fwcfg.Name)
+	}
 
 	return nil
 }
@@ -148,17 +150,17 @@ func tupleMatchesRule(tuple *conntrack.Tuple, rule *firewallapi.FilterRule) bool
 func matchSatisfiesRule(match *firewallapi.Match, tuple *conntrack.Tuple) bool {
 	matched := true
 
-	switch {
-	case match.IP != nil:
-		matched = matchIP(tuple, match.IP)
-	case match.Port != nil:
-		matched = matchPort(tuple, match.Port)
-	case match.Proto != nil:
-		matched = matchProto(tuple, match.Proto)
-	case match.Dev != nil:
-		// Conntrack flows do not carry ingress/egress device information.
-		return true
+	if match.IP != nil {
+		matched = matched && matchIP(tuple, match.IP)
 	}
+	if match.Port != nil {
+		matched = matched && matchPort(tuple, match.Port)
+	}
+	if match.Proto != nil {
+		matched = matched && matchProto(tuple, match.Proto)
+	}
+	// Dev matches are ignored: conntrack flows do not carry ingress/egress
+	// device information, so they cannot change the result.
 
 	if match.Op == firewallapi.MatchOperationNeq {
 		return !matched
