@@ -65,7 +65,7 @@ networking:
   # When enabled, UDP traffic on the geneve port is exempted from connection tracking,
   # which reduces overhead and prevents the conntrack table from being flooded by tunnel traffic.
   notrack:
-    enabled: false
+    enabled: true
   # -- Set the list of resources that implement the GatewayServer
   serverResources:
     - apiVersion: networking.liqo.io/v1beta1
