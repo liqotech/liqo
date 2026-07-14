@@ -36,6 +36,9 @@ const (
 	// ActionReject is the action to be applied to the rule.
 	// ActionReject reject the packet with response.
 	ActionReject FilterAction = "reject"
+	// ActionNotrack is the action to be applied to the rule.
+	// ActionNotrack disables connection tracking for the matched packet.
+	ActionNotrack FilterAction = "notrack"
 )
 
 // FilterRule is a rule to be applied to a filter chain.
@@ -50,7 +53,7 @@ type FilterRule struct {
 	// They can be multiple and they are applied with an AND operator.
 	Match []Match `json:"match"`
 	// Action is the action to be applied to the rule.
-	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp;accept;drop;reject
+	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp;accept;drop;reject;notrack
 	Action FilterAction `json:"action"`
 	// Value is the value to be used for the action.
 	Value *string `json:"value,omitempty"`

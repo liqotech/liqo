@@ -22,20 +22,29 @@ import (
 	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
-func addRules(nftconn *nftables.Conn, chain *firewallapi.Chain, nftchain *nftables.Chain) error {
+func addRules(nftconn *nftables.Conn, chain *firewallapi.Chain, nftchain *nftables.Chain) (bool, error) {
+	notrackApplied := false
 	apirules := FromChainToRulesArray(chain)
 	nftrules, err := nftconn.GetRules(nftchain.Table, nftchain)
 	if err != nil {
-		return err
+		return false, err
 	}
 	for i := range apirules {
 		if exist := existRule(nftrules, apirules[i]); !exist {
 			if err := apirules[i].Add(nftconn, nftchain); err != nil {
-				return err
+				return false, err
+			}
+			if isNotrackRule(apirules[i]) {
+				notrackApplied = true
 			}
 		}
 	}
-	return nil
+	return notrackApplied, nil
+}
+
+func isNotrackRule(rule firewallutils.Rule) bool {
+	fr, ok := rule.(*firewallutils.FilterRuleWrapper)
+	return ok && fr.Action == firewallapi.ActionNotrack
 }
 
 func existRule(nftrules []*nftables.Rule, rule firewallutils.Rule) bool {
