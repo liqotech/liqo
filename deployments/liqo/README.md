@@ -141,7 +141,7 @@
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
 | networking.gatewayTemplates.wireguard.preserveClientEndpoint | bool | `true` | Preserve the existing peer endpoint when configuring the server-side WireGuard device. This preserves the discovered endpoint across PublicKey reconciliations. |
 | networking.genevePort | int | `6091` | The port used by the geneve tunnels. |
-| networking.notrack | object | `{"enabled":true}` | Enable/Disable the creation of the NOTRACK firewallconfiguration for the geneve tunnel traffic. When enabled, UDP traffic on the geneve port is exempted from connection tracking, which reduces overhead and prevents the conntrack table from being flooded by tunnel traffic. |
+| networking.notrack | object | `{"enabled":false}` | Enable/Disable the creation of the NOTRACK firewallconfiguration for the geneve tunnel traffic. When enabled, UDP traffic on the geneve port is exempted from connection tracking, which reduces overhead and prevents the conntrack table from being flooded by tunnel traffic. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | offloading.createNode | bool | `true` | Enable/Disable the creation of a k8s node for each VirtualNode. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode by setting the "createNode" field in the resource Spec. |

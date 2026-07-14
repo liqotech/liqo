@@ -22,18 +22,20 @@ import (
 	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
-func addChains(nftConn *nftables.Conn, chains []firewallapi.Chain, table *nftables.Table) error {
-	var err error
+func addChains(nftConn *nftables.Conn, chains []firewallapi.Chain, table *nftables.Table) (bool, error) {
+	notrackAppliedTotal := false
 	for i := range chains {
-		var nftchain *nftables.Chain
-		if nftchain, err = addChain(nftConn, &chains[i], table); err != nil {
-			return err
+		nftchain, err := addChain(nftConn, &chains[i], table)
+		if err != nil {
+			return false, err
 		}
-		if err = addRules(nftConn, &chains[i], nftchain); err != nil {
-			return err
+		notrackApplied, err := addRules(nftConn, &chains[i], nftchain)
+		if err != nil {
+			return false, err
 		}
+		notrackAppliedTotal = notrackAppliedTotal || notrackApplied
 	}
-	return err
+	return notrackAppliedTotal, nil
 }
 
 func addChain(nftconn *nftables.Conn, chain *firewallapi.Chain, table *nftables.Table) (*nftables.Chain, error) {

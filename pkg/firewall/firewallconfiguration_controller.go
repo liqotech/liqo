@@ -160,7 +160,8 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	// Enforce table existence.
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 
-	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
+	notrackApplied, err := addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table)
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("adding chains to table %s: %w", ptr.Deref(fwcfg.Spec.Table.Name, ""), err)
 	}
 
@@ -171,9 +172,13 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	klog.Infof("Applied firewallconfiguration %s", req.String())
 
 	// Existing conntrack flows are not affected by newly added notrack expressions,
-	// so they need to be evicted explicitly after the nftables rules have been applied.
-	if err = r.flushConntrackForNotrackRules(ctx, fwcfg); err != nil {
-		return ctrl.Result{}, fmt.Errorf("flushing conntrack entries: %w", err)
+	// so they need to be evicted explicitly after notrack rules have been applied.
+	// That function iterate on every conntrac flows, that's why we run it only when
+	// a notrack is applied, to avoid unnecessary overhead.
+	if notrackApplied {
+		if err = r.flushConntrackForNotrackRules(ctx, fwcfg); err != nil {
+			return ctrl.Result{}, fmt.Errorf("flushing conntrack entries: %w", err)
+		}
 	}
 
 	return ctrl.Result{}, nil
