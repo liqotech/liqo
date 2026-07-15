@@ -31,11 +31,11 @@ import (
 	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -82,7 +82,7 @@ type InitConfig struct {
 
 	OffloadingPatch *offloadingv1beta1.OffloadingPatch
 
-	NetConfiguration *networkingv1beta1.Configuration // only available if network module is enabled
+	RemoteCIDR *networkconfig.RemoteCIDR // only available if network module is enabled
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -142,7 +142,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 			return result, nil
 		},
-		NetConfiguration: cfg.NetConfiguration,
+		RemoteCIDR: cfg.RemoteCIDR,
 	}
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, &podReflectorConfig, ptr.To(cfg.ReflectorsConfigs[resources.Pod]))

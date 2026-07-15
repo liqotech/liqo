@@ -37,10 +37,10 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -96,7 +96,7 @@ type PodReflectorConfig struct {
 	HomeAPIServerPort   string
 
 	KubernetesServiceIPMapper func(context.Context) ([]string, error)
-	NetConfiguration          *networkingv1beta1.Configuration
+	RemoteCIDR                *networkconfig.RemoteCIDR
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -245,27 +245,28 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 	return forge.LocalNodeStats(pods), nil
 }
 
-// KubernetesServiceIPGetter returns a function to retrieve the IP associated with the kubernetes.default service.
-func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) ([]string, error) {
+// KubernetesServiceIPGetter returns a function to retrieve the IPs associated with the kubernetes.default service.
+func (pr *PodReflector) KubernetesServiceIPGetter() forge.KubernetesServiceIPGetter {
 	var addresses []string
 	var lock sync.Mutex
 
-	return func(ctx context.Context) ([]string, error) {
+	return func() []string {
 		lock.Lock()
 		defer lock.Unlock()
 
 		// If the addresses have already been saved in cache, then return them directly.
 		if len(addresses) > 0 {
-			return addresses, nil
+			return addresses
 		}
 
 		var err error
-		addresses, err = pr.config.KubernetesServiceIPMapper(ctx)
+		addresses, err = pr.config.KubernetesServiceIPMapper(context.Background())
 		if err != nil {
-			return nil, err
+			klog.Warningf("Failed to retrieve kubernetes service IPs: %v", err)
+			return nil
 		}
 
-		return addresses, nil
+		return addresses
 	}
 }
 

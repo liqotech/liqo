@@ -108,14 +108,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - networking.liqo.io
-  resources:
-  - configurations
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - offloading.liqo.io
   resources:
   - namespacemaps

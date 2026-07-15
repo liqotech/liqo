@@ -96,7 +96,7 @@ type NamespacedPodReflector struct {
 
 	config *PodReflectorConfig
 
-	kubernetesServiceIPGetter func(context.Context) ([]string, error)
+	kubernetesServiceIPGetter forge.KubernetesServiceIPGetter
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
 }
 
@@ -327,21 +327,20 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 		// The function will never be invoked
 	}
 
-	// Wrap the kubernetes service/endpointslices remapped IP retrieval, so that we do not have to handle errors in the forge logic.
-	ipsGetter := func() (ips []string) {
-		if npr.config.NetConfiguration == nil {
+	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
+	ipGetter := func() []string {
+		if npr.config.RemoteCIDR == nil {
 			return nil
 		}
 
-		ips, kserr = npr.kubernetesServiceIPGetter(ctx)
-		return ips
+		return npr.kubernetesServiceIPGetter()
 	}
 
 	var mutators []forge.RemotePodSpecMutator
 
 	mutators = append(mutators,
 		forge.APIServerSupportMutator(npr.config.APIServerSupport, local.Annotations, pod.ServiceAccountName(local),
-			saSecretRetriever, ipsGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
+			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
 		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))
 
 	if forgingOpts != nil {
@@ -410,7 +409,7 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
 	var translator func(string) string
-	if npr.config.NetConfiguration == nil {
+	if npr.config.RemoteCIDR == nil {
 		translator = func(original string) string {
 			return original
 		}
@@ -740,7 +739,7 @@ func (npr *NamespacedPodReflector) MapPodIP(ctx context.Context, info *PodInfo, 
 	}
 
 	// Cache miss -> we need to interact with the IPAM to request the translation.
-	translated, err := ipamips.MapAddressWithConfiguration(npr.config.NetConfiguration, original)
+	translated, err := ipamips.MapAddressWithNetworkConfiguration(npr.config.RemoteCIDR, original)
 	if err != nil {
 		return "", fmt.Errorf("failed to translate pod IP %v: %w", original, err)
 	}
