@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package virtualnodectrl contains VirtualNode Controller logic.
-package virtualnodectrl
+// Package controlplanesecretcontroller contains the logic to create NamespaceMaps from controlplane secrets.
+// ControlPlaneSecret reconciler handles all the lifecycle of the NamespaceMaps created from the controlplane secrets.
+package controlplanesecretcontroller

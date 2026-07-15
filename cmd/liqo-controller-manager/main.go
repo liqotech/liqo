@@ -51,9 +51,10 @@ import (
 	"github.com/liqotech/liqo/pkg/ipam"
 	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
+	cpsecretcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/cross-module/controlplanesecret-controller"
+	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/cross-module/quotacreator-controller"
+	vncreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/cross-module/virtualnodecreator-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
-	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
-	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnodecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
@@ -229,7 +230,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	// AUTHENTICATION MODULE & OFFLOADING MODULE
 	if opts.AuthenticationEnabled && opts.OffloadingEnabled {
 		// Configure controller that create virtualnodes from resourceslices.
-		vnCreatorReconciler := virtualnodecreatorcontroller.NewVirtualNodeCreatorReconciler(
+		vnCreatorReconciler := vncreatorcontroller.NewVirtualNodeCreatorReconciler(
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("virtualnodecreator-controller"))
 		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("unable to setup the virtualnodecreator reconciler: %w", err)
@@ -241,6 +242,13 @@ func run(cmd *cobra.Command, _ []string) error {
 			offloadingv1beta1.LimitsEnforcement(opts.DefaultLimitsEnforcement))
 		if err := quotaCreatorReconciler.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("unable to setup the quotacreator reconciler: %w", err)
+		}
+
+		// Configure controller that create namespacemaps from controlplane secrets.
+		controlPlaneSecretReconciler := cpsecretcontroller.NewControlPlaneSecretReconciler(
+			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorder("controlplanesecret-controller"))
+		if err := controlPlaneSecretReconciler.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("unable to setup the controlplanesecret-controller reconciler: %w", err)
 		}
 	}
 
