@@ -124,6 +124,12 @@ type Opts struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
+	RemotePodCIDR      []string
+	RemotePodCIDRRemap []string
+
+	RemoteExternalCIDR      []string
+	RemoteExternalCIDRRemap []string
+
 	CreateNode bool
 
 	VirtualKubeletLeaseEnabled       bool

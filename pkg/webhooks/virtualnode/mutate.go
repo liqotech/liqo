@@ -27,11 +27,13 @@ import (
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
-func (w *vnwh) initVirtualNodeDeployment(vn *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) {
+func (w *vnwh) initVirtualNodeDeployment(vn *offloadingv1beta1.VirtualNode,
+	opts *offloadingv1beta1.VkOptionsTemplate) {
 	if vn.Spec.Template == nil {
 		vn.Spec.Template = &offloadingv1beta1.DeploymentTemplate{}
 	}
 	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.liqoNamespace, w.localPodCIDRs, vn, opts)
+
 	vn.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
 	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }

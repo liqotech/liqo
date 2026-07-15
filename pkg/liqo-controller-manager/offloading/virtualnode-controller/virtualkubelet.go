@@ -24,6 +24,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -100,11 +102,26 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 			Namespace: virtualNode.Spec.Template.GetNamespace(),
 		},
 	}
+
+	// Retrieve the network configuration. Networking module is considered enabled when the Configuration exists.
+	cfg, err := getters.GetConfigurationByClusterID(ctx, r.Client, virtualNode.Spec.ClusterID, corev1.NamespaceAll)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			klog.Warningf("Unable to get network configuration for virtual node %q: %v", virtualNode.Name, err)
+		}
+		cfg = nil
+	}
+
 	op, err = resource.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
 		vkDeployment.Annotations = labels.Merge(vkDeployment.Annotations, virtualNode.Spec.Template.ObjectMeta.GetAnnotations())
 		vkDeployment.Labels = labels.Merge(vkDeployment.Labels, virtualNode.Spec.Template.ObjectMeta.GetLabels())
 
 		vkDeployment.Spec = *virtualNode.Spec.Template.Spec.DeepCopy()
+
+		if len(vkDeployment.Spec.Template.Spec.Containers) > 0 {
+			vkDeployment.Spec.Template.Spec.Containers[0].Args =
+				vkforge.SetNetworkConfigurationArgs(vkDeployment.Spec.Template.Spec.Containers[0].Args, cfg)
+		}
 
 		// Add the hash of the offloading patch as annotation
 		opHash, err := offloadingPatchHash(virtualNode.Spec.OffloadingPatch)

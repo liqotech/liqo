@@ -329,7 +329,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 
 	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
 	ipGetter := func() (ip string) {
-		if npr.config.NetConfiguration == nil {
+		if npr.config.RemoteCIDR == nil {
 			return ""
 		}
 
@@ -410,7 +410,7 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
 	var translator func(string) string
-	if npr.config.NetConfiguration == nil {
+	if npr.config.RemoteCIDR == nil {
 		translator = func(original string) string {
 			return original
 		}
@@ -740,7 +740,7 @@ func (npr *NamespacedPodReflector) MapPodIP(ctx context.Context, info *PodInfo, 
 	}
 
 	// Cache miss -> we need to interact with the IPAM to request the translation.
-	translated, err := ipamips.MapAddressWithConfiguration(npr.config.NetConfiguration, original)
+	translated, err := ipamips.MapAddressWithNetworkConfiguration(npr.config.RemoteCIDR, original)
 	if err != nil {
 		return "", fmt.Errorf("failed to translate pod IP %v: %w", original, err)
 	}
