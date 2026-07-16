@@ -171,14 +171,14 @@ func MapAddressWithNetworkConfiguration(cidr *networkconfig.RemoteCIDR, address 
 		return "", fmt.Errorf("invalid IP %q", address)
 	}
 
-	podAddr, ok, err := remapWithinStrings(ip, address, cidr.Pod.Original, cidr.Pod.Remapped)
+	podAddr, ok, err := remapWithin(ip, address, toCIDRSlice(cidr.Pod.Original), toCIDRSlice(cidr.Pod.Remapped))
 	if err != nil {
 		return "", fmt.Errorf("remapping the address within the pod CIDRs: %w", err)
 	} else if ok {
 		return podAddr, nil
 	}
 
-	extAddr, ok, err := remapWithinStrings(ip, address, cidr.External.Original, cidr.External.Remapped)
+	extAddr, ok, err := remapWithin(ip, address, toCIDRSlice(cidr.External.Original), toCIDRSlice(cidr.External.Remapped))
 	if err != nil {
 		return "", fmt.Errorf("remapping the address within the external CIDRs: %w", err)
 	} else if ok {
@@ -188,31 +188,12 @@ func MapAddressWithNetworkConfiguration(cidr *networkconfig.RemoteCIDR, address 
 	return address, nil
 }
 
-func remapWithinStrings(ip net.IP, address string, spec, status []string) (outAddr string, processed bool, err error) {
-	for i := range spec {
-		_, specNet, err := net.ParseCIDR(spec[i])
-		if err != nil {
-			return "", false, fmt.Errorf("parsing the spec CIDR %q: %w", spec[i], err)
-		}
-
-		if !specNet.Contains(ip) {
-			continue
-		}
-
-		// If spec and status CIDRs are the same, no remapping required, just return the original address.
-		if spec[i] == status[i] {
-			return address, true, nil
-		}
-
-		_, statusNet, err := net.ParseCIDR(status[i])
-		if err != nil {
-			return "", false, fmt.Errorf("parsing the status CIDR %q: %w", status[i], err)
-		}
-
-		return RemapMask(ip, *statusNet).String(), true, nil
+func toCIDRSlice(cidrs []string) []networkingv1beta1.CIDR {
+	out := make([]networkingv1beta1.CIDR, len(cidrs))
+	for i := range cidrs {
+		out[i] = networkingv1beta1.CIDR(cidrs[i])
 	}
-
-	return "", false, nil
+	return out
 }
 
 func remapWithin(ip net.IP, address string, spec, status []networkingv1beta1.CIDR) (outAddr string, processed bool, err error) {

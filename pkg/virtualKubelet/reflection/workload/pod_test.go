@@ -15,6 +15,7 @@
 package workload_test
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -56,7 +57,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 	Describe("kubernetes.default service IP remapping", func() {
 		var (
-			kubernetesServiceIPGetter func() []string
+			kubernetesServiceIPGetter func(ctx context.Context) ([]string, error)
 
 			output []string
 		)
@@ -82,14 +83,14 @@ var _ = Describe("Pod Reflection Tests", func() {
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
-		JustBeforeEach(func() { output = kubernetesServiceIPGetter() })
+		JustBeforeEach(func() { output, _ = kubernetesServiceIPGetter(context.Background()) })
 
 		Context("the IP resource is correctly set", func() {
 			It("should return the correct IP address", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })
 
 			When("retrieving again the remapped IP address", func() {
 				JustBeforeEach(func() {
-					output = kubernetesServiceIPGetter()
+					output, _ = kubernetesServiceIPGetter(context.Background())
 				})
 
 				It("should return the same translations", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })

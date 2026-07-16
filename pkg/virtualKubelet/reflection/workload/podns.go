@@ -96,7 +96,7 @@ type NamespacedPodReflector struct {
 
 	config *PodReflectorConfig
 
-	kubernetesServiceIPGetter forge.KubernetesServiceIPGetter
+	kubernetesServiceIPGetter func(ctx context.Context) ([]string, error)
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
 }
 
@@ -327,20 +327,21 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 		// The function will never be invoked
 	}
 
-	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
-	ipGetter := func() []string {
+	// Wrap the kubernetes service/endpointslices remapped IP retrieval, so that we do not have to handle errors in the forge logic.
+	ipsGetter := func() (ips []string) {
 		if npr.config.RemoteCIDR == nil {
 			return nil
 		}
 
-		return npr.kubernetesServiceIPGetter()
+		ips, kserr = npr.kubernetesServiceIPGetter(ctx)
+		return ips
 	}
 
 	var mutators []forge.RemotePodSpecMutator
 
 	mutators = append(mutators,
 		forge.APIServerSupportMutator(npr.config.APIServerSupport, local.Annotations, pod.ServiceAccountName(local),
-			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
+			saSecretRetriever, ipsGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
 		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))
 
 	if forgingOpts != nil {

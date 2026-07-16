@@ -245,28 +245,27 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 	return forge.LocalNodeStats(pods), nil
 }
 
-// KubernetesServiceIPGetter returns a function to retrieve the IPs associated with the kubernetes.default service.
-func (pr *PodReflector) KubernetesServiceIPGetter() forge.KubernetesServiceIPGetter {
+// KubernetesServiceIPGetter returns a function to retrieve the IP associated with the kubernetes.default service.
+func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) ([]string, error) {
 	var addresses []string
 	var lock sync.Mutex
 
-	return func() []string {
+	return func(ctx context.Context) ([]string, error) {
 		lock.Lock()
 		defer lock.Unlock()
 
 		// If the addresses have already been saved in cache, then return them directly.
 		if len(addresses) > 0 {
-			return addresses
+			return addresses, nil
 		}
 
 		var err error
-		addresses, err = pr.config.KubernetesServiceIPMapper(context.Background())
+		addresses, err = pr.config.KubernetesServiceIPMapper(ctx)
 		if err != nil {
-			klog.Warningf("Failed to retrieve kubernetes service IPs: %v", err)
-			return nil
+			return nil, err
 		}
 
-		return addresses
+		return addresses, nil
 	}
 }
 

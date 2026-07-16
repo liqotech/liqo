@@ -15,6 +15,7 @@
 package forge
 
 import (
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -45,25 +46,16 @@ func SetNetworkConfigurationArgs(args []string, cfg *networkingv1beta1.Configura
 	return args
 }
 
-// RemoveNetworkConfigurationArgs removes all network configuration args from the slice.
-func RemoveNetworkConfigurationArgs(args []string) []string {
-	return removeNetworkConfigurationArgs(args)
-}
-
 func removeNetworkConfigurationArgs(args []string) []string {
-	out := make([]string, 0, len(args))
-	for i := range args {
-		// Skip args that are not key=value pairs (e.g. boolean flags).
-		if !strings.Contains(args[i], "=") {
-			out = append(out, args[i])
-			continue
+	return slices.DeleteFunc(args, func(arg string) bool {
+		// Keep args that are not key=value pairs (e.g. boolean flags).
+		if !strings.Contains(arg, "=") {
+			return false
 		}
-		key, _ := DestringifyArgument(args[i])
-		if !containsString(networkConfigurationArgKeys, key) {
-			out = append(out, args[i])
-		}
-	}
-	return out
+		key, _ := DestringifyArgument(arg)
+		// Remove if the key is in networkConfigurationArgKeys.
+		return containsString(networkConfigurationArgKeys, key)
+	})
 }
 
 func appendCIDRArgs(args []string, flag VirtualKubeletOptsFlag, cidrs []networkingv1beta1.CIDR) []string {

@@ -15,6 +15,7 @@
 package root
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
@@ -185,4 +187,33 @@ func initReflectionType() map[string]*string {
 		reflectionType[string(*resource)] = ptr.To(string(DefaultReflectorsTypes[*resource]))
 	}
 	return reflectionType
+}
+
+// buildRemoteCIDR builds a RemoteCIDR from the CLI flags.
+// It returns nil when no network CIDRs are provided (networking module disabled).
+func buildRemoteCIDR(c *Opts) (*networkconfig.RemoteCIDR, error) {
+	if len(c.RemotePodCIDR) == 0 && len(c.RemotePodCIDRRemap) == 0 &&
+		len(c.RemoteExternalCIDR) == 0 && len(c.RemoteExternalCIDRRemap) == 0 {
+		return nil, nil
+	}
+
+	if len(c.RemotePodCIDR) != len(c.RemotePodCIDRRemap) {
+		return nil, fmt.Errorf("remote pod CIDR/remap lengths do not match: %d vs %d",
+			len(c.RemotePodCIDR), len(c.RemotePodCIDRRemap))
+	}
+	if len(c.RemoteExternalCIDR) != len(c.RemoteExternalCIDRRemap) {
+		return nil, fmt.Errorf("remote external CIDR/remap lengths do not match: %d vs %d",
+			len(c.RemoteExternalCIDR), len(c.RemoteExternalCIDRRemap))
+	}
+
+	return &networkconfig.RemoteCIDR{
+		Pod: networkconfig.CIDRPair{
+			Original: c.RemotePodCIDR,
+			Remapped: c.RemotePodCIDRRemap,
+		},
+		External: networkconfig.CIDRPair{
+			Original: c.RemoteExternalCIDR,
+			Remapped: c.RemoteExternalCIDRRemap,
+		},
+	}, nil
 }
