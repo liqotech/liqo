@@ -208,6 +208,7 @@
 | telemetry.pod.extraArgs | list | `[]` | Extra arguments for the telemetry pod. |
 | telemetry.pod.labels | object | `{}` | Labels for the telemetry pod. |
 | telemetry.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the telemetry pod. |
+| uninstaller.forceUninstall | bool | `false` | Force the uninstall of Liqo, even if there are still active peerings or offloaded namespaces. When enabled, the pre-delete job marks all ForeignClusters as permanently unreachable and deletes leftover resources before proceeding with the standard uninstall cleanup. Force uninstall is a destructive operation, which might even cause data loss. |
 | uninstaller.image.name | string | `"ghcr.io/liqotech/uninstaller"` | Image repository for the uninstaller pod. |
 | uninstaller.image.version | string | `""` | Custom version for the uninstaller image. If not specified, the global tag is used. |
 | uninstaller.pod.annotations | object | `{}` | Annotations for the uninstaller pod. |

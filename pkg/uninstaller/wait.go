@@ -35,7 +35,7 @@ func WaitForResources(client dynamic.Interface, phase phase) error {
 	deletionResult := make(chan *resultType, len(toCheck))
 	conditionResult := make(chan *resultType, ConditionsToCheck)
 	for i := range toCheck {
-		if toCheck[i].phase == phase {
+		if phase == PhaseForcedUninstall || toCheck[i].phase == phase {
 			wg.Add(1)
 			go WaitForEffectiveDeletion(client, &toCheck[i], deletionResult, &wg, CheckDeletion)
 		}

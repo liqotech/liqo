@@ -9,6 +9,15 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - nodes
   verbs:
   - get
@@ -76,6 +85,7 @@ rules:
   resources:
   - namespaceoffloadings
   verbs:
+  - delete
   - get
   - list
   - watch
