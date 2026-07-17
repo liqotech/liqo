@@ -158,7 +158,7 @@ spec:
                 description: Round-trip latency of the tunnel.
                 properties:
                   timestamp:
-                    description: Timestamp of the latency.
+                    description: Timestamp of the last measured round-trip latency.
                     format: date-time
                     type: string
                   value:
