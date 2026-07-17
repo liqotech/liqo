@@ -42,9 +42,9 @@ var (
 	GeneveMetricsLabels []string
 	// MetricsGeneveLatency is the metric that exposes the latency of a geneve tunnel.
 	MetricsGeneveLatency *prometheus.Desc
-	// MetricsGeneveLatencyHistogram is the metric that exposes the latency distribution of a geneve tunnel.
+	// MetricsGeneveLatencyHistogram is the metric that exposes the latency distribution of each individual geneve tunnel.
 	MetricsGeneveLatencyHistogram *prometheus.HistogramVec
-	// MetricsGeneveIsConnected is the metric that outputs the geneve tunnel connection status.
+	// MetricsGeneveIsConnected is the metric that outputs the status of each geneve tunnel.
 	MetricsGeneveIsConnected *prometheus.Desc
 	// MetricsGeneveReceivedBytes is the metric that counts the number of bytes received through a geneve tunnel.
 	MetricsGeneveReceivedBytes *prometheus.Desc

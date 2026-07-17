@@ -32,7 +32,5 @@ type Options struct {
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
-	return &Options{
-		PingBufferSize: 1024,
-	}
+	return &Options{}
 }
