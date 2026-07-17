@@ -155,7 +155,7 @@ spec:
             description: GeneveTunnelStatus defines the observed state of GeneveTunnel.
             properties:
               latency:
-                description: Latency of the tunnel.
+                description: Round-trip latency of the tunnel.
                 properties:
                   timestamp:
                     description: Timestamp of the latency.
