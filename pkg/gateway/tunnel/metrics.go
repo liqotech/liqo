@@ -37,7 +37,7 @@ var (
 	// MetricsLabels is the labels that are used for the metrics.
 	MetricsLabels []string
 
-	// GeneveMetricsLabels is the labels used for geneve tunnel metrics.
+	// GeneveMetricsLabels are the labels used for geneve tunnel metrics.
 	// The labels are: internal_fabric, internal_node, namespace, remote_cluster_id.
 	GeneveMetricsLabels []string
 	// MetricsGeneveLatency is the metric that exposes the latency of a geneve tunnel.
