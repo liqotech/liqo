@@ -33,16 +33,15 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
@@ -56,37 +55,20 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			reflector  manager.NamespacedReflector
 			client     *fake.Clientset
 			liqoClient liqoclient.Interface
-			netConfig  *networkingv1beta1.Configuration
+			netConfig  *networkconfig.RemoteCIDR
 		)
 
 		BeforeEach(func() {
 			client = fake.NewSimpleClientset()
 			liqoClient = liqoclientfake.NewSimpleClientset()
-			netConfig = &networkingv1beta1.Configuration{
-				ObjectMeta: metav1.ObjectMeta{Generation: 1},
-				Spec: networkingv1beta1.ConfigurationSpec{
-					Remote: networkingv1beta1.ClusterConfig{
-						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      cidrutils.FromStrings([]string{"192.168.200.0/24"}),
-							External: cidrutils.FromStrings([]string{"192.168.100.0/24"}),
-						},
-					},
+			netConfig = &networkconfig.RemoteCIDR{
+				Pod: networkconfig.CIDRPair{
+					Original: []string{"192.168.200.0/24"},
+					Remapped: []string{"192.168.201.0/24"},
 				},
-				Status: networkingv1beta1.ConfigurationStatus{
-					Conditions: []metav1.Condition{{
-						Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
-						Status:             metav1.ConditionTrue,
-						Reason:             "NetworkCIDRsConfigured",
-						Message:            "All network CIDRs are configured",
-						ObservedGeneration: 1,
-						LastTransitionTime: metav1.Now(),
-					}},
-					Remote: &networkingv1beta1.ClusterConfig{
-						CIDR: networkingv1beta1.ClusterConfigCIDR{
-							Pod:      cidrutils.FromStrings([]string{"192.168.201.0/24"}),
-							External: cidrutils.FromStrings([]string{"192.168.101.0/24"}),
-						},
-					},
+				External: networkconfig.CIDRPair{
+					Original: []string{"192.168.100.0/24"},
+					Remapped: []string{"192.168.101.0/24"},
 				},
 			}
 		})
@@ -647,8 +629,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				When("the address belongs to a secondary remote pod CIDR", func() {
 					BeforeEach(func() {
 						input = "192.168.210.25"
-						netConfig.Spec.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.200.0/24", "192.168.210.0/24"})
-						netConfig.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.201.0/24", "192.168.211.0/24"})
+						netConfig.Pod.Original = []string{"192.168.200.0/24", "192.168.210.0/24"}
+						netConfig.Pod.Remapped = []string{"192.168.201.0/24", "192.168.211.0/24"}
 					})
 
 					It("should remap using the aligned secondary pod CIDR", func() {
@@ -671,8 +653,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				When("the secondary remote pod CIDR does not need remapping", func() {
 					BeforeEach(func() {
 						input = "192.168.210.25"
-						netConfig.Spec.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.200.0/24", "192.168.210.0/24"})
-						netConfig.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"192.168.201.0/24", "192.168.210.0/24"})
+						netConfig.Pod.Original = []string{"192.168.200.0/24", "192.168.210.0/24"}
+						netConfig.Pod.Remapped = []string{"192.168.201.0/24", "192.168.210.0/24"}
 					})
 
 					It("should preserve the original address for the aligned secondary CIDR", func() {

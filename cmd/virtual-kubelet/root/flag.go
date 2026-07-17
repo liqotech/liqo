@@ -77,6 +77,16 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",
 		"Home cluster API server PORT, this parameter is optional and required only to override the default values")
+
+	flags.StringSliceVar(&o.RemotePodCIDR, "remote-pod-cidr", nil,
+		"Remote cluster pod CIDRs as known by the remote cluster")
+	flags.StringSliceVar(&o.RemotePodCIDRRemap, "remote-pod-cidr-remap", nil,
+		"Remote cluster pod CIDRs as remapped by the local cluster")
+	flags.StringSliceVar(&o.RemoteExternalCIDR, "remote-external-cidr", nil,
+		"Remote cluster external CIDRs as known by the remote cluster")
+	flags.StringSliceVar(&o.RemoteExternalCIDRRemap, "remote-external-cidr-remap", nil,
+		"Remote cluster external CIDRs as remapped by the local cluster")
+
 	flags.BoolVar(&o.CreateNode, "create-node", true, "Create the virtual node in the home cluster")
 
 	flags.BoolVar(&o.VirtualKubeletLeaseEnabled, "vk-lease-enabled", true, "Enable the virtual kubelet lease")

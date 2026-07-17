@@ -31,7 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -100,11 +103,32 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 			Namespace: virtualNode.Spec.Template.GetNamespace(),
 		},
 	}
+
+	// Retrieve the ForeignCluster to check whether networking is enabled for the remote cluster.
+	fc, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, virtualNode.Spec.ClusterID)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve the ForeignCluster %q: %w", virtualNode.Spec.ClusterID, err)
+	}
+
+	var cfg *networkingv1beta1.Configuration
+	if fc.Status.Modules.Networking.Enabled {
+		// Networking module is enabled: retrieve the network configuration.
+		cfg, err = getters.GetConfigurationByClusterID(ctx, r.Client, virtualNode.Spec.ClusterID, corev1.NamespaceAll)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve the network configuration for the ForeignCluster %q: %w", virtualNode.Spec.ClusterID, err)
+		}
+	}
+
 	op, err = resource.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
 		vkDeployment.Annotations = labels.Merge(vkDeployment.Annotations, virtualNode.Spec.Template.ObjectMeta.GetAnnotations())
 		vkDeployment.Labels = labels.Merge(vkDeployment.Labels, virtualNode.Spec.Template.ObjectMeta.GetLabels())
 
 		vkDeployment.Spec = *virtualNode.Spec.Template.Spec.DeepCopy()
+
+		if cfg != nil && len(vkDeployment.Spec.Template.Spec.Containers) > 0 {
+			vkDeployment.Spec.Template.Spec.Containers[0].Args =
+				vkforge.SetNetworkConfigurationArgs(vkDeployment.Spec.Template.Spec.Containers[0].Args, cfg)
+		}
 
 		// Add the hash of the offloading patch as annotation
 		opHash, err := offloadingPatchHash(virtualNode.Spec.OffloadingPatch)

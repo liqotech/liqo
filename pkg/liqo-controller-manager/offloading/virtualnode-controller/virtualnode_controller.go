@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -89,6 +90,8 @@ func NewVirtualNodeReconciler(
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
@@ -172,21 +175,54 @@ func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 			}
 			clusterID := nm.Labels[consts.RemoteClusterID]
 
-			// list virtualnode resources with the remote cluster ID label
-			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, liqov1beta1.ClusterID(clusterID))
-			if err != nil {
-				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
+			return r.enqueueVirtualNodesByClusterID(ctx, liqov1beta1.ClusterID(clusterID))
+		})
+}
+
+func (r *VirtualNodeReconciler) enqueueFromConfiguration() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, o client.Object) []reconcile.Request {
+			cfg, ok := o.(*networkingv1beta1.Configuration)
+			if !ok {
 				return []reconcile.Request{}
 			}
 
-			requests := []reconcile.Request{}
-			for i := range virtualnodes {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: client.ObjectKeyFromObject(&virtualnodes[i]),
-				})
+			if cfg.Labels == nil || cfg.Labels[consts.RemoteClusterID] == "" {
+				return []reconcile.Request{}
 			}
-			return requests
+			clusterID := cfg.Labels[consts.RemoteClusterID]
+
+			return r.enqueueVirtualNodesByClusterID(ctx, liqov1beta1.ClusterID(clusterID))
 		})
+}
+
+func (r *VirtualNodeReconciler) enqueueFromForeignCluster() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, o client.Object) []reconcile.Request {
+			fc, ok := o.(*liqov1beta1.ForeignCluster)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			return r.enqueueVirtualNodesByClusterID(ctx, fc.Spec.ClusterID)
+		})
+}
+
+func (r *VirtualNodeReconciler) enqueueVirtualNodesByClusterID(ctx context.Context,
+	clusterID liqov1beta1.ClusterID) []reconcile.Request {
+	virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, clusterID)
+	if err != nil {
+		klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(virtualnodes))
+	for i := range virtualnodes {
+		requests[i] = reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&virtualnodes[i]),
+		}
+	}
+	return requests
 }
 
 // SetupWithManager register the VirtualNodeReconciler to the manager.
@@ -203,5 +239,7 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&offloadingv1beta1.VirtualNode{}).
 		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
 		Watches(&offloadingv1beta1.NamespaceMap{}, r.enqueFromNamespaceMap()).
+		Watches(&networkingv1beta1.Configuration{}, r.enqueueFromConfiguration()).
+		Watches(&liqov1beta1.ForeignCluster{}, r.enqueueFromForeignCluster()).
 		Complete(r)
 }

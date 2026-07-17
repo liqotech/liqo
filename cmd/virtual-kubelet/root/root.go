@@ -44,10 +44,10 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
@@ -168,9 +168,9 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	var netConfiguration *networkingv1beta1.Configuration
+	var remoteCIDR *networkconfig.RemoteCIDR
 	if fcutils.IsNetworkingModuleEnabled(foreignCluster) {
-		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID(), corev1.NamespaceAll)
+		remoteCIDR, err = buildRemoteCIDR(c)
 		if err != nil {
 			klog.Errorf("Unable to get network configuration: %v", err)
 			return err
@@ -210,7 +210,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		OffloadingPatch: vn.Spec.OffloadingPatch,
 
-		NetConfiguration: netConfiguration,
+		RemoteCIDR: remoteCIDR,
 	}
 
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)

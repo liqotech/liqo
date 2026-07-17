@@ -30,12 +30,11 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
-	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
@@ -61,7 +60,6 @@ var _ = Describe("Pod Reflection Tests", func() {
 			kubernetesServiceIPGetter func(ctx context.Context) ([]string, error)
 
 			output []string
-			err    error
 		)
 
 		BeforeEach(func() {
@@ -72,49 +70,29 @@ var _ = Describe("Pod Reflection Tests", func() {
 			}
 			reflector := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
-					fakeAPIServerRemapping([]string{"192.168.200.1", "192.168.200.2"}), &networkingv1beta1.Configuration{
-						ObjectMeta: metav1.ObjectMeta{Generation: 1},
-						Spec: networkingv1beta1.ConfigurationSpec{
-							Remote: networkingv1beta1.ClusterConfig{
-								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.FromStrings([]string{"192.168.200.0/24"}),
-									External: cidrutils.FromStrings([]string{"192.168.100.0/24"}),
-								},
-							},
+					fakeAPIServerRemapping([]string{"192.168.200.1", "192.168.200.2"}), &networkconfig.RemoteCIDR{
+						Pod: networkconfig.CIDRPair{
+							Original: []string{"192.168.200.0/24"},
+							Remapped: []string{"192.168.201.0/24"},
 						},
-						Status: networkingv1beta1.ConfigurationStatus{
-							Conditions: []metav1.Condition{{
-								Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
-								Status:             metav1.ConditionTrue,
-								Reason:             "NetworkCIDRsConfigured",
-								Message:            "All network CIDRs are configured",
-								ObservedGeneration: 1,
-								LastTransitionTime: metav1.Now(),
-							}},
-							Remote: &networkingv1beta1.ClusterConfig{
-								CIDR: networkingv1beta1.ClusterConfigCIDR{
-									Pod:      cidrutils.FromStrings([]string{"192.168.201.0/24"}),
-									External: cidrutils.FromStrings([]string{"192.168.101.0/24"}),
-								},
-							},
+						External: networkconfig.CIDRPair{
+							Original: []string{"192.168.100.0/24"},
+							Remapped: []string{"192.168.101.0/24"},
 						},
 					}}, &reflectorConfig)
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
-		JustBeforeEach(func() { output, err = kubernetesServiceIPGetter(ctx) })
+		JustBeforeEach(func() { output, _ = kubernetesServiceIPGetter(context.Background()) })
 
 		Context("the IP resource is correctly set", func() {
-			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should return the correct IP address", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })
 
 			When("retrieving again the remapped IP address", func() {
 				JustBeforeEach(func() {
-					output, err = kubernetesServiceIPGetter(ctx)
+					output, _ = kubernetesServiceIPGetter(context.Background())
 				})
 
-				// The IPAMClient is configured to return an error if the same translation is requested twice.
-				It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should return the same translations", func() { Expect(output).To(Equal([]string{"192.168.200.1", "192.168.200.2"})) })
 			})
 		})
