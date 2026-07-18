@@ -738,6 +738,11 @@ virtualKubelet:
       labels: {}
 
 uninstaller:
+  # -- Force the uninstall of Liqo, even if there are still active peerings or offloaded namespaces.
+  # When enabled, the pre-delete job marks all ForeignClusters as permanently unreachable and deletes
+  # leftover resources before proceeding with the standard uninstall cleanup.
+  # Force uninstall is a destructive operation, which might even cause data loss.
+  forceUninstall: false
   pod:
     # -- Annotations for the uninstaller pod.
     annotations: {}

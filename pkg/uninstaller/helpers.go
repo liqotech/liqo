@@ -25,11 +25,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 // AnnotateControllerManagerDeployment annotates the controller-manager deployment with the uninstaller label.
@@ -54,6 +56,33 @@ func AnnotateControllerManagerDeployment(ctx context.Context, client dynamic.Int
 		)
 		return err
 	})
+}
+
+// MarkForeignClustersPermanentlyUnreachable annotates all ForeignCluster resources with the
+// permanently-unreachable annotation, so that Liqo controllers treat them as dead and release finalizers.
+func MarkForeignClustersPermanentlyUnreachable(ctx context.Context, cl ctrlclient.Client) error {
+	var foreignClusters liqov1beta1.ForeignClusterList
+	if err := cl.List(ctx, &foreignClusters); err != nil {
+		return err
+	}
+
+	for i := range foreignClusters.Items {
+		fc := &foreignClusters.Items[i]
+		patch := ctrlclient.MergeFrom(fc.DeepCopy())
+
+		if fc.Annotations == nil {
+			fc.Annotations = map[string]string{}
+		}
+		fc.SetAnnotations(mapsutil.Merge(fc.Annotations, map[string]string{
+			consts.ForeignClusterPermanentlyUnreachableAnnotationKey: consts.ForeignClusterPermanentlyUnreachableAnnotationValue,
+		}))
+
+		if err := cl.Patch(ctx, fc, patch); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.

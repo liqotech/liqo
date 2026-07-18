@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -55,6 +54,8 @@ const (
 	PhaseUnpeering phase = iota
 	// PhaseCleanup -> the final cleanup after unpeering is being performed.
 	PhaseCleanup
+	// PhaseForcedUninstall -> the uninstall is being forced, and all the resource are being deleted.
+	PhaseForcedUninstall
 )
 
 var (
@@ -67,11 +68,6 @@ var (
 				},
 			},
 			phase: PhaseUnpeering,
-		},
-		{
-			gvr:           liqov1beta1.ForeignClusterGroupVersionResource,
-			labelSelector: metav1.LabelSelector{},
-			phase:         PhaseCleanup,
 		},
 		{
 			gvr:           offloadingv1beta1.NamespaceOffloadingGroupVersionResource,
