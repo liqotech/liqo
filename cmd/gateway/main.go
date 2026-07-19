@@ -74,9 +74,8 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 
-	gwoptions := gateway.NewOptions()
 	connoptions = connection.NewOptions(
-		gwoptions,
+		gateway.NewOptions(),
 		conncheck.NewOptions(),
 	)
 
@@ -87,6 +86,7 @@ func main() {
 	}
 
 	connection.InitFlags(cmd.Flags(), connoptions)
+	conncheck.InitFlags(cmd.Flags(), connoptions.ConnCheckOptions)
 
 	// Register the flags for setting global labels and annotations
 	cmd.Flags().Var(&globalLabels, "global-labels", "Global labels to be added to all created resources (key=value)")

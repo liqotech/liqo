@@ -31,7 +31,7 @@ import (
 func UpdateConnectionStatus(ctx context.Context, cl client.Client, opts *Options, connection *networkingv1beta1.Connection,
 	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
 	if connection.Status.Value != value ||
-		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > opts.PingUpdateStatusInterval {
+		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > opts.ConnCheckOptions.PingUpdateStatusInterval {
 		if connection.Status.Value != value {
 			klog.Infof("changing connection %q status to %q",
 				client.ObjectKeyFromObject(connection).String(), value)

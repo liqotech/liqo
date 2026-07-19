@@ -107,7 +107,7 @@ func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
 
 // Run starts the receiver.
 func (r *Receiver) Run(ctx context.Context) {
-	klog.Infof("conncheck receiver: started")
+	klog.Infof("conncheck receiver: started on %s:%d", r.opts.PingBindIP, r.opts.PingPort)
 	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(_ context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
@@ -124,18 +124,27 @@ func (r *Receiver) Run(ctx context.Context) {
 		switch msgr.MsgType {
 		case PING:
 			klog.V(8).Infof("conncheck receiver: received a PING %s -> %s", raddr, msgr)
-			err = r.SendPong(raddr, msgr)
+			go sendPong(r, raddr, msgr)
 		case PONG:
 			klog.V(8).Infof("conncheck receiver: received a PONG from %s  -> %s", raddr, msgr)
-			err = r.ReceivePong(msgr)
-		}
-		if err != nil {
-			klog.Errorf("conncheck receiver: %v", err)
+			go receivePong(r, msgr)
 		}
 		return false, nil
 	})
 	if err != nil {
 		klog.Errorf("conncheck receiver: %v", err)
+	}
+}
+
+func sendPong(r *Receiver, raddr *net.UDPAddr, msgr *Msg) {
+	if err := r.SendPong(raddr, msgr); err != nil {
+		klog.Errorf("conncheck receiver: sendPong error: %v", err)
+	}
+}
+
+func receivePong(r *Receiver, msgr *Msg) {
+	if err := r.ReceivePong(msgr); err != nil {
+		klog.Errorf("conncheck receiver: receivePong error: %v", err)
 	}
 }
 

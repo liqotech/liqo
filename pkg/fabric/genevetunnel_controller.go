@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
+	timeutils "github.com/liqotech/liqo/pkg/utils/time"
 )
 
 // GeneveTunnelReconciler manages geneve tunnels for the fabric.
@@ -48,8 +51,9 @@ type GeneveTunnelReconciler struct {
 	EventsRecorder events.EventRecorder
 	Options        *Options
 
-	connChecker   *conncheck.ConnChecker
-	connCheckerMu sync.Mutex
+	connChecker     atomic.Pointer[conncheck.ConnChecker]
+	connCheckerErr  error
+	connCheckerOnce sync.Once
 }
 
 // NewGeneveTunnelReconciler returns a new GeneveTunnelReconciler.
@@ -63,27 +67,28 @@ func NewGeneveTunnelReconciler(cl client.Client, s *runtime.Scheme,
 	}, nil
 }
 
-// getOrInitConnChecker lazily creates the ConnChecker receiver bound to the node inner geneve IP.
-func (r *GeneveTunnelReconciler) getOrInitConnChecker(ctx context.Context, geneveIP string) error {
-	r.connCheckerMu.Lock()
-	defer r.connCheckerMu.Unlock()
-	if r.connChecker != nil {
-		return nil
-	}
-	opts := *r.Options.ConnCheckOptions
-	opts.BindIP = geneveIP
-	cc, err := conncheck.NewConnChecker(&opts)
-	if err != nil {
-		return fmt.Errorf("creating geneve conncheck receiver: %w", err)
-	}
-	go cc.RunReceiver(ctx)
-	r.connChecker = cc
-	klog.Infof("geneve conncheck receiver started, bound to %s:%d", geneveIP, opts.PingPort)
-	return nil
+// initConnCheckerReceiver creates and starts the ConnChecker receiver bound to the node inner geneve IP.
+// It is guaranteed to run at most once.
+func (r *GeneveTunnelReconciler) initConnCheckerReceiver(ctx context.Context, bindIP string) error {
+	r.connCheckerOnce.Do(func() {
+		opts := r.Options.ConnCheckOptions
+		opts.PingBindIP = bindIP
+		cc, err := conncheck.NewConnChecker(opts)
+		if err != nil {
+			r.connCheckerErr = fmt.Errorf("creating geneve conncheck receiver: %w", err)
+			return
+		}
+		go cc.RunReceiver(ctx)
+		go cc.RunReceiverDisconnectObserver(ctx)
+		r.connChecker.Store(cc)
+		klog.Infof("geneve conncheck receiver started, bound to %s:%d", bindIP, opts.PingPort)
+	})
+	return r.connCheckerErr
 }
 
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 
@@ -99,6 +104,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !gt.DeletionTimestamp.IsZero() {
+		r.stopSender(gt.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -133,6 +139,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Disclaimer: this is a best-effort attempt as we have to reconcile before the InternalFabric controller
 	// cleanup its finalizer. For a more consistent outcome, we rely on the geneve deletion routine.
 	if !internalfabric.DeletionTimestamp.IsZero() {
+		r.stopSender(gt.Name)
 		if err := geneve.EnsureGeneveInterfaceAbsence(internalfabric.Spec.Interface.Node.Name); err != nil {
 			klog.Warningf("Unable to delete geneve interface for genevetunnel %s: %v", req, err)
 			return ctrl.Result{}, nil
@@ -160,8 +167,30 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	klog.Infof("Enforced interface %s for genevetunnel %s", internalfabric.Spec.Interface.Node.Name, req.String())
 
-	if err := r.getOrInitConnChecker(ctx, internalnode.Spec.Interface.Node.IP.String()); err != nil {
-		return ctrl.Result{}, fmt.Errorf("initializing conncheck receiver: %w", err)
+	if r.Options.ConnCheckOptions.PingEnabled {
+		bindIP := r.Options.ConnCheckOptions.PingBindIP
+		if bindIP == "" {
+			bindIP = internalnode.Spec.Interface.Node.IP.String()
+		}
+
+		if err := r.initConnCheckerReceiver(ctx, bindIP); err != nil {
+			return ctrl.Result{}, fmt.Errorf("initializing conncheck receiver: %w", err)
+		}
+
+		updateCallback := r.forgeUpdateGeneveTunnelCallback(ctx, gt.Name, gt.Namespace)
+
+		cc := r.connChecker.Load()
+
+		if err := cc.AddSender(ctx, gt.Name, internalnode.Spec.Interface.Node.IP.String(), updateCallback); err != nil {
+			switch err.(type) {
+			case *conncheck.DuplicateError:
+				return ctrl.Result{}, nil
+			default:
+				return ctrl.Result{}, fmt.Errorf("unable to add conncheck sender: %w", err)
+			}
+		}
+
+		go cc.RunSender(gt.Name)
 	}
 
 	return ctrl.Result{}, nil
@@ -229,4 +258,49 @@ func geneveTunnelListToRequests(list *networkingv1beta1.GeneveTunnelList) []reco
 		}
 	}
 	return requests
+}
+
+// forgeUpdateGeneveTunnelCallback returns a conncheck.UpdateFunc that writes connectivity results to a GeneveTunnel status.
+func (r *GeneveTunnelReconciler) forgeUpdateGeneveTunnelCallback(ctx context.Context,
+	tunnelName, tunnelNamespace string) conncheck.UpdateFunc {
+	return func(connected bool, latency time.Duration, timestamp time.Time) error {
+		gt := &networkingv1beta1.GeneveTunnel{}
+		if err := r.Get(ctx, types.NamespacedName{Name: tunnelName, Namespace: tunnelNamespace}, gt); err != nil {
+			return err
+		}
+		value := networkingv1beta1.ConnectionError
+		if connected {
+			value = networkingv1beta1.Connected
+		}
+		return r.updateGeneveTunnelStatus(ctx, gt, value, latency, timestamp)
+	}
+}
+
+// updateGeneveTunnelStatus updates the status of a GeneveTunnel, throttled by PingUpdateStatusInterval.
+func (r *GeneveTunnelReconciler) updateGeneveTunnelStatus(ctx context.Context, gt *networkingv1beta1.GeneveTunnel,
+	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
+	if gt.Status.Value != value ||
+		timestamp.Sub(gt.Status.Latency.Timestamp.Time) > r.Options.ConnCheckOptions.PingUpdateStatusInterval {
+		if gt.Status.Value != value {
+			klog.Infof("changing genevetunnel %q status to %q", client.ObjectKeyFromObject(gt), value)
+		}
+		gt.Status.Latency = networkingv1beta1.ConnectionLatency{
+			Value:     timeutils.FormatLatency(latency),
+			Timestamp: metav1.NewTime(timestamp),
+		}
+		gt.Status.Value = value
+		if err := r.Status().Update(ctx, gt); err != nil {
+			return fmt.Errorf("unable to update genevetunnel %q status: %w", client.ObjectKeyFromObject(gt), err)
+		}
+	}
+	return nil
+}
+
+// stopSender removes the conncheck sender for the given genevetunnel when it is deleted.
+func (r *GeneveTunnelReconciler) stopSender(clusterID string) {
+	cc := r.connChecker.Load()
+	if cc == nil {
+		return
+	}
+	cc.DelAndStopSender(clusterID)
 }

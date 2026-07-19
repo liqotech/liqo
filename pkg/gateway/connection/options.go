@@ -15,8 +15,6 @@
 package connection
 
 import (
-	"time"
-
 	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
@@ -29,10 +27,6 @@ type Options struct {
 	GwOptions *gateway.Options
 	// ConnCheckOptions contains the options for the connchecker.
 	ConnCheckOptions *conncheck.Options
-	// PingEnabled enables the ping check.
-	PingEnabled bool
-	// PingUpdateStatusInterval is the interval at which the status is updated.
-	PingUpdateStatusInterval time.Duration
 }
 
 // NewOptions returns a new Options struct.

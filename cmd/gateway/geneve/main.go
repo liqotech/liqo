@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	gwfabric "github.com/liqotech/liqo/pkg/gateway/fabric"
@@ -42,7 +43,7 @@ import (
 
 var (
 	scheme  = runtime.NewScheme()
-	options = gwfabric.NewOptions(gateway.NewOptions())
+	options = gwfabric.NewOptions(gateway.NewOptions(), conncheck.NewOptions())
 )
 
 func init() {
@@ -61,6 +62,7 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 	gwfabric.InitFlags(cmd.Flags(), options)
+	conncheck.InitFlags(cmd.Flags(), options.ConnCheckOptions)
 
 	gateway.InitFlags(cmd.Flags(), options.GwOptions)
 	if err := gateway.MarkFlagsRequired(&cmd); err != nil {

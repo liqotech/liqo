@@ -235,6 +235,16 @@ networking:
       # -- Set the port where the fabric pod will expose the metrics.
       # To disable the metrics, set the port to 0.
       metricsAddressPort: "8082"
+      # -- Set the options to configure the fabric ping used to check connection with the gateway through geneve
+      ping:
+        # -- Set the number of consecutive pings that must fail to consider the connection as lost
+        lossThreshold: 5
+        # -- Set the interval between two consecutive pings
+        interval: 10s
+        # -- Set the interval at which the connection resource status is updated
+        updateStatusInterval: 10s
+        # -- The port used for the conncheck
+        port: 54321
 
 authentication:
   # -- Enable/Disable the authentication module.

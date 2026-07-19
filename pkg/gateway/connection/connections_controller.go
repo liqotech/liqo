@@ -58,7 +58,7 @@ func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
 		}
-		conncheckOpts.BindIP = ip.String()
+		conncheckOpts.PingBindIP = ip.String()
 	}
 	connchecker, err := conncheck.NewConnChecker(&conncheckOpts)
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
 
-	switch r.Options.PingEnabled {
+	switch r.Options.ConnCheckOptions.PingEnabled {
 	case true:
 		remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
 		if err != nil {

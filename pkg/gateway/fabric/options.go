@@ -28,15 +28,13 @@ type Options struct {
 	GenevePort            uint16
 	GeneveCleanupInterval time.Duration
 
-	PingEnabled              bool
-	ConnCheckOptions         *conncheck.Options
-	PingUpdateStatusInterval time.Duration
+	ConnCheckOptions *conncheck.Options
 }
 
 // NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
+func NewOptions(options *gateway.Options, conncheckOptions *conncheck.Options) *Options {
 	return &Options{
 		GwOptions:        options,
-		ConnCheckOptions: conncheck.NewOptions(),
+		ConnCheckOptions: conncheckOptions,
 	}
 }

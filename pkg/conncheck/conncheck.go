@@ -38,7 +38,7 @@ type ConnChecker struct {
 
 // NewConnChecker creates a new ConnChecker.
 func NewConnChecker(opts *Options) (*ConnChecker, error) {
-	bindIP := opts.BindIP
+	bindIP := opts.PingBindIP
 	if bindIP == "" {
 		bindIP = "0.0.0.0"
 	}
