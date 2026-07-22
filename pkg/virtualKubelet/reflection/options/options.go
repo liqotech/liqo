@@ -18,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -80,10 +82,16 @@ type NamespacedOpts struct {
 	LocalLiqoClient  liqoclient.Interface
 	RemoteLiqoClient liqoclient.Interface
 
+	LocalDynamicClient  dynamic.Interface
+	RemoteDynamicClient dynamic.Interface
+
 	LocalFactory      informers.SharedInformerFactory
 	RemoteFactory     informers.SharedInformerFactory
 	LocalLiqoFactory  liqoinformers.SharedInformerFactory
 	RemoteLiqoFactory liqoinformers.SharedInformerFactory
+
+	LocalDynamicFactory  dynamicinformer.DynamicSharedInformerFactory
+	RemoteDynamicFactory dynamicinformer.DynamicSharedInformerFactory
 
 	EventBroadcaster record.EventBroadcaster
 
@@ -126,6 +134,20 @@ func (ro *NamespacedOpts) WithRemote(namespace string, client kubernetes.Interfa
 func (ro *NamespacedOpts) WithLiqoRemote(client liqoclient.Interface, factory liqoinformers.SharedInformerFactory) *NamespacedOpts {
 	ro.RemoteLiqoClient = client
 	ro.RemoteLiqoFactory = factory
+	return ro
+}
+
+// WithDynamicLocal configures the local dynamic client and informer factory of the NamespacedOpts.
+func (ro *NamespacedOpts) WithDynamicLocal(client dynamic.Interface, factory dynamicinformer.DynamicSharedInformerFactory) *NamespacedOpts {
+	ro.LocalDynamicClient = client
+	ro.LocalDynamicFactory = factory
+	return ro
+}
+
+// WithDynamicRemote configures the remote dynamic client and informer factory of the NamespacedOpts.
+func (ro *NamespacedOpts) WithDynamicRemote(client dynamic.Interface, factory dynamicinformer.DynamicSharedInformerFactory) *NamespacedOpts {
+	ro.RemoteDynamicClient = client
+	ro.RemoteDynamicFactory = factory
 	return ro
 }
 
