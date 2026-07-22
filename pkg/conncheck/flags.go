@@ -44,6 +44,7 @@ const (
 	PingBindIPFlag FlagName = "ping-bind-ip"
 )
 
+// InitFlags configures the common flags for the connection check component.
 func InitFlags(flagset *pflag.FlagSet, options *Options) {
 	flagset.BoolVar(&options.PingEnabled, PingEnabledFlag.String(), true,
 		"ping-enabled enables the ping check. If disabled the connection resource will be always connected and the latency won't be available.")
