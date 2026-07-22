@@ -386,6 +386,18 @@ offloading:
       workers: 3
       # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
       type: DenyList
+    # -- List of custom resources to reflect between offloaded namespaces.
+    # Spec is synced local→remote and status remote→local. Default empty (feature off).
+    # CRDs must already exist on both clusters; Liqo does not install them.
+    # Default reflection type per entry is AllowList (annotate instances with liqo.io/allow-reflection: "true").
+    # Example:
+    # customResources:
+    # - group: example.io
+    #   version: v1
+    #   resource: widgets
+    #   workers: 2
+    #   type: AllowList
+    customResources: []
 
 storage:
   # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to

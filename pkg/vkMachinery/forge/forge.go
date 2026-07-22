@@ -105,6 +105,7 @@ func forgeVKContainers(
 
 	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsConfig)
 	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsConfig)
+	args = appendArgsCustomResources(args, opts.Spec.CustomResources)
 
 	if extraAnnotations := opts.Spec.NodeExtraAnnotations; len(extraAnnotations) != 0 {
 		stringifiedMap := argsutils.StringMap{StringMap: extraAnnotations}.String()
@@ -216,5 +217,18 @@ func appendArgsReflectorsType(args []string, reflectorsConfig map[string]offload
 		args = append(args, StringifyArgument(key, string(reflector.Type)))
 	}
 
+	return args
+}
+
+func appendArgsCustomResources(args []string, customResources []offloadingv1beta1.CustomResourceReflectorConfig) []string {
+	for i := range customResources {
+		cr := &customResources[i]
+		reflectionType := cr.Type
+		if reflectionType == "" {
+			reflectionType = offloadingv1beta1.AllowList
+		}
+		value := fmt.Sprintf("%s/%s/%s,%d,%s", cr.Group, cr.Version, cr.Resource, cr.NumWorkers, reflectionType)
+		args = append(args, StringifyArgument(string(CustomResourceReflection), value))
+	}
 	return args
 }
