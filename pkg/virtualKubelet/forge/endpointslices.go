@@ -30,6 +30,16 @@ import (
 // EndpointSliceManagedBy -> The manager associated with the reflected EndpointSlices.
 const EndpointSliceManagedBy = "endpointslice.reflection.liqo.io"
 
+const (
+	// IndirectEndpointSliceSuffix is the suffix appended to the name of the indirect ShadowEndpointSlice
+	// companion created alongside the direct one when a Service requests direct connection data.
+	IndirectEndpointSliceSuffix = "-indirect"
+
+	// IndirectEndpointSliceLabelKey is the label key used to mark an indirect ShadowEndpointSlice (and the
+	// resulting EndpointSlice).
+	IndirectEndpointSliceLabelKey = "liqo.io/indirect-endpointslice"
+)
+
 // EndpointTranslator defines the function to translate between local and remote endpoint addresses.
 type EndpointTranslator func([]string) []string
 
@@ -95,6 +105,44 @@ func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *offload
 	}
 }
 
+// RemoteIndirectShadowEndpointSlice forges the indirect ShadowEndpointSlice companion for a local EndpointSlice
+// when the associated Service is annotated with consts.UseDirectConnectionAnnotationKey (direct connections enabled).
+//
+// The indirect ShadowEndpointSlice carries only the endpoints hosted on OTHER provider clusters
+// (directEndpoints, the same subset the direct-connections data refers to), translated like a
+// plain reflected EndpointSlice (the hub-and-spoke path through the consumer), whereas the direct
+// slice carries them untranslated, deferring the remapping to the provider. Endpoints with a
+// single representation (e.g. consumer-hosted ones, whose hub form is the address itself) appear
+// in the direct slice only.
+// Which slice of the pair actually serves traffic is decided on
+// the provider by the ShadowEndpointSlice controller.
+func RemoteIndirectShadowEndpointSlice(local *discoveryv1.EndpointSlice, directEndpoints []discoveryv1.Endpoint,
+	remote *offloadingv1beta1.ShadowEndpointSlice, localNodeClient corev1listers.NodeLister,
+	targetNamespace string, translator EndpointTranslator,
+	forgingOpts *ForgingOpts) *offloadingv1beta1.ShadowEndpointSlice {
+	indirectName := local.GetName() + IndirectEndpointSliceSuffix
+	if remote == nil {
+		remote = &offloadingv1beta1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: indirectName, Namespace: targetNamespace}}
+	}
+
+	objectMeta := RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta, forgingOpts)
+	// Override the name with the indirect suffix.
+	objectMeta.Name = indirectName
+	// Add a marker label to identify this as the indirect companion of a direct EndpointSlice.
+	objectMeta.Labels[IndirectEndpointSliceLabelKey] = "true" //nolint:goconst // label value, not worth a shared constant
+
+	return &offloadingv1beta1.ShadowEndpointSlice{
+		ObjectMeta: objectMeta,
+		Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+			Template: offloadingv1beta1.EndpointSliceTemplate{
+				AddressType: local.AddressType,
+				Endpoints:   RemoteEndpointSliceEndpoints(directEndpoints, localNodeClient, translator),
+				Ports:       RemoteEndpointSlicePorts(local.Ports),
+			},
+		},
+	}
+}
+
 // RemoteEndpointSliceObjectMeta forges the objectMeta of the reflected endpointslice, given the local one.
 func RemoteEndpointSliceObjectMeta(local, remote *metav1.ObjectMeta, forgingOpts *ForgingOpts) metav1.ObjectMeta {
 	objectMeta := RemoteObjectMeta(local, remote)
@@ -153,4 +201,15 @@ func RemoteEndpointSlicePorts(locals []discoveryv1.EndpointPort) []discoveryv1.E
 		remotes = append(remotes, *local)
 	}
 	return remotes
+}
+
+// EndpointSliceAnnotations builds annotations for a reflected EndpointSlice,
+// filtering out keys that must not be propagated.
+func EndpointSliceAnnotations(shadow *offloadingv1beta1.ShadowEndpointSlice,
+	annotationsNotReflected []string) map[string]string {
+	if shadow == nil {
+		return nil
+	}
+
+	return FilterNotReflected(shadow.GetAnnotations(), annotationsNotReflected)
 }
