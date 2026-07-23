@@ -368,7 +368,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusClusterIP(service *corev1
 	if len(service.Spec.Ports) == 1 {
 		return &networkingv1beta1.EndpointStatus{
 			Protocol:  protocol,
-			Port:      service.Spec.Ports[0].Port,
+			Port:      service.Spec.Ports[0].Port, //nolint:staticcheck // Expose a single port
 			Addresses: addresses,
 		}, nil
 	}
@@ -417,7 +417,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 	if len(service.Spec.Ports) == 1 {
 		return &networkingv1beta1.EndpointStatus{
 			Protocol:  protocol,
-			Port:      service.Spec.Ports[0].NodePort,
+			Port:      service.Spec.Ports[0].NodePort, //nolint:staticcheck // Expose a single port
 			Addresses: addresses,
 		}, nil
 	}
@@ -447,7 +447,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 	if len(service.Spec.Ports) == 1 {
 		return &networkingv1beta1.EndpointStatus{
 			Protocol:  protocol,
-			Port:      service.Spec.Ports[0].Port,
+			Port:      service.Spec.Ports[0].Port, //nolint:staticcheck // Expose a single port
 			Addresses: addresses,
 		}, nil
 	}
