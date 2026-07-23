@@ -41,7 +41,7 @@ func ParseEndpoint(endpoint map[string]interface{}) *networkingv1beta1.EndpointS
 		if list, ok := value.([]interface{}); ok {
 			for _, v := range list {
 				if port, ok := v.(int64); ok {
-					res.Ports = append(res.Ports, int32(port))
+					res.Ports = append(res.Ports, int32(port)) //nolint:gosec // value comes from a validated k8s Service port
 				}
 			}
 		}
