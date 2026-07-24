@@ -86,6 +86,8 @@ const (
 	// gateway pod's network namespace; (2) this is meaningful only if the gateway uses multiple
 	// parallel tunnels to exchange date with its remote endpoint.
 	FlagNameEnableMultipathHashPolicy FlagName = "enable-multipath-hash-policy"
+	// FlagNameNumInterfaces is the number of WireGuard interfaces available to the gateway.
+	FlagNameNumInterfaces FlagName = "num-interfaces"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -136,6 +138,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Var(&opts.MinimumKernelVersion, FlagNameMinimumKernelVersion.String(), "Minimum kernel version required by Liqo")
 	flagset.BoolVar(&opts.EnableMultipathHashPolicy, FlagNameEnableMultipathHashPolicy.String(), false,
 		"Set fib_multipath_hash_policy=1 to use 5-tuple hashing for multipath routing")
+	flagset.IntVar(&opts.NumInterfaces, FlagNameNumInterfaces.String(), 1, "Number of WireGuard interfaces")
 }
 
 // MarkFlagsRequired marks the flags as required.

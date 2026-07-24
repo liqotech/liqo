@@ -52,6 +52,7 @@ type Options struct {
 	DisableKernelVersionCheck bool
 	MinimumKernelVersion      kernelversion.KernelVersion
 	EnableMultipathHashPolicy bool
+	NumInterfaces             int
 }
 
 // NewOptions returns a new Options struct.

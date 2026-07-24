@@ -39,6 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -106,6 +107,11 @@ func run(cmd *cobra.Command, _ []string) error {
 		if err := kernelversion.CheckKernelVersion(&connoptions.GwOptions.MinimumKernelVersion); err != nil {
 			return fmt.Errorf("kernel version check failed: %w, disable this check with --%s", err, gateway.FlagNameDisableKernelVersionCheck)
 		}
+	}
+
+	// Check if the number of interfaces is valid (must be at least 1).
+	if connoptions.GwOptions.NumInterfaces < 1 {
+		return fmt.Errorf("invalid number of interfaces (%d): must be at least 1", connoptions.GwOptions.NumInterfaces)
 	}
 
 	// Enable ip_forwarding.
@@ -193,6 +199,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	tunnelName := tunnel.TunnelInterfaceName
+
+	interfaceNames := make([]string, connoptions.GwOptions.NumInterfaces)
+	for i := range connoptions.GwOptions.NumInterfaces {
+		interfaceNames[i] = tunnel.GetTunnelName(i)
+	}
+
 	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
@@ -203,6 +216,8 @@ func run(cmd *cobra.Command, _ []string) error {
 			gateway.ForgeRouteInternalTargetLabels(),
 			gateway.ForgeRouteInternalTargetLabelsByNode(connoptions.GwOptions.NodeName),
 		},
+		tunnelName,
+		interfaceNames,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)

@@ -28,6 +28,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,31 +54,41 @@ type RouteConfigurationReconciler struct {
 	LabelsSets []labels.Set
 	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
 	EnableFinalizer bool
+	// TunnelName is the base name used to build the placeholder ("<TunnelName>*")
+	// that marks rules to be expanded per tunnel interface.
+	TunnelName string
+	// TunnelInterfaceNames are the concrete tunnel interface names used to expand
+	// placeholder rules.
+	TunnelInterfaceNames []string
 }
 
 // newRouteConfigurationReconciler returns a new RouteConfigurationReconciler.
 func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*RouteConfigurationReconciler, error) {
+	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool,
+	tunnelName string, tunnelInterfaceNames []string) (*RouteConfigurationReconciler, error) {
 	return &RouteConfigurationReconciler{
-		PodName:         podname,
-		Client:          cl,
-		Scheme:          s,
-		EventsRecorder:  er,
-		LabelsSets:      labelsSets,
-		EnableFinalizer: enableFinalizer,
+		PodName:              podname,
+		Client:               cl,
+		Scheme:               s,
+		EventsRecorder:       er,
+		LabelsSets:           labelsSets,
+		EnableFinalizer:      enableFinalizer,
+		TunnelName:           tunnelName,
+		TunnelInterfaceNames: tunnelInterfaceNames,
 	}, nil
 }
 
 // NewRouteConfigurationReconcilerWithFinalizer initializes a reconciler that uses finalizers on routeconfigurations.
 func NewRouteConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, true)
+	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, true, "", nil)
 }
 
 // NewRouteConfigurationReconcilerWithoutFinalizer initializes a reconciler that doesn't use finalizers on routeconfigurations.
 func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme, podname string,
-	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, false)
+	er record.EventRecorder, labelsSets []labels.Set,
+	tunnelName string, tunnelInterfaceNames []string) (*RouteConfigurationReconciler, error) {
+	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, false, tunnelName, tunnelInterfaceNames)
 }
 
 // cluster-role
@@ -110,6 +121,8 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("getting the table ID: %w", err)
 	}
 
+	expandedRules := expandRules(routeconfiguration.Spec.Table.Rules, r.TunnelName, r.TunnelInterfaceNames)
+
 	// Manage Finalizers and routeconfiguration deletion.
 	deleting := !routeconfiguration.ObjectMeta.DeletionTimestamp.IsZero()
 	containsFinalizer := ctrlutil.ContainsFinalizer(routeconfiguration, routeconfigurationControllerFinalizer)
@@ -122,11 +135,11 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 
 	case deleting && containsFinalizer && r.EnableFinalizer:
-		for i := range routeconfiguration.Spec.Table.Rules {
-			if err = EnsureRuleAbsence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
+		for i := range expandedRules {
+			if err = EnsureRuleAbsence(&expandedRules[i], tableID); err != nil {
 				return ctrl.Result{}, fmt.Errorf("ensuring rule absence: %w", err)
 			}
-			if err = EnsureRoutesAbsence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+			if err = EnsureRoutesAbsence(expandedRules[i].Routes, tableID); err != nil {
 				return ctrl.Result{}, fmt.Errorf("ensuring routes absence: %w", err)
 			}
 		}
@@ -147,15 +160,15 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	if err = CleanRules(routeconfiguration.Spec.Table.Rules, tableID); err != nil {
+	if err = CleanRules(expandedRules, tableID); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning rules: %w", err)
 	}
 
 	allRoutes := []networkingv1beta1.Route{}
-	for i := range routeconfiguration.Spec.Table.Rules {
+	for i := range expandedRules {
 		// Append all the routes in the same table in a single array.
 		// This is necessary because we can't list the route rules filtering per rule.
-		allRoutes = append(allRoutes, routeconfiguration.Spec.Table.Rules[i].Routes...)
+		allRoutes = append(allRoutes, expandedRules[i].Routes...)
 	}
 	if err = CleanRoutes(allRoutes, tableID); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning routes: %w", err)
@@ -167,11 +180,11 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("ensuring table presence: %w", err)
 	}
 
-	for i := range routeconfiguration.Spec.Table.Rules {
-		if err = EnsureRulePresence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
+	for _, rule := range expandedRules {
+		if err = EnsureRulePresence(&rule, tableID); err != nil {
 			return ctrl.Result{}, fmt.Errorf("ensuring rule presence: %w", err)
 		}
-		if err := EnsureRoutesPresence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+		if err := EnsureRoutesPresence(rule.Routes, tableID); err != nil {
 			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				klog.V(3).Infof("Link not found for routeconfiguration %s, requeuing: %v", req.String(), err)
 				return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
@@ -255,4 +268,29 @@ func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er reco
 		err = errors.Join(err, clerr)
 	}
 	return err
+}
+
+// expandRules expands the existing rules by creating a specialized rule for each active
+// network interface that matches the provided tunnel name prefix (acting as a placeholder).
+func expandRules(rules []networkingv1beta1.Rule, tunnelName string, tunnelInterfaceNames []string) []networkingv1beta1.Rule {
+	if tunnelName == "" && len(tunnelInterfaceNames) == 0 {
+		return rules
+	}
+	expandedRules := []networkingv1beta1.Rule{}
+	placeholder := tunnelName + "*"
+
+	for i := range rules {
+		rule := rules[i]
+
+		if rule.Iif != nil && *rule.Iif == placeholder {
+			for _, iface := range tunnelInterfaceNames {
+				newRule := rule
+				newRule.Iif = ptr.To(iface)
+				expandedRules = append(expandedRules, newRule)
+			}
+		} else {
+			expandedRules = append(expandedRules, rule)
+		}
+	}
+	return expandedRules
 }
