@@ -16,7 +16,10 @@ DOCKER_PROXY="${DOCKER_PROXY:-docker.io}"
 
 function install_calico() {
   local kubeconfig=$1
-  "${KUBECTL}" create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml --kubeconfig "$kubeconfig"
+  local calico_version="v3.32.1"
+
+  "${KUBECTL}" create -f "https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/operator-crds.yaml" --kubeconfig "$kubeconfig"
+  "${KUBECTL}" create -f "https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/tigera-operator.yaml" --kubeconfig "$kubeconfig"
 
   # Wait for the Installation CRD to be available
   if ! waitandretry 5s 12 "${KUBECTL} get crd installations.operator.tigera.io --kubeconfig $kubeconfig"; then
@@ -127,7 +130,7 @@ function install_flannel() {
   "${KUBECTL}" create ns kube-flannel --kubeconfig "$kubeconfig"
   "${KUBECTL}" label --overwrite ns kube-flannel pod-security.kubernetes.io/enforce=privileged --kubeconfig "$kubeconfig"
   "${HELM}" repo add flannel https://flannel-io.github.io/flannel/
-  "${HELM}" install flannel --set podCidr="${POD_CIDR}" --namespace kube-flannel flannel/flannel --kubeconfig "$kubeconfig"
+  "${HELM}" install flannel --set podCidr="${POD_CIDR}",flannel.mtu=1400,flannel.backendPort=8473 --namespace kube-flannel flannel/flannel --kubeconfig "$kubeconfig"
 }
 
 function wait_flannel() {
