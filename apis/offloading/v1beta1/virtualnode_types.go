@@ -55,6 +55,10 @@ type DeploymentTemplate struct {
 type VirtualNodeSpec struct {
 	// ClusterID contains the id of the remote cluster targeted by the created virtualKubelet.
 	ClusterID liqov1beta1.ClusterID `json:"clusterID,omitempty"`
+	// ProviderID to assigned to the node. It can be empty or in the format: <ProviderName>://<ProviderSpecificNodeID>.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf || oldSelf == \"\"",message="ProviderID is immutable once set"
+	// +optional
+	ProviderID string `json:"providerID,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
 	// +optional
 	Template *DeploymentTemplate `json:"template,omitempty"`

@@ -64,6 +64,10 @@ func desiredVirtualNodeMetadata(
 	return labels, annotations, taints
 }
 
+func (p *LiqoNodeProvider) setProviderID(virtualNode *offloadingv1beta1.VirtualNode) {
+	p.node.Spec.ProviderID = virtualNode.Spec.ProviderID
+}
+
 func (p *LiqoNodeProvider) applyVirtualNodeMetadata(virtualNode *offloadingv1beta1.VirtualNode) {
 	labels, annotations, taints := desiredVirtualNodeMetadata(virtualNode)
 
