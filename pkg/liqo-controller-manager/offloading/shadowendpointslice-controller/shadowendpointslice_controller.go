@@ -38,12 +38,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	"github.com/liqotech/liqo/pkg/utils/directconnection"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -209,6 +212,56 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 }
 
+func (r *Reconciler) getNetworkConfigEventHandler(ctx context.Context) handler.EventHandler {
+	return &handler.Funcs{
+		CreateFunc: func(_ context.Context, ce event.TypedCreateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+			newNetworkConfig, ok := ce.Object.(*networkingv1beta1.Configuration)
+			if !ok {
+				klog.Errorf("object %v is not a Configuration", ce.Object)
+				return
+			}
+
+			shadowList := r.getShadowEndpointSlicesFromNetworkConfig(ctx, newNetworkConfig)
+			if shadowList == nil {
+				return
+			}
+
+			for i := range shadowList.Items {
+				shadow := &shadowList.Items[i]
+				trli.Add(reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      shadow.Name,
+						Namespace: shadow.Namespace,
+					},
+				})
+			}
+		},
+
+		UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+			newNetworkConfig, ok := ue.ObjectNew.(*networkingv1beta1.Configuration)
+			if !ok {
+				klog.Errorf("object %v is not a Configuration", ue.ObjectNew)
+				return
+			}
+
+			shadowList := r.getShadowEndpointSlicesFromNetworkConfig(ctx, newNetworkConfig)
+			if shadowList == nil {
+				return
+			}
+
+			for i := range shadowList.Items {
+				shadow := &shadowList.Items[i]
+				trli.Add(reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      shadow.Name,
+						Namespace: shadow.Namespace,
+					},
+				})
+			}
+		},
+	}
+}
+
 // getForeignClusterEventHandler returns an event handler that reacts on ForeignClusters updates.
 // In particular, it reacts on changes on the NetworkStatus condition.
 func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.EventHandler {
@@ -246,7 +299,32 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 	}
 }
 
-func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool {
+func (r *Reconciler) validateNetworkConfigOnCreate(newObj client.Object) bool {
+	newNetworkConfig, ok := newObj.(*networkingv1beta1.Configuration)
+	if !ok {
+		klog.Errorf("object %v is not a Configuration", newObj)
+		return false
+	}
+
+	return networkingutils.AreConfigurationNetworkCIDRsConfigured(newNetworkConfig)
+}
+
+func (r *Reconciler) validateNetworkConfigOnUpdate(newObj, oldObj client.Object) bool {
+	oldNetworkConfig, ok := oldObj.(*networkingv1beta1.Configuration)
+	if !ok {
+		klog.Errorf("object %v is not a Configuration", oldObj)
+		return false
+	}
+	newNetworkConfig, ok := newObj.(*networkingv1beta1.Configuration)
+	if !ok {
+		klog.Errorf("object %v is not a Configuration", newObj)
+		return false
+	}
+
+	return !networkingutils.AreConfigurationNetworkCIDRsEqual(oldNetworkConfig, newNetworkConfig)
+}
+
+func (r *Reconciler) validateForeignClusterOnUpdate(newObj, oldObj client.Object) bool {
 	oldForeignCluster, ok := oldObj.(*liqov1beta1.ForeignCluster)
 	if !ok {
 		klog.Errorf("object %v is not a ForeignCluster", oldObj)
@@ -275,17 +353,51 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 	fcPredicates := predicate.Funcs{
 		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
 		CreateFunc:  func(_ event.CreateEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return r.endpointsShouldBeUpdated(e.ObjectNew, e.ObjectOld) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return r.validateForeignClusterOnUpdate(e.ObjectNew, e.ObjectOld) },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
+
+	ncPredicates := predicate.Funcs{
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
+		CreateFunc:  func(e event.CreateEvent) bool { return r.validateNetworkConfigOnCreate(e.Object) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return r.validateNetworkConfigOnUpdate(e.ObjectNew, e.ObjectOld) },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
+
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &offloadingv1beta1.ShadowEndpointSlice{},
+		indexer.FieldDirectConnectionClusterIDs, indexer.ExtractDirectConnectionClusterIDs); err != nil {
+		return fmt.Errorf("unable to setup field indexer for direct-connection cluster IDs: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowEndpointSlice).
 		For(&offloadingv1beta1.ShadowEndpointSlice{}).
 		Owns(&discoveryv1.EndpointSlice{}).
+		Watches(&networkingv1beta1.Configuration{},
+			r.getNetworkConfigEventHandler(ctx), builder.WithPredicates(ncPredicates)).
 		Watches(&liqov1beta1.ForeignCluster{},
 			r.getForeignClusterEventHandler(ctx), builder.WithPredicates(fcPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
+}
+
+func (r *Reconciler) getShadowEndpointSlicesFromNetworkConfig(
+	ctx context.Context,
+	networkConfig *networkingv1beta1.Configuration,
+) *offloadingv1beta1.ShadowEndpointSliceList {
+	clusterID := networkConfig.Labels[consts.RemoteClusterID]
+	if clusterID == "" {
+		klog.Errorf("network configuration %q has no label %q", klog.KObj(networkConfig), consts.RemoteClusterID)
+		return nil
+	}
+
+	// List all shadowendpointslices with direct-connections-data including clusterID
+	var shadowList offloadingv1beta1.ShadowEndpointSliceList
+	if err := r.List(ctx, &shadowList, client.MatchingFields{indexer.FieldDirectConnectionClusterIDs: clusterID}); err != nil {
+		klog.Errorf("Unable to list shadowendpointslices related to network configuration %q: %v", klog.KObj(networkConfig), err)
+		return nil
+	}
+
+	return &shadowList
 }
 
 // removeDirectConnectionAnnotation returns a copy of annotations without direct-connection data.
