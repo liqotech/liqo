@@ -50,3 +50,11 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - genevetunnels/status
+  verbs:
+  - get
+  - patch
+  - update

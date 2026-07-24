@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -30,9 +31,11 @@ import (
 type Peer struct {
 	connected bool
 	latency   time.Duration
-	// lastReceivedTimestamp is the timestamp when the last received PING has been sent.
-	lastReceivedTimestamp time.Time
-	updateCallback        UpdateFunc
+	// lastPingTimestamp is the timestamp of the last received PING (used for out-of-order detection).
+	lastPingTimestamp time.Time
+	// lastPongTimestamp is the time when the last PONG was received.
+	lastPongTimestamp time.Time
+	updateCallback    UpdateFunc
 }
 
 // Receiver is a receiver for conncheck messages.
@@ -74,12 +77,13 @@ func (r *Receiver) ReceivePong(msg *Msg) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if peer, ok := r.peers[msg.ClusterID]; ok {
-		if msg.TimeStamp.Before(peer.lastReceivedTimestamp) {
+		if msg.TimeStamp.Before(peer.lastPingTimestamp) {
 			klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
 			return nil
 		}
 		now := time.Now()
-		peer.lastReceivedTimestamp = msg.TimeStamp
+		peer.lastPingTimestamp = msg.TimeStamp
+		peer.lastPongTimestamp = now
 		peer.latency = now.Sub(msg.TimeStamp)
 		peer.connected = true
 
@@ -97,17 +101,18 @@ func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.peers[clusterID] = &Peer{
-		connected:             false,
-		latency:               0,
-		lastReceivedTimestamp: time.Now(),
-		updateCallback:        updateCallback,
+		connected:         false,
+		latency:           0,
+		lastPingTimestamp: time.Time{},
+		lastPongTimestamp: time.Now(),
+		updateCallback:    updateCallback,
 	}
 	return nil
 }
 
 // Run starts the receiver.
 func (r *Receiver) Run(ctx context.Context) {
-	klog.Infof("conncheck receiver: started")
+	klog.Infof("conncheck receiver: started on %s:%d", r.opts.PingBindIP, r.opts.PingPort)
 	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(_ context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
@@ -124,13 +129,10 @@ func (r *Receiver) Run(ctx context.Context) {
 		switch msgr.MsgType {
 		case PING:
 			klog.V(8).Infof("conncheck receiver: received a PING %s -> %s", raddr, msgr)
-			err = r.SendPong(raddr, msgr)
+			go sendPong(r, raddr, msgr)
 		case PONG:
 			klog.V(8).Infof("conncheck receiver: received a PONG from %s  -> %s", raddr, msgr)
-			err = r.ReceivePong(msgr)
-		}
-		if err != nil {
-			klog.Errorf("conncheck receiver: %v", err)
+			go receivePong(r, msgr)
 		}
 		return false, nil
 	})
@@ -139,16 +141,33 @@ func (r *Receiver) Run(ctx context.Context) {
 	}
 }
 
+func sendPong(r *Receiver, raddr *net.UDPAddr, msgr *Msg) {
+	if err := r.SendPong(raddr, msgr); err != nil {
+		klog.Errorf("conncheck receiver: sendPong error: %v", err)
+	}
+}
+
+func receivePong(r *Receiver, msgr *Msg) {
+	if err := r.ReceivePong(msgr); err != nil {
+		klog.Errorf("conncheck receiver: receivePong error: %v", err)
+	}
+}
+
 // RunDisconnectObserver starts the disconnect observer.
 func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
-	err := wait.PollUntilContextCancel(ctx, time.Duration(r.opts.PingLossThreshold)*r.opts.PingInterval/10, true,
+	threshold := r.opts.PingLossThreshold
+	if threshold > uint(math.MaxInt64) {
+		threshold = uint(math.MaxInt64)
+	}
+	thresholdDuration := time.Duration(threshold)
+	err := wait.PollUntilContextCancel(ctx, thresholdDuration*r.opts.PingInterval/10, true,
 		func(_ context.Context) (done bool, err error) {
 			r.m.Lock()
 			defer r.m.Unlock()
 			for id, peer := range r.peers {
-				if time.Since(peer.lastReceivedTimestamp.Add(peer.latency)) <= r.opts.PingInterval*time.Duration(r.opts.PingLossThreshold) {
+				if time.Since(peer.lastPongTimestamp) <= r.opts.PingInterval*thresholdDuration {
 					continue
 				}
 				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
@@ -156,7 +175,7 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 				peer.latency = 0
 				err := peer.updateCallback(false, 0, time.Time{})
 				if err != nil {
-					klog.Errorf("conncheck receiver: failed to update peer %s: %s", peer.lastReceivedTimestamp, err)
+					klog.Errorf("conncheck receiver: failed to update peer %s: %s", id, err)
 				}
 			}
 			return false, nil

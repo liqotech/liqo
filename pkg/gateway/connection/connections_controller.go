@@ -17,6 +17,7 @@ package connection
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
@@ -51,7 +52,15 @@ type ConnectionsReconciler struct {
 // NewConnectionsReconciler returns a new PublicKeysReconciler.
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
-	connchecker, err := conncheck.NewConnChecker(options.ConnCheckOptions)
+	conncheckOpts := *options.ConnCheckOptions
+	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode); cidr != "" {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
+		}
+		conncheckOpts.PingBindIP = ip.String()
+	}
+	connchecker, err := conncheck.NewConnChecker(&conncheckOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the connection checker: %w", err)
 	}
@@ -80,7 +89,7 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
 
-	switch r.Options.PingEnabled {
+	switch r.Options.ConnCheckOptions.PingEnabled {
 	case true:
 		remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
 		if err != nil {

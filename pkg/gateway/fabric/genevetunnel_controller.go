@@ -17,6 +17,8 @@ package fabric
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
@@ -43,6 +46,10 @@ type GeneveTunnelReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder events.EventRecorder
 	Options        *Options
+
+	connChecker     atomic.Pointer[conncheck.ConnChecker]
+	connCheckerErr  error
+	connCheckerOnce sync.Once
 }
 
 // NewGeneveTunnelReconciler returns a new GeneveTunnelReconciler.
@@ -57,7 +64,8 @@ func NewGeneveTunnelReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 
@@ -147,7 +155,41 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	klog.Infof("Enforced interface %s for genevetunnel %s", internalnode.Spec.Interface.Gateway.Name, req.String())
 
+	if internalnode.Spec.Interface.Node.IP == "" {
+		klog.Infof("waiting for inner IP of internalnode %s to be set...", internalnode.Name)
+		return ctrl.Result{}, nil
+	}
+
+	if r.Options.ConnCheckOptions.PingEnabled {
+		bindIP := r.Options.ConnCheckOptions.PingBindIP
+		if bindIP == "" {
+			bindIP = internalfabric.Spec.Interface.Gateway.IP.String()
+		}
+
+		if err := r.initConnCheckerReceiver(ctx, bindIP); err != nil {
+			return ctrl.Result{}, fmt.Errorf("initializing conncheck receiver: %w", err)
+		}
+	}
+
 	return ctrl.Result{}, nil
+}
+
+// initConnCheckerReceiver creates and starts the ConnChecker receiver bound to the gateway geneve IP.
+// It is guaranteed to run at most once.
+func (r *GeneveTunnelReconciler) initConnCheckerReceiver(ctx context.Context, bindIP string) error {
+	r.connCheckerOnce.Do(func() {
+		opts := r.Options.ConnCheckOptions
+		opts.PingBindIP = bindIP
+		cc, err := conncheck.NewConnChecker(opts)
+		if err != nil {
+			r.connCheckerErr = fmt.Errorf("creating geneve conncheck receiver: %w", err)
+			return
+		}
+		go cc.RunReceiver(ctx)
+		r.connChecker.Store(cc)
+		klog.Infof("geneve conncheck receiver started, bound to %s:%d", bindIP, opts.PingPort)
+	})
+	return r.connCheckerErr
 }
 
 // SetupWithManager registers the GeneveTunnelReconciler to the manager.
