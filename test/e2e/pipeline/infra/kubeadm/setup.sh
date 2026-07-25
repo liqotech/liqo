@@ -104,4 +104,7 @@ done
 for i in $(seq 1 "${CLUSTER_NUMBER}"); do
   echo "Waiting for cluster ${CAPI_CLUSTER_NAME} CNI to be ready"
   "wait_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  echo "Checking the CNI datapath of cluster ${CAPI_CLUSTER_NAME}"
+  check_cni_datapath "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done

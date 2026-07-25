@@ -147,6 +147,13 @@ var _ = Describe("Liqo E2E", func() {
 					}, timeout, interval).Should(Succeed())
 				}
 
+				// Check that the internal fabric caught up with the new gateway pods.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkInternalFabricConverged(testContext.Clusters[i].ControllerClient)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Run the tests again.
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(defaultArgs)
@@ -176,6 +183,14 @@ var _ = Describe("Liqo E2E", func() {
 					for j := range testContext.Clusters {
 						Eventually(func() error {
 							return checkConnectionsReady(testContext.Clusters[j].ControllerClient, restartTime)
+						}, timeout, interval).Should(Succeed())
+					}
+
+					// Connections only cover the inter-gateway tunnel: wait for the internal
+					// fabric to catch up with the new gateway pods before probing the datapath.
+					for j := range testContext.Clusters {
+						Eventually(func() error {
+							return checkInternalFabricConverged(testContext.Clusters[j].ControllerClient)
 						}, timeout, interval).Should(Succeed())
 					}
 
@@ -369,6 +384,78 @@ func checkConnectionsReady(cl client.Client, restartTime time.Time) error {
 				conn.Namespace, conn.Name, conn.Status.Latency.Timestamp, restartTime)
 		}
 	}
+	return nil
+}
+
+// checkInternalFabricConverged checks that the internal fabric has been reconfigured for the
+// gateway pods that are currently active.
+//
+// Connections only tell that the inter-gateway tunnel is up: they are probed over the tunnel
+// interface and never traverse the geneve tunnels connecting the nodes to the gateways. After a
+// gateway pod is replaced, the geneve tunnels are reprogrammed from two resources, and until both
+// caught up the node-to-gateway datapath may still point to the previous pod:
+//
+//   - InternalFabric.Spec.GatewayIP, the address the nodes use as the remote end of their geneve
+//     tunnel, which must be the IP of the active gateway pod;
+//   - InternalNode.Status.NodeIP, the address the gateway uses as the remote end of its own geneve
+//     tunnel towards each node. Local is the source a node uses to reach a gateway pod scheduled on
+//     itself, Remote the one it uses to reach a gateway pod on another node: which of the two is
+//     needed depends on where the active gateway pod is currently scheduled.
+//
+// With CNIs where the two sources differ (e.g. Flannel, where a node reaches local pods from cni0
+// and remote pods from flannel.1) a stale value makes the gateway drop every packet coming from
+// that node, so probe the datapath only once both resources match the current placement.
+func checkInternalFabricConverged(cl client.Client) error {
+	activeGatewayPods := &corev1.PodList{}
+	if err := cl.List(ctx, activeGatewayPods, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels()),
+	}); err != nil {
+		return fmt.Errorf("unable to list active gateway pods: %w", err)
+	}
+
+	activeGatewayIPs := make(map[string]any)
+	for i := range activeGatewayPods.Items {
+		pod := &activeGatewayPods.Items[i]
+		if pod.Status.PodIP == "" {
+			return fmt.Errorf("active gateway pod %s/%s has no IP yet", pod.Namespace, pod.Name)
+		}
+		activeGatewayIPs[pod.Status.PodIP] = struct{}{}
+	}
+
+	internalFabricList := &networkingv1beta1.InternalFabricList{}
+	if err := cl.List(ctx, internalFabricList); err != nil {
+		return fmt.Errorf("unable to list internalfabrics: %w", err)
+	}
+
+	for i := range internalFabricList.Items {
+		internalFabric := &internalFabricList.Items[i]
+		if _, ok := activeGatewayIPs[internalFabric.Spec.GatewayIP.String()]; !ok {
+			return fmt.Errorf("internalfabric %s/%s still points to %s, which is not an active gateway pod",
+				internalFabric.Namespace, internalFabric.Name, internalFabric.Spec.GatewayIP)
+		}
+	}
+
+	internalNodeList := &networkingv1beta1.InternalNodeList{}
+	if err := cl.List(ctx, internalNodeList); err != nil {
+		return fmt.Errorf("unable to list internalnodes: %w", err)
+	}
+
+	for i := range internalNodeList.Items {
+		internalNode := &internalNodeList.Items[i]
+		for j := range activeGatewayPods.Items {
+			pod := &activeGatewayPods.Items[j]
+			if pod.Spec.NodeName == internalNode.Name {
+				if internalNode.Status.NodeIP.Local == nil {
+					return fmt.Errorf("internalnode %s hosts the active gateway pod %s/%s but has no local source IP yet",
+						internalNode.Name, pod.Namespace, pod.Name)
+				}
+			} else if internalNode.Status.NodeIP.Remote == nil {
+				return fmt.Errorf("internalnode %s has no remote source IP yet to reach the active gateway pod %s/%s",
+					internalNode.Name, pod.Namespace, pod.Name)
+			}
+		}
+	}
+
 	return nil
 }
 

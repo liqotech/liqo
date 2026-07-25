@@ -72,3 +72,16 @@ do
 	install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
 
+# The CNI of every cluster is checked in a second loop, so that it can converge while the
+# remaining clusters are created.
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+	if [[ ${DISABLE_KINDNET} == "true" ]]; then
+		echo "Waiting for the ${CNI} CNI of cluster ${CLUSTER_NAME}${i} to be ready..."
+		"wait_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+	fi
+
+	echo "Checking the CNI datapath of cluster ${CLUSTER_NAME}${i}..."
+	check_cni_datapath "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+done
+
