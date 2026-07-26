@@ -59,6 +59,14 @@ const (
 	CreateNode VirtualKubeletOptsFlag = "--create-node"
 	// NodeCheckNetwork is the flag used to specify if the network must be checked.
 	NodeCheckNetwork VirtualKubeletOptsFlag = "--node-check-network"
+	// RemotePodCIDR is the flag used to specify the remote pod CIDR as known by the remote cluster.
+	RemotePodCIDR VirtualKubeletOptsFlag = "--remote-pod-cidr"
+	// RemotePodCIDRRemap is the flag used to specify the remote pod CIDR as remapped by the local cluster.
+	RemotePodCIDRRemap VirtualKubeletOptsFlag = "--remote-pod-cidr-remap"
+	// RemoteExternalCIDR is the flag used to specify the remote external CIDR as known by the remote cluster.
+	RemoteExternalCIDR VirtualKubeletOptsFlag = "--remote-external-cidr"
+	// RemoteExternalCIDRRemap is the flag used to specify the remote external CIDR as remapped by the local cluster.
+	RemoteExternalCIDRRemap VirtualKubeletOptsFlag = "--remote-external-cidr-remap"
 	// CustomResourceReflection is the flag used to configure reflection of a custom resource GVR.
 	CustomResourceReflection VirtualKubeletOptsFlag = "--custom-resource-reflection"
 )

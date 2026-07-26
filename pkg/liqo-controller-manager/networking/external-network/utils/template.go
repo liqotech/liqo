@@ -16,15 +16,29 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var variableRegex = regexp.MustCompile(`{{\s*(.\S+)\s*}}`)
+
+const (
+	gatewayTemplateLabelKey   = "networking.liqo.io/gatewaytemplate"
+	gatewayTemplateLabelValue = "true"
+)
 
 type renderOptions struct {
 	skipIfEmpty bool
@@ -133,4 +147,37 @@ func preProcessOptional(key string, value, obj interface{}) (newKey string, newV
 	}
 
 	return
+}
+
+// RetrieveGatewayTemplateGVKs returns the GVKs of the CRDs labeled as GatewayTemplates.
+func RetrieveGatewayTemplateGVKs(ctx context.Context, cl client.Client) ([]schema.GroupVersionKind, error) {
+	crdList := &apiextensionsv1.CustomResourceDefinitionList{}
+	if err := cl.List(ctx, crdList, client.MatchingLabels{gatewayTemplateLabelKey: gatewayTemplateLabelValue}); err != nil {
+		return nil, fmt.Errorf("failed to list CRDs with label %s=%s: %w", gatewayTemplateLabelKey, gatewayTemplateLabelValue, err)
+	}
+
+	var templateGVKs []schema.GroupVersionKind
+	for i := range crdList.Items {
+		crd := &crdList.Items[i]
+		for _, version := range crd.Spec.Versions {
+			if version.Served {
+				templateGVKs = append(templateGVKs, schema.GroupVersionKind{
+					Group:   crd.Spec.Group,
+					Version: version.Name,
+					Kind:    crd.Spec.Names.Kind,
+				})
+			}
+		}
+	}
+
+	return templateGVKs, nil
+}
+
+// WatchByGVKs configures the controller builder to watch the resources identified by the given GVKs.
+func WatchByGVKs(ctrlBuilder *builder.TypedBuilder[reconcile.Request], gvks []schema.GroupVersionKind, mapFunc handler.MapFunc) {
+	for _, gvk := range gvks {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(gvk)
+		ctrlBuilder = ctrlBuilder.Watches(obj, handler.EnqueueRequestsFromMapFunc(mapFunc))
+	}
 }

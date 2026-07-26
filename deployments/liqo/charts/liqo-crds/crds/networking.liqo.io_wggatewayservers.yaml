@@ -10444,9 +10444,18 @@ spec:
                       type: string
                     type: array
                   port:
-                    description: Port specifies the port of the endpoint.
+                    description: |-
+                      Deprecated: use Ports instead
+                      Port specifies the port of the endpoint.
                     format: int32
                     type: integer
+                  ports:
+                    description: Ports specifies the ports of the endpoint.
+                    items:
+                      format: int32
+                      type: integer
+                    maxItems: 64
+                    type: array
                   protocol:
                     description: Protocol specifies the protocol of the endpoint.
                     enum:
@@ -10454,6 +10463,14 @@ spec:
                     - UDP
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: port and ports are mutually exclusive
+                  rule: '!(has(self.port) && has(self.ports))'
+                - message: at least one of port or ports must be set
+                  rule: has(self.port) || (has(self.ports) && size(self.ports) > 0)
+                - message: ports must not contain duplicates
+                  rule: '!(has(self.ports)) || self.ports.all(p, self.ports.filter(q,
+                    q == p).size() == 1)'
               internalEndpoint:
                 description: InternalEndpoint specifies the endpoint for the internal
                   network.

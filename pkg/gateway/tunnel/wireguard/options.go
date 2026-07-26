@@ -61,13 +61,19 @@ func (wgi WgImplementation) Type() string {
 type Options struct {
 	GwOptions *gateway.Options
 
-	MTU             int
-	PrivateKey      wgtypes.Key
-	InterfaceIP     string
-	ListenPort      int
+	MTU         int
+	PrivateKey  wgtypes.Key
+	InterfaceIP string
+
+	// ListenPorts is the list of ports used by the multi-tunnel WireGuard server.
+	ListenPorts []int
+
 	EndpointAddress string
-	EndpointPort    int
-	KeysDir         string
+
+	// EndpointPorts is the list of ports used by the multi-tunnel WireGuard client.
+	EndpointPorts []int
+
+	KeysDir string
 
 	EndpointIP      net.IP
 	EndpointIPMutex *sync.Mutex

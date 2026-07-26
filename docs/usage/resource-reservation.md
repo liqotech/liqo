@@ -238,10 +238,18 @@ By default, the `ResourceSlice` class controller shipped with Liqo accepts every
 A reusable starting point is provided by the [resource-slice-class-controller-template](https://github.com/liqotech/resource-slice-class-controller-template) repository, and the general mechanics of class controllers are described in the [Custom ResourceSlice classes](/advanced/peering/offloading-in-depth.md#custom-resourceslice-classes) section of the offloading-in-depth page.
 
 ```{warning}
-The class is chosen by the **consumer**, and the built-in default class controller is always running alongside any custom one — Liqo does not provide a built-in way to disable it.
-A consumer can therefore bypass a strict custom controller simply by selecting `class: default` (or omitting the class), which routes the request to the lenient built-in controller.
-To actually enforce a stricter policy at the provider, the custom controller must be paired with an external mechanism that prevents the lenient path from being used — for example, a Kubernetes admission webhook on the provider that rejects or rewrites the `spec.class` of incoming `ResourceSlice` objects.
+The class is chosen by the **consumer**. By default, the built-in default class controller runs alongside any custom one, so a consumer can bypass a strict custom controller simply by selecting `class: default`, which routes the request to the lenient built-in controller.
 ```
+
+To enforce a stricter policy, the **provider** can disable the built-in default class, so that only explicit, provider-approved classes are accepted. Set the following Helm value on the provider (at installation time, or later with a `helm upgrade`/`liqoctl install` upgrade):
+
+```{code-block} yaml
+:caption: "values.yaml (provider)"
+authentication:
+  defaultResourceSliceClassEnabled: false
+```
+
+When the default class is disabled, any `ResourceSlice` that uses the `default` class is denied: its `Resources` condition is set to `Denied` with an explanatory message, instead of leaving the consumer waiting until timeout. Consumers must then request an explicit class handled by a custom controller. The default value is `true`, which preserves the previous behavior.
 
 (ResourceReservationSuspendReclaim)=
 
@@ -299,7 +307,7 @@ In other words, pods scheduled on the virtual node may still appear `Running` un
 
 A few aspects of the current design are worth keeping in mind when designing a reservation policy:
 
-* The default `ResourceSlice` class controller does not perform a **cluster-wide capacity check**: it accepts every request and may therefore grant more resources than the provider physically has, leaving the final arbitration to the standard Kubernetes scheduler on the provider. Cross-peering reservation requires a custom class controller **paired with an admission webhook (or equivalent mechanism) that prevents consumers from selecting the lenient default class** — Liqo does not ship that mechanism.
+* The default `ResourceSlice` class controller does not perform a **cluster-wide capacity check**: it accepts every request and may therefore grant more resources than the provider physically has, leaving the final arbitration to the standard Kubernetes scheduler on the provider. Cross-peering reservation requires a custom class controller; to make it enforceable, the provider can disable the built-in default class (`authentication.defaultResourceSliceClassEnabled: false`) so that consumers cannot fall back to the lenient default path.
 * Reducing the granted resources on a slice does not evict pods that are already running; cordon and drain are the supported way to actively reclaim capacity.
 
 ## What Liqo does not
@@ -309,7 +317,7 @@ This section lists some information and/or actions that may be required, and tha
 
 * **Discover what to ask for.**
   The consumer must learn from the provider (out of band) which amounts and resource types are actually available before creating a `ResourceSlice`.
-  Liqo has no inventory advertisement and the default class (on the provider side) accepts any request, so an improper reservation is automatically accepted by Liqo, and only manifests later with pods that may not be able to start (hence, in `Pending` state) on the provider cluster.
+  Liqo has no inventory advertisement and the default class (on the provider side), when enabled, accepts any request, so an improper reservation is automatically accepted by Liqo, and only manifests later with pods that may not be able to start (hence, in `Pending` state) on the provider cluster.
 
 * **Exchange cluster identities and peering credentials.**
   Cluster IDs and a peering kubeconfig (typically generated on the provider with `liqoctl generate peering-user`) must be exchanged through a secure channel before `liqoctl peer` runs.

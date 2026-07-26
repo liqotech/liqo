@@ -31,6 +31,7 @@ import (
 	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 )
 
 // EnforceAPIServerIPRemapping creates or updates the IP resource for the API server IP remapping.
@@ -157,6 +158,42 @@ func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address s
 	}
 
 	return address, nil
+}
+
+// MapAddressWithNetworkConfiguration maps the address with the network configuration of the cluster.
+func MapAddressWithNetworkConfiguration(cidr *networkconfig.RemoteCIDR, address string) (string, error) {
+	if cidr == nil {
+		return "", fmt.Errorf("configuration not remapped yet")
+	}
+
+	ip := net.ParseIP(address)
+	if ip == nil {
+		return "", fmt.Errorf("invalid IP %q", address)
+	}
+
+	podAddr, ok, err := remapWithin(ip, address, toCIDRSlice(cidr.Pod.Original), toCIDRSlice(cidr.Pod.Remapped))
+	if err != nil {
+		return "", fmt.Errorf("remapping the address within the pod CIDRs: %w", err)
+	} else if ok {
+		return podAddr, nil
+	}
+
+	extAddr, ok, err := remapWithin(ip, address, toCIDRSlice(cidr.External.Original), toCIDRSlice(cidr.External.Remapped))
+	if err != nil {
+		return "", fmt.Errorf("remapping the address within the external CIDRs: %w", err)
+	} else if ok {
+		return extAddr, nil
+	}
+
+	return address, nil
+}
+
+func toCIDRSlice(cidrs []string) []networkingv1beta1.CIDR {
+	out := make([]networkingv1beta1.CIDR, len(cidrs))
+	for i := range cidrs {
+		out[i] = networkingv1beta1.CIDR(cidrs[i])
+	}
+	return out
 }
 
 func remapWithin(ip net.IP, address string, spec, status []networkingv1beta1.CIDR) (outAddr string, processed bool, err error) {

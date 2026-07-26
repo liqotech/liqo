@@ -37,10 +37,10 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -96,7 +96,7 @@ type PodReflectorConfig struct {
 	HomeAPIServerPort   string
 
 	KubernetesServiceIPMapper func(context.Context) ([]string, error)
-	NetConfiguration          *networkingv1beta1.Configuration
+	RemoteCIDR                *networkconfig.RemoteCIDR
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.

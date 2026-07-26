@@ -51,23 +51,25 @@ type Options struct {
 	WgGatewayClientClusterRoleName string
 	FabricFullMasqueradeEnabled    bool
 	GwmasqbypassEnabled            bool
+	GatewayTemplateWatchEnabled    bool
 	NetworkWorkers                 int
 	IPWorkers                      int
 	GenevePort                     uint16
 	RouteConfigurationRulePriority int
 
 	// Authentication module
-	APIServerAddressOverride string
-	CAOverride               string
-	TrustedCA                bool
-	TLSCompatibilityMode     bool
-	AWSConfig                *identitymanager.LocalAwsConfig
-	ClusterLabels            args.StringMap
-	IngressClasses           args.ClassNameList
-	LoadBalancerClasses      args.ClassNameList
-	DefaultNodeResources     args.ResourceMap
-	GlobalLabels             args.StringMap
-	GlobalAnnotations        args.StringMap
+	APIServerAddressOverride         string
+	CAOverride                       string
+	TrustedCA                        bool
+	TLSCompatibilityMode             bool
+	DefaultResourceSliceClassEnabled bool
+	AWSConfig                        *identitymanager.LocalAwsConfig
+	ClusterLabels                    args.StringMap
+	IngressClasses                   args.ClassNameList
+	LoadBalancerClasses              args.ClassNameList
+	DefaultNodeResources             args.ResourceMap
+	GlobalLabels                     args.StringMap
+	GlobalAnnotations                args.StringMap
 
 	// Offloading module
 	EnableStorage               bool

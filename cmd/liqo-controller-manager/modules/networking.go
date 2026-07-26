@@ -17,8 +17,10 @@ package modules
 import (
 	"context"
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/server-operator"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/wireguard"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/client-controller"
 	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/configuration-controller"
@@ -63,6 +66,7 @@ type NetworkingOption struct {
 	IPWorkers                      int
 	FabricFullMasquerade           bool
 	GwmasqbypassEnabled            bool
+	GatewayTemplateWatchEnabled    bool
 
 	GenevePort                     uint16
 	RouteConfigurationRulePriority int
@@ -86,6 +90,7 @@ func NewNetworkingOption(factory *dynamicutils.RunnableFactory, dynClient dynami
 		IPWorkers:                      opts.IPWorkers,
 		FabricFullMasquerade:           opts.FabricFullMasqueradeEnabled,
 		GwmasqbypassEnabled:            opts.GwmasqbypassEnabled,
+		GatewayTemplateWatchEnabled:    opts.GatewayTemplateWatchEnabled,
 
 		GenevePort:                     opts.GenevePort,
 		RouteConfigurationRulePriority: opts.RouteConfigurationRulePriority,
@@ -158,11 +163,21 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		return err
 	}
 
+	var gwtemplateGVKs []schema.GroupVersionKind
+	if opts.GatewayTemplateWatchEnabled {
+		var err error
+		gwtemplateGVKs, err = utils.RetrieveGatewayTemplateGVKs(ctx, uncachedClient)
+		if err != nil {
+			klog.Errorf("failed to retrieve GatewayTemplates GVKs: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
 		opts.DynClient, opts.Factory, mgr.GetScheme(),
 		mgr.GetEventRecorderFor("server-controller"),
 		opts.GatewayServerResources)
-	if err := serverReconciler.SetupWithManager(mgr); err != nil {
+	if err := serverReconciler.SetupWithManager(mgr, gwtemplateGVKs); err != nil {
 		klog.Errorf("Unable to start the serverReconciler: %v", err)
 		return err
 	}
@@ -171,7 +186,7 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		opts.DynClient, opts.Factory, mgr.GetScheme(),
 		mgr.GetEventRecorderFor("client-controller"),
 		opts.GatewayClientResources)
-	if err := clientReconciler.SetupWithManager(mgr); err != nil {
+	if err := clientReconciler.SetupWithManager(mgr, gwtemplateGVKs); err != nil {
 		klog.Errorf("Unable to start the clientReconciler: %v", err)
 		return err
 	}

@@ -30,7 +30,7 @@ import (
 
 var errWgEndpointPeerNotFound = errors.New("wg endpoint peer not found")
 
-func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key) error {
+func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key, idx int) error {
 	confdev := wgtypes.Config{
 		PrivateKey: &options.PrivateKey,
 		ListenPort: nil,
@@ -42,12 +42,13 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 		},
 		ReplacePeers: true,
 	}
+	name := tunnel.GetTunnelName(idx)
 
 	switch options.GwOptions.Mode {
 	case gateway.ModeServer:
-		confdev.ListenPort = &options.ListenPort
+		confdev.ListenPort = &options.ListenPorts[idx]
 		if options.PreserveClientEndpoint {
-			endpoint, err := getExistingPeerEndpoint(wgcl, peerPubKey)
+			endpoint, err := getExistingPeerEndpoint(wgcl, peerPubKey, name)
 			switch {
 			case err == nil:
 				klog.Infof("Found existing endpoint %s for current peer. Re-using it.", endpoint.String())
@@ -61,20 +62,20 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 	case gateway.ModeClient:
 		confdev.Peers[0].Endpoint = &net.UDPAddr{
 			IP:   options.EndpointIP,
-			Port: options.EndpointPort,
+			Port: options.EndpointPorts[idx],
 		}
 	}
 
-	if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, confdev); err != nil {
-		return fmt.Errorf("an error occurred while configuring the device: %w", err)
+	if err := wgcl.ConfigureDevice(name, confdev); err != nil {
+		return fmt.Errorf("configuring the device %q: %w", name, err)
 	}
-	klog.Infof("Device %s configured", tunnel.TunnelInterfaceName)
+	klog.Infof("Device %s configured", name)
 
 	return nil
 }
 
-func getExistingPeerEndpoint(wgcl *wgctrl.Client, peerPubKey wgtypes.Key) (*net.UDPAddr, error) {
-	peer, err := getExistingPeer(wgcl, peerPubKey)
+func getExistingPeerEndpoint(wgcl *wgctrl.Client, peerPubKey wgtypes.Key, name string) (*net.UDPAddr, error) {
+	peer, err := getExistingPeer(wgcl, peerPubKey, name)
 	if err != nil {
 		return nil, fmt.Errorf("getting existing peer: %w", err)
 	}
@@ -84,8 +85,8 @@ func getExistingPeerEndpoint(wgcl *wgctrl.Client, peerPubKey wgtypes.Key) (*net.
 	return peer.Endpoint, nil
 }
 
-func getExistingPeer(wgcl *wgctrl.Client, peerPubKey wgtypes.Key) (*wgtypes.Peer, error) {
-	dev, err := getExistingDevice(wgcl)
+func getExistingPeer(wgcl *wgctrl.Client, peerPubKey wgtypes.Key, name string) (*wgtypes.Peer, error) {
+	dev, err := getExistingDevice(wgcl, name)
 	if err != nil {
 		return nil, fmt.Errorf("getting existing device: %w", err)
 	}
@@ -97,11 +98,11 @@ func getExistingPeer(wgcl *wgctrl.Client, peerPubKey wgtypes.Key) (*wgtypes.Peer
 	return nil, fmt.Errorf("no matching peer: %w", errWgEndpointPeerNotFound)
 }
 
-func getExistingDevice(wgcl *wgctrl.Client) (*wgtypes.Device, error) {
-	dev, err := wgcl.Device(tunnel.TunnelInterfaceName)
+func getExistingDevice(wgcl *wgctrl.Client, name string) (*wgtypes.Device, error) {
+	dev, err := wgcl.Device(name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("device %s not found: %w", tunnel.TunnelInterfaceName, errWgEndpointPeerNotFound)
+			return nil, fmt.Errorf("device %s not found: %w", name, errWgEndpointPeerNotFound)
 		}
 		return nil, fmt.Errorf("fetching device: %w", err)
 	}
