@@ -93,9 +93,12 @@ func updateRemoteObjectSpec(ctx context.Context, client dynamic.ResourceInterfac
 // updateObjectStatusShared syncs status from source (remote) to destination (local) — OwnershipShared direction.
 func updateObjectStatusShared(ctx context.Context, localClient dynamic.ResourceInterface,
 	gvr schema.GroupVersionResource, source, destination *unstructured.Unstructured) error {
-	statusSource, err := getNestedMap(source, statusKey)
+	statusSource, found, err := unstructured.NestedMap(source.Object, statusKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve %v key: %w", statusKey, err)
+	}
+	if !found {
+		return nil
 	}
 	statusDestination, err := getNestedMap(destination, statusKey)
 	if err != nil {

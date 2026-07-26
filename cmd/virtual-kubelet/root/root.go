@@ -422,8 +422,8 @@ func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceRe
 		if len(gvrParts) != 3 {
 			return nil, fmt.Errorf("invalid custom-resource-reflection %q: GVR must be group/version/resource", value)
 		}
-		if gvrParts[1] == "" || gvrParts[2] == "" {
-			return nil, fmt.Errorf("invalid custom-resource-reflection %q: version and resource must be non-empty", value)
+		if gvrParts[0] == "" || gvrParts[1] == "" || gvrParts[2] == "" {
+			return nil, fmt.Errorf("invalid custom-resource-reflection %q: group, version and resource must be non-empty", value)
 		}
 
 		cfg := offloadingv1beta1.CustomResourceReflectorConfig{
@@ -440,6 +440,9 @@ func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceRe
 			workers, err := strconv.ParseUint(parts[1], 10, 32)
 			if err != nil {
 				return nil, fmt.Errorf("invalid workers in custom-resource-reflection %q: %w", value, err)
+			}
+			if workers == 0 {
+				return nil, fmt.Errorf("invalid workers in custom-resource-reflection %q: must be >= 1 (omit the GVR to disable)", value)
 			}
 			cfg.NumWorkers = uint(workers)
 		}

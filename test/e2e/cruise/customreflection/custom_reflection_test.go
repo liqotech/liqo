@@ -174,6 +174,7 @@ var _ = Describe("Liqo E2E", func() {
 			})
 
 			It("Should sync the remote status back to the local Widget", func() {
+				Expect(providers).ToNot(BeEmpty())
 				provider := providers[0]
 				Eventually(func() error {
 					_, err := getWidget(providerDyn[provider.Cluster], widgetName)

@@ -173,22 +173,30 @@ func (m *manager) StartNamespace(local, remote string) {
 	// The local informer factories, which select all resources in the given namespace.
 	localFactory := informers.NewSharedInformerFactoryWithOptions(m.local, m.resync, informers.WithNamespace(local))
 	localLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.localLiqo, m.resync, liqoinformers.WithNamespace(local))
-	localDynamicFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.localDynamic, m.resync, local, nil)
 
 	// The remote informer factories, which select all resources in the given namespace.
 	// We do not filter the resources by label selector, to be able to abort reflection in case the remote object already exists.
 	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync, informers.WithNamespace(remote))
 	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync, liqoinformers.WithNamespace(remote))
-	remoteDynamicFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.remoteDynamic, m.resync, remote, nil)
+
+	// Dynamic factories are only needed for custom resource reflection.
+	var localDynamicFactory, remoteDynamicFactory dynamicinformer.DynamicSharedInformerFactory
+	if m.localDynamic != nil && m.remoteDynamic != nil {
+		localDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.localDynamic, m.resync, local, nil)
+		remoteDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.remoteDynamic, m.resync, remote, nil)
+	}
 
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.NewNamespaced().
 			WithLocal(local, m.local, localFactory).WithLiqoLocal(m.localLiqo, localLiqoFactory).
 			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
-			WithDynamicLocal(m.localDynamic, localDynamicFactory).WithDynamicRemote(m.remoteDynamic, remoteDynamicFactory).
 			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster).
 			WithForgingOpts(&m.forgingOpts)
+		if localDynamicFactory != nil {
+			opts = opts.WithDynamicLocal(m.localDynamic, localDynamicFactory).
+				WithDynamicRemote(m.remoteDynamic, remoteDynamicFactory)
+		}
 		reflector.StartNamespace(opts)
 	}
 
@@ -200,17 +208,21 @@ func (m *manager) StartNamespace(local, remote string) {
 		// Start the factories, and wait for their caches to sync
 		localFactory.Start(ctx.Done())
 		localLiqoFactory.Start(ctx.Done())
-		localDynamicFactory.Start(ctx.Done())
 		remoteFactory.Start(ctx.Done())
 		remoteLiqoFactory.Start(ctx.Done())
-		remoteDynamicFactory.Start(ctx.Done())
+		if localDynamicFactory != nil {
+			localDynamicFactory.Start(ctx.Done())
+			remoteDynamicFactory.Start(ctx.Done())
+		}
 
 		localFactory.WaitForCacheSync(ctx.Done())
 		localLiqoFactory.WaitForCacheSync(ctx.Done())
-		localDynamicFactory.WaitForCacheSync(ctx.Done())
 		remoteFactory.WaitForCacheSync(ctx.Done())
 		remoteLiqoFactory.WaitForCacheSync(ctx.Done())
-		remoteDynamicFactory.WaitForCacheSync(ctx.Done())
+		if localDynamicFactory != nil {
+			localDynamicFactory.WaitForCacheSync(ctx.Done())
+			remoteDynamicFactory.WaitForCacheSync(ctx.Done())
+		}
 
 		// If the context was closed before the cache was ready, let abort the setup
 		select {

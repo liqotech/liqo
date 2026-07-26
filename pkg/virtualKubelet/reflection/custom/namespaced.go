@@ -203,9 +203,9 @@ func (ncr *NamespacedGVRReflector) handleRemoteError(local *unstructured.Unstruc
 		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return nil
 	}
-	if kerrors.IsNotFound(err) {
+	if op == "create" && kerrors.IsNotFound(err) {
 		// CRD missing on the remote cluster.
-		klog.Warningf("Cannot %s remote %v %q (CRD may be missing): %v", op, ncr.gvr, ncr.RemoteRef(local.GetName()), err)
+		klog.Warningf("Cannot create remote %v %q (CRD may be missing): %v", ncr.gvr, ncr.RemoteRef(local.GetName()), err)
 		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return nil
 	}
