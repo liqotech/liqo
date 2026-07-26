@@ -72,6 +72,9 @@ spec:
                       type: string
                     type:
                       description: Type of reflection.
+                      enum:
+                      - AllowList
+                      - DenyList
                       type: string
                     version:
                       description: Version is the API version of the custom resource
@@ -146,6 +149,9 @@ spec:
                   properties:
                     type:
                       description: Type of reflection.
+                      enum:
+                      - AllowList
+                      - DenyList
                       type: string
                     workers:
                       description: Number of workers for the reflector.
