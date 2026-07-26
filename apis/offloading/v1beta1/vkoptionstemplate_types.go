@@ -48,6 +48,7 @@ type ReflectorConfig struct {
 	// Number of workers for the reflector.
 	NumWorkers uint `json:"workers"`
 	// Type of reflection.
+	// +kubebuilder:validation:Enum=AllowList;DenyList
 	Type ReflectionType `json:"type,omitempty"`
 }
 
