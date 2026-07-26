@@ -390,7 +390,7 @@ func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1
 				reflectionType = offloadingv1beta1.ReflectionType(*c.ReflectorsType[string(*resource)])
 			}
 			if reflectionType != offloadingv1beta1.DenyList && reflectionType != offloadingv1beta1.AllowList {
-				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
+				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Admitted values: %q, %q",
 					reflectionType, *resource, offloadingv1beta1.DenyList, offloadingv1beta1.AllowList)
 			}
 		}
@@ -447,7 +447,7 @@ func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceRe
 		if len(parts) >= 3 && parts[2] != "" {
 			reflectionType := offloadingv1beta1.ReflectionType(parts[2])
 			if reflectionType != offloadingv1beta1.DenyList && reflectionType != offloadingv1beta1.AllowList {
-				return nil, fmt.Errorf("reflection type %q is not valid for custom resource %s/%s/%s. Ammitted values: %q, %q",
+				return nil, fmt.Errorf("reflection type %q is not valid for custom resource %s/%s/%s. Admitted values: %q, %q",
 					reflectionType, cfg.Group, cfg.Version, cfg.Resource, offloadingv1beta1.DenyList, offloadingv1beta1.AllowList)
 			}
 			cfg.Type = reflectionType

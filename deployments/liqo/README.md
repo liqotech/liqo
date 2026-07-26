@@ -152,20 +152,20 @@
 | offloading.defaultNodeResources.pods | string | `"110"` | The amount of pods that can be scheduled on a virtual node targeting this cluster. |
 | offloading.disableNetworkCheck | bool | `false` | Enable/Disable the check of the liqo networking for virtual nodes. If check is disabled, the network status will not be added to node conditions. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode by setting the "disableNetworkCheck" field in the resource Spec. |
 | offloading.enabled | bool | `true` | Enable/Disable the offloading module |
-| offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
 | offloading.reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
-| offloading.reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |
 | offloading.reflection.ingress.ingressClasses | list | `[]` | List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is. Example: ingressClasses: - name: nginx   default: true - name: traefik |
-| offloading.reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
 | offloading.reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
 | offloading.reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
-| offloading.reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.secret.workers | int | `3` | The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets. |
 | offloading.reflection.service.loadBalancerClasses | list | `[]` | List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is. Example: loadBalancerClasses: - name: public   default: true - name: internal |
-| offloading.reflection.service.type | string | `"DenyList"` | The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.service.type | string | `"DenyList"` | The type of reflection used for the services reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.service.workers | int | `3` | The number of workers used for the services reflector. Set 0 to disable the reflection of services. |
 | offloading.reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |
 | offloading.reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs","loadbalancer.openstack.org/load-balancer-id"]` | List of annotations that must not be reflected on remote clusters. |
