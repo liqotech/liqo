@@ -154,6 +154,7 @@
 | offloading.enabled | bool | `true` | Enable/Disable the offloading module |
 | offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
+| offloading.reflection.customResources | list | `[]` | List of custom resources to reflect between offloaded namespaces. Spec is synced local→remote and status remote→local. Default empty (feature off). CRDs must already exist on both clusters; Liqo does not install them. Default reflection type per entry is AllowList (annotate instances with liqo.io/allow-reflection: "true"). Example: customResources: - group: example.io   version: v1   resource: widgets   workers: 2   type: AllowList |
 | offloading.reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
 | offloading.reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Admitted values: "DenyList", "AllowList". |
 | offloading.reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |
