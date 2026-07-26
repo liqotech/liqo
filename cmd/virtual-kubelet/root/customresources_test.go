@@ -70,12 +70,21 @@ func TestParseCustomResources(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		_, err = parseCustomResources([]string{"example.io/v1/"})
 		g.Expect(err).To(HaveOccurred())
+		_, err = parseCustomResources([]string{"/v1/widgets"})
+		g.Expect(err).To(HaveOccurred())
 	})
 
 	t.Run("invalid type", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 		_, err := parseCustomResources([]string{"example.io/v1/widgets,1,Nope"})
+		g.Expect(err).To(HaveOccurred())
+	})
+
+	t.Run("zero workers", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+		_, err := parseCustomResources([]string{"example.io/v1/widgets,0"})
 		g.Expect(err).To(HaveOccurred())
 	})
 }
