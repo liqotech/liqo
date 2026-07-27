@@ -258,7 +258,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		go leaderelection.Run(ctx, leaderElector)
 	}
 
-	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
+	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, localConfig, remoteConfig, c)
 	if err != nil {
 		return fmt.Errorf("error while setting up HTTPS server: %w", err)
 	}
