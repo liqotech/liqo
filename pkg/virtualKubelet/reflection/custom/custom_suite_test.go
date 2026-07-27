@@ -89,10 +89,10 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() { cancel() })
 
-func newWidget(name, namespace string, labels, annotations map[string]string, spec, status map[string]interface{}) *unstructured.Unstructured {
+func newWidget(namespace string, labels, annotations map[string]string, spec, status map[string]interface{}) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
-	obj.SetName(name)
+	obj.SetName(WidgetName)
 	obj.SetNamespace(namespace)
 	obj.SetLabels(labels)
 	obj.SetAnnotations(annotations)
@@ -190,7 +190,7 @@ var _ = Describe("GVR Reflection", func() {
 
 			When("the remote object exists and is reflected", func() {
 				BeforeEach(func() {
-					CreateRemote(newWidget(WidgetName, RemoteNamespace, forge.ReflectionLabels(), nil,
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
 						map[string]interface{}{"value": "v1"}, nil))
 				})
 
@@ -204,7 +204,7 @@ var _ = Describe("GVR Reflection", func() {
 
 		When("the local object exists with allow annotation", func() {
 			BeforeEach(func() {
-				CreateLocal(newWidget(WidgetName, LocalNamespace,
+				CreateLocal(newWidget(LocalNamespace,
 					map[string]string{"app": "demo", FakeNotReflectedLabelKey: "true"},
 					map[string]string{consts.AllowReflectionAnnotationKey: "true", "anno": "val", FakeNotReflectedAnnotKey: "true"},
 					map[string]interface{}{"replicas": int64(3)},
@@ -262,7 +262,7 @@ var _ = Describe("GVR Reflection", func() {
 
 			When("the remote object exists and is reflected", func() {
 				BeforeEach(func() {
-					CreateRemote(newWidget(WidgetName, RemoteNamespace, forge.ReflectionLabels(), nil,
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
 						map[string]interface{}{"replicas": int64(1)},
 						map[string]interface{}{"ready": true}))
 				})
@@ -286,7 +286,7 @@ var _ = Describe("GVR Reflection", func() {
 
 			When("local status update is method not supported", func() {
 				BeforeEach(func() {
-					CreateRemote(newWidget(WidgetName, RemoteNamespace, forge.ReflectionLabels(), nil,
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
 						map[string]interface{}{"replicas": int64(1)},
 						map[string]interface{}{"ready": true}))
 					localClient.(*dynamicfake.FakeDynamicClient).PrependReactor("update", "widgets/status",
@@ -310,7 +310,7 @@ var _ = Describe("GVR Reflection", func() {
 
 			When("the remote object exists but is not managed by us", func() {
 				BeforeEach(func() {
-					CreateRemote(newWidget(WidgetName, RemoteNamespace,
+					CreateRemote(newWidget(RemoteNamespace,
 						map[string]string{"foreign": "true"}, nil,
 						map[string]interface{}{"replicas": int64(9)}, nil))
 				})
@@ -327,7 +327,7 @@ var _ = Describe("GVR Reflection", func() {
 
 		When("the local object exists without allow annotation (AllowList)", func() {
 			BeforeEach(func() {
-				CreateLocal(newWidget(WidgetName, LocalNamespace, nil, nil,
+				CreateLocal(newWidget(LocalNamespace, nil, nil,
 					map[string]interface{}{"replicas": int64(1)}, nil))
 			})
 
@@ -339,7 +339,7 @@ var _ = Describe("GVR Reflection", func() {
 
 			When("a remote twin already exists", func() {
 				BeforeEach(func() {
-					CreateRemote(newWidget(WidgetName, RemoteNamespace, forge.ReflectionLabels(), nil,
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
 						map[string]interface{}{"replicas": int64(1)}, nil))
 				})
 

@@ -26,7 +26,8 @@ import (
 // RemoteCustomResource forges a remote unstructured object from the local one.
 // Only metadata (filtered labels/annotations) and the spec are copied.
 // OwnerReferences are intentionally not propagated across clusters.
-func RemoteCustomResource(local *unstructured.Unstructured, targetNamespace string, forgingOpts *forge.ForgingOpts) (*unstructured.Unstructured, error) {
+func RemoteCustomResource(local *unstructured.Unstructured, targetNamespace string,
+	forgingOpts *forge.ForgingOpts) (*unstructured.Unstructured, error) {
 	remote := &unstructured.Unstructured{}
 	remote.SetGroupVersionKind(local.GroupVersionKind())
 	remote.SetNamespace(targetNamespace)
