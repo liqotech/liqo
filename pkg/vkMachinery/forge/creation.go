@@ -135,6 +135,26 @@ func VirtualKubeletServiceAccountName(virtualNodeName string) string {
 	return vkNamePrefix + virtualNodeName
 }
 
+// VirtualKubeletAuthDelegatorClusterRoleBinding forges a ClusterRoleBinding binding the virtual kubelet
+// service account to the built-in system:auth-delegator role.
+func VirtualKubeletAuthDelegatorClusterRoleBinding(kubeletNamespace, kubeletName string,
+	remoteCluster liqov1beta1.ClusterID) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.AuthDelegatorCRBPrefix, kubeletName), 253),
+			Labels: ClusterRoleLabels(remoteCluster),
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "system:auth-delegator",
+		},
+	}
+}
+
 // VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
 func VirtualKubeletServiceAccount(virtualNode *offloadingv1beta1.VirtualNode) *v1.ServiceAccount {
 	return &v1.ServiceAccount{

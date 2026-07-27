@@ -140,6 +140,28 @@ var _ = Describe("VirtualNode controller", func() {
 
 		})
 
+		It(fmt.Sprintf("Check if the auth-delegator ClusterRoleBinding is created for %s", nameVirtualNode1), func() {
+			vkName := virtualNode1.Name
+			expectedCRB := vkforge.VirtualKubeletAuthDelegatorClusterRoleBinding(tenantNamespace1.Name, vkName, remoteClusterID1)
+
+			By(fmt.Sprintf("Try to get the auth-delegator ClusterRoleBinding: %s", expectedCRB.Name))
+			Eventually(func() bool {
+				var crb rbacv1.ClusterRoleBinding
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: expectedCRB.Name}, &crb); err != nil {
+					return false
+				}
+				// Verify the binding points to the built-in system:auth-delegator role.
+				if crb.RoleRef.Name != "system:auth-delegator" || crb.RoleRef.Kind != "ClusterRole" {
+					return false
+				}
+				// Verify the subject is the virtual kubelet service account.
+				if len(crb.Subjects) != 1 || crb.Subjects[0].Name != vkName || crb.Subjects[0].Namespace != tenantNamespace1.Name {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+		})
+
 		It(fmt.Sprintf("Check if finalizers are correctly created for %s", nameVirtualNode2), func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))

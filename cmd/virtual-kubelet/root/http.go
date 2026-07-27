@@ -32,7 +32,10 @@ import (
 	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
+	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	certificates "k8s.io/api/certificates/v1"
+	"k8s.io/apiserver/pkg/apis/apiserver"
+	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/certificate"
@@ -46,7 +49,7 @@ import (
 type crtretriever func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 
 func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClient kubernetes.Interface,
-	remoteConfig *rest.Config, cfg *Opts) (err error) {
+	localConfig, remoteConfig *rest.Config, cfg *Opts) (err error) {
 	var retriever crtretriever
 
 	parsedIP := net.ParseIP(cfg.NodeIP)
@@ -85,15 +88,63 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 		GetPods:               handler.List,
 	}
 
-	api.AttachPodRoutes(podRoutes, mux, true)
+	api.AttachPodRoutes(podRoutes, mux, false)
+
+	// Secure all the pod routes with webhook-based authentication and authorization,
+	// delegating the requests to the Kubernetes API server (same mechanism used by the real kubelet).
+	// The API server connects to the kubelet via mTLS using its kubelet-client certificate, so we need
+	// to configure client cert authentication in addition to the token-based webhook auth.
+	authOpts := func(c *nodeutil.WebhookAuthConfig) error {
+		// Load the cluster CA PEM bytes to create a CA content provider for client cert verification.
+		var caData []byte
+		if len(localConfig.CAData) > 0 {
+			caData = localConfig.CAData
+		} else if localConfig.CAFile != "" {
+			var readErr error
+			caData, readErr = os.ReadFile(localConfig.CAFile)
+			if readErr != nil {
+				return fmt.Errorf("failed to read CA file %q: %w", localConfig.CAFile, readErr)
+			}
+		} else {
+			return fmt.Errorf("no cluster CA available in the local rest config")
+		}
+
+		caProvider, err := dynamiccertificates.NewStaticCAContent("client-ca", caData)
+		if err != nil {
+			return fmt.Errorf("failed to create client CA provider: %w", err)
+		}
+
+		c.AuthnConfig.ClientCertificateCAContentProvider = caProvider
+		c.AuthnConfig.Anonymous = &apiserver.AnonymousAuthConfig{Enabled: true}
+		return nil
+	}
+
+	auth, err := nodeutil.WebhookAuth(localClient, cfg.NodeName, authOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize webhook auth: %w", err)
+	}
+
+	// Build the client CA pool for TLS verification (same PEM bytes as the authenticator).
+	clientCAs := x509.NewCertPool()
+	if len(localConfig.CAData) > 0 {
+		clientCAs.AppendCertsFromPEM(localConfig.CAData)
+	} else if localConfig.CAFile != "" {
+		caData, err := os.ReadFile(localConfig.CAFile)
+		if err != nil {
+			return fmt.Errorf("failed to read CA file %q: %w", localConfig.CAFile, err)
+		}
+		clientCAs.AppendCertsFromPEM(caData)
+	}
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", cfg.ListenPort),
-		Handler:           mux,
+		Handler:           nodeutil.WithAuth(auth, mux),
 		ReadHeaderTimeout: 10 * time.Second, // Required to limit the effects of the Slowloris attack.
 		TLSConfig: &tls.Config{
 			GetCertificate: retriever,
 			MinVersion:     tls.VersionTLS12,
+			ClientAuth:     tls.RequestClientCert,
+			ClientCAs:      clientCAs,
 		},
 	}
 

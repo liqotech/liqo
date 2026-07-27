@@ -28,12 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	k8strings "k8s.io/utils/strings"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/utils/resource"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
 )
@@ -131,6 +133,19 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 
 	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s",
 		remoteClusterID, vkClusterRoleBinding.Name, op)
+
+	// Bind the virtual kubelet service account to system:auth-delegator, to allow it to perform
+	// TokenAccessReview and SubjectAccessReview and secure the virtual kubelet API with webhook auth.
+	vkAuthDelegatorCRB := vkforge.VirtualKubeletAuthDelegatorClusterRoleBinding(namespace, name, remoteClusterID)
+	op, err = resource.CreateOrUpdate(ctx, r.Client, vkAuthDelegatorCRB, func() error {
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	klog.V(5).Infof("[%v] Auth delegator ClusterRoleBinding %s reconciled: %s",
+		remoteClusterID, vkAuthDelegatorCRB.Name, op)
 
 	// forge the VirtualKubelet Deployment from the VirtualNode and the VkOptionsTemplate.
 	forgedDeployment := vkforge.VirtualKubeletDeployment(r.HomeClusterID, r.LiqoNamespace, r.LocalPodCIDRs, virtualNode, vkOpts)
@@ -236,6 +251,15 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		return err
 	}
 	klog.Info(fmt.Sprintf("[%v] Deleted virtual-kubelet CRB %s", virtualNode.Spec.ClusterID, crbName))
+
+	authDelegatorCRBName := k8strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.AuthDelegatorCRBPrefix, virtualNode.Name), 253)
+	err = r.Client.Delete(ctx, &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
+		Name: authDelegatorCRBName,
+	}})
+	if client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	klog.Info(fmt.Sprintf("[%v] Deleted virtual-kubelet auth delegator CRB %s", virtualNode.Spec.ClusterID, authDelegatorCRBName))
 
 	// The ServiceAccount is garbage collected by the owner reference, no need to delete it.
 
