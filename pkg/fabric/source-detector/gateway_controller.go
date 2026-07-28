@@ -93,15 +93,42 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	if pod.Spec.NodeName == r.Options.NodeName {
-		internalnode.Status.NodeIP.Local = ptr.To(networkingv1beta1.IP(src))
-		klog.Infof("Enforced internal node local IP %s", src)
-	} else {
-		internalnode.Status.NodeIP.Remote = ptr.To(networkingv1beta1.IP(src))
-		klog.Infof("Enforced internal node remote IP %s", src)
+	// The source IP is sampled from the routing table of the node, which is not necessarily complete
+	// when the sample is taken: a CNI programs the routes towards the other nodes asynchronously, and
+	// a node joining a cluster whose peerings are already established reconciles the gateway pods as
+	// soon as it sees them. Until the route towards the gateway exists, the lookup falls back to the
+	// default route and returns an address the node stops using as soon as the CNI converges, leaving
+	// the gateway with a geneve tunnel whose remote never matches the packets it receives.
+	// Reconcile periodically, so that a sample taken too early is corrected instead of being kept
+	// for the whole life of the node.
+	local := pod.Spec.NodeName == r.Options.NodeName
+	current := internalnode.Status.NodeIP.Remote
+	if local {
+		current = internalnode.Status.NodeIP.Local
 	}
 
-	return ctrl.Result{}, r.Client.Status().Update(ctx, internalnode)
+	if current != nil && current.String() == src {
+		return ctrl.Result{RequeueAfter: r.Options.SourceIPRefreshInterval}, nil
+	}
+
+	previous := "none"
+	if current != nil {
+		previous = current.String()
+	}
+
+	if local {
+		internalnode.Status.NodeIP.Local = ptr.To(networkingv1beta1.IP(src))
+		klog.Infof("Enforced internal node local IP %s (previous: %s)", src, previous)
+	} else {
+		internalnode.Status.NodeIP.Remote = ptr.To(networkingv1beta1.IP(src))
+		klog.Infof("Enforced internal node remote IP %s (previous: %s)", src, previous)
+	}
+
+	if err := r.Client.Status().Update(ctx, internalnode); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{RequeueAfter: r.Options.SourceIPRefreshInterval}, nil
 }
 
 // SetupWithManager register the GatewayReconciler to the manager.

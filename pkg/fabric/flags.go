@@ -58,6 +58,9 @@ const (
 	FlagNameGenevePort FlagName = "geneve-port"
 	// FlagNameGeneveCleanupInterval is the flag to set the Geneve cleanup interval.
 	FlagNameGeneveCleanupInterval FlagName = "geneve-cleanup-interval"
+	// FlagNameSourceIPRefreshInterval is the flag to set the interval between two checks of the
+	// source IPs used to reach the gateways.
+	FlagNameSourceIPRefreshInterval FlagName = "source-ip-refresh-interval"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -85,6 +88,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
 	flagset.DurationVar(&opts.GeneveCleanupInterval, FlagNameGeneveCleanupInterval.String(),
 		consts.DefaultGeneveCleanupInterval, "Geneve cleanup interval")
+	flagset.DurationVar(&opts.SourceIPRefreshInterval, FlagNameSourceIPRefreshInterval.String(),
+		consts.DefaultSourceIPRefreshInterval, "Interval between two checks of the source IPs used to reach the gateways")
 }
 
 // MarkFlagsRequired marks the flags as required.

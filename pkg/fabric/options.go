@@ -39,6 +39,10 @@ type Options struct {
 	DisableARP            bool
 	GenevePort            uint16
 	GeneveCleanupInterval time.Duration
+
+	// SourceIPRefreshInterval is the interval between two checks of the source IPs used by the node
+	// to reach the gateways.
+	SourceIPRefreshInterval time.Duration
 }
 
 // NewOptions returns a new Options struct.
