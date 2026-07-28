@@ -32,8 +32,9 @@ func RunChecksNodeToPod(ctx context.Context, cl *client.Client, cfg client.Confi
 		return 0, 0, fmt.Errorf("failed to forge targets: %w", err)
 	}
 
-	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-		opts, cl.ConsumerName, targets[cl.ConsumerName], true, ExecCurl)
+	successCount, errorCount, err = RunCheckToTargetsWithRefresh(ctx, cl.Consumer, cfg[cl.ConsumerName],
+		opts, cl.ConsumerName, targets[cl.ConsumerName], true, ExecCurl,
+		func(ctx context.Context) ([]string, error) { return RefreshConsumerTargets(ctx, cl, totreplicas) })
 	if err != nil {
 		return 0, 0, fmt.Errorf("consumer failed to run checks: %w", err)
 	}
@@ -41,8 +42,9 @@ func RunChecksNodeToPod(ctx context.Context, cl *client.Client, cfg client.Confi
 	errorCountTot += errorCount
 
 	for k := range cl.Providers {
-		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k],
-			cfg[k], opts, k, targets[k], true, ExecCurl)
+		successCount, errorCount, err := RunCheckToTargetsWithRefresh(ctx, cl.Providers[k],
+			cfg[k], opts, k, targets[k], true, ExecCurl,
+			func(ctx context.Context) ([]string, error) { return RefreshProviderTargets(ctx, cl, k, totreplicas) })
 		if err != nil {
 			return 0, 0, fmt.Errorf("provider %q failed to run checks: %w", k, err)
 		}
