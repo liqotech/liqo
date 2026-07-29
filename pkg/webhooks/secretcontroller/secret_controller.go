@@ -31,7 +31,6 @@ import (
 	adminssionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -47,10 +46,17 @@ import (
 const servingCertsDir = "/tmp/k8s-webhook-server/serving-certs/"
 
 // NewSecretReconciler returns a new SecretReconciler.
-func NewSecretReconciler(cl client.Client, s *runtime.Scheme, recorder record.EventRecorder) *SecretReconciler {
+func NewSecretReconciler(
+	cl client.Client,
+	s *runtime.Scheme,
+	liqoNamespace, secretName string,
+	recorder record.EventRecorder,
+) *SecretReconciler {
 	return &SecretReconciler{
-		Client: cl,
-		Scheme: s,
+		Client:        cl,
+		Scheme:        s,
+		liqoNamespace: liqoNamespace,
+		secretName:    secretName,
 
 		eventRecorder: recorder,
 	}
@@ -60,6 +66,9 @@ func NewSecretReconciler(cl client.Client, s *runtime.Scheme, recorder record.Ev
 type SecretReconciler struct {
 	client.Client
 	*runtime.Scheme
+
+	liqoNamespace string
+	secretName    string
 
 	eventRecorder record.EventRecorder
 }
@@ -97,21 +106,12 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	p, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      consts.WebhookResourceLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{consts.WebhookResourceLabelValue},
-			},
-		},
+	secretPredicate := predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetNamespace() == r.liqoNamespace && object.GetName() == r.secretName
 	})
-	if err != nil {
-		return fmt.Errorf("unable to create label selector predicate: %w", err)
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlSecretWebhook).
-		For(&corev1.Secret{}, builder.WithPredicates(p)).
+		For(&corev1.Secret{}, builder.WithPredicates(secretPredicate)).
 		Complete(r)
 }
 
