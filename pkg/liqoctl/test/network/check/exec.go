@@ -37,9 +37,24 @@ const MaxRetries = 10
 type ExecFunc func(ctx context.Context, pod *corev1.Pod, clset *kubernetes.Clientset,
 	cfg *rest.Config, quiet bool, endpoint string, logger *pterm.Logger) (ok bool, err error)
 
+// TargetsRefresher re-reads the addresses to probe of a cluster.
+type TargetsRefresher func(ctx context.Context) ([]string, error)
+
 // RunCheckToTargets runs the checks to the targets.
 func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Config, opts *flags.Options,
 	owner string, targets []string, hostnetwork bool, execFunc ExecFunc) (successCount, errorCount int32, err error) {
+	return RunCheckToTargetsWithRefresh(ctx, cl, cfg, opts, owner, targets, hostnetwork, execFunc, nil)
+}
+
+// RunCheckToTargetsWithRefresh runs the checks to the targets, re-reading them between two attempts
+// through the given refresher, when provided.
+//
+// Retrying the same address is pointless when it is the one of a pod which has been replaced in the
+// meantime: all the attempts fail, and the check reports a connectivity failure which is not one.
+// The refresher lets the check follow the endpoints of the moment instead.
+func RunCheckToTargetsWithRefresh(ctx context.Context, cl ctrlclient.Client, cfg *rest.Config, opts *flags.Options,
+	owner string, targets []string, hostnetwork bool, execFunc ExecFunc,
+	refresh TargetsRefresher) (successCount, errorCount int32, err error) {
 	logger := opts.Topts.LocalFactory.Printer.Logger
 	pods, err := listPods(ctx, cl, owner, hostnetwork)
 	if err != nil {
@@ -52,12 +67,19 @@ func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Conf
 	}
 	for i := range pods.Items {
 		for j := range targets {
+			target, attempt := targets[j], 0
 			ok, err := podutils.TryFor(ctx, MaxRetries, func() (bool, error) {
-				return execFunc(ctx, &pods.Items[i], clset, cfg, !opts.Topts.Verbose, targets[j], logger)
+				if attempt > 0 && refresh != nil {
+					if updated := refreshTarget(ctx, refresh, target, j, logger); updated != "" {
+						target = updated
+					}
+				}
+				attempt++
+				return execFunc(ctx, &pods.Items[i], clset, cfg, !opts.Topts.Verbose, target, logger)
 			})
 			if !ok || err != nil {
 				logger.Error(fmt.Sprintf("Curl command failed after %d retries", MaxRetries), logger.Args(
-					"pod", pods.Items[i].Name, "target", targets[j], "error", err,
+					"pod", pods.Items[i].Name, "target", target, "error", err,
 				))
 			}
 			successCount, errorCount, err = testutils.ManageResults(opts.Topts.FailFast, err, ok, successCount, errorCount)
@@ -67,6 +89,33 @@ func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Conf
 		}
 	}
 	return successCount, errorCount, nil
+}
+
+// refreshTarget returns the address to probe in place of the current one, when the latter is not an
+// endpoint anymore. It returns an empty string when the address is still valid, and when the
+// endpoints cannot be read: in both cases the caller keeps probing the address it already has.
+func refreshTarget(ctx context.Context, refresh TargetsRefresher, target string, index int, logger *pterm.Logger) string {
+	current, err := refresh(ctx)
+	if err != nil {
+		logger.Warn("Unable to refresh the targets", logger.Args("error", err))
+		return ""
+	}
+
+	for i := range current {
+		if current[i] == target {
+			// The address is still an endpoint: the failure is not caused by a stale target.
+			return ""
+		}
+	}
+
+	if index >= len(current) {
+		return ""
+	}
+
+	logger.Warn("The target is not an endpoint anymore, probing the current one", logger.Args(
+		"old", target, "new", current[index],
+	))
+	return current[index]
 }
 
 // ExecCurl executes a curl command.

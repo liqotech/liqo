@@ -32,8 +32,9 @@ func RunChecksPodToPod(ctx context.Context, cl *client.Client, cfg client.Config
 		return 0, 0, fmt.Errorf("failed to forge targets: %w", err)
 	}
 
-	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
-		opts, cl.ConsumerName, targets[cl.ConsumerName], false, ExecCurl)
+	successCount, errorCount, err = RunCheckToTargetsWithRefresh(ctx, cl.Consumer, cfg[cl.ConsumerName],
+		opts, cl.ConsumerName, targets[cl.ConsumerName], false, ExecCurl,
+		func(ctx context.Context) ([]string, error) { return RefreshConsumerTargets(ctx, cl, totreplicas) })
 	successCountTot += successCount
 	errorCountTot += errorCount
 	if err != nil {
@@ -41,8 +42,9 @@ func RunChecksPodToPod(ctx context.Context, cl *client.Client, cfg client.Config
 	}
 
 	for k := range cl.Providers {
-		successCount, errorCount, err := RunCheckToTargets(ctx, cl.Providers[k], cfg[k],
-			opts, k, targets[k], false, ExecCurl)
+		successCount, errorCount, err := RunCheckToTargetsWithRefresh(ctx, cl.Providers[k], cfg[k],
+			opts, k, targets[k], false, ExecCurl,
+			func(ctx context.Context) ([]string, error) { return RefreshProviderTargets(ctx, cl, k, totreplicas) })
 		successCountTot += successCount
 		errorCountTot += errorCount
 		if err != nil {

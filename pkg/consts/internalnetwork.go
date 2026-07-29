@@ -21,6 +21,9 @@ const (
 	DefaultGenevePort uint16 = 6091
 	// DefaultGeneveCleanupInterval is the default interval used to cleanup the geneve tunnels.
 	DefaultGeneveCleanupInterval = time.Minute * 30
+	// DefaultSourceIPRefreshInterval is the default interval used to check that the source IPs used
+	// by a node to reach the gateways are still the ones stored in the InternalNode resource.
+	DefaultSourceIPRefreshInterval = time.Second * 30
 	// DefaultRouteTable is the name of the default table used for routes.
 	DefaultRouteTable = "liqo"
 	// InternalFabricName is the label used to identify the internal fabric name.
