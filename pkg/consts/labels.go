@@ -47,13 +47,6 @@ const (
 	// NetworkingComponentKey is the label assigned to the Liqo components related to networking.
 	NetworkingComponentKey = "networking.liqo.io/component"
 
-	// WebhookResourceLabelKey is the constant representing
-	// the key of the label assigned to all Webhook resources.
-	WebhookResourceLabelKey = "liqo.io/webhook"
-	// WebhookResourceLabelValue is the constant representing
-	// the value of the label assigned to all Webhook resources.
-	WebhookResourceLabelValue = "true"
-
 	// podSecurityLabelPrefix is the prefix for pod security admission labels.
 	podSecurityLabelPrefix = "pod-security.kubernetes.io/"
 	// PodSecurityAuditLevelLabel is the label key for pod security audit level.
