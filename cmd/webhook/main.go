@@ -133,6 +133,9 @@ func main() {
 		}
 
 		klog.Info("webhook secret correctly enforced")
+	} else {
+		klog.Errorf("Webhook secret name needs to be provided")
+		os.Exit(1)
 	}
 
 	// Create the main manager.
@@ -207,6 +210,7 @@ func main() {
 
 	// Register the secret controller
 	secretReconciler := secretcontroller.NewSecretReconciler(mgr.GetClient(), mgr.GetScheme(),
+		*liqoNamespace, *secretName,
 		mgr.GetEventRecorderFor("secret-controller"))
 	if err := secretReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to set up the secret controller: %v", err)
