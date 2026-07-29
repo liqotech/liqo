@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +52,12 @@ const (
 	testName = "NETWORK"
 	// StressMax is the maximum number of stress iterations.
 	stressMax = 3
+
+	// fabricPodLabelKey and fabricPodLabelValue select the fabric pods, one per node.
+	fabricPodLabelKey   = "app.kubernetes.io/name"
+	fabricPodLabelValue = "fabric"
+	// geneveContainerName is the container of the gateway pod owning the geneve interfaces.
+	geneveContainerName = "geneve"
 )
 
 func TestE2E(t *testing.T) {
@@ -133,11 +140,10 @@ var _ = Describe("Liqo E2E", func() {
 				}, timeout, interval).Should(Succeed())
 
 				// Restart the gateway pods.
+				restartTime := time.Now()
 				for i := range testContext.Clusters {
 					RestartPods(testContext.Clusters[i].ControllerClient)
 				}
-
-				time.Sleep(time.Second * 60)
 
 				// Check if there is only one active gateway pod per remote cluster.
 				for i := range testContext.Clusters {
@@ -147,10 +153,29 @@ var _ = Describe("Liqo E2E", func() {
 					}, timeout, interval).Should(Succeed())
 				}
 
+				// Wait for the connections to be re-established after the restart, instead of assuming
+				// a duration for it: a fixed wait hides how long the failover actually takes, and the
+				// checks below would otherwise be free to observe the state preceding the restart.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkConnectionsReady(testContext.Clusters[i].ControllerClient, restartTime)
+					}, timeout, interval).Should(Succeed())
+				}
+
 				// Check that the internal fabric caught up with the new gateway pods.
 				for i := range testContext.Clusters {
 					Eventually(func() error {
 						return checkInternalFabricConverged(testContext.Clusters[i].ControllerClient)
+					}, timeout, interval).Should(Succeed())
+				}
+
+				// Check that what the internal fabric caught up with is also what the datapath needs.
+				for i := range testContext.Clusters {
+					Eventually(func() error {
+						return checkSourceIPsMatchRoutes(&testContext.Clusters[i], testContext.Namespace)
+					}, timeout, interval).Should(Succeed())
+					Eventually(func() error {
+						return checkGeneveTunnelsProgrammed(&testContext.Clusters[i])
 					}, timeout, interval).Should(Succeed())
 				}
 
@@ -191,6 +216,16 @@ var _ = Describe("Liqo E2E", func() {
 					for j := range testContext.Clusters {
 						Eventually(func() error {
 							return checkInternalFabricConverged(testContext.Clusters[j].ControllerClient)
+						}, timeout, interval).Should(Succeed())
+					}
+
+					// Check that what the internal fabric caught up with is also what the datapath needs.
+					for j := range testContext.Clusters {
+						Eventually(func() error {
+							return checkSourceIPsMatchRoutes(&testContext.Clusters[j], testContext.Namespace)
+						}, timeout, interval).Should(Succeed())
+						Eventually(func() error {
+							return checkGeneveTunnelsProgrammed(&testContext.Clusters[j])
 						}, timeout, interval).Should(Succeed())
 					}
 
@@ -406,20 +441,14 @@ func checkConnectionsReady(cl client.Client, restartTime time.Time) error {
 // and remote pods from flannel.1) a stale value makes the gateway drop every packet coming from
 // that node, so probe the datapath only once both resources match the current placement.
 func checkInternalFabricConverged(cl client.Client) error {
-	activeGatewayPods := &corev1.PodList{}
-	if err := cl.List(ctx, activeGatewayPods, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels()),
-	}); err != nil {
-		return fmt.Errorf("unable to list active gateway pods: %w", err)
+	activeGatewayPods, err := listActiveGatewayPods(cl)
+	if err != nil {
+		return err
 	}
 
 	activeGatewayIPs := make(map[string]any)
 	for i := range activeGatewayPods.Items {
-		pod := &activeGatewayPods.Items[i]
-		if pod.Status.PodIP == "" {
-			return fmt.Errorf("active gateway pod %s/%s has no IP yet", pod.Namespace, pod.Name)
-		}
-		activeGatewayIPs[pod.Status.PodIP] = struct{}{}
+		activeGatewayIPs[activeGatewayPods.Items[i].Status.PodIP] = struct{}{}
 	}
 
 	internalFabricList := &networkingv1beta1.InternalFabricList{}
@@ -457,6 +486,189 @@ func checkInternalFabricConverged(cl client.Client) error {
 	}
 
 	return nil
+}
+
+// checkSourceIPsMatchRoutes checks that the source IPs recorded in the InternalNodes are the ones
+// the nodes actually use to reach the active gateway pods.
+//
+// checkInternalFabricConverged only requires those fields to be set, and a value sampled while the
+// CNI was still programming the routes of a node is set as well: a node which joins a cluster whose
+// peerings are already established samples the source towards the gateways as soon as it sees them,
+// and when the route is not there yet the lookup falls back to the default route and records an
+// address the node stops using seconds later. The gateway then builds a geneve tunnel whose remote
+// never matches the packets that node sends, and the datapath fails as a plain curl timeout, minutes
+// later and with nothing pointing at the cause. Comparing what was recorded with what the node
+// really uses reports the mismatch itself.
+func checkSourceIPsMatchRoutes(cluster *tester.ClusterContext, liqoNamespace string) error {
+	activeGatewayPods, err := listActiveGatewayPods(cluster.ControllerClient)
+	if err != nil {
+		return err
+	}
+
+	internalNodeList := &networkingv1beta1.InternalNodeList{}
+	if err := cluster.ControllerClient.List(ctx, internalNodeList); err != nil {
+		return fmt.Errorf("unable to list internalnodes: %w", err)
+	}
+
+	fabricPods := &corev1.PodList{}
+	if err := cluster.ControllerClient.List(ctx, fabricPods, client.InNamespace(liqoNamespace),
+		client.MatchingLabels{fabricPodLabelKey: fabricPodLabelValue}); err != nil {
+		return fmt.Errorf("unable to list the fabric pods: %w", err)
+	}
+
+	for i := range internalNodeList.Items {
+		internalNode := &internalNodeList.Items[i]
+		fabric := fabricPodOnNode(fabricPods, internalNode.Name)
+		if fabric == nil {
+			return fmt.Errorf("no fabric pod found on node %s", internalNode.Name)
+		}
+
+		for j := range activeGatewayPods.Items {
+			pod := &activeGatewayPods.Items[j]
+
+			recorded, kind := internalNode.Status.NodeIP.Remote, "remote"
+			if pod.Spec.NodeName == internalNode.Name {
+				recorded, kind = internalNode.Status.NodeIP.Local, "local"
+			}
+			if recorded == nil {
+				return fmt.Errorf("internalnode %s has no %s source IP yet for the active gateway pod %s/%s",
+					internalNode.Name, kind, pod.Namespace, pod.Name)
+			}
+
+			actual, err := sourceIPTowards(cluster, fabric, liqoNamespace, pod.Status.PodIP)
+			if err != nil {
+				return err
+			}
+
+			if actual != recorded.String() {
+				return fmt.Errorf(
+					"internalnode %s records %s source IP %s to reach the gateway pod %s/%s (%s), but node %s sources from %s",
+					internalNode.Name, kind, recorded, pod.Namespace, pod.Name, pod.Status.PodIP, internalNode.Name, actual)
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkGeneveTunnelsProgrammed checks that every active gateway pod has a geneve interface towards
+// every node of its cluster.
+//
+// The gateway skips the nodes whose source IP is not set yet, and a gateway which becomes active
+// needs the field that the node it runs on, and the node the previous gateway ran on, have never had
+// populated: until the fabric fills them the peering has no internal fabric at all, and every check
+// crossing it fails. Asserting the interfaces are there makes the datapath probes start once the
+// gateway is really able to carry them.
+func checkGeneveTunnelsProgrammed(cluster *tester.ClusterContext) error {
+	activeGatewayPods, err := listActiveGatewayPods(cluster.ControllerClient)
+	if err != nil {
+		return err
+	}
+
+	internalNodeList := &networkingv1beta1.InternalNodeList{}
+	if err := cluster.ControllerClient.List(ctx, internalNodeList); err != nil {
+		return fmt.Errorf("unable to list internalnodes: %w", err)
+	}
+
+	for j := range activeGatewayPods.Items {
+		pod := &activeGatewayPods.Items[j]
+
+		stdout, stderr, err := util.ExecCmdInContainer(ctx, cluster.Config, cluster.NativeClient,
+			pod.Name, pod.Namespace, geneveContainerName, "ip -d link show type geneve")
+		if err != nil {
+			return fmt.Errorf("unable to list the geneve interfaces of gateway pod %s/%s: %w (%s)",
+				pod.Namespace, pod.Name, err, stderr)
+		}
+		programmed := parseGeneveRemotes(stdout)
+
+		for i := range internalNodeList.Items {
+			internalNode := &internalNodeList.Items[i]
+
+			expected := internalNode.Status.NodeIP.Remote
+			if pod.Spec.NodeName == internalNode.Name {
+				expected = internalNode.Status.NodeIP.Local
+			}
+			if expected == nil {
+				return fmt.Errorf("internalnode %s has no source IP yet for the active gateway pod %s/%s",
+					internalNode.Name, pod.Namespace, pod.Name)
+			}
+
+			if !slices.Contains(programmed, expected.String()) {
+				return fmt.Errorf("gateway pod %s/%s has no geneve interface towards %s (node %s), but only %v",
+					pod.Namespace, pod.Name, expected, internalNode.Name, programmed)
+			}
+		}
+	}
+
+	return nil
+}
+
+// listActiveGatewayPods returns the gateway pods which are currently active, once they all have an
+// address: the checks above compare that address with what the other resources point to.
+func listActiveGatewayPods(cl client.Client) (*corev1.PodList, error) {
+	activeGatewayPods := &corev1.PodList{}
+	if err := cl.List(ctx, activeGatewayPods, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels()),
+	}); err != nil {
+		return nil, fmt.Errorf("unable to list active gateway pods: %w", err)
+	}
+
+	for i := range activeGatewayPods.Items {
+		pod := &activeGatewayPods.Items[i]
+		if pod.Status.PodIP == "" {
+			return nil, fmt.Errorf("active gateway pod %s/%s has no IP yet", pod.Namespace, pod.Name)
+		}
+	}
+
+	return activeGatewayPods, nil
+}
+
+// fabricPodOnNode returns the fabric pod running on the given node, nil when there is none.
+func fabricPodOnNode(pods *corev1.PodList, node string) *corev1.Pod {
+	for i := range pods.Items {
+		if pods.Items[i].Spec.NodeName == node {
+			return &pods.Items[i]
+		}
+	}
+	return nil
+}
+
+// sourceIPTowards returns the address the node of the given fabric pod uses to reach dst. The fabric
+// runs in the host network, so its routing table is the one of the node. Its image carries no
+// iproute2, only the ip applet of busybox: the plain "route get" both provide is enough here, as the
+// source address is read out of the fields of the answer.
+func sourceIPTowards(cluster *tester.ClusterContext, fabric *corev1.Pod, liqoNamespace, dst string) (string, error) {
+	stdout, stderr, err := util.ExecCmd(ctx, cluster.Config, cluster.NativeClient,
+		fabric.Name, liqoNamespace, fmt.Sprintf("ip route get %s", dst))
+	if err != nil {
+		return "", fmt.Errorf("unable to get the route to %s from node %s: %w (%s)",
+			dst, fabric.Spec.NodeName, err, stderr)
+	}
+
+	fields := strings.Fields(stdout)
+	for i := 0; i < len(fields)-1; i++ {
+		if fields[i] == "src" {
+			return fields[i+1], nil
+		}
+	}
+
+	return "", fmt.Errorf("no source address in the route to %s from node %s: %q", dst, fabric.Spec.NodeName, stdout)
+}
+
+// parseGeneveRemotes returns the remote addresses of the interfaces listed by
+// "ip -d link show type geneve", which carry them on their geneve detail line.
+func parseGeneveRemotes(out string) []string {
+	remotes := []string{}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		for i := 0; i < len(fields)-1; i++ {
+			if fields[i] == "remote" {
+				remotes = append(remotes, fields[i+1])
+				break
+			}
+		}
+	}
+	return remotes
 }
 
 // checkUniqueActiveGatewayPod checks if there is only one active gateway pod.

@@ -50,6 +50,13 @@ func ExecLiqoctl(kubeconfig string, args []string, output io.Writer) error {
 // ExecCmd executes a command inside a pod.
 func ExecCmd(ctx context.Context, config *rest.Config, client kubernetes.Interface,
 	podName, namespace, command string) (stdOut, stdErr string, retErr error) {
+	return ExecCmdInContainer(ctx, config, client, podName, namespace, "", command)
+}
+
+// ExecCmdInContainer executes a command inside the given container of a pod. An empty container
+// name selects the default one, as kubectl exec does.
+func ExecCmdInContainer(ctx context.Context, config *rest.Config, client kubernetes.Interface,
+	podName, namespace, container, command string) (stdOut, stdErr string, retErr error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -61,11 +68,12 @@ func ExecCmd(ctx context.Context, config *rest.Config, client kubernetes.Interfa
 		Namespace(namespace).
 		SubResource("exec")
 	req.VersionedParams(&v1.PodExecOptions{
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     false,
-		Command: cmd,
+		Container: container,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+		Command:   cmd,
 	}, scheme.ParameterCodec)
 
 	var stdout, stderr bytes.Buffer
