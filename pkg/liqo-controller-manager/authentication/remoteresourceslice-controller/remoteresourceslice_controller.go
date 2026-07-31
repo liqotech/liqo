@@ -41,8 +41,8 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/certificate"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -196,7 +196,7 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 	if resourceSlice.Status.AuthParams != nil && len(resourceSlice.Status.AuthParams.SignedCRT) > 0 {
 		var err error
 		// Check if the certificate needs to be renewed and if so, generate a new CSR.
-		shouldRenew, requeueIn, err = utils.ShouldRenewCertificate(resourceSlice.Status.AuthParams.SignedCRT)
+		shouldRenew, requeueIn, err = certificate.ShouldRenewCertificate(resourceSlice.Status.AuthParams.SignedCRT)
 		if err != nil {
 			klog.Errorf("unable to check if certificate should be renewed for ResourceSlice %q: %v", client.ObjectKeyFromObject(resourceSlice), err)
 			r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "FailedCheckCertificateRenewal", err.Error())

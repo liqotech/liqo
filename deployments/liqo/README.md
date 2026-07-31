@@ -246,7 +246,6 @@
 | webhook.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | webhook.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
 | webhook.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
-| webhook.patch.image | string | `"k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"` | Image used for the patch jobs to manage certificates. |
 | webhook.pod.annotations | object | `{}` | Annotations for the webhook pod. |
 | webhook.pod.extraArgs | list | `[]` | Extra arguments for the webhook pod. |
 | webhook.pod.labels | object | `{}` | Labels for the webhook pod. |
