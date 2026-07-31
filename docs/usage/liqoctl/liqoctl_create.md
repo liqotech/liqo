@@ -508,7 +508,7 @@ liqoctl create resourceslice [flags]
 ### Options
 `--class` _string_:
 
->The class of the ResourceSlice **(default "default")**
+>The class of the ResourceSlice. When left empty, the default class configured on the provider cluster is used
 
 `--cpu` _string_:
 
