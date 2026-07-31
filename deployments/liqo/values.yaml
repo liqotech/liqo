@@ -263,6 +263,10 @@ authentication:
   # ResourceSlices that use the "default" class, so consumers must
   # use an explicit, provider-approved ResourceSlice class.
   defaultResourceSliceClassEnabled: true
+  # -- The ResourceSlice class assigned by the provider to the ResourceSlices that do not request an
+  # explicit one. The resolved class is recorded once, hence changing this value only affects the
+  # ResourceSlices created afterwards. Leave empty to keep handling them with the built-in default class.
+  defaultResourceSliceClass: ""
   # AWS-specific configuration for the local cluster and the Liqo user.
   # This user should be able (1) to create new IAM users, (2) to create new programmatic access
   # credentials, and (3) to describe EKS clusters.

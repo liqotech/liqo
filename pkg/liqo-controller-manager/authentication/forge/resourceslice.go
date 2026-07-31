@@ -67,8 +67,15 @@ func MutateResourceSlice(resourceSlice *authv1beta1.ResourceSlice, remoteCluster
 		return err
 	}
 
+	// Preserve the class already set on the ResourceSlice when no explicit one is requested: the class
+	// is immutable, hence resetting it to the empty value would make the update be rejected.
+	class := opts.Class
+	if class == authv1beta1.ResourceSliceClassUnknown {
+		class = resourceSlice.Spec.Class
+	}
+
 	resourceSlice.Spec = authv1beta1.ResourceSliceSpec{
-		Class:             opts.Class,
+		Class:             class,
 		ProviderClusterID: ptr.To(remoteClusterID),
 		Resources:         rl,
 	}

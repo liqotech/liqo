@@ -78,7 +78,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		"Output the resulting ResourceSlice resource, instead of applying it. Supported formats: json, yaml")
 
 	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.Class, "class", "default", "The class of the ResourceSlice")
+	cmd.Flags().StringVar(&o.Class, "class", "", "The class of the ResourceSlice. "+
+		"When left empty, the default class configured on the provider cluster is used")
 	cmd.Flags().StringVar(&o.CPU, "cpu", "", "The amount of CPU requested in the resource slice")
 	cmd.Flags().StringVar(&o.Memory, "memory", "", "The amount of memory requested in the resource slice")
 	cmd.Flags().StringVar(&o.Pods, "pods", "", "The amount of pods requested in the resource slice")

@@ -45,6 +45,9 @@ const (
 )
 
 // ResourceSliceSpec defines the desired state of ResourceSlice.
+// +kubebuilder:validation:XValidation:rule="has(self.class) == has(oldSelf.class) && (!has(self.class) || self.class == oldSelf.class)",message="Class is immutable"
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 type ResourceSliceSpec struct {
 	// ConsumerClusterID is the id of the consumer cluster.
 	ConsumerClusterID *liqov1beta1.ClusterID `json:"consumerClusterID,omitempty"`
@@ -52,7 +55,7 @@ type ResourceSliceSpec struct {
 	ProviderClusterID *liqov1beta1.ClusterID `json:"providerClusterID,omitempty"`
 	// Resources contains the slice of resources requested.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
-	// Class contains the class of the ResourceSlice.
+	// Class contains the class of the ResourceSlice. It is immutable once the ResourceSlice is created.
 	Class ResourceSliceClass `json:"class,omitempty"`
 	// CSR is the Certificate Signing Request of the consumer cluster.
 	CSR []byte `json:"csr,omitempty"`
@@ -99,6 +102,9 @@ type ResourceSliceCondition struct {
 type ResourceSliceStatus struct {
 	// Conditions contains the conditions of the ResourceSlice.
 	Conditions []ResourceSliceCondition `json:"conditions,omitempty"`
+	// Class contains the class resolved by the provider cluster. When the consumer does not specify
+	// a class, the provider can provide its own default.
+	Class ResourceSliceClass `json:"class,omitempty"`
 	// Resources contains the slice of resources accepted.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// AuthParams contains the authentication parameters for the resources given by the provider cluster.
