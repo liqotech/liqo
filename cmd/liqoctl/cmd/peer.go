@@ -121,7 +121,8 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	// Authentication flags
 	cmd.Flags().BoolVar(&options.CreateResourceSlice, "create-resource-slice", true, "Create a ResourceSlice for the peering")
-	cmd.Flags().StringVar(&options.ResourceSliceClass, "resource-slice-class", "default", "The class of the ResourceSlice")
+	cmd.Flags().StringVar(&options.ResourceSliceClass, "resource-slice-class", "", "The class of the ResourceSlice. "+
+		"When left empty, the default class configured on the provider cluster is used")
 	cmd.Flags().BoolVar(&options.InBand, "in-band", false, "Use in-band authentication. Use it only if required and if you know what you are doing")
 	cmd.Flags().StringVar(&options.ProxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 

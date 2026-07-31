@@ -251,6 +251,30 @@ authentication:
 
 When the default class is disabled, any `ResourceSlice` that uses the `default` class is denied: its `Resources` condition is set to `Denied` with an explanatory message, instead of leaving the consumer waiting until timeout. Consumers must then request an explicit class handled by a custom controller. The default value is `true`, which preserves the previous behavior.
 
+(ResourceReservationDefaultClass)=
+
+### Choosing the class on the provider
+
+Requiring an explicit class means that every consumer has to know the class names used by the provider. To avoid that, the **provider** can declare which class to use for the `ResourceSlice`s that do not request one explicitly:
+
+```{code-block} yaml
+:caption: "values.yaml (provider)"
+authentication:
+  defaultResourceSliceClass: "my-class"
+```
+
+When a consumer creates a `ResourceSlice` without specifying a class, the provider assigns the predefined one (configured through its Helm parameters) and reports it in `status.class`.
+The consumer's `spec.class` is left untouched, so the request keeps reflecting what was asked for, while the provider decides how it is served.
+
+The class is resolved **once**, when the `ResourceSlice` is first reconciled.
+Changing `defaultResourceSliceClass` later in the provider's cluster configuration therefore affects only the `ResourceSlice`s created afterwards, and never reshuffles the existing ones.
+Consistently, `spec.class` is immutable: attempting to change it on an existing `ResourceSlice` is rejected.
+
+```{admonition} Writing a custom resource class controller
+:class: note
+The class actually in use is the one in `status.class` when set, and `spec.class` otherwise. Custom class controllers must select the `ResourceSlice`s they are responsible for through this pair, and not through `spec.class` alone, otherwise they will not see the requests remapped by the provider.
+```
+
 (ResourceReservationSuspendReclaim)=
 
 ## Suspend and reclaim a reservation

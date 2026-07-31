@@ -54,6 +54,9 @@ spec:
           - --authentication-enabled={{ .Values.authentication.enabled }}
           - --tls-compatibility-mode={{ .Values.authentication.tlsCompatibilityMode }}
           - --default-resource-slice-class-enabled={{ .Values.authentication.defaultResourceSliceClassEnabled }}
+          {{- if .Values.authentication.defaultResourceSliceClass }}
+          - --default-resource-slice-class={{ .Values.authentication.defaultResourceSliceClass }}
+          {{- end }}
           - --offloading-enabled={{ .Values.offloading.enabled }}
           - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
           {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}

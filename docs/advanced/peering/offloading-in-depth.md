@@ -153,6 +153,13 @@ Once a custom class is defined in the `ResourceSlice` spec, the custom ResourceS
 The custom controller might deny the request, fully accept it, or partially accept it by providing only a portion of the requested resources.
 The `VirtualNode` in the consumer cluster and the `Quota` in the provider cluster will be created based on the resources granted by the custom controller.
 
+If the class is left unspecified, the provider cluster may assign one of its own, configured through the `authentication.defaultResourceSliceClass` Helm value, and report it in `status.class` (see [Choosing the class on the provider](/usage/resource-reservation.md#choosing-the-class-on-the-provider)).
+The class a `ResourceSlice` is handled with is therefore the one in `status.class` when set, and the one in `spec.class` otherwise: a custom controller must select the `ResourceSlice`s it is responsible for through this pair.
+
+Liqo does not keep a registry of the available classes, hence a request for a class that no controller handles is not rejected: it simply stays pending.
+Its `Resources` condition is left unset, no `Quota` and no `VirtualNode` are created, and `liqoctl` reports that the resources have not been accepted; the request is served as soon as a controller for that class is started.
+A controller that does handle the class may instead reject the request explicitly, setting the `Resources` condition to `Denied`.
+
 ### Delete ResourceSlice
 
 You can revert the process by deleting the `ResourceSlice` in the consumer cluster.

@@ -45,6 +45,9 @@ const (
 )
 
 // ResourceSliceSpec defines the desired state of ResourceSlice.
+// +kubebuilder:validation:XValidation:rule="has(self.class) == has(oldSelf.class) && (!has(self.class) || self.class == oldSelf.class)",message="Class is immutable"
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 type ResourceSliceSpec struct {
 	// ConsumerClusterID is the id of the consumer cluster.
 	ConsumerClusterID *liqov1beta1.ClusterID `json:"consumerClusterID,omitempty"`
@@ -52,10 +55,13 @@ type ResourceSliceSpec struct {
 	ProviderClusterID *liqov1beta1.ClusterID `json:"providerClusterID,omitempty"`
 	// Resources contains the slice of resources requested.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
-	// Class contains the class of the ResourceSlice.
+	// Class contains the class of the ResourceSlice. It is immutable once the ResourceSlice is created.
 	Class ResourceSliceClass `json:"class,omitempty"`
 	// CSR is the Certificate Signing Request of the consumer cluster.
 	CSR []byte `json:"csr,omitempty"`
+
+	// NOTE: the immutability rule for Class is enforced at the spec level, and not on the field itself,
+	// as validation rules defined on optional fields are not evaluated when the field is unset.
 }
 
 // ResourceSliceConditionType represents different types of conditions that a ResourceSlice could assume.
@@ -99,6 +105,11 @@ type ResourceSliceCondition struct {
 type ResourceSliceStatus struct {
 	// Conditions contains the conditions of the ResourceSlice.
 	Conditions []ResourceSliceCondition `json:"conditions,omitempty"`
+	// Class contains the class resolved by the provider cluster, when the consumer did not request
+	// an explicit one. It is set at most once, when the resources of the ResourceSlice are first
+	// handled, so that configuring or changing the default on the provider only affects the
+	// ResourceSlices created afterwards.
+	Class ResourceSliceClass `json:"class,omitempty"`
 	// Resources contains the slice of resources accepted.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// AuthParams contains the authentication parameters for the resources given by the provider cluster.
@@ -129,6 +140,17 @@ type ResourceSlice struct {
 
 	Spec   ResourceSliceSpec   `json:"spec,omitempty"`
 	Status ResourceSliceStatus `json:"status,omitempty"`
+}
+
+// EffectiveClass returns the class the ResourceSlice is handled with: the one resolved by the
+// provider cluster, if any, or the one requested by the consumer otherwise.
+// ResourceSlice class controllers must rely on this method, and not on the spec alone, to select
+// the ResourceSlices they are responsible for.
+func (rs *ResourceSlice) EffectiveClass() ResourceSliceClass {
+	if rs.Status.Class != ResourceSliceClassUnknown {
+		return rs.Status.Class
+	}
+	return rs.Spec.Class
 }
 
 // +kubebuilder:object:root=true
