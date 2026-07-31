@@ -122,12 +122,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := secretcontroller.HandleSecret(ctx, cl, &secret); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		if err := cl.Update(ctx, &secret); err != nil {
+		if _, err := secretcontroller.HandleSecret(ctx, cl, &secret); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}
