@@ -75,25 +75,30 @@ func (r *Receiver) SendPong(raddr *net.UDPAddr, msg *Msg) error {
 // ReceivePong receives a PONG message.
 func (r *Receiver) ReceivePong(msg *Msg) error {
 	r.m.Lock()
-	defer r.m.Unlock()
-	if peer, ok := r.peers[msg.ClusterID]; ok {
-		if msg.TimeStamp.Before(peer.lastPingTimestamp) {
-			klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
-			return nil
-		}
-		now := time.Now()
-		peer.lastPingTimestamp = msg.TimeStamp
-		peer.lastPongTimestamp = now
-		peer.latency = now.Sub(msg.TimeStamp)
-		peer.connected = true
 
-		err := peer.updateCallback(true, peer.latency, now)
-		if err != nil {
-			return fmt.Errorf("failed to update peer %s: %w", msg.ClusterID, err)
-		}
+	peer, ok := r.peers[msg.ClusterID]
+	if !ok {
+		r.m.Unlock()
+		return fmt.Errorf("%s sender has not been initialized", msg.ClusterID)
+	}
+
+	if msg.TimeStamp.Before(peer.lastPingTimestamp) {
+		klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
+		r.m.Unlock()
 		return nil
 	}
-	return fmt.Errorf("%s sender has not been initialized", msg.ClusterID)
+	now := time.Now()
+	peer.lastPingTimestamp = msg.TimeStamp
+	peer.lastPongTimestamp = now
+	peer.latency = now.Sub(msg.TimeStamp)
+	peer.connected = true
+
+	r.m.Unlock()
+
+	if err := peer.updateCallback(true, peer.latency, now); err != nil {
+		return fmt.Errorf("failed to update peer %s: %w", msg.ClusterID, err)
+	}
+	return nil
 }
 
 // InitPeer initializes a peer.
@@ -164,17 +169,23 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	thresholdDuration := time.Duration(threshold)
 	err := wait.PollUntilContextCancel(ctx, thresholdDuration*r.opts.PingInterval/10, true,
 		func(_ context.Context) (done bool, err error) {
-			r.m.Lock()
-			defer r.m.Unlock()
+			// Snapshot the peers map while holding the lock, then release it before touching
+			// peer fields or invoking callbacks (see ReceivePong for the rationale).
+			r.m.RLock()
+			peers := make(map[string]*Peer, len(r.peers))
 			for id, peer := range r.peers {
+				peers[id] = peer
+			}
+			r.m.RUnlock()
+
+			for id, peer := range peers {
 				if time.Since(peer.lastPongTimestamp) <= r.opts.PingInterval*thresholdDuration {
 					continue
 				}
 				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
 				peer.connected = false
 				peer.latency = 0
-				err := peer.updateCallback(false, 0, time.Time{})
-				if err != nil {
+				if err := peer.updateCallback(false, 0, time.Time{}); err != nil {
 					klog.Errorf("conncheck receiver: failed to update peer %s: %s", id, err)
 				}
 			}

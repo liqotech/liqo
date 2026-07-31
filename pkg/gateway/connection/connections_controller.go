@@ -53,7 +53,7 @@ type ConnectionsReconciler struct {
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
 	conncheckOpts := *options.ConnCheckOptions
-	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode); cidr != "" {
+	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode, 0); cidr != "" {
 		ip, _, err := net.ParseCIDR(cidr)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
