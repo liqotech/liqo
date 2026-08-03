@@ -58,6 +58,7 @@ var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
 	resources.Secret:                3,
 	resources.ServiceAccount:        3,
 	resources.PersistentVolumeClaim: 3,
+	resources.LocalStoragePVC:       1,
 	resources.Event:                 3,
 }
 
@@ -70,6 +71,7 @@ var DefaultReflectorsTypes = map[resources.ResourceReflected]offloadingv1beta1.R
 	resources.Secret:                offloadingv1beta1.DenyList,
 	resources.ServiceAccount:        offloadingv1beta1.CustomLiqo,
 	resources.PersistentVolumeClaim: offloadingv1beta1.CustomLiqo,
+	resources.LocalStoragePVC:       offloadingv1beta1.CustomLiqo,
 	resources.Event:                 offloadingv1beta1.DenyList,
 }
 

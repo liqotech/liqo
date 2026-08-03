@@ -159,6 +159,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 			ptr.To(cfg.ReflectorsConfigs[resources.ServiceAccount]))).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName,
 			cfg.EnableStorage, ptr.To(cfg.ReflectorsConfigs[resources.PersistentVolumeClaim]))).
+		With(storage.NewLocalStoragePVCReflector(ptr.To(cfg.ReflectorsConfigs[resources.LocalStoragePVC]))).
 		With(event.NewEventReflector(ptr.To(cfg.ReflectorsConfigs[resources.Event]))).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 

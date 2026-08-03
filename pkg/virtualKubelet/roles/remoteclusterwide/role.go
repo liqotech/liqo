@@ -16,3 +16,4 @@
 package remoteclusterwide
 
 // +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape/metrics,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
