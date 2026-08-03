@@ -112,9 +112,10 @@ func (c *ConnChecker) RunSender(clusterID string) {
 	klog.Infof("conncheck sender %q starting against %q", clusterID, sender.raddr.IP.String())
 
 	if err := wait.PollUntilContextCancel(sender.Ctx, c.opts.PingInterval, false, func(_ context.Context) (done bool, err error) {
-		if err = c.senders[clusterID].SendPing(); err != nil {
-			klog.Warningf("failed to send ping: %s", err)
-			return false, err
+		if err = sender.SendPing(); err != nil {
+			// A single UDP send failure is not fatal; keep polling so a transient
+			// error does not permanently break the connection check.
+			klog.Warningf("conncheck sender %s: failed to send ping: %s", clusterID, err)
 		}
 		return false, nil
 	}); err != nil && sender.Ctx.Err() == nil {

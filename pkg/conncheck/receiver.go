@@ -92,10 +92,11 @@ func (r *Receiver) ReceivePong(msg *Msg) error {
 	peer.lastPongTimestamp = now
 	peer.latency = now.Sub(msg.TimeStamp)
 	peer.connected = true
-
+	latency := peer.latency
+	cb := peer.updateCallback
 	r.m.Unlock()
 
-	if err := peer.updateCallback(true, peer.latency, now); err != nil {
+	if err := cb(true, latency, now); err != nil {
 		return fmt.Errorf("failed to update peer %s: %w", msg.ClusterID, err)
 	}
 	return nil
@@ -121,7 +122,11 @@ func (r *Receiver) Run(ctx context.Context) {
 	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(_ context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
-			klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
+			if raddr != nil {
+				klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
+			} else {
+				klog.Errorf("conncheck receiver: failed to read: %v", err)
+			}
 			return false, nil
 		}
 		msgr := &Msg{}
@@ -169,23 +174,33 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	thresholdDuration := time.Duration(threshold)
 	err := wait.PollUntilContextCancel(ctx, thresholdDuration*r.opts.PingInterval/10, true,
 		func(_ context.Context) (done bool, err error) {
-			// Snapshot the peers map while holding the lock, then release it before touching
-			// peer fields or invoking callbacks (see ReceivePong for the rationale).
+			// Snapshot the peer IDs, then check each peer under the write lock so that
+			// all reads/writes of Peer fields stay synchronized with ReceivePong.
 			r.m.RLock()
-			peers := make(map[string]*Peer, len(r.peers))
-			for id, peer := range r.peers {
-				peers[id] = peer
+			peerIDs := make([]string, 0, len(r.peers))
+			for id := range r.peers {
+				peerIDs = append(peerIDs, id)
 			}
 			r.m.RUnlock()
 
-			for id, peer := range peers {
-				if time.Since(peer.lastPongTimestamp) <= r.opts.PingInterval*thresholdDuration {
+			for _, id := range peerIDs {
+				r.m.Lock()
+				peer, ok := r.peers[id]
+				if !ok {
+					r.m.Unlock()
 					continue
 				}
-				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
+				if time.Since(peer.lastPongTimestamp) <= r.opts.PingInterval*thresholdDuration {
+					r.m.Unlock()
+					continue
+				}
 				peer.connected = false
 				peer.latency = 0
-				if err := peer.updateCallback(false, 0, time.Time{}); err != nil {
+				cb := peer.updateCallback
+				r.m.Unlock()
+
+				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
+				if err := cb(false, 0, time.Time{}); err != nil {
 					klog.Errorf("conncheck receiver: failed to update peer %s: %s", id, err)
 				}
 			}
