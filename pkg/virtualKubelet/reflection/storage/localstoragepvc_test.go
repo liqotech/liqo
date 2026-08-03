@@ -39,35 +39,39 @@ const (
 
 var _ = Describe("local storage PVC reflector helpers", func() {
 
-	Context("isLocalStoragePVC", func() {
+	Context("isLocalStoragePV", func() {
 		type isLocalStorageTestcase struct {
-			pvc      *corev1.PersistentVolumeClaim
+			pv       *corev1.PersistentVolume
 			expected OmegaMatcher
 		}
 
-		DescribeTable("isLocalStoragePVC table",
+		DescribeTable("isLocalStoragePV table",
 			func(c isLocalStorageTestcase) {
-				Expect(isLocalStoragePVC(c.pvc)).To(c.expected)
+				Expect(isLocalStoragePV(c.pv)).To(c.expected)
 			},
-			Entry("local-storage class", isLocalStorageTestcase{
-				pvc: &corev1.PersistentVolumeClaim{
-					Spec: corev1.PersistentVolumeClaimSpec{
-						StorageClassName: ptr.To("local-storage"),
+			Entry("local volume source", isLocalStorageTestcase{
+				pv: &corev1.PersistentVolume{
+					Spec: corev1.PersistentVolumeSpec{
+						PersistentVolumeSource: corev1.PersistentVolumeSource{
+							Local: &corev1.LocalVolumeSource{Path: "/mnt/disks/vol1"},
+						},
 					},
 				},
 				expected: BeTrue(),
 			}),
-			Entry("other class", isLocalStorageTestcase{
-				pvc: &corev1.PersistentVolumeClaim{
-					Spec: corev1.PersistentVolumeClaimSpec{
-						StorageClassName: ptr.To("standard"),
+			Entry("host path volume source", isLocalStorageTestcase{
+				pv: &corev1.PersistentVolume{
+					Spec: corev1.PersistentVolumeSpec{
+						PersistentVolumeSource: corev1.PersistentVolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{Path: "/tmp"},
+						},
 					},
 				},
 				expected: BeFalse(),
 			}),
-			Entry("nil class", isLocalStorageTestcase{
-				pvc: &corev1.PersistentVolumeClaim{
-					Spec: corev1.PersistentVolumeClaimSpec{},
+			Entry("nil volume source", isLocalStorageTestcase{
+				pv: &corev1.PersistentVolume{
+					Spec: corev1.PersistentVolumeSpec{},
 				},
 				expected: BeFalse(),
 			}),

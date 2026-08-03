@@ -28,7 +28,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/util"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -43,8 +42,6 @@ import (
 const (
 	// LocalStoragePVCReflectorName -> The name associated with the local-storage PersistentVolumeClaim reflector.
 	LocalStoragePVCReflectorName = "LocalStoragePVC"
-	// LocalStorageClassName -> The name of the StorageClass used for local volumes.
-	LocalStorageClassName = "local-storage"
 )
 
 var _ manager.NamespacedReflector = (*NamespacedLocalStoragePVCReflector)(nil)
@@ -146,16 +143,9 @@ func (nls *NamespacedLocalStoragePVCReflector) Handle(ctx context.Context, name 
 	// DeepCopy the local object to allow modifications.
 	local = local.DeepCopy()
 
-	// Only handle PVCs backed by the local-storage StorageClass.
-	if !isLocalStoragePVC(local) {
-		klog.V(4).Infof("Skipping PersistentVolumeClaim %q since it is not a local-storage PVC", nls.LocalRef(name))
-		return nil
-	}
-	tracer.Step("Confirmed the PVC uses the local-storage class")
-
 	// Only reflect PVCs that are already bound to a PV.
 	if local.Spec.VolumeName == "" {
-		klog.V(4).Infof("Skipping reflection of unbound local PersistentVolumeClaim %q", nls.LocalRef(name))
+		klog.V(4).Infof("Skipping reflection of unbound PersistentVolumeClaim %q", nls.LocalRef(name))
 		return nil
 	}
 	tracer.Step("Confirmed the PVC is bound to a PV")
@@ -169,6 +159,13 @@ func (nls *NamespacedLocalStoragePVCReflector) Handle(ctx context.Context, name 
 		return err
 	}
 	tracer.Step("Retrieved the bound PersistentVolume")
+
+	// Only handle PVCs backed by a local PersistentVolume.
+	if !isLocalStoragePV(localPV) {
+		klog.V(4).Infof("Skipping PersistentVolumeClaim %q since it is not bound to a local PersistentVolume", nls.LocalRef(name))
+		return nil
+	}
+	tracer.Step("Confirmed the PVC is bound to a local PersistentVolume")
 
 	// Forge and apply the remote PVC.
 	remotePVName := remotePVNameFromLocal(localPV)
@@ -222,10 +219,9 @@ func (nls *NamespacedLocalStoragePVCReflector) deleteRemotePV(ctx context.Contex
 	return nls.remotePersistentVolumesClient.Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-// isLocalStoragePVC returns whether the given PVC is backed by the local-storage StorageClass.
-func isLocalStoragePVC(pvc *corev1.PersistentVolumeClaim) bool {
-	className := util.GetPersistentVolumeClaimClass(pvc)
-	return className == LocalStorageClassName
+// isLocalStoragePV returns whether the given PV is backed by local storage (i.e. it has a Local volume source).
+func isLocalStoragePV(pv *corev1.PersistentVolume) bool {
+	return pv.Spec.Local != nil
 }
 
 // remotePVNameFromLocal returns the name to use for the reflected copy of the given local PV.
