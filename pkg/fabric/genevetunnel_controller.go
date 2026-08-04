@@ -21,8 +21,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	"github.com/liqotech/liqo/pkg/conncheck"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,12 +34,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 	timeutils "github.com/liqotech/liqo/pkg/utils/time"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // GeneveTunnelReconciler manages geneve tunnels for the fabric.
@@ -179,8 +181,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		cc := r.connChecker.Load()
 
-		observer := observeGeneveLatency(internalfabric.Name, gt.Spec.InternalNodeRef.Name, gt.Namespace, internalfabric.Labels[consts.RemoteClusterID])
-		if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), observer); err != nil {
+		if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), observeGeneveLatency(&internalfabric, gt)); err != nil {
 			switch err.(type) {
 			case *conncheck.DuplicateError:
 				// Sender already added — fall through to status update below.

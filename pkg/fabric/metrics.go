@@ -120,12 +120,12 @@ func (c *GeneveTrafficCollector) collectTraffic(ctx context.Context, gt *network
 
 // observeGeneveLatency returns a conncheck.Observer that records the round-trip latency
 // into the geneve metrics at the point of measurement (on each PONG and on disconnect).
-func observeGeneveLatency(internalFabric, internalNode, namespace, remoteClusterID string) conncheck.Observer {
+func observeGeneveLatency(internalfabric *networkingv1beta1.InternalFabric, gt *networkingv1beta1.GeneveTunnel) conncheck.Observer {
 	labels := prometheus.Labels{
-		tunnel.GeneveMetricsLabels[0]: internalFabric,
-		tunnel.GeneveMetricsLabels[1]: internalNode,
-		tunnel.GeneveMetricsLabels[2]: namespace,
-		tunnel.GeneveMetricsLabels[3]: remoteClusterID,
+		tunnel.GeneveMetricsLabels[0]: internalfabric.Name,
+		tunnel.GeneveMetricsLabels[1]: gt.Spec.InternalNodeRef.Name,
+		tunnel.GeneveMetricsLabels[2]: gt.Namespace,
+		tunnel.GeneveMetricsLabels[3]: internalfabric.Labels[consts.RemoteClusterID],
 	}
 	return func(connected bool, latency time.Duration) {
 		if connected {
