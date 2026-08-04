@@ -17,6 +17,7 @@ package fabric
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	geneveutils "github.com/liqotech/liqo/pkg/utils/network/geneve"
@@ -114,4 +116,25 @@ func (c *GeneveTrafficCollector) collectTraffic(ctx context.Context, gt *network
 		float64(stats.TxBytes),
 		labels...,
 	)
+}
+
+// observeGeneveLatency returns a conncheck.Observer that records the round-trip latency
+// into the geneve metrics at the point of measurement (on each PONG and on disconnect).
+func observeGeneveLatency(internalFabric, internalNode, namespace, remoteClusterID string) conncheck.Observer {
+	labels := prometheus.Labels{
+		tunnel.GeneveMetricsLabels[0]: internalFabric,
+		tunnel.GeneveMetricsLabels[1]: internalNode,
+		tunnel.GeneveMetricsLabels[2]: namespace,
+		tunnel.GeneveMetricsLabels[3]: remoteClusterID,
+	}
+	return func(connected bool, latency time.Duration) {
+		if connected {
+			tunnel.MetricsGeneveIsConnected.With(labels).Set(1)
+			tunnel.MetricsGeneveLatency.With(labels).Set(float64(latency.Microseconds()))
+			tunnel.MetricsGeneveLatencyHistogram.With(labels).Observe(float64(latency.Microseconds()))
+		} else {
+			tunnel.MetricsGeneveIsConnected.With(labels).Set(0)
+			tunnel.MetricsGeneveLatency.With(labels).Set(0)
+		}
+	}
 }

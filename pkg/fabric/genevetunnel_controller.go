@@ -21,9 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,13 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
-	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 	timeutils "github.com/liqotech/liqo/pkg/utils/time"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // GeneveTunnelReconciler manages geneve tunnels for the fabric.
@@ -305,25 +303,4 @@ func (r *GeneveTunnelReconciler) stopSender(clusterID string) {
 		return
 	}
 	cc.DelAndStopSender(clusterID)
-}
-
-// observeGeneveLatency returns a conncheck.Observer that records the round-trip latency
-// into the geneve metrics at the point of measurement (on each PONG and on disconnect).
-func observeGeneveLatency(internalFabric, internalNode, namespace, remoteClusterID string) conncheck.Observer {
-	labels := prometheus.Labels{
-		tunnel.GeneveMetricsLabels[0]: internalFabric,
-		tunnel.GeneveMetricsLabels[1]: internalNode,
-		tunnel.GeneveMetricsLabels[2]: namespace,
-		tunnel.GeneveMetricsLabels[3]: remoteClusterID,
-	}
-	return func(connected bool, latency time.Duration) {
-		if connected {
-			tunnel.MetricsGeneveIsConnected.With(labels).Set(1)
-			tunnel.MetricsGeneveLatency.With(labels).Set(float64(latency.Microseconds()))
-			tunnel.MetricsGeneveLatencyHistogram.With(labels).Observe(float64(latency.Microseconds()))
-		} else {
-			tunnel.MetricsGeneveIsConnected.With(labels).Set(0)
-			tunnel.MetricsGeneveLatency.With(labels).Set(0)
-		}
-	}
 }

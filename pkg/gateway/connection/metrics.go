@@ -29,8 +29,6 @@ const (
 
 // ObserveLatency returns a conncheck.Observer that records the round-trip latency
 // into the prometheus metrics at the point of measurement (on each PONG).
-// This ensures the histogram captures every real RTT sample (every ping interval)
-// rather than repeating the last value once per Prometheus scrape.
 func ObserveLatency(remoteClusterID string) conncheck.Observer {
 	labels := prometheus.Labels{
 		tunnel.MetricsLabels[0]: driverLabel,
