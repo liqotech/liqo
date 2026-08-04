@@ -138,25 +138,19 @@ func (r *Receiver) Run(ctx context.Context) {
 		switch msgr.MsgType {
 		case PING:
 			klog.V(8).Infof("conncheck receiver: received a PING %s -> %s", raddr, msgr)
-			go sendPong(r, raddr, msgr)
+			if err := r.SendPong(raddr, msgr); err != nil {
+				klog.Errorf("conncheck receiver: sendPong error: %v", err)
+			}
 		case PONG:
 			klog.V(8).Infof("conncheck receiver: received a PONG from %s  -> %s", raddr, msgr)
-			go func() {
-				if err := r.ReceivePong(msgr, receivedAt); err != nil {
-					klog.Errorf("conncheck receiver: receivePong error: %v", err)
-				}
-			}()
+			if err := r.ReceivePong(msgr, receivedAt); err != nil {
+				klog.Errorf("conncheck receiver: receivePong error: %v", err)
+			}
 		}
 		return false, nil
 	})
 	if err != nil {
 		klog.Errorf("conncheck receiver: %v", err)
-	}
-}
-
-func sendPong(r *Receiver, raddr *net.UDPAddr, msgr *Msg) {
-	if err := r.SendPong(raddr, msgr); err != nil {
-		klog.Errorf("conncheck receiver: sendPong error: %v", err)
 	}
 }
 
