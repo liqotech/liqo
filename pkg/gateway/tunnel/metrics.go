@@ -16,8 +16,11 @@ package tunnel
 
 import (
 	"math"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/liqotech/liqo/pkg/conncheck"
 )
 
 var (
@@ -190,4 +193,20 @@ func GenerateFocusBuckets(
 	}
 
 	return buckets
+}
+
+// ObserveLatencyMetrics returns a conncheck.Observer that records connected status and latency
+// into the given metric vecs under the given labels, at the point of measurement (on each PONG and on disconnect).
+func ObserveLatencyMetrics(latency *prometheus.GaugeVec, latencyHistogram *prometheus.HistogramVec,
+	connected *prometheus.GaugeVec, labels prometheus.Labels) conncheck.Observer {
+	return func(isConnected bool, l time.Duration) {
+		if isConnected {
+			connected.With(labels).Set(1)
+			latency.With(labels).Set(float64(l.Microseconds()))
+			latencyHistogram.With(labels).Observe(float64(l.Microseconds()))
+		} else {
+			connected.With(labels).Set(0)
+			latency.With(labels).Set(0)
+		}
+	}
 }

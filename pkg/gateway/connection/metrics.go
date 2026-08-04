@@ -15,8 +15,6 @@
 package connection
 
 import (
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/liqotech/liqo/pkg/conncheck"
@@ -30,18 +28,9 @@ const (
 // ObserveLatency returns a conncheck.Observer that records the round-trip latency
 // into the prometheus metrics at the point of measurement (on each PONG).
 func ObserveLatency(remoteClusterID string) conncheck.Observer {
-	labels := prometheus.Labels{
-		tunnel.MetricsLabels[0]: driverLabel,
-		tunnel.MetricsLabels[1]: remoteClusterID,
-	}
-	return func(connected bool, latency time.Duration) {
-		if connected {
-			tunnel.MetricsPeerIsConnected.With(labels).Set(1)
-			tunnel.MetricsPeerLatency.With(labels).Set(float64(latency.Microseconds()))
-			tunnel.MetricsPeerLatencyHistogram.With(labels).Observe(float64(latency.Microseconds()))
-		} else {
-			tunnel.MetricsPeerIsConnected.With(labels).Set(0)
-			tunnel.MetricsPeerLatency.With(labels).Set(0)
-		}
-	}
+	return tunnel.ObserveLatencyMetrics(tunnel.MetricsPeerLatency, tunnel.MetricsPeerLatencyHistogram, tunnel.MetricsPeerIsConnected,
+		prometheus.Labels{
+			tunnel.MetricsLabels[0]: driverLabel,
+			tunnel.MetricsLabels[1]: remoteClusterID,
+		})
 }

@@ -17,7 +17,6 @@ package fabric
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/types"
@@ -121,20 +120,11 @@ func (c *GeneveTrafficCollector) collectTraffic(ctx context.Context, gt *network
 // observeGeneveLatency returns a conncheck.Observer that records the round-trip latency
 // into the geneve metrics at the point of measurement (on each PONG and on disconnect).
 func observeGeneveLatency(internalfabric *networkingv1beta1.InternalFabric, gt *networkingv1beta1.GeneveTunnel) conncheck.Observer {
-	labels := prometheus.Labels{
-		tunnel.GeneveMetricsLabels[0]: internalfabric.Name,
-		tunnel.GeneveMetricsLabels[1]: gt.Spec.InternalNodeRef.Name,
-		tunnel.GeneveMetricsLabels[2]: gt.Namespace,
-		tunnel.GeneveMetricsLabels[3]: internalfabric.Labels[consts.RemoteClusterID],
-	}
-	return func(connected bool, latency time.Duration) {
-		if connected {
-			tunnel.MetricsGeneveIsConnected.With(labels).Set(1)
-			tunnel.MetricsGeneveLatency.With(labels).Set(float64(latency.Microseconds()))
-			tunnel.MetricsGeneveLatencyHistogram.With(labels).Observe(float64(latency.Microseconds()))
-		} else {
-			tunnel.MetricsGeneveIsConnected.With(labels).Set(0)
-			tunnel.MetricsGeneveLatency.With(labels).Set(0)
-		}
-	}
+	return tunnel.ObserveLatencyMetrics(tunnel.MetricsGeneveLatency, tunnel.MetricsGeneveLatencyHistogram, tunnel.MetricsGeneveIsConnected,
+		prometheus.Labels{
+			tunnel.GeneveMetricsLabels[0]: internalfabric.Name,
+			tunnel.GeneveMetricsLabels[1]: gt.Spec.InternalNodeRef.Name,
+			tunnel.GeneveMetricsLabels[2]: gt.Namespace,
+			tunnel.GeneveMetricsLabels[3]: internalfabric.Labels[consts.RemoteClusterID],
+		})
 }
