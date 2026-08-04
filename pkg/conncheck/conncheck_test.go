@@ -42,6 +42,14 @@ func testOptions(port int) *Options {
 // eventually reported as connected with a non-zero latency.
 func TestConnCheckerEndToEnd(t *testing.T) {
 	opts := testOptions(0)
+
+	var connected atomic.Bool
+	var latency atomic.Int64
+	observer := func(c bool, l time.Duration) {
+		connected.Store(c)
+		latency.Store(int64(l))
+	}
+
 	cc, err := NewConnChecker(opts)
 	require.NoError(t, err)
 	defer cc.conn.Close()
@@ -57,15 +65,8 @@ func TestConnCheckerEndToEnd(t *testing.T) {
 	go cc.RunReceiverDisconnectObserver(ctx)
 
 	clusterID := "local"
-	var connected atomic.Bool
-	var latency atomic.Int64
-	cb := func(c bool, l time.Duration, _ time.Time) error {
-		connected.Store(c)
-		latency.Store(int64(l))
-		return nil
-	}
 
-	require.NoError(t, cc.AddSender(ctx, clusterID, "127.0.0.1", cb))
+	require.NoError(t, cc.AddSender(ctx, clusterID, "127.0.0.1", observer))
 	go cc.RunSender(clusterID)
 
 	require.Eventually(t, connected.Load, 5*time.Second, 50*time.Millisecond, "peer never became connected")
@@ -87,14 +88,13 @@ func TestConnCheckerRunSenderMapRace(t *testing.T) {
 	go cc.RunReceiverDisconnectObserver(ctx)
 
 	clusterID := "race-cluster"
-	cb := func(_ bool, _ time.Duration, _ time.Time) error { return nil }
 
 	var wg sync.WaitGroup
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := cc.AddSender(ctx, clusterID, "127.0.0.1", cb); err == nil {
+			if err := cc.AddSender(ctx, clusterID, "127.0.0.1", nil); err == nil {
 				go cc.RunSender(clusterID)
 			}
 			time.Sleep(5 * time.Millisecond)
@@ -115,7 +115,7 @@ func TestReceiverDisconnectObserverRace(t *testing.T) {
 	defer cancel()
 
 	clusterID := "race-peer"
-	require.NoError(t, cc.receiver.InitPeer(clusterID, func(_ bool, _ time.Duration, _ time.Time) error { return nil }))
+	cc.receiver.InitPeer(clusterID, nil)
 
 	go cc.receiver.RunDisconnectObserver(ctx)
 
@@ -125,7 +125,7 @@ func TestReceiverDisconnectObserverRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			msg := &Msg{ClusterID: clusterID, MsgType: PONG, TimeStamp: time.Now()}
-			_ = cc.receiver.ReceivePong(msg)
+			_ = cc.receiver.ReceivePong(msg, time.Now())
 		}()
 	}
 	wg.Wait()

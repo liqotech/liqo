@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -42,6 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -218,6 +220,17 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	if err := gtr.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to setup geneve tunnel reconciler: %w", err)
+	}
+
+	// Register geneve latency and connection metrics.
+	metrics.Registry.MustRegister(
+		tunnel.MetricsGeneveLatency,
+		tunnel.MetricsGeneveIsConnected,
+		tunnel.MetricsGeneveLatencyHistogram,
+	)
+	// Register the geneve traffic metrics collector (reads interface stats at scrape time).
+	if err := metrics.Registry.Register(fabric.NewGeneveTrafficCollector(mgr.GetClient(), options.NodeName)); err != nil {
+		return fmt.Errorf("unable to register geneve traffic collector: %w", err)
 	}
 
 	runnableGeneveCleanup, err := fabric.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)

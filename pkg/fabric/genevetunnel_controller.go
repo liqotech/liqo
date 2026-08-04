@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 	timeutils "github.com/liqotech/liqo/pkg/utils/time"
@@ -177,20 +179,39 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("initializing conncheck receiver: %w", err)
 		}
 
-		updateCallback := r.forgeUpdateGeneveTunnelCallback(gt.Name, gt.Namespace)
-
 		cc := r.connChecker.Load()
 
-		if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), updateCallback); err != nil {
+		observer := observeGeneveLatency(internalfabric.Name, gt.Spec.InternalNodeRef.Name, gt.Namespace, internalfabric.Labels[consts.RemoteClusterID])
+		if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), observer); err != nil {
 			switch err.(type) {
 			case *conncheck.DuplicateError:
-				return ctrl.Result{}, nil
+				// Sender already added — fall through to status update below.
 			default:
 				return ctrl.Result{}, fmt.Errorf("unable to add conncheck sender: %w", err)
 			}
+		} else {
+			go cc.RunSender(gt.Name)
 		}
 
-		go cc.RunSender(gt.Name)
+		status, err := cc.GetStatus(gt.Name)
+		var (
+			latency         time.Duration
+			connStatusValue = networkingv1beta1.ConnectionError
+		)
+		if err == nil {
+			latency = status.Latency
+			if status.Connected {
+				connStatusValue = networkingv1beta1.Connected
+			}
+			klog.V(6).Infof("genevetunnel %q status: connected=%v latency=%s", req.NamespacedName, status.Connected, latency)
+		}
+
+		if err := r.updateGeneveTunnelStatus(ctx, gt, connStatusValue, latency, time.Now()); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to update genevetunnel status: %w", err)
+		}
+
+		// Requeue periodically to flush in-memory latency to the CR.
+		return ctrl.Result{RequeueAfter: r.Options.ConnCheckOptions.PingUpdateStatusInterval}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -260,39 +281,19 @@ func geneveTunnelListToRequests(list *networkingv1beta1.GeneveTunnelList) []reco
 	return requests
 }
 
-// forgeUpdateGeneveTunnelCallback returns a conncheck.UpdateFunc that writes connectivity results to a GeneveTunnel status.
-func (r *GeneveTunnelReconciler) forgeUpdateGeneveTunnelCallback(
-	tunnelName, tunnelNamespace string) conncheck.UpdateFunc {
-	return func(connected bool, latency time.Duration, timestamp time.Time) error {
-		ctx := context.Background()
-		gt := &networkingv1beta1.GeneveTunnel{}
-		if err := r.Get(ctx, types.NamespacedName{Name: tunnelName, Namespace: tunnelNamespace}, gt); err != nil {
-			return err
-		}
-		value := networkingv1beta1.ConnectionError
-		if connected {
-			value = networkingv1beta1.Connected
-		}
-		return r.updateGeneveTunnelStatus(ctx, gt, value, latency, timestamp)
-	}
-}
-
-// updateGeneveTunnelStatus updates the status of a GeneveTunnel, throttled by PingUpdateStatusInterval.
+// updateGeneveTunnelStatus updates the status of a GeneveTunnel.
 func (r *GeneveTunnelReconciler) updateGeneveTunnelStatus(ctx context.Context, gt *networkingv1beta1.GeneveTunnel,
 	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
-	if gt.Status.Value != value ||
-		timestamp.Sub(gt.Status.Latency.Timestamp.Time) > r.Options.ConnCheckOptions.PingUpdateStatusInterval {
-		if gt.Status.Value != value {
-			klog.Infof("changing genevetunnel %q status to %q", client.ObjectKeyFromObject(gt), value)
-		}
-		gt.Status.Latency = networkingv1beta1.ConnectionLatency{
-			Value:     timeutils.FormatLatency(latency),
-			Timestamp: metav1.NewTime(timestamp),
-		}
-		gt.Status.Value = value
-		if err := r.Status().Update(ctx, gt); err != nil {
-			return fmt.Errorf("unable to update genevetunnel %q status: %w", client.ObjectKeyFromObject(gt), err)
-		}
+	if gt.Status.Value != value {
+		klog.Infof("changing genevetunnel %q status to %q", client.ObjectKeyFromObject(gt), value)
+	}
+	gt.Status.Latency = networkingv1beta1.ConnectionLatency{
+		Value:     timeutils.FormatLatency(latency),
+		Timestamp: metav1.NewTime(timestamp),
+	}
+	gt.Status.Value = value
+	if err := r.Status().Update(ctx, gt); err != nil {
+		return fmt.Errorf("unable to update genevetunnel %q status: %w", client.ObjectKeyFromObject(gt), err)
 	}
 	return nil
 }
@@ -304,4 +305,25 @@ func (r *GeneveTunnelReconciler) stopSender(clusterID string) {
 		return
 	}
 	cc.DelAndStopSender(clusterID)
+}
+
+// observeGeneveLatency returns a conncheck.Observer that records the round-trip latency
+// into the geneve metrics at the point of measurement (on each PONG and on disconnect).
+func observeGeneveLatency(internalFabric, internalNode, namespace, remoteClusterID string) conncheck.Observer {
+	labels := prometheus.Labels{
+		tunnel.GeneveMetricsLabels[0]: internalFabric,
+		tunnel.GeneveMetricsLabels[1]: internalNode,
+		tunnel.GeneveMetricsLabels[2]: namespace,
+		tunnel.GeneveMetricsLabels[3]: remoteClusterID,
+	}
+	return func(connected bool, latency time.Duration) {
+		if connected {
+			tunnel.MetricsGeneveIsConnected.With(labels).Set(1)
+			tunnel.MetricsGeneveLatency.With(labels).Set(float64(latency.Microseconds()))
+			tunnel.MetricsGeneveLatencyHistogram.With(labels).Observe(float64(latency.Microseconds()))
+		} else {
+			tunnel.MetricsGeneveIsConnected.With(labels).Set(0)
+			tunnel.MetricsGeneveLatency.With(labels).Set(0)
+		}
+	}
 }

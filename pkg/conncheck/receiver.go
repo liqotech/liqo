@@ -35,7 +35,8 @@ type Peer struct {
 	lastPingTimestamp time.Time
 	// lastPongTimestamp is the time when the last PONG was received.
 	lastPongTimestamp time.Time
-	updateCallback    UpdateFunc
+	// observer is called on PONG and disconnect for this peer.
+	observer Observer
 }
 
 // Receiver is a receiver for conncheck messages.
@@ -73,7 +74,7 @@ func (r *Receiver) SendPong(raddr *net.UDPAddr, msg *Msg) error {
 }
 
 // ReceivePong receives a PONG message.
-func (r *Receiver) ReceivePong(msg *Msg) error {
+func (r *Receiver) ReceivePong(msg *Msg, receivedAt time.Time) error {
 	r.m.Lock()
 
 	peer, ok := r.peers[msg.ClusterID]
@@ -87,23 +88,21 @@ func (r *Receiver) ReceivePong(msg *Msg) error {
 		r.m.Unlock()
 		return nil
 	}
-	now := time.Now()
 	peer.lastPingTimestamp = msg.TimeStamp
-	peer.lastPongTimestamp = now
-	peer.latency = now.Sub(msg.TimeStamp)
+	peer.lastPongTimestamp = receivedAt
+	peer.latency = receivedAt.Sub(msg.TimeStamp)
 	peer.connected = true
 	latency := peer.latency
-	cb := peer.updateCallback
 	r.m.Unlock()
 
-	if err := cb(true, latency, now); err != nil {
-		return fmt.Errorf("failed to update peer %s: %w", msg.ClusterID, err)
+	if peer.observer != nil {
+		peer.observer(true, latency)
 	}
 	return nil
 }
 
 // InitPeer initializes a peer.
-func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
+func (r *Receiver) InitPeer(clusterID string, observer Observer) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.peers[clusterID] = &Peer{
@@ -111,9 +110,8 @@ func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
 		latency:           0,
 		lastPingTimestamp: time.Time{},
 		lastPongTimestamp: time.Now(),
-		updateCallback:    updateCallback,
+		observer:          observer,
 	}
-	return nil
 }
 
 // Run starts the receiver.
@@ -129,6 +127,7 @@ func (r *Receiver) Run(ctx context.Context) {
 			}
 			return false, nil
 		}
+		receivedAt := time.Now()
 		msgr := &Msg{}
 		err = json.Unmarshal(r.buff[:n], msgr)
 		if err != nil {
@@ -142,7 +141,11 @@ func (r *Receiver) Run(ctx context.Context) {
 			go sendPong(r, raddr, msgr)
 		case PONG:
 			klog.V(8).Infof("conncheck receiver: received a PONG from %s  -> %s", raddr, msgr)
-			go receivePong(r, msgr)
+			go func() {
+				if err := r.ReceivePong(msgr, receivedAt); err != nil {
+					klog.Errorf("conncheck receiver: receivePong error: %v", err)
+				}
+			}()
 		}
 		return false, nil
 	})
@@ -154,12 +157,6 @@ func (r *Receiver) Run(ctx context.Context) {
 func sendPong(r *Receiver, raddr *net.UDPAddr, msgr *Msg) {
 	if err := r.SendPong(raddr, msgr); err != nil {
 		klog.Errorf("conncheck receiver: sendPong error: %v", err)
-	}
-}
-
-func receivePong(r *Receiver, msgr *Msg) {
-	if err := r.ReceivePong(msgr); err != nil {
-		klog.Errorf("conncheck receiver: receivePong error: %v", err)
 	}
 }
 
@@ -196,12 +193,11 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 				}
 				peer.connected = false
 				peer.latency = 0
-				cb := peer.updateCallback
 				r.m.Unlock()
 
 				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
-				if err := cb(false, 0, time.Time{}); err != nil {
-					klog.Errorf("conncheck receiver: failed to update peer %s: %s", id, err)
+				if peer.observer != nil {
+					peer.observer(false, 0)
 				}
 			}
 			return false, nil

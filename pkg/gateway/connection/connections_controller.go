@@ -87,8 +87,6 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	klog.V(4).Infof("Reconciling connection %q", req.NamespacedName)
 
-	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
-
 	switch r.Options.ConnCheckOptions.PingEnabled {
 	case true:
 		remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
@@ -96,19 +94,42 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, fmt.Errorf("unable to get the remote interface IP: %w", err)
 		}
 
-		err = r.ConnChecker.AddSender(ctx, r.Options.GwOptions.RemoteClusterID, remoteIP, updateConnection)
+		err = r.ConnChecker.AddSender(ctx, r.Options.GwOptions.RemoteClusterID, remoteIP, ObserveLatency(r.Options.GwOptions.RemoteClusterID))
 		if err != nil {
 			switch err.(type) {
 			case *conncheck.DuplicateError:
-				return ctrl.Result{}, nil
+				// Sender already added — fall through to status update below.
 			default:
 				return ctrl.Result{}, fmt.Errorf("unable to add the sender: %w", err)
 			}
+		} else {
+			go r.ConnChecker.RunSender(r.Options.GwOptions.RemoteClusterID)
 		}
 
-		go r.ConnChecker.RunSender(r.Options.GwOptions.RemoteClusterID)
+		status, err := r.ConnChecker.GetStatus(r.Options.GwOptions.RemoteClusterID)
+		var (
+			latency         time.Duration
+			connStatusValue = networkingv1beta1.ConnectionError
+		)
+		if err == nil {
+			latency = status.Latency
+			if status.Connected {
+				connStatusValue = networkingv1beta1.Connected
+			}
+			klog.V(6).Infof("connection %q status: connected=%v latency=%s", req.NamespacedName, status.Connected, latency)
+		}
+
+		if err := UpdateConnectionStatus(ctx, r.Client, r.Options, connection, connStatusValue, latency, time.Now()); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to update the connection status: %w", err)
+		}
+
+		// Requeue periodically to flush in-memory latency to the CR.
+		return ctrl.Result{RequeueAfter: r.Options.ConnCheckOptions.PingUpdateStatusInterval}, nil
+
 	case false:
-		if err := updateConnection(true, 0, time.Time{}); err != nil {
+		// Ping disabled — mark the connection as connected with zero latency.
+		if err := UpdateConnectionStatus(ctx, r.Client, r.Options, connection,
+			networkingv1beta1.Connected, 0, time.Time{}); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to update the connection status: %w", err)
 		}
 	}
@@ -129,22 +150,4 @@ func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConnection).
 		For(&networkingv1beta1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
-}
-
-// ForgeUpdateConnectionCallback forges the UpdateConnectionStatus function.
-func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, opts *Options, req ctrl.Request) conncheck.UpdateFunc {
-	return func(connected bool, latency time.Duration, timestamp time.Time) error {
-		connection := &networkingv1beta1.Connection{}
-		if err := cl.Get(ctx, req.NamespacedName, connection); err != nil {
-			return err
-		}
-		var connStatusValue networkingv1beta1.ConnectionStatusValue
-		switch connected {
-		case true:
-			connStatusValue = networkingv1beta1.Connected
-		case false:
-			connStatusValue = networkingv1beta1.ConnectionError
-		}
-		return UpdateConnectionStatus(ctx, cl, opts, connection, connStatusValue, latency, timestamp)
-	}
 }

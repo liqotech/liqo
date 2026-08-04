@@ -45,6 +45,7 @@ type Options struct {
 
 	MetricsAddress string
 	ProbeAddr      string
+	PprofAddr      string
 
 	EnableNftMonitor   bool
 	EnableRouteMonitor bool

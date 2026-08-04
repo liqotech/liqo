@@ -30,21 +30,18 @@ import (
 // UpdateConnectionStatus updates the status of a connection.
 func UpdateConnectionStatus(ctx context.Context, cl client.Client, opts *Options, connection *networkingv1beta1.Connection,
 	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
-	if connection.Status.Value != value ||
-		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > opts.ConnCheckOptions.PingUpdateStatusInterval {
-		if connection.Status.Value != value {
-			klog.Infof("changing connection %q status to %q",
-				client.ObjectKeyFromObject(connection).String(), value)
-		}
-		connection.Status.Latency = networkingv1beta1.ConnectionLatency{
-			Value:     timeutils.FormatLatency(latency),
-			Timestamp: metav1.NewTime(timestamp),
-		}
-		connection.Status.Value = value
-		if err := cl.Status().Update(ctx, connection); err != nil {
-			return fmt.Errorf("unable to update connection %q: %w",
-				client.ObjectKeyFromObject(connection).String(), err)
-		}
+	if connection.Status.Value != value {
+		klog.Infof("changing connection %q status to %q",
+			client.ObjectKeyFromObject(connection).String(), value)
+	}
+	connection.Status.Latency = networkingv1beta1.ConnectionLatency{
+		Value:     timeutils.FormatLatency(latency),
+		Timestamp: metav1.NewTime(timestamp),
+	}
+	connection.Status.Value = value
+	if err := cl.Status().Update(ctx, connection); err != nil {
+		return fmt.Errorf("unable to update connection %q: %w",
+			client.ObjectKeyFromObject(connection).String(), err)
 	}
 	return nil
 }

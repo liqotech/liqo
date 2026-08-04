@@ -20,20 +20,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// PrometheusMetrics is a struct that implements the prometheus.Collector interface's Describe method and other utilities.
-type PrometheusMetrics struct{}
-
 var (
 	// MetricsPeerReceivedBytes is the metric that counts the number of bytes received from a given peer.
 	MetricsPeerReceivedBytes *prometheus.Desc
 	// MetricsPeerTransmittedBytes is the metric that counts the number of bytes transmitted to a given peer.
 	MetricsPeerTransmittedBytes *prometheus.Desc
 	// MetricsPeerLatency is the metric that exposes the latency towards a given peer.
-	MetricsPeerLatency *prometheus.Desc
+	MetricsPeerLatency *prometheus.GaugeVec
 	// MetricsPeerLatencyHistogram is the metric that exposes the latency distribution towards a given peer.
 	MetricsPeerLatencyHistogram *prometheus.HistogramVec
 	// MetricsPeerIsConnected is the metric that outputs the connection status.
-	MetricsPeerIsConnected *prometheus.Desc
+	MetricsPeerIsConnected *prometheus.GaugeVec
 	// MetricsLabels is the labels that are used for the metrics.
 	MetricsLabels []string
 
@@ -41,11 +38,11 @@ var (
 	// The labels are: internal_fabric, internal_node, namespace, remote_cluster_id.
 	GeneveMetricsLabels []string
 	// MetricsGeneveLatency is the metric that exposes the latency of a geneve tunnel.
-	MetricsGeneveLatency *prometheus.Desc
+	MetricsGeneveLatency *prometheus.GaugeVec
 	// MetricsGeneveLatencyHistogram is the metric that exposes the latency distribution of each individual geneve tunnel.
 	MetricsGeneveLatencyHistogram *prometheus.HistogramVec
 	// MetricsGeneveIsConnected is the metric that outputs the status of each geneve tunnel.
-	MetricsGeneveIsConnected *prometheus.Desc
+	MetricsGeneveIsConnected *prometheus.GaugeVec
 	// MetricsGeneveReceivedBytes is the metric that counts the number of bytes received through a geneve tunnel.
 	MetricsGeneveReceivedBytes *prometheus.Desc
 	// MetricsGeneveTransmittedBytes is the metric that counts the number of bytes transmitted through a geneve tunnel.
@@ -70,12 +67,10 @@ func init() {
 		nil,
 	)
 
-	MetricsPeerLatency = prometheus.NewDesc(
-		"liqo_peer_latency_us",
-		"Round-trip latency of a given peer in microseconds.",
-		MetricsLabels,
-		nil,
-	)
+	MetricsPeerLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "liqo_peer_latency_us",
+		Help: "Round-trip latency of a given peer in microseconds.",
+	}, MetricsLabels)
 
 	MetricsPeerLatencyHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "liqo_peer_latency_histogram_us",
@@ -83,21 +78,17 @@ func init() {
 		Buckets: GenerateFocusBuckets(10000, 5000, 3, 16250, 8, 1.1892, 4),
 	}, MetricsLabels)
 
-	MetricsPeerIsConnected = prometheus.NewDesc(
-		"liqo_peer_is_connected",
-		"Status of the connectivity to a given peer (true = Liqo tunnel is up and gateways are pinging each other).",
-		MetricsLabels,
-		nil,
-	)
+	MetricsPeerIsConnected = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "liqo_peer_is_connected",
+		Help: "Status of the connectivity to a given peer (true = Liqo tunnel is up and gateways are pinging each other).",
+	}, MetricsLabels)
 
 	GeneveMetricsLabels = []string{"internal_fabric", "internal_node", "namespace", "remote_cluster_id"}
 
-	MetricsGeneveLatency = prometheus.NewDesc(
-		"liqo_geneve_latency_us",
-		"Round-trip latency of a geneve tunnel in microseconds.",
-		GeneveMetricsLabels,
-		nil,
-	)
+	MetricsGeneveLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "liqo_geneve_latency_us",
+		Help: "Round-trip latency of a geneve tunnel in microseconds.",
+	}, GeneveMetricsLabels)
 
 	MetricsGeneveLatencyHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "liqo_geneve_latency_histogram_us",
@@ -105,12 +96,10 @@ func init() {
 		Buckets: GenerateFocusBuckets(10000, 5000, 3, 16250, 8, 1.1892, 4),
 	}, GeneveMetricsLabels)
 
-	MetricsGeneveIsConnected = prometheus.NewDesc(
-		"liqo_geneve_is_connected",
-		"Status of the connectivity of a geneve tunnel (true = tunnel is up and nodes are pinging each other).",
-		GeneveMetricsLabels,
-		nil,
-	)
+	MetricsGeneveIsConnected = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "liqo_geneve_is_connected",
+		Help: "Status of the connectivity of a geneve tunnel (true = tunnel is up and nodes are pinging each other).",
+	}, GeneveMetricsLabels)
 
 	MetricsGeneveReceivedBytes = prometheus.NewDesc(
 		"liqo_geneve_receive_bytes_total",
@@ -125,23 +114,6 @@ func init() {
 		GeneveMetricsLabels,
 		nil,
 	)
-}
-
-// Describe implements prometheus.Collector.
-func (m *PrometheusMetrics) Describe(ch chan<- *prometheus.Desc) {
-	ch <- MetricsPeerReceivedBytes
-	ch <- MetricsPeerTransmittedBytes
-	ch <- MetricsPeerLatency
-	ch <- MetricsPeerIsConnected
-	MetricsPeerLatencyHistogram.Describe(ch)
-}
-
-// MetricsErrorHandler is a function that handles metrics errors.
-func (m *PrometheusMetrics) MetricsErrorHandler(err error, ch chan<- prometheus.Metric) {
-	ch <- prometheus.NewInvalidMetric(MetricsPeerReceivedBytes, err)
-	ch <- prometheus.NewInvalidMetric(MetricsPeerTransmittedBytes, err)
-	ch <- prometheus.NewInvalidMetric(MetricsPeerLatency, err)
-	ch <- prometheus.NewInvalidMetric(MetricsPeerIsConnected, err)
 }
 
 // GenerateFocusBuckets builds a Prometheus-style histogram bucket layout that

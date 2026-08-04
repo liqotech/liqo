@@ -43,5 +43,5 @@ const (
 	PONG MsgTypes = "PONG"
 )
 
-// UpdateFunc is a function called when a Receiver gets a PONG or when a connection is declared failed.
-type UpdateFunc func(connected bool, latency time.Duration, time time.Time) error
+// Observer is used for metrics observation (e.g. histogram recording).
+type Observer func(connected bool, latency time.Duration)
