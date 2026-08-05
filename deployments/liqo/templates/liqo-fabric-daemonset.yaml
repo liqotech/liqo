@@ -99,7 +99,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          {{- if and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0") }}
           ports:
           - name: healthz
             containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
@@ -112,7 +111,6 @@ spec:
           - name: fabric-metrics
             containerPort: {{ .Values.networking.fabric.config.metricsAddressPort }}
             protocol: TCP
-          {{- end }}
           {{- end }}
       hostNetwork: true
       {{- if .Values.networking.fabric.pod.priorityClassName }}
