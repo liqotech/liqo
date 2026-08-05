@@ -36,7 +36,7 @@ type Peer struct {
 	// lastPongTimestamp is the time when the last PONG was received.
 	lastPongTimestamp time.Time
 	// observer is called on PONG and disconnect for this peer.
-	observer MetricsObserver
+	observer PingObserver
 }
 
 // Receiver is a receiver for conncheck messages.
@@ -102,7 +102,7 @@ func (r *Receiver) ReceivePong(msg *Msg, receivedAt time.Time) error {
 }
 
 // InitPeer initializes a peer.
-func (r *Receiver) InitPeer(clusterID string, observer MetricsObserver) {
+func (r *Receiver) InitPeer(clusterID string, observer PingObserver) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.peers[clusterID] = &Peer{

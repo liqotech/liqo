@@ -71,8 +71,16 @@ func (c *ConnChecker) RunReceiverDisconnectObserver(ctx context.Context) {
 	c.receiver.RunDisconnectObserver(ctx)
 }
 
+// HasSender reports whether a sender has already been added for the given clusterID.
+func (c *ConnChecker) HasSender(clusterID string) bool {
+	c.sm.RLock()
+	_, ok := c.senders[clusterID]
+	c.sm.RUnlock()
+	return ok
+}
+
 // AddSender adds a sender.
-func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, observer MetricsObserver) error {
+func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, observer PingObserver) error {
 	var err error
 
 	if clusterID == "" {

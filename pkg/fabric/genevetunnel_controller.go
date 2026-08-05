@@ -16,6 +16,7 @@ package fabric
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -179,16 +180,8 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		cc := r.connChecker.Load()
 
-		if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(),
-			observeGeneveLatency(&internalfabric, gt)); err != nil {
-			switch err.(type) {
-			case *conncheck.DuplicateError:
-				// Sender already added — fall through to status update below.
-			default:
-				return ctrl.Result{}, fmt.Errorf("unable to add conncheck sender: %w", err)
-			}
-		} else {
-			go cc.RunSender(gt.Name)
+		if err := r.ensureSender(cc, gt, &internalfabric, &internalnode); err != nil {
+			return ctrl.Result{}, err
 		}
 
 		status, err := cc.GetStatus(gt.Name)
@@ -213,6 +206,28 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// ensureSender adds the conncheck sender for the given GeneveTunnel if it isn't already
+// running. It is a no-op after the first successful call.
+func (r *GeneveTunnelReconciler) ensureSender(cc *conncheck.ConnChecker, gt *networkingv1beta1.GeneveTunnel,
+	internalfabric *networkingv1beta1.InternalFabric, internalnode *networkingv1beta1.InternalNode) error {
+	if cc.HasSender(gt.Name) {
+		return nil
+	}
+
+	if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(),
+		observeGeneveLatency(internalfabric, gt)); err != nil {
+		var dupErr *conncheck.DuplicateError
+		if !errors.As(err, &dupErr) {
+			return fmt.Errorf("unable to add conncheck sender: %w", err)
+		}
+		// Sender already added concurrently — nothing else to do.
+		return nil
+	}
+
+	go cc.RunSender(gt.Name)
+	return nil
 }
 
 // SetupWithManager registers the GeneveTunnelReconciler to the manager.
