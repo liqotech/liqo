@@ -33,9 +33,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/conncheck"
@@ -55,6 +57,11 @@ type GeneveTunnelReconciler struct {
 	connChecker     atomic.Pointer[conncheck.ConnChecker]
 	connCheckerErr  error
 	connCheckerOnce sync.Once
+
+	// transitions carries a GenericEvent for the Connection object every time the conncheck
+	// observer detects a connected/disconnected transition, so the reconciler can flush the
+	// status change immediately instead of waiting for the next periodic requeue.
+	transitions chan event.GenericEvent
 }
 
 // NewGeneveTunnelReconciler returns a new GeneveTunnelReconciler.
@@ -65,6 +72,7 @@ func NewGeneveTunnelReconciler(cl client.Client, s *runtime.Scheme,
 		Scheme:         s,
 		EventsRecorder: er,
 		Options:        opts,
+		transitions:    make(chan event.GenericEvent, 10),
 	}, nil
 }
 
@@ -180,7 +188,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		cc := r.connChecker.Load()
 
-		if err := r.ensureSender(cc, gt, &internalfabric, &internalnode); err != nil {
+		if err := r.ensureSender(cc, req.NamespacedName, gt, &internalfabric, &internalnode); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -210,14 +218,14 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // ensureSender adds the conncheck sender for the given GeneveTunnel if it isn't already
 // running. It is a no-op after the first successful call.
-func (r *GeneveTunnelReconciler) ensureSender(cc *conncheck.ConnChecker, gt *networkingv1beta1.GeneveTunnel,
-	internalfabric *networkingv1beta1.InternalFabric, internalnode *networkingv1beta1.InternalNode) error {
+func (r *GeneveTunnelReconciler) ensureSender(cc *conncheck.ConnChecker, key types.NamespacedName,
+	gt *networkingv1beta1.GeneveTunnel, internalfabric *networkingv1beta1.InternalFabric, internalnode *networkingv1beta1.InternalNode) error {
 	if cc.HasSender(gt.Name) {
 		return nil
 	}
 
-	if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(),
-		observeGeneveLatency(internalfabric, gt)); err != nil {
+	observer := onTransition(observeGeneveLatency(internalfabric, gt), r.enqueueTransition(key))
+	if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), observer); err != nil {
 		var dupErr *conncheck.DuplicateError
 		if !errors.As(err, &dupErr) {
 			return fmt.Errorf("unable to add conncheck sender: %w", err)
@@ -228,6 +236,30 @@ func (r *GeneveTunnelReconciler) ensureSender(cc *conncheck.ConnChecker, gt *net
 
 	go cc.RunSender(gt.Name)
 	return nil
+}
+
+// onTransition wraps a conncheck.PingObserver, calling onChange whenever the connected
+// state flips between two invocations, in addition to invoking the wrapped observer as usual.
+func onTransition(observer conncheck.PingObserver, onChange func()) conncheck.PingObserver {
+	var lastConnected atomic.Bool
+	return func(connected bool, latency time.Duration) {
+		observer(connected, latency)
+		if lastConnected.Swap(connected) != connected {
+			onChange()
+		}
+	}
+}
+
+func (r *GeneveTunnelReconciler) enqueueTransition(key types.NamespacedName) func() {
+	return func() {
+		select {
+		case r.transitions <- event.GenericEvent{
+			Object: &networkingv1beta1.GeneveTunnel{
+				ObjectMeta: metav1.ObjectMeta{Name: key.Name, Namespace: key.Namespace},
+			}}:
+		default:
+		}
+	}
 }
 
 // SetupWithManager registers the GeneveTunnelReconciler to the manager.
@@ -248,6 +280,7 @@ func (r *GeneveTunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalFabricFabric).
 		For(&networkingv1beta1.GeneveTunnel{},
 			builder.WithPredicates(nodeSelector)).
+		WatchesRawSource(source.Channel(r.transitions, &handler.EnqueueRequestForObject{})).
 		Watches(&networkingv1beta1.InternalNode{},
 			handler.EnqueueRequestsFromMapFunc(r.internalNodeEnqueuer),
 			builder.WithPredicates(internalNodePredicate)).
