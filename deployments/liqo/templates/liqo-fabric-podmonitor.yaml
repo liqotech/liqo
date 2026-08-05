@@ -1,0 +1,22 @@
+---
+{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking" ) .) -}}
+
+{{- if and (.Values.networking.enabled) (.Values.metrics.enabled) (.Values.metrics.prometheusOperator.enabled) }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "liqo.prefixedName" $fabricConfig }}
+  labels:
+    {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+    - port: fabric-metrics
+      path: /metrics
+  selector:
+    matchLabels:
+      networking.liqo.io/component: fabric
+  namespaceSelector:
+    any: true
+
+{{- end }}

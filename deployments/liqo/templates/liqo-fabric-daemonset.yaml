@@ -21,6 +21,7 @@ spec:
     {{- end }}
       labels:
         {{- include "liqo.selectorLabels" $fabricConfig | nindent 8 }}
+        networking.liqo.io/component: fabric
         {{- if .Values.networking.fabric.pod.labels }}
           {{- toYaml .Values.networking.fabric.pod.labels | nindent 8 }}
         {{- end }}
@@ -107,6 +108,14 @@ spec:
             httpGet:
               path: /readyz
               port: healthz
+          {{- end }}
+          {{- if and .Values.metrics.enabled .Values.networking.fabric.config.metricsAddressPort (ne .Values.networking.fabric.config.metricsAddressPort "0") }}
+          {{- if not (and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0")) }}
+          ports:
+          {{- end }}
+          - name: fabric-metrics
+            containerPort: {{ .Values.networking.fabric.config.metricsAddressPort }}
+            protocol: TCP
           {{- end }}
       hostNetwork: true
       {{- if .Values.networking.fabric.pod.priorityClassName }}
