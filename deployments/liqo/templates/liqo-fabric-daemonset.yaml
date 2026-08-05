@@ -99,18 +99,22 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+          {{- if or (and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0")) .Values.metrics.enabled }}
           ports:
-          - name: healthz
-            containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
+          {{- if .Values.metrics.enabled }}
+          - containerPort: {{ .Values.networking.fabric.config.metricsAddressPort }}
+            name: fabric-metrics
+            protocol: TCP
+          {{- end }}
+          {{- if and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0") }}
+          - containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
+            name: healthz
             protocol: TCP
           readinessProbe:
             httpGet:
               path: /readyz
               port: healthz
-          {{- if .Values.metrics.enabled }}
-          - name: fabric-metrics
-            containerPort: {{ .Values.networking.fabric.config.metricsAddressPort }}
-            protocol: TCP
+          {{- end }}
           {{- end }}
       hostNetwork: true
       {{- if .Values.networking.fabric.pod.priorityClassName }}
