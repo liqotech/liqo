@@ -72,7 +72,7 @@ func (c *ConnChecker) RunReceiverDisconnectObserver(ctx context.Context) {
 }
 
 // AddSender adds a sender.
-func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, observer Observer) error {
+func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, observer MetricsObserver) error {
 	var err error
 
 	if clusterID == "" {

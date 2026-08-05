@@ -25,9 +25,9 @@ const (
 	driverLabel = "gateway"
 )
 
-// ObserveLatency returns a conncheck.Observer that records the round-trip latency
+// ObserveLatency returns a conncheck.MetricsObserver that records the round-trip latency
 // into the prometheus metrics at the point of measurement (on each PONG).
-func ObserveLatency(remoteClusterID string) conncheck.Observer {
+func ObserveLatency(remoteClusterID string) conncheck.MetricsObserver {
 	return tunnel.ObserveLatencyMetrics(tunnel.MetricsPeerLatency, tunnel.MetricsPeerLatencyHistogram, tunnel.MetricsPeerIsConnected,
 		prometheus.Labels{
 			tunnel.MetricsLabels[0]: driverLabel,

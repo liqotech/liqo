@@ -43,5 +43,10 @@ const (
 	PONG MsgTypes = "PONG"
 )
 
-// Observer is used for metrics observation (e.g. histogram recording).
-type Observer func(connected bool, latency time.Duration)
+// MetricsObserver reports the outcome of a single connectivity measurement so a caller can
+// record it into its own metrics backend. It is invoked by the Receiver on every accepted
+// PONG (connected=true, latency set) and whenever a peer is deemed unreachable due to
+// exceeding the ping loss threshold (connected=false, latency zero). Implementations must
+// be safe to call from multiple goroutines and should not block, since they run synchronously
+// on the conncheck receive path.
+type MetricsObserver func(connected bool, latency time.Duration)
