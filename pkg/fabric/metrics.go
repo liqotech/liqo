@@ -17,6 +17,7 @@ package fabric
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/types"
@@ -127,4 +128,100 @@ func observeGeneveLatency(internalfabric *networkingv1beta1.InternalFabric, gt *
 			tunnel.GeneveMetricsLabels[2]: gt.Namespace,
 			tunnel.GeneveMetricsLabels[3]: internalfabric.Labels[consts.RemoteClusterID],
 		})
+}
+
+const hostNetNodeLabel = "node"
+
+var (
+	// Softnet (NET_RX softirq) statistics from /proc/net/softnet_stat (labels: node, cpu).
+	// These are global to the host kernel, not limited to a single tunnel or socket.
+
+	// MetricsHostSoftnetProcessedPackets counts the packets processed by the
+	// NET_RX softirq per CPU.
+	MetricsHostSoftnetProcessedPackets = prometheus.NewDesc(
+		"liqo_fabric_host_softnet_processed_packets_total",
+		"Total number of packets processed by the NET_RX softirq, per CPU (host-wide statistic).",
+		[]string{hostNetNodeLabel, "cpu"},
+		nil,
+	)
+	// MetricsHostSoftnetDroppedPackets counts the packets dropped because the
+	// per-CPU netdev backlog was full.
+	MetricsHostSoftnetDroppedPackets = prometheus.NewDesc(
+		"liqo_fabric_host_softnet_dropped_packets_total",
+		"Total number of packets dropped due to a full per-CPU netdev backlog (host-wide statistic).",
+		[]string{hostNetNodeLabel, "cpu"},
+		nil,
+	)
+	// MetricsHostSoftnetTimeSqueeze counts the times the NET_RX softirq
+	// exhausted its budget with work remaining.
+	MetricsHostSoftnetTimeSqueeze = prometheus.NewDesc(
+		"liqo_fabric_host_softnet_time_squeeze_total",
+		"Total number of times the NET_RX softirq exhausted its time/length budget, per CPU (host-wide statistic).",
+		[]string{hostNetNodeLabel, "cpu"},
+		nil,
+	)
+	// MetricsHostSoftnetBacklogLen reports the current length of the netdev
+	// backlog queue per CPU.
+	MetricsHostSoftnetBacklogLen = prometheus.NewDesc(
+		"liqo_fabric_host_softnet_backlog_length",
+		"Current length of the per-CPU netdev backlog queue (host-wide statistic).",
+		[]string{hostNetNodeLabel, "cpu"},
+		nil,
+	)
+)
+
+var _ prometheus.Collector = &HostNetworkCollector{}
+
+// HostNetworkCollector exports host-wide Linux network statistics that are
+// useful for debugging tunnel latency but must be collected only once per node.
+// Collecting them from the gateway would duplicate the same host counters when
+// multiple gateways run on the same node, so they live here in the fabric
+// (which runs once per node).
+type HostNetworkCollector struct {
+	nodeName string
+}
+
+// NewHostNetworkCollector creates a new HostNetworkCollector.
+func NewHostNetworkCollector(nodeName string) *HostNetworkCollector {
+	return &HostNetworkCollector{nodeName: nodeName}
+}
+
+// Describe implements prometheus.Collector.
+func (c *HostNetworkCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- MetricsHostSoftnetProcessedPackets
+	ch <- MetricsHostSoftnetDroppedPackets
+	ch <- MetricsHostSoftnetTimeSqueeze
+	ch <- MetricsHostSoftnetBacklogLen
+}
+
+// Collect implements prometheus.Collector.
+func (c *HostNetworkCollector) Collect(ch chan<- prometheus.Metric) {
+	c.collectSoftnetStats(ch)
+}
+
+// collectSoftnetStats collects per-CPU softnet (NET_RX softirq) statistics from
+// /proc/net/softnet_stat. These are host-wide statistics: growing time_squeeze
+// or dropped counters indicate that the softirq receive path cannot keep up
+// with the packet rate, which typically manifests as increasing latency under
+// load.
+func (c *HostNetworkCollector) collectSoftnetStats(ch chan<- prometheus.Metric) {
+	stats, err := readSoftnetStats()
+	if err != nil {
+		err = fmt.Errorf("error collecting softnet statistics: %w", err)
+		ch <- prometheus.NewInvalidMetric(MetricsHostSoftnetProcessedPackets, err)
+		ch <- prometheus.NewInvalidMetric(MetricsHostSoftnetDroppedPackets, err)
+		ch <- prometheus.NewInvalidMetric(MetricsHostSoftnetTimeSqueeze, err)
+		ch <- prometheus.NewInvalidMetric(MetricsHostSoftnetBacklogLen, err)
+		return
+	}
+
+	for i := range stats {
+		labels := []string{c.nodeName, strconv.Itoa(i)}
+		ch <- prometheus.MustNewConstMetric(MetricsHostSoftnetProcessedPackets, prometheus.CounterValue, float64(stats[i].processed), labels...)
+		ch <- prometheus.MustNewConstMetric(MetricsHostSoftnetDroppedPackets, prometheus.CounterValue, float64(stats[i].dropped), labels...)
+		ch <- prometheus.MustNewConstMetric(MetricsHostSoftnetTimeSqueeze, prometheus.CounterValue, float64(stats[i].timeSqueeze), labels...)
+		if stats[i].hasBacklog {
+			ch <- prometheus.MustNewConstMetric(MetricsHostSoftnetBacklogLen, prometheus.GaugeValue, float64(stats[i].backlogLen), labels...)
+		}
+	}
 }

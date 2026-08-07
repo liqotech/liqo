@@ -232,6 +232,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	if err := metrics.Registry.Register(fabric.NewGeneveTrafficCollector(mgr.GetClient(), options.NodeName)); err != nil {
 		return fmt.Errorf("unable to register geneve traffic collector: %w", err)
 	}
+	// Register the host network metrics collector (reads /proc/net statistics once per node).
+	if err := metrics.Registry.Register(fabric.NewHostNetworkCollector(options.NodeName)); err != nil {
+		return fmt.Errorf("unable to register host network collector: %w", err)
+	}
 
 	runnableGeneveCleanup, err := fabric.NewRunnableGeneveCleanup(mgr.GetClient(), options.GeneveCleanupInterval)
 	if err != nil {

@@ -53,3 +53,6 @@ docs/_build
 
 # claude
 .claude
+
+# Kimchi
+.kimchi
