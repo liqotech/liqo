@@ -34,6 +34,10 @@ spec:
           template:
             metadata:
               {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
+              {{- if .Values.networking.gatewayTemplates.pod.annotations }}
+              annotations:
+                {{- toYaml .Values.networking.gatewayTemplates.pod.annotations | nindent 16 }}
+              {{- end }}
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
@@ -95,6 +99,9 @@ spec:
                 - --enable-nft-monitor={{ .Values.networking.gatewayTemplates.nftablesMonitor }}
                 - --enable-route-monitor={{ .Values.networking.gatewayTemplates.routeMonitor }}
                 - --enable-multipath-hash-policy={{ printf "{{ if gt (len .Spec.Endpoint.Ports) 1 }}true{{ else }}false{{ end }}" }}
+                {{- if .Values.networking.gatewayTemplates.container.gateway.extraArgs }}
+                {{- toYaml .Values.networking.gatewayTemplates.container.gateway.extraArgs | nindent 16 }}
+                {{- end }}
                 volumeMounts:
                 - name: ipc
                   mountPath: /ipc

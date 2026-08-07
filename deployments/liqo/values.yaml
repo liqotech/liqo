@@ -132,6 +132,8 @@ networking:
       nodeSelector: {}
       # -- Affinity for the gateway pods.
       affinity: {}
+      # -- Annotations for the gateway pods.
+      annotations: {}
     container:
       gateway:
         image:
@@ -143,6 +145,8 @@ networking:
         resources:
           limits: {}
           requests: {}
+        # -- Extra arguments for the gateway container.
+        extraArgs: []
       wireguard:
         image:
           # -- Image repository for the wireguard container.
