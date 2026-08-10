@@ -30,13 +30,13 @@ import (
 var ErrNetworkUnreachable = errors.New("network unreachable")
 
 // EnsureRoutesPresence ensures the presence of the given routes.
-func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) error {
+func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32, existing []netlink.Route) error {
 	for i := range routes {
 		route, err := forgeNetlinkRoute(&routes[i], tableID)
 		if err != nil {
 			return err
 		}
-		existingroute, exists, err := ExistsRoute(&routes[i], tableID)
+		existingroute, exists, err := FindRouteInList(&routes[i], existing)
 		if err != nil {
 			return err
 		}
@@ -62,12 +62,12 @@ func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) erro
 }
 
 // EnsureRoutesAbsence ensures the absence of the given routes.
-func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error {
+func EnsureRoutesAbsence(routes []networkingv1beta1.Route, existing []netlink.Route) error {
 	for i := range routes {
 		if routes[i].Dst == nil {
 			continue
 		}
-		existingRoute, exists, err := ExistsRoute(&routes[i], tableID)
+		existingRoute, exists, err := FindRouteInList(&routes[i], existing)
 		if err != nil {
 			return fmt.Errorf("checking route existence: %w", err)
 		}
@@ -80,30 +80,40 @@ func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error
 	return nil
 }
 
-// ExistsRoute checks if the given route is already present in the route list.
-func ExistsRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route, bool, error) {
+// FindRouteInList searches for a route matching the given spec within the provided list of existing routes.
+// It returns the matching netlink.Route and true if found, or an error if more than one route matches.
+func FindRouteInList(route *networkingv1beta1.Route, existing []netlink.Route) (*netlink.Route, bool, error) {
+	if route.Dst == nil {
+		return nil, false, nil
+	}
 	_, dst, err := net.ParseCIDR(route.Dst.String())
 	if err != nil {
 		return nil, false, err
 	}
+	var found *netlink.Route
+	for i := range existing {
+		if existing[i].Dst == nil {
+			continue
+		}
+		if existing[i].Dst.String() != dst.String() {
+			continue
+		}
+		if found != nil {
+			return nil, false, fmt.Errorf("multiple routes found with same destination %s", dst.String())
+		}
+		found = &existing[i]
+	}
+	if found == nil {
+		return nil, false, nil
+	}
+	return found, true, nil
+}
 
-	existingRoutes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
-		Dst:   dst,
+// GetRoutesByTableID returns all the routes associated with the given table ID.
+func GetRoutesByTableID(tableID uint32) ([]netlink.Route, error) {
+	return netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
 		Table: int(tableID),
-	}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if len(existingRoutes) > 1 {
-		return nil, false, fmt.Errorf("%v routes found with same destination", len(existingRoutes))
-	}
-
-	if len(existingRoutes) == 1 {
-		return &existingRoutes[0], true, nil
-	}
-
-	return nil, false, nil
+	}, netlink.RT_FILTER_TABLE)
 }
 
 // IsEqualRoute checks if the two routes are equal.
@@ -127,14 +137,10 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 }
 
 // CleanRoutes cleans the routes that are not contained in the given route list.
-func CleanRoutes(routes []networkingv1beta1.Route, tableID uint32) error {
-	existingrules, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{Table: int(tableID)}, netlink.RT_FILTER_TABLE)
-	if err != nil {
-		return err
-	}
-	for i := range existingrules {
-		if !IsContainedRoute(&existingrules[i], routes) {
-			if err := netlink.RouteDel(&existingrules[i]); err != nil {
+func CleanRoutes(routes []networkingv1beta1.Route, existing []netlink.Route) error {
+	for i := range existing {
+		if !IsContainedRoute(&existing[i], routes) {
+			if err := netlink.RouteDel(&existing[i]); err != nil {
 				return err
 			}
 		}
