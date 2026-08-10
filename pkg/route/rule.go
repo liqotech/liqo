@@ -25,13 +25,8 @@ import (
 )
 
 // EnsureRulePresence ensures the presence of the given rule.
-func EnsureRulePresence(rule *networkingv1beta1.Rule, tableID uint32) error {
-	rules, err := GetRulesByTableID(tableID)
-	if err != nil {
-		return err
-	}
-
-	_, exists, err := ExistsRule(rule, rules)
+func EnsureRulePresence(rule *networkingv1beta1.Rule, tableID uint32, existing []netlink.Rule) error {
+	_, exists, err := ExistsRule(rule, existing)
 	if err != nil {
 		return err
 	}
@@ -43,13 +38,8 @@ func EnsureRulePresence(rule *networkingv1beta1.Rule, tableID uint32) error {
 }
 
 // EnsureRuleAbsence ensures the absence of the given rule.
-func EnsureRuleAbsence(rule *networkingv1beta1.Rule, tableID uint32) error {
-	rules, err := GetRulesByTableID(tableID)
-	if err != nil {
-		return err
-	}
-
-	existingrule, exists, err := ExistsRule(rule, rules)
+func EnsureRuleAbsence(rule *networkingv1beta1.Rule, existing []netlink.Rule) error {
+	existingrule, exists, err := ExistsRule(rule, existing)
 	if err != nil {
 		return err
 	}
@@ -180,14 +170,10 @@ func RuleIsEqual(rule *networkingv1beta1.Rule, netlinkRule *netlink.Rule) bool {
 }
 
 // CleanRules deletes all the rules which are not contained anymore in the given rules list.
-func CleanRules(rules []networkingv1beta1.Rule, tableID uint32) error {
-	existingrules, err := GetRulesByTableID(tableID)
-	if err != nil {
-		return err
-	}
-	for i := range existingrules {
-		if !IsContainedRule(&existingrules[i], rules) {
-			if err := netlink.RuleDel(&existingrules[i]); err != nil {
+func CleanRules(rules []networkingv1beta1.Rule, existing []netlink.Rule) error {
+	for i := range existing {
+		if !IsContainedRule(&existing[i], rules) {
+			if err := netlink.RuleDel(&existing[i]); err != nil {
 				return err
 			}
 		}

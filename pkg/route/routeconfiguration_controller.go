@@ -123,11 +123,20 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 
 	case deleting && containsFinalizer && r.EnableFinalizer:
+		existingRules, err := GetRulesByTableID(tableID)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("listing existing rules: %w", err)
+		}
+		existingRoutes, err := GetRoutesByTableID(tableID)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("listing existing routes: %w", err)
+		}
+
 		for i := range routeconfiguration.Spec.Table.Rules {
-			if err = EnsureRuleAbsence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
+			if err = EnsureRuleAbsence(&routeconfiguration.Spec.Table.Rules[i], existingRules); err != nil {
 				return ctrl.Result{}, fmt.Errorf("ensuring rule absence: %w", err)
 			}
-			if err = EnsureRoutesAbsence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+			if err = EnsureRoutesAbsence(routeconfiguration.Spec.Table.Rules[i].Routes, existingRoutes); err != nil {
 				return ctrl.Result{}, fmt.Errorf("ensuring routes absence: %w", err)
 			}
 		}
@@ -148,8 +157,17 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	if err = CleanRules(routeconfiguration.Spec.Table.Rules, tableID); err != nil {
+	existingRules, err := GetRulesByTableID(tableID)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("listing existing rules: %w", err)
+	}
+	if err = CleanRules(routeconfiguration.Spec.Table.Rules, existingRules); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning rules: %w", err)
+	}
+
+	existingRoutes, err := GetRoutesByTableID(tableID)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("listing existing routes: %w", err)
 	}
 
 	allRoutes := []networkingv1beta1.Route{}
@@ -158,7 +176,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		// This is necessary because we can't list the route rules filtering per rule.
 		allRoutes = append(allRoutes, routeconfiguration.Spec.Table.Rules[i].Routes...)
 	}
-	if err = CleanRoutes(allRoutes, tableID); err != nil {
+	if err = CleanRoutes(allRoutes, existingRoutes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning routes: %w", err)
 	}
 
@@ -169,10 +187,10 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	for i := range routeconfiguration.Spec.Table.Rules {
-		if err = EnsureRulePresence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
+		if err = EnsureRulePresence(&routeconfiguration.Spec.Table.Rules[i], tableID, existingRules); err != nil {
 			return ctrl.Result{}, fmt.Errorf("ensuring rule presence: %w", err)
 		}
-		if err := EnsureRoutesPresence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+		if err := EnsureRoutesPresence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID, existingRoutes); err != nil {
 			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				klog.V(3).Infof("Link not found for routeconfiguration %s, requeuing: %v", req.String(), err)
 				return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
