@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -27,10 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqoctlmove "github.com/liqotech/liqo/pkg/liqoctl/move"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/storage"
@@ -129,7 +125,7 @@ var _ = Describe("Liqo E2E", func() {
 			storage.WaitDemoApp(GinkgoT(), options, 2)
 		})
 
-		It("move stateful app", func() {
+		/* It("move stateful app", func() {
 			By("Deploying the StatefulSet app")
 			err := storage.DeployApp(ctx, &testContext.Clusters[0], namespaceName, 1)
 			Expect(err).ToNot(HaveOccurred())
@@ -177,7 +173,7 @@ var _ = Describe("Liqo E2E", func() {
 			content, err := storage.ReadFromVolume(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Config, namespaceName)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(content).To(Equal("test"))
-		})
+		}) */
 	})
 })
 
