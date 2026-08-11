@@ -62,6 +62,7 @@ rules:
   - networking.liqo.io
   resources:
   - firewallconfigurationbindings
+  - routeconfigurationbindings
   verbs:
   - create
   - delete
@@ -75,6 +76,7 @@ rules:
   resources:
   - firewallconfigurationbindings/finalizers
   - firewallconfigurations/finalizers
+  - routeconfigurationbindings/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update
@@ -84,8 +86,8 @@ rules:
   - firewallconfigurationbindings/status
   - firewallconfigurations
   - genevetunnels
+  - routeconfigurationbindings/status
   - routeconfigurations
-  - routeconfigurations/status
   verbs:
   - get
   - list

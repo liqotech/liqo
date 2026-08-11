@@ -267,10 +267,17 @@ spec:
                 type: object
             type: object
           status:
-            description: RouteConfigurationStatus defines the observed state of RouteConfiguration.
+            description: |-
+              RouteConfigurationStatus defines the observed state of RouteConfiguration.
+              The per-host status has been moved to RouteConfigurationBinding resources to avoid
+              scalability issues on large clusters. The Conditions field is kept for API compatibility
+              but is no longer populated by the route controllers.
             properties:
               conditions:
-                description: Conditions is the list of conditions of the RouteConfiguration.
+                description: |-
+                  Conditions is the list of conditions of the RouteConfiguration.
+
+                  Deprecated: per-host status is now reported on RouteConfigurationBinding resources.
                 items:
                   description: RouteConfigurationStatusCondition defines the observed
                     state of FirewallConfiguration.

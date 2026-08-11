@@ -432,7 +432,10 @@ spec:
               FirewallConfiguration.
             properties:
               conditions:
-                description: Conditions is the list of conditions of the FirewallConfiguration.
+                description: |-
+                  Conditions is the list of conditions of the FirewallConfiguration.
+
+                  Deprecated: per-host status is now reported on FirewallConfigurationBinding resources.
                 items:
                   description: FirewallConfigurationStatusCondition defines the observed
                     state of FirewallConfiguration.

@@ -216,6 +216,7 @@ rules:
   - genevetunnels/finalizers
   - internalfabrics/finalizers
   - internalnodes/finalizers
+  - routeconfigurationbindings/finalizers
   - routeconfigurations/finalizers
   - wggatewayclients/finalizers
   - wggatewayservers/finalizers
@@ -252,6 +253,17 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurationbindings
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - offloading.liqo.io
   resources:

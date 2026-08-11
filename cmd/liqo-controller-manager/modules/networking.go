@@ -47,6 +47,7 @@ import (
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/ip-controller"
 	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/network-controller"
+	routebindinggc "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/route-binding-gc"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -249,6 +250,13 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, uncachedCli
 		firewallbindinggc.DefaultBindingGCPeriod)
 	if err := firewallBindingGCReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the firewallBindingGCReconciler: %v", err)
+		return err
+	}
+
+	routeBindingGCReconciler := routebindinggc.NewBindingGCReconciler(mgr.GetClient(),
+		routebindinggc.DefaultBindingGCPeriod)
+	if err := routeBindingGCReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the routeBindingGCReconciler: %v", err)
 		return err
 	}
 

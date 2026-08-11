@@ -9,6 +9,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $gatewayConfig }}
   labels:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+    "argocd.argoproj.io/sync-wave": "-1"
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
 {{- if .Values.openshiftConfig.enabled }}
 - apiGroups:

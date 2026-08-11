@@ -34,10 +34,11 @@ spec:
           template:
             metadata:
               {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
-              {{- if .Values.networking.gatewayTemplates.pod.annotations }}
               annotations:
+                "argocd.argoproj.io/sync-wave": "0"
+                {{- if .Values.networking.gatewayTemplates.pod.annotations }}
                 {{- toYaml .Values.networking.gatewayTemplates.pod.annotations | nindent 16 }}
-              {{- end }}
+                {{- end }}
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"

@@ -184,6 +184,12 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup gateway reconciler: %w", err)
 	}
 
+	fwTargetRef := networkingv1beta1.TargetReference{
+		APIVersion: firewall.TargetAPIVersionV1,
+		Kind:       firewall.TargetKindNode,
+		Name:       options.NodeName,
+	}
+
 	// Setup the firewall configuration binding controller.
 	fwcr, err := firewall.NewFirewallConfigurationBindingReconciler(
 		mgr.GetClient(),
@@ -194,31 +200,27 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
-	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
-		networkingv1beta1.TargetReference{
-			APIVersion: firewall.TargetAPIVersionV1,
-			Kind:       firewall.TargetKindNode,
-			Name:       options.NodeName,
-		},
+	if err := fwcr.SetupWithManager(cmd.Context(), mgr, fwTargetRef,
 		options.EnableNftMonitor, options.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
 
-	// Setup the route configuration controller.
-	rcr, err := route.NewRouteConfigurationReconcilerWithFinalizer(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		options.PodName,
-		mgr.GetEventRecorderFor("route-controller"),
-		[]labels.Set{fabric.ForgeRouteTargetLabels()},
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create route configuration reconciler: %w", err)
+	routeTargetRef := networkingv1beta1.RouteBindingTargetReference{
+		APIVersion: route.TargetAPIVersionV1,
+		Kind:       route.TargetKindNode,
+		Name:       options.NodeName,
 	}
 
-	if err := rcr.SetupWithManager(cmd.Context(), mgr,
+	// Setup the route configuration binding controller.
+	rcr := route.NewRouteConfigurationBindingReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorder("route-binding-controller"),
+	)
+
+	if err := rcr.SetupWithManager(cmd.Context(), mgr, routeTargetRef,
 		options.EnableRouteMonitor, options.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup route configuration reconciler: %w", err)
+		return fmt.Errorf("unable to setup route configuration binding reconciler: %w", err)
 	}
 
 	gtr, err := fabric.NewGeneveTunnelReconciler(
@@ -265,6 +267,14 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup fabric firewall configuration binding creator: %w", err)
 	}
 
+	// Setup the fabric route configuration binding creator controller.
+	fabricRouteBindingCreator := fabric.NewFabricRouteBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme(), options.NodeName)
+	if err := fabricRouteBindingCreator.SetupWithManager(mgr, []labels.Set{
+		fabric.ForgeRouteTargetLabels(),
+	}); err != nil {
+		return fmt.Errorf("unable to setup fabric route configuration binding creator: %w", err)
+	}
+
 	// Start the manager. On clean shutdown (SIGTERM) mgr.Start returns nil after all
 	// reconcilers have stopped, and we remove any finalizers that the reconciler did not
 	// have time to process before the pod was terminated.
@@ -279,11 +289,7 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl,
-		networkingv1beta1.TargetReference{
-			APIVersion: firewall.TargetAPIVersionV1,
-			Kind:       firewall.TargetKindNode,
-			Name:       options.NodeName,
-		}, true)
+	firewall.CleanupFirewallConfigurationBindings(cleanupCtx, cl, fwTargetRef, true)
+	route.CleanupRouteConfigurationBindings(cleanupCtx, cl, routeTargetRef)
 	return nil
 }

@@ -133,8 +133,13 @@ type RouteConfigurationStatusCondition struct {
 }
 
 // RouteConfigurationStatus defines the observed state of RouteConfiguration.
+// The per-host status has been moved to RouteConfigurationBinding resources to avoid
+// scalability issues on large clusters. The Conditions field is kept for API compatibility
+// but is no longer populated by the route controllers.
 type RouteConfigurationStatus struct {
 	// Conditions is the list of conditions of the RouteConfiguration.
+	//
+	// Deprecated: per-host status is now reported on RouteConfigurationBinding resources.
 	Conditions []RouteConfigurationStatusCondition `json:"conditions,omitempty"`
 }
 

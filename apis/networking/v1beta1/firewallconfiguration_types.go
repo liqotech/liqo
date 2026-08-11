@@ -54,6 +54,8 @@ type FirewallConfigurationStatusCondition struct {
 // FirewallConfigurationStatus defines the observed state of FirewallConfiguration.
 type FirewallConfigurationStatus struct {
 	// Conditions is the list of conditions of the FirewallConfiguration.
+	//
+	// Deprecated: per-host status is now reported on FirewallConfigurationBinding resources.
 	Conditions []FirewallConfigurationStatusCondition `json:"conditions,omitempty"`
 }
 
