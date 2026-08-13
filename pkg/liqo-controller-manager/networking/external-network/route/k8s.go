@@ -20,7 +20,6 @@ import (
 	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,13 +80,8 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		},
 	}
 
-	internalNodes, err := getters.ListInternalNodesByLabels(ctx, cl, labels.Everything())
-	if err != nil {
-		return err
-	}
-
 	_, err = resource.CreateOrUpdate(ctx, cl, routecfg,
-		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP, internalNodes))
+		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP))
 	return err
 }
 
@@ -95,7 +89,7 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 	routecfg *networkingv1beta1.RouteConfiguration, scheme *runtime.Scheme,
 	remoteClusterID liqov1beta1.ClusterID,
-	remoteInterfaceIP string, internalNodes *networkingv1beta1.InternalNodeList) func() error {
+	remoteInterfaceIP string) func() error {
 	return func() error {
 		var err error
 
@@ -112,21 +106,17 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 		}
 
 		remoteCIDRs := slices.Concat(cfg.Spec.Remote.CIDR.Pod, cfg.Spec.Remote.CIDR.External)
-		for i := range internalNodes.Items {
-			iif := &internalNodes.Items[i].Spec.Interface.Gateway.Name
-			for j := range remoteCIDRs {
-				dst := &remoteCIDRs[j]
-				routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
-					Iif: iif,
-					Dst: dst,
-					Routes: []networkingv1beta1.Route{
-						{
-							Dst: dst,
-							Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
-						},
+		for j := range remoteCIDRs {
+			dst := &remoteCIDRs[j]
+			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
+				Dst: dst,
+				Routes: []networkingv1beta1.Route{
+					{
+						Dst: dst,
+						Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 					},
-				})
-			}
+				},
+			})
 		}
 		return nil
 	}
