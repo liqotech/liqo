@@ -56,7 +56,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;update;patch;create;delete
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch;update;patch;create;delete
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients,verbs=get;list;watch
 
@@ -92,26 +92,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&networkingv1beta1.GatewayClient{},
 			handler.EnqueueRequestsFromMapFunc(r.configurationEnqueuerByRemoteID()),
 		).
-		Watches(
-			&networkingv1beta1.InternalNode{},
-			handler.EnqueueRequestsFromMapFunc(r.configurationEnqueuerForAllConfigurations()),
-		).
 		Complete(r)
-}
-
-func (r *ConfigurationReconciler) configurationEnqueuerForAllConfigurations() handler.MapFunc {
-	return func(ctx context.Context, _ client.Object) []reconcile.Request {
-		var cfgList networkingv1beta1.ConfigurationList
-		if err := r.List(ctx, &cfgList); err != nil {
-			klog.Errorf("unable to list configurations: %s", err)
-			return nil
-		}
-		requests := make([]reconcile.Request, 0, len(cfgList.Items))
-		for i := range cfgList.Items {
-			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&cfgList.Items[i])})
-		}
-		return requests
-	}
 }
 
 func (r *ConfigurationReconciler) configurationEnqueuerByRemoteID() handler.MapFunc {
