@@ -64,6 +64,15 @@ func ForgeRouteExternalTargetLabels(remoteID string) map[string]string {
 	}
 }
 
+// ForgeFirewallExternalTargetLabels returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to a single gateway and external-network.
+func ForgeFirewallExternalTargetLabels(remoteID string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey: FirewallCategoryGwTargetValue,
+		firewall.FirewallUniqueTargetKey:   remoteID,
+	}
+}
+
 // ForgeRouteInternalTargetLabels returns the labels used by the routeconfiguration controller
 // to reconcile only resources related to internal-network.
 func ForgeRouteInternalTargetLabels() map[string]string {
