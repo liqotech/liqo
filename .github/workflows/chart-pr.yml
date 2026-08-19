@@ -1,0 +1,221 @@
+name: Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number (used for chart versioning and PR comment)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: us-docker.pkg.dev
+  IMAGE_PREFIX: castai-hub/library/liqo
+
+jobs:
+  build-go:
+    name: Build Go image
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - crd-replicator
+          - ipam
+          - liqo-controller-manager
+          - webhook
+          - uninstaller
+          - virtual-kubelet
+          - metric-agent
+          - telemetry
+          - proxy
+          - gateway
+          - gateway/wireguard
+          - gateway/geneve
+          - fabric
+    env:
+      DOCKER_REGISTRY: us-docker.pkg.dev
+      DOCKER_ORGANIZATION: castai-hub/library/liqo
+      DOCKER_TAG: ${{ github.sha }}
+      DOCKER_PUSH: "true"
+      ARCHS: linux/amd64
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: _json_key
+          password: ${{ secrets.GCP_IMAGE_RELEASER_JSON_KEY }}
+
+      - name: Build and push ${{ matrix.component }} image
+        run: |
+          chmod +x ./build/liqo/build.sh
+          ./build/liqo/build.sh ./cmd/${{ matrix.component }}
+
+  build-standard:
+    name: Build standard image
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - cert-creator
+          - liqo-crd-upgrade
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: _json_key
+          password: ${{ secrets.GCP_IMAGE_RELEASER_JSON_KEY }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ matrix.component }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.component }}-buildx-
+
+      - name: Configure the build-push-action dockerfile path
+        id: dockerfile
+        run: |
+          if [[ -d "build/${{ matrix.component }}" ]]; then
+            echo "path=build/${{ matrix.component }}/Dockerfile" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=build/common/Dockerfile" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (and Publish) ${{ matrix.component }} image
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.component }}-ci:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.component }}-ci:${{ github.sha }}
+          push: true
+          file: ${{ steps.dockerfile.outputs.path }}
+          build-args: |
+            COMPONENT=${{ matrix.component }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  publish-chart:
+    name: Publish PR chart
+    runs-on: ubuntu-latest
+    needs: [build-go, build-standard]
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth 0 is required for `git describe --tags` (appVersion).
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.17.0
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push chart
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          # The commit SHA this workflow was dispatched on; used as the image tag.
+          # Because the liqo chart's `liqo.suffix` helper appends `-ci` to image
+          # repos when the tag is not a semver string, this resolves each image to
+          # the `<component>-ci:<sha>` build produced by the build jobs above.
+          IMAGE_TAG="${{ github.sha }}"
+          APP_VERSION="$(git describe --tags)"
+
+          # Bump the chart version with the PR number (overwritten on each run).
+          sed -i "s/^version:.*/version: 0.0.0-pr${PR_NUMBER}/" deployments/liqo/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${APP_VERSION}\"/" deployments/liqo/Chart.yaml
+
+          # Point all Liqo images to this PR's CI build.
+          sed -i "s/^tag:.*/tag: \"${IMAGE_TAG}\"/" deployments/liqo/values.yaml
+
+          # Build the file:// subchart dependency (liqo-crds) before packaging.
+          helm dependency build deployments/liqo
+
+          helm package deployments/liqo
+          helm push liqo-0.0.0-pr${PR_NUMBER}.tgz oci://ghcr.io/${{ github.repository }}/charts
+
+      - name: Comment PR with install instructions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt("${{ inputs.pr_number }}", 10);
+            const repo = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
+            const commitSha = "${{ github.sha }}";
+
+            // Reuse an existing comment if we already posted one, to avoid spam.
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const botComment = comments.data.find(c => c.body.includes('## Helm Chart Published'));
+            const body = `## Helm Chart Published
+
+            Install this PR's chart for testing:
+            \`\`\`bash
+            helm install liqo oci://ghcr.io/${repo}/charts/liqo --version 0.0.0-pr${prNumber}
+            \`\`\`
+
+            This chart references the Liqo CI images built for commit \`${commitSha}\`.`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
