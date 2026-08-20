@@ -108,6 +108,7 @@ spec:
                                     - drop
                                     - reject
                                     - notrack
+                                    - setmetamark
                                     type: string
                                   counter:
                                     default: true
@@ -137,6 +138,13 @@ spec:
                                               description: Value is the name of the
                                                 device to be matched.
                                               type: string
+                                            wildcard:
+                                              default: false
+                                              description: |-
+                                                Wildcard enables prefix matching on the device name.
+                                                When true, the match compares only the prefix bytes of Value against the interface name,
+                                                allowing a single rule to match all interfaces sharing a common prefix (e.g. "liqo.").
+                                              type: boolean
                                           required:
                                           - position
                                           - value
@@ -247,6 +255,13 @@ spec:
                                               description: Value is the name of the
                                                 device to be matched.
                                               type: string
+                                            wildcard:
+                                              default: false
+                                              description: |-
+                                                Wildcard enables prefix matching on the device name.
+                                                When true, the match compares only the prefix bytes of Value against the interface name,
+                                                allowing a single rule to match all interfaces sharing a common prefix (e.g. "liqo.").
+                                              type: boolean
                                           required:
                                           - position
                                           - value
