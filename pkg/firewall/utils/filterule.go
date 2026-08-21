@@ -16,6 +16,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/google/nftables"
@@ -126,6 +127,9 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 	valueInt, err := strconv.Atoi(*value)
 	if err != nil {
 		return fmt.Errorf("cannot convert value to int: %w", err)
+	}
+	if valueInt < 0 || valueInt > math.MaxUint32 {
+		return fmt.Errorf("value %d is out of range for a uint32 mark", valueInt)
 	}
 	rule.Exprs = append(rule.Exprs,
 		&expr.Immediate{
@@ -252,6 +256,9 @@ func applySetMetaMarkAction(value *string, rule *nftables.Rule) error {
 	valueInt, err := strconv.Atoi(*value)
 	if err != nil {
 		return fmt.Errorf("cannot convert value to int: %w", err)
+	}
+	if valueInt < 0 || valueInt > math.MaxUint32 {
+		return fmt.Errorf("value %d is out of range for a uint32 mark", valueInt)
 	}
 	rule.Exprs = append(rule.Exprs,
 		&expr.Immediate{

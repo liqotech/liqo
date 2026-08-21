@@ -134,7 +134,7 @@ func forgeMutateFirewallConfiguration(cfg *networkingv1beta1.Configuration,
 			return err
 		}
 
-		fwcfg.ObjectMeta.Labels = gateway.ForgeFirewallExternalTargetLabels(string(remoteClusterID))
+		fwcfg.Labels = gateway.ForgeFirewallExternalTargetLabels(string(remoteClusterID))
 
 		markValue := fmt.Sprintf("%d", gwExtMark)
 
