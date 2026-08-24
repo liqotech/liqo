@@ -18,11 +18,21 @@ import (
 	"github.com/liqotech/liqo/pkg/firewall"
 )
 
+const (
+	// FirewallCategoryTargetValueGw is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
+	FirewallCategoryTargetValueGw = "gateway"
+	// FirewallCategoryTargetValueFabric is the value used by the firewallconfiguration controller to reconcile only resources related to fabric.
+	FirewallCategoryTargetValueFabric = "fabric"
+	// FirewallSubCategoryTargetValueIPMapping is the value used by the firewallconfiguration controller
+	// to reconcile only resources related to the IP mapping.
+	FirewallSubCategoryTargetValueIPMapping = "ip-mapping"
+)
+
 // ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller
 // to reconcile only resources related to a single gateway.
 func ForgeFirewallTargetLabels(remoteID string) map[string]string {
 	return map[string]string{
-		firewall.FirewallCategoryTargetKey: firewall.FirewallCategoryTargetValueGw,
+		firewall.FirewallCategoryTargetKey: FirewallCategoryTargetValueGw,
 		firewall.FirewallUniqueTargetKey:   remoteID,
 	}
 }
@@ -31,8 +41,8 @@ func ForgeFirewallTargetLabels(remoteID string) map[string]string {
 // controller to reconcile only resources related to the IP mapping.
 func ForgeFirewallTargetLabelsIPMappingGw() map[string]string {
 	return map[string]string{
-		firewall.FirewallCategoryTargetKey:    firewall.FirewallCategoryTargetValueGw,
-		firewall.FirewallSubCategoryTargetKey: firewall.FirewallSubCategoryTargetValueIPMapping,
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueGw,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 	}
 }
 
@@ -40,7 +50,7 @@ func ForgeFirewallTargetLabelsIPMappingGw() map[string]string {
 // controller to reconcile only resources related to the IP mapping.
 func ForgeFirewallTargetLabelsIPMappingFabric() map[string]string {
 	return map[string]string{
-		firewall.FirewallCategoryTargetKey:    firewall.FirewallCategoryTargetValueFabric,
-		firewall.FirewallSubCategoryTargetKey: firewall.FirewallSubCategoryTargetValueIPMapping,
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValueFabric,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValueIPMapping,
 	}
 }

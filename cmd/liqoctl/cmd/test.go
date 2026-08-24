@@ -22,6 +22,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/test"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
@@ -80,7 +81,7 @@ func newTestNetworkCommand(ctx context.Context, topts *test.Options) *cobra.Comm
 			ctx, cancel := context.WithTimeout(ctx, topts.Timeout)
 			defer cancel()
 			if err := options.RunNetworkTest(ctx); err != nil {
-				topts.LocalFactory.Printer.ExitWithMessage(err.Error())
+				topts.LocalFactory.Printer.ExitWithMessage(output.PrettyErr(err))
 			}
 		},
 	}
