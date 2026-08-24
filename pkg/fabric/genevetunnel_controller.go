@@ -225,7 +225,7 @@ func (r *GeneveTunnelReconciler) ensureSender(cc *conncheck.ConnChecker, key typ
 	}
 
 	observer := onTransition(observeGeneveLatency(internalfabric, gt), r.enqueueTransition(key))
-	if err := cc.AddSender(context.Background(), gt.Name, internalnode.Spec.Interface.Node.IP.String(), observer); err != nil {
+	if err := cc.AddSender(context.Background(), gt.Name, internalfabric.Spec.Interface.Gateway.IP.String(), observer); err != nil {
 		var dupErr *conncheck.DuplicateError
 		if !errors.As(err, &dupErr) {
 			return fmt.Errorf("unable to add conncheck sender: %w", err)
