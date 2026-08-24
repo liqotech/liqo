@@ -209,22 +209,24 @@ func run(cmd *cobra.Command, _ []string) error {
 		)
 	}
 
-	routeTargetRef := networkingv1beta1.RouteBindingTargetReference{
-		APIVersion: route.TargetAPIVersionV1,
-		Kind:       route.TargetKindPod,
-		Name:       connoptions.GwOptions.PodName,
-		Namespace:  connoptions.GwOptions.Namespace,
-	}
-
-	rcr := route.NewRouteConfigurationBindingReconciler(
+	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		mgr.GetEventRecorder("route-binding-controller"),
+		connoptions.GwOptions.Name,
+		mgr.GetEventRecorderFor("routeconfiguration-controller"),
+		[]labels.Set{
+			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
+			gateway.ForgeRouteInternalTargetLabels(),
+			gateway.ForgeRouteInternalTargetLabelsByNode(connoptions.GwOptions.NodeName),
+		},
 	)
+	if err != nil {
+		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
+	}
 
-	if err := rcr.SetupWithManager(cmd.Context(), mgr, routeTargetRef,
+	if err := rcr.SetupWithManager(cmd.Context(), mgr,
 		connoptions.GwOptions.EnableRouteMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
-		return fmt.Errorf("unable to setup route configuration binding reconciler: %w", err)
+		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
 	// Setup the firewall configuration binding controller.
@@ -237,14 +239,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create firewall configuration binding reconciler: %w", err)
 	}
 
-	fwTargetRef := networkingv1beta1.TargetReference{
-		APIVersion: firewall.TargetAPIVersionV1,
-		Kind:       firewall.TargetKindPod,
-		Name:       connoptions.GwOptions.PodName,
-		Namespace:  connoptions.GwOptions.Namespace,
-	}
-
-	if err := fwcr.SetupWithManager(cmd.Context(), mgr, fwTargetRef,
+	if err := fwcr.SetupWithManager(cmd.Context(), mgr,
+		networkingv1beta1.TargetReference{
+			APIVersion: firewall.TargetAPIVersionV1,
+			Kind:       firewall.TargetKindPod,
+			Name:       connoptions.GwOptions.PodName,
+			Namespace:  connoptions.GwOptions.Namespace,
+		},
 		connoptions.GwOptions.EnableNftMonitor, connoptions.GwOptions.ReconcileTimeout); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration binding reconciler: %w", err)
 	}
@@ -259,17 +260,6 @@ func run(cmd *cobra.Command, _ []string) error {
 		remapping.ForgeFirewallTargetLabelsIPMappingGw(),
 	}); err != nil {
 		return fmt.Errorf("unable to setup gateway firewall configuration binding creator: %w", err)
-	}
-
-	// Setup the gateway route configuration binding creator controller.
-	gatewayRouteBindingCreator := gateway.NewGatewayRouteBindingCreatorReconciler(mgr.GetClient(), mgr.GetScheme(),
-		connoptions.GwOptions.PodName, connoptions.GwOptions.Namespace)
-	if err := gatewayRouteBindingCreator.SetupWithManager(mgr, []labels.Set{
-		gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
-		gateway.ForgeRouteInternalTargetLabels(),
-		gateway.ForgeRouteInternalTargetLabelsByNode(connoptions.GwOptions.NodeName),
-	}); err != nil {
-		return fmt.Errorf("unable to setup gateway route configuration binding creator: %w", err)
 	}
 
 	if connoptions.GwOptions.LeaderElection {

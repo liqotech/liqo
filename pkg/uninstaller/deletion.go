@@ -92,26 +92,16 @@ func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
 
 // DeleteHelmKeepResources deletes RBAC resources managed by Liqo that are annotated with
 // "helm.sh/resource-policy: keep". These resources are retained during helm uninstall
-// to allow the fabric DaemonSet and gateway pods to clean up their finalizers, and must
-// be explicitly deleted once the cleanup is complete.
+// to allow the fabric DaemonSet pods to clean up their finalizers, and must be explicitly
+// deleted once the cleanup is complete.
 func DeleteHelmKeepResources(ctx context.Context, namespace string, client dynamic.Interface) error {
-	components := []string{"fabric", "gateway"}
-	for _, component := range components {
-		if err := deleteHelmKeepResourcesForComponent(ctx, namespace, client, component); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func deleteHelmKeepResourcesForComponent(ctx context.Context, namespace string, client dynamic.Interface, component string) error {
-	labelSelector := fmt.Sprintf("%s=%s,%s=networking", consts.K8sAppNameKey, component, consts.K8sAppComponentKey)
-
 	// Delete ClusterRoleBindings with the keep annotation managed by Liqo.
 	crbGVR := rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings")
-	crbList, err := client.Resource(crbGVR).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	crbList, err := client.Resource(crbGVR).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
-		return fmt.Errorf("listing ClusterRoleBindings for component %s: %w", component, err)
+		return fmt.Errorf("listing ClusterRoleBindings: %w", err)
 	}
 	for i := range crbList.Items {
 		item := &crbList.Items[i]
@@ -126,9 +116,11 @@ func deleteHelmKeepResourcesForComponent(ctx context.Context, namespace string, 
 
 	// Delete ClusterRoles with the keep annotation managed by Liqo.
 	crGVR := rbacv1.SchemeGroupVersion.WithResource("clusterroles")
-	crList, err := client.Resource(crGVR).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	crList, err := client.Resource(crGVR).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
-		return fmt.Errorf("listing ClusterRoles for component %s: %w", component, err)
+		return fmt.Errorf("listing ClusterRoles: %w", err)
 	}
 	for i := range crList.Items {
 		item := &crList.Items[i]
@@ -143,9 +135,11 @@ func deleteHelmKeepResourcesForComponent(ctx context.Context, namespace string, 
 
 	// Delete ServiceAccounts with the keep annotation managed by Liqo.
 	saGVR := corev1.SchemeGroupVersion.WithResource("serviceaccounts")
-	saList, err := client.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	saList, err := client.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=fabric,%s=networking", consts.K8sAppNameKey, consts.K8sAppComponentKey),
+	})
 	if err != nil {
-		return fmt.Errorf("listing ServiceAccounts for component %s: %w", component, err)
+		return fmt.Errorf("listing ServiceAccounts: %w", err)
 	}
 	for i := range saList.Items {
 		item := &saList.Items[i]

@@ -2,6 +2,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - get
@@ -18,7 +30,6 @@ rules:
   - networking.liqo.io
   resources:
   - firewallconfigurationbindings
-  - routeconfigurationbindings
   verbs:
   - create
   - delete
@@ -32,7 +43,6 @@ rules:
   resources:
   - firewallconfigurationbindings/finalizers
   - firewallconfigurations/finalizers
-  - routeconfigurationbindings/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update
@@ -43,8 +53,8 @@ rules:
   - firewallconfigurations
   - internalnodes
   - internalnodes/status
-  - routeconfigurationbindings/status
   - routeconfigurations
+  - routeconfigurations/status
   verbs:
   - get
   - list
