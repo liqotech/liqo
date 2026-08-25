@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	route "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -295,19 +296,20 @@ func forgeRouteConfigurationExtCIDRMutateFunction(internalnode *networkingv1beta
 func forgeRouteConfigurationExtCIDRRules(internalnode *networkingv1beta1.InternalNode,
 	configurations []networkingv1beta1.Configuration, ips []ipamv1alpha1.IP) []networkingv1beta1.Rule {
 	rules := []networkingv1beta1.Rule{}
+	mark := route.GwNodeMark
 	for i := range configurations {
 		podCIDRs := configurations[i].Status.Remote.CIDR.Pod
 		for j := range podCIDRs {
 			dst := &podCIDRs[j]
 			rules = append(rules, networkingv1beta1.Rule{
 				Dst:    dst,
-				Iif:    ptr.To(tunnel.TunnelInterfaceName),
+				FwMark: ptr.To(mark),
 				Routes: forgeRouteConfigurationExtCIDRRoutes(internalnode, dst),
 			})
 		}
 	}
 	rules = append(rules, networkingv1beta1.Rule{
-		Iif:    ptr.To(tunnel.TunnelInterfaceName),
+		FwMark: ptr.To(mark),
 		Routes: forgeRouteConfigurationExtCIDRRoutesIP(internalnode, ips),
 	})
 	return rules
