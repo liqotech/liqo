@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/directconnection"
 )
 
@@ -46,27 +45,21 @@ func ExtractNodeName(rawObj client.Object) []string {
 }
 
 // ExtractDirectConnectionClusterIDs returns all clusterIDs that appear as keys in the
-// direct-connections-data annotation of a ShadowEndpointSlice. controller-runtime uses
-// the returned slice to build a multi-value field index, so a single object can be found
-// by any of its clusterIDs via client.MatchingFields.
+// [direct-connections-data] annotation of a [offloadingv1beta1.ShadowEndpointSlice].
+// controller-runtime uses the returned slice to build a multi-value field index,
+// so a single object can be found by any of its clusterIDs via [client.MatchingFields].
 func ExtractDirectConnectionClusterIDs(rawObj client.Object) []string {
 	shadow, ok := rawObj.(*offloadingv1beta1.ShadowEndpointSlice)
 	if !ok {
 		return nil
 	}
-	val, ok := shadow.Annotations[consts.DirectConnectionDataAnnotationKey]
-	if !ok {
+
+	clusterAddresses, err := directconnection.FromAnnotations(shadow.Annotations)
+	if err != nil {
 		return nil
 	}
-	var ca directconnection.ClusterAddresses
-	if err := ca.FromJSON([]byte(val)); err != nil {
-		return nil
-	}
-	clusterIDs := make([]string, 0, len(ca.Clusters))
-	for id := range ca.Clusters {
-		clusterIDs = append(clusterIDs, id)
-	}
-	return clusterIDs
+
+	return clusterAddresses.ClusterIDs()
 }
 
 // IndexField indexes the given field on the given object.
