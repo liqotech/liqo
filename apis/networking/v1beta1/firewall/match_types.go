@@ -54,6 +54,23 @@ const (
 	L4ProtoUDP L4Proto = "udp"
 )
 
+// CtStateValue is the connection tracking state of the packet.
+// +kubebuilder:validation:Enum=new;established;related;untracked;invalid
+type CtStateValue string
+
+const (
+	// CtStateNew is the connection tracking state of the packet.
+	CtStateNew CtStateValue = "new"
+	// CtStateEstablished is the connection tracking state of the packet.
+	CtStateEstablished CtStateValue = "established"
+	// CtStateRelated is the connection tracking state of the packet.
+	CtStateRelated CtStateValue = "related"
+	// CtStateUntracked is the connection tracking state of the packet.
+	CtStateUntracked CtStateValue = "untracked"
+	// CtStateInvalid is the connection tracking state of the packet.
+	CtStateInvalid CtStateValue = "invalid"
+)
+
 // MatchIP is an IP to be matched.
 // +kubebuilder:object:generate=true
 type MatchIP struct {
@@ -92,6 +109,14 @@ type MatchProto struct {
 	Value L4Proto `json:"value"`
 }
 
+// MatchCtState is a connection tracking state to be matched.
+// +kubebuilder:object:generate=true
+type MatchCtState struct {
+	// Value is the connection tracking state to be matched.
+	// +kubebuilder:validation:MinItems=1
+	Value []CtStateValue `json:"value"`
+}
+
 // Match is a match to be applied to a rule.
 // +kubebuilder:object:generate=true
 type Match struct {
@@ -106,4 +131,6 @@ type Match struct {
 	Proto *MatchProto `json:"proto,omitempty"`
 	// Dev contains the options to match a device.
 	Dev *MatchDev `json:"dev,omitempty"`
+	// CtState contains the options to match a connection tracking state.
+	CtState *MatchCtState `json:"ctstate,omitempty"`
 }
