@@ -613,6 +613,27 @@ Those fields and labels have the following meaning:
   * **argocd.argoproj.io/compare-options: IgnoreExtraneous**: allows ArgoCD to ignore resources created by Liqo controllers when the sync status is determined.
   * **argocd.argoproj.io/sync-options: Prune=false**: prevents ArgoCD from deleting the resources managed by the Liqo controllers.
 
+### Force uninstall
+
+By default, the Liqo pre-delete uninstaller job performs a set of safety checks to ensure that no active peerings or leftover resources would be orphaned during uninstallation. If these checks detect active peerings, the uninstall process blocks to prevent data loss.
+
+In situations where the cluster is no longer reachable, the peerings are known to be permanently down, or the standard uninstall process is stuck due to resources that cannot be cleaned up automatically, you can opt in to a force uninstall by setting the Helm value:
+
+```yaml
+uninstaller:
+  forceUninstall: true
+```
+
+When `uninstaller.forceUninstall` is enabled, the uninstaller job:
+
+* Annotates all `ForeignCluster` resources as permanently unreachable, so that Liqo controllers stop waiting for remote clusters.
+* Force-deletes the resources that normally block uninstallation: `NamespaceOffloadings`, `ResourceSlices`, `VirtualNodes`, and the tenant namespaces labeled `liqo.io/tenant-namespace: "true"`.
+* Proceeds with the standard uninstall sequence.
+
+```{warning}
+Force uninstall is a destructive operation, which might even cause data loss. Use it only when the standard uninstall process fails and the remaining Liqo peerings and offloaded namespaces are no longer needed.
+```
+
 ## CNIs
 
 ### Cilium

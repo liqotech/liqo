@@ -70,7 +70,7 @@ func (o *Options) RunForceUnpeer(ctx context.Context) error {
 
 	fc.SetAnnotations(
 		mapsutil.Merge(fc.Annotations, map[string]string{
-			consts.ForeignClusterPermanentlyUnreachableAnnotationKey: "true",
+			consts.ForeignClusterPermanentlyUnreachableAnnotationKey: consts.ForeignClusterPermanentlyUnreachableAnnotationValue,
 		}),
 	)
 

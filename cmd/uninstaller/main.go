@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -52,8 +53,9 @@ func init() {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
@@ -66,6 +68,9 @@ func init() {
 
 func main() {
 	log.SetLogger(klog.NewKlogr())
+
+	force := pflag.Bool("force", false, "Force uninstall by marking all ForeignClusters as permanently unreachable and deleting leftover resources")
+	pflag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
@@ -101,10 +106,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Run pre-uninstall checks
-	if err := utils.PreUninstall(ctx, cl); err != nil {
-		klog.Errorf("Pre-uninstall checks failed: %v", err)
-		os.Exit(1)
+	// Run pre-uninstall checks, unless force uninstall is requested.
+	if !*force {
+		if err := utils.PreUninstall(ctx, cl); err != nil {
+			klog.Errorf("Pre-uninstall checks failed: %v", err)
+			os.Exit(1)
+		}
+	}
+
+	// When force uninstalling, mark all ForeignClusters as permanently unreachable so that Liqo
+	// controllers treat remote resources as dead and release finalizers.
+	if *force {
+		if err := uninstaller.MarkForeignClustersPermanentlyUnreachable(ctx, cl); err != nil {
+			klog.Errorf("Unable to mark ForeignClusters as permanently unreachable: %s", err)
+			os.Exit(1)
+		}
 	}
 
 	// Annotate the controller-manager deployment to signal the uninstall process.
@@ -113,9 +129,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := uninstaller.DeleteAllForeignClusters(ctx, dynClient); err != nil {
-		klog.Errorf("Unable to delete foreign clusters: %s", err)
-		os.Exit(1)
+	// When force uninstalling, delete leftover resources that could otherwise block uninstall.
+	if *force {
+		if err := uninstaller.DeleteNamespaceOffloadings(ctx, dynClient); err != nil {
+			klog.Errorf("Unable to delete NamespaceOffloadings: %s", err)
+			os.Exit(1)
+		}
+
+		if err := uninstaller.DeleteVirtualNodes(ctx, dynClient); err != nil {
+			klog.Errorf("Unable to delete VirtualNodes: %s", err)
+			os.Exit(1)
+		}
+
+		if err := uninstaller.DeleteResourceSlices(ctx, dynClient); err != nil {
+			klog.Errorf("Unable to delete ResourceSlices: %s", err)
+			os.Exit(1)
+		}
+
+		if err := uninstaller.DeleteTenantNamespaces(ctx, dynClient); err != nil {
+			klog.Errorf("Unable to delete tenant namespaces: %s", err)
+			os.Exit(1)
+		}
 	}
 
 	if err := uninstaller.DeleteInternalNodes(ctx, dynClient); err != nil {
@@ -133,9 +167,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	phase := uninstaller.PhaseCleanup
+	if *force {
+		phase = uninstaller.PhaseForcedUninstall
+	}
+
 	// Wait for resources to be effectively deleted, to allow releasing possible finalizers.
-	if err := uninstaller.WaitForResources(dynClient, uninstaller.PhaseCleanup); err != nil {
+	if err := uninstaller.WaitForResources(dynClient, phase); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)
+		os.Exit(1)
+	}
+
+	// Delete all ForeignClusters, to prevent the controller-manager from re-creating them.
+	// No need to wait as the ForeignCluster has no finalizers, since everything has already been deleted, we can just proceed.
+	if err := uninstaller.DeleteAllForeignClusters(ctx, dynClient); err != nil {
+		klog.Errorf("Unable to delete foreign clusters: %s", err)
 		os.Exit(1)
 	}
 }

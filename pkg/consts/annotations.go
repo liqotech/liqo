@@ -53,4 +53,8 @@ const (
 	// ForeignClusterPermanentlyUnreachableAnnotationKey is the annotation used to signal that the foreign cluster is not reachable and it will
 	// never come up.
 	ForeignClusterPermanentlyUnreachableAnnotationKey = "liqo.io/foreign-cluster-permanently-unreachable"
+
+	// ForeignClusterPermanentlyUnreachableAnnotationValue is the value of the annotation used to signal that the foreign cluster is not
+	// reachable and it will never come up.
+	ForeignClusterPermanentlyUnreachableAnnotationValue = "true"
 )
