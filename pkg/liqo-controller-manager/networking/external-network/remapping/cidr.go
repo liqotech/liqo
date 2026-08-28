@@ -28,7 +28,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	route "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -168,17 +168,9 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuratio
 					},
 				},
 				{
-					Op: firewall.MatchOperationNeq,
-					Dev: &firewall.MatchDev{
-						Value:    opts.DefaultInterfaceName,
-						Position: firewall.MatchDevPositionIn,
-					},
-				},
-				{
-					Op: firewall.MatchOperationNeq,
-					Dev: &firewall.MatchDev{
-						Value:    tunnel.TunnelInterfaceName,
-						Position: firewall.MatchDevPositionIn,
+					Op: firewall.MatchOperationEq,
+					Mark: &firewall.MatchMark{
+						Value: fmt.Sprintf("%d", route.GwExtMark),
 					},
 				},
 			},
@@ -216,9 +208,8 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 				},
 				{
 					Op: firewall.MatchOperationEq,
-					Dev: &firewall.MatchDev{
-						Value:    tunnel.TunnelInterfaceName,
-						Position: firewall.MatchDevPositionIn,
+					Mark: &firewall.MatchMark{
+						Value: fmt.Sprintf("%d", route.GwNodeMark),
 					},
 				},
 			},
