@@ -31,7 +31,6 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	route "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -194,9 +193,8 @@ func forgeFirewallConfigurationPreroutingChainRule(nodePortSrcIP string) firewal
 			},
 			{
 				Op: firewall.MatchOperationEq,
-				Dev: &firewall.MatchDev{
-					Position: firewall.MatchDevPositionIn,
-					Value:    tunnel.TunnelInterfaceName,
+				Mark: &firewall.MatchMark{
+					Value: fmt.Sprintf("%d", route.GwNodeMark),
 				},
 			},
 		},
