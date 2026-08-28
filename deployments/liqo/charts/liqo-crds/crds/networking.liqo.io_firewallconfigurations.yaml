@@ -167,6 +167,17 @@ spec:
                                           - position
                                           - value
                                           type: object
+                                        mark:
+                                          description: Mark contains the options to
+                                            match a packet fwmark.
+                                          properties:
+                                            value:
+                                              description: Value is the fwmark value
+                                                to match (e.g. "0xfe00" or "65024").
+                                              type: string
+                                          required:
+                                          - value
+                                          type: object
                                         op:
                                           description: Op is the operation of the
                                             match.
@@ -281,6 +292,17 @@ spec:
                                               type: string
                                           required:
                                           - position
+                                          - value
+                                          type: object
+                                        mark:
+                                          description: Mark contains the options to
+                                            match a packet fwmark.
+                                          properties:
+                                            value:
+                                              description: Value is the fwmark value
+                                                to match (e.g. "0xfe00" or "65024").
+                                              type: string
+                                          required:
                                           - value
                                           type: object
                                         op:

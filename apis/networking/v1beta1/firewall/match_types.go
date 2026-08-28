@@ -97,6 +97,13 @@ type MatchProto struct {
 	Value L4Proto `json:"value"`
 }
 
+// MatchMark represents a fwmark to be matched.
+// +kubebuilder:object:generate=true
+type MatchMark struct {
+	// Value is the fwmark value to match (e.g. "0xfe00" or "65024").
+	Value string `json:"value"`
+}
+
 // Match is a match to be applied to a rule.
 // +kubebuilder:object:generate=true
 type Match struct {
@@ -111,4 +118,6 @@ type Match struct {
 	Proto *MatchProto `json:"proto,omitempty"`
 	// Dev contains the options to match a device.
 	Dev *MatchDev `json:"dev,omitempty"`
+	// Mark contains the options to match a packet fwmark.
+	Mark *MatchMark `json:"mark,omitempty"`
 }
