@@ -58,6 +58,12 @@ func applyMatch(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 			return err
 		}
 	}
+	if m.Mark != nil {
+		err = applyMatchMark(m, rule, op)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -293,6 +299,26 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 		},
 	)
 
+	return nil
+}
+
+func applyMatchMark(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	valInt, err := strconv.ParseUint(m.Mark.Value, 0, 32)
+	if err != nil {
+		return fmt.Errorf("invalid mark value %q: %w", m.Mark.Value, err)
+	}
+
+	rule.Exprs = append(rule.Exprs,
+		&expr.Meta{
+			Key:      expr.MetaKeyMARK,
+			Register: 1,
+		},
+		&expr.Cmp{
+			Op:       op,
+			Register: 1,
+			Data:     binaryutil.NativeEndian.PutUint32(uint32(valInt)),
+		},
+	)
 	return nil
 }
 
