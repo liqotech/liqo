@@ -23,8 +23,8 @@ type DuplicateError struct {
 }
 
 // NewDuplicateError returns a new DuplicateError.
-func NewDuplicateError(clusterID string) *DuplicateError {
-	return &DuplicateError{Err: fmt.Errorf("sender %s already added", clusterID)}
+func NewDuplicateError(peerName string) *DuplicateError {
+	return &DuplicateError{Err: fmt.Errorf("sender %s already added", peerName)}
 }
 
 // Error returns the error message.
