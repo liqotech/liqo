@@ -21,14 +21,14 @@ import (
 
 // Msg represents a message sent between two nodes.
 type Msg struct {
-	ClusterID string    `json:"clusterID"`
-	MsgType   MsgTypes  `json:"msgType"`
-	TimeStamp time.Time `json:"timeStamp"`
+	InterfaceID string    `json:"interfaceID"`
+	MsgType     MsgTypes  `json:"msgType"`
+	TimeStamp   time.Time `json:"timeStamp"`
 }
 
 func (msg Msg) String() string {
-	return fmt.Sprintf("ClusterID: %s, MsgType: %s, Timestamp: %s",
-		msg.ClusterID,
+	return fmt.Sprintf("InterfaceID: %s, MsgType: %s, Timestamp: %s",
+		msg.InterfaceID,
 		msg.MsgType,
 		msg.TimeStamp.Format("00:00:00.000000000"))
 }
