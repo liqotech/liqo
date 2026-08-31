@@ -64,19 +64,24 @@ type ConnectionsReconciler struct {
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
 	conncheckOpts := *options.ConnCheckOptions
-	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode, 0); cidr != "" {
-		ip, _, err := net.ParseCIDR(cidr)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
+	if options.GwOptions.NumInterfaces == 1 {
+		if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode, 0); cidr != "" {
+			ip, _, err := net.ParseCIDR(cidr)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
+			}
+			conncheckOpts.PingBindIP = ip.String()
 		}
-		conncheckOpts.PingBindIP = ip.String()
 	}
-	connchecker, err := conncheck.NewConnChecker(&conncheckOpts)
+	connchecker, err := conncheck.NewConnChecker(options.GwOptions.RemoteClusterID, options.GwOptions.NumInterfaces, &conncheckOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the connection checker: %w", err)
 	}
 	go connchecker.RunReceiver(ctx)
 	go connchecker.RunReceiverDisconnectObserver(ctx)
+	if options.GwOptions.NumInterfaces > 1 {
+		go connchecker.RunPeerMonitor(ctx)
+	}
 	return &ConnectionsReconciler{
 		ConnChecker:    connchecker,
 		Client:         cl,
@@ -98,18 +103,29 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, fmt.Errorf("unable to get the connection %q: %w", req.NamespacedName, err)
 	}
 	klog.V(4).Infof("Reconciling connection %q", req.NamespacedName)
-
 	switch r.Options.ConnCheckOptions.PingEnabled {
 	case true:
-		if err := r.ensureSender(ctx, req.NamespacedName); err != nil {
-			return ctrl.Result{}, err
+		for i := range r.Options.GwOptions.NumInterfaces {
+			if err := r.ensureSender(ctx, req.NamespacedName, i); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
-		status, err := r.ConnChecker.GetStatus(r.Options.GwOptions.RemoteClusterID)
+		if r.Options.GwOptions.NumInterfaces > 1 && r.ConnChecker.PeerMonitorObserver() == nil {
+			observer := onTransition(ObserveLatency(r.Options.GwOptions.RemoteClusterID), r.enqueueTransition(req.NamespacedName))
+			r.ConnChecker.SetPeerMonitorObserver(observer)
+		}
 		var (
+			status          conncheck.PeerStatus
+			err             error
 			latency         time.Duration
 			connStatusValue = networkingv1beta1.ConnectionError
 		)
+		if r.Options.GwOptions.NumInterfaces > 1 {
+			status, err = r.ConnChecker.GetStatusMultitunnel()
+		} else {
+			status, err = r.ConnChecker.GetStatus(tunnel.GetTunnelName(0))
+		}
 		if err == nil {
 			latency = status.Latency
 			if status.Connected {
@@ -138,19 +154,19 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 // ensureSender adds the conncheck sender for the reconciler's remote cluster if it isn't
 // already running. It is a no-op after the first successful call.
-func (r *ConnectionsReconciler) ensureSender(ctx context.Context, key types.NamespacedName) error {
-	clusterID := r.Options.GwOptions.RemoteClusterID
-	if r.ConnChecker.HasSender(clusterID) {
+func (r *ConnectionsReconciler) ensureSender(ctx context.Context, key types.NamespacedName, interfacenum int) error {
+	interfaceID := tunnel.GetTunnelName(interfacenum)
+	if r.ConnChecker.HasSender(interfaceID) {
 		return nil
 	}
 
-	remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
-	if err != nil {
-		return fmt.Errorf("unable to get the remote interface IP: %w", err)
+	remoteIP := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode, interfacenum)
+	if remoteIP == "" {
+		return fmt.Errorf("unable to determine remote interface IP for interface index %d (mode: %v)", interfacenum, r.Options.GwOptions.Mode)
 	}
 
-	observer := onTransition(ObserveLatency(clusterID), r.enqueueTransition(key))
-	if err := r.ConnChecker.AddSender(ctx, clusterID, remoteIP, observer); err != nil {
+	observer := onTransition(ObserveLatency(r.Options.GwOptions.RemoteClusterID), r.enqueueTransition(key))
+	if err := r.ConnChecker.AddSender(ctx, interfaceID, remoteIP, observer); err != nil {
 		var dupErr *conncheck.DuplicateError
 		if !errors.As(err, &dupErr) {
 			return fmt.Errorf("unable to add the sender: %w", err)
@@ -159,7 +175,7 @@ func (r *ConnectionsReconciler) ensureSender(ctx context.Context, key types.Name
 		return nil
 	}
 
-	go r.ConnChecker.RunSender(clusterID)
+	go r.ConnChecker.RunSender(interfaceID)
 	return nil
 }
 
