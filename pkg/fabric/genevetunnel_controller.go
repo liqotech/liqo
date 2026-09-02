@@ -162,7 +162,7 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("getting internalnode %q: %w", gt.Spec.InternalNodeRef.Name, err)
 	}
 
-	if err := geneve.EnsureGeneveInterfacePresence(
+	created, err := geneve.EnsureGeneveInterfacePresence(
 		internalfabric.Spec.Interface.Node.Name,
 		internalnode.Spec.Interface.Node.IP.String(),
 		internalfabric.Spec.GatewayIP.String(),
@@ -170,11 +170,17 @@ func (r *GeneveTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.Options.DisableARP,
 		internalfabric.Spec.MTU,
 		r.Options.GenevePort,
-	); err != nil {
+	)
+
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensuring the geneve interface presence: %w", err)
 	}
 
-	klog.Infof("Enforced interface %s for genevetunnel %s", internalfabric.Spec.Interface.Node.Name, req.String())
+	if created {
+		klog.Infof("Created geneve interface %s for genevetunnel %s", internalfabric.Spec.Interface.Node.Name, req.String())
+	}
+
+	klog.V(4).Infof("Enforced interface %s for genevetunnel %s", internalfabric.Spec.Interface.Node.Name, req.String())
 
 	if r.Options.ConnCheckOptions.PingEnabled {
 		bindIP := r.Options.ConnCheckOptions.PingBindIP
