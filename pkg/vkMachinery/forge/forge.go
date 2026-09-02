@@ -173,7 +173,7 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, liqoNamespace string, localPodCIDRs []string,
 	virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) v1.PodSpec {
-	return v1.PodSpec{
+	podSpec := v1.PodSpec{
 		Containers: forgeVKContainers(
 			homeCluster, virtualNode.Spec.ClusterID,
 			virtualNode.Name, vkNamespace, liqoNamespace, localPodCIDRs,
@@ -182,7 +182,14 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, liqoN
 		ServiceAccountName: virtualNode.Name,
 		ImagePullSecrets:   opts.Spec.ImagePullSecrets,
 		Tolerations:        opts.Spec.Tolerations,
+		HostNetwork:        opts.Spec.HostNetwork,
+		DNSPolicy:          opts.Spec.DNSPolicy,
+		NodeSelector:       opts.Spec.NodeSelector,
 	}
+	if podSpec.HostNetwork && podSpec.DNSPolicy == "" {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	return podSpec
 }
 
 func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]offloadingv1beta1.ReflectorConfig) []string {

@@ -699,6 +699,12 @@ virtualKubelet:
       requests: {}
     # -- Tolerations for the virtual kubelet pod.
     tolerations: []
+    # -- Use the host network namespace for the virtual kubelet pod.
+    hostNetwork: false
+    # -- DNS policy for the virtual kubelet pod.
+    dnsPolicy: ""
+    # -- NodeSelector for the virtual kubelet pod.
+    nodeSelector: {}
   virtualNode:
     extra:
       # -- Extra annotations for the virtual node.

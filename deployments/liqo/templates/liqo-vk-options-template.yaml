@@ -97,3 +97,13 @@ spec:
   tolerations:
     {{- toYaml .Values.virtualKubelet.extra.tolerations | nindent 4 }}
   {{- end }}
+  {{- if .Values.virtualKubelet.extra.hostNetwork }}
+  hostNetwork: true
+  {{- end }}
+  {{- if .Values.virtualKubelet.extra.dnsPolicy }}
+  dnsPolicy: {{ .Values.virtualKubelet.extra.dnsPolicy }}
+  {{- end }}
+  {{- if .Values.virtualKubelet.extra.nodeSelector }}
+  nodeSelector:
+    {{- toYaml .Values.virtualKubelet.extra.nodeSelector | nindent 4 }}
+  {{- end }}

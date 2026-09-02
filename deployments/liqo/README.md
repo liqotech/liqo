@@ -211,7 +211,10 @@
 | uninstaller.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the uninstaller pod. |
 | virtualKubelet.extra.annotations | object | `{}` | Annotations for the virtual kubelet pod. |
 | virtualKubelet.extra.args | list | `[]` | Extra arguments virtual kubelet pod. |
+| virtualKubelet.extra.dnsPolicy | string | `""` | DNS policy for the virtual kubelet pod. |
+| virtualKubelet.extra.hostNetwork | bool | `false` | Use the host network namespace for the virtual kubelet pod. |
 | virtualKubelet.extra.labels | object | `{}` | Labels for the virtual kubelet pod. |
+| virtualKubelet.extra.nodeSelector | object | `{}` | NodeSelector for the virtual kubelet pod. |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
 | virtualKubelet.extra.tolerations | list | `[]` | Tolerations for the virtual kubelet pod. |
 | virtualKubelet.image.name | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
