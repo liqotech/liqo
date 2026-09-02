@@ -16,20 +16,30 @@ package peer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
+	offloadingforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/authenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/network"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
+	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // Options encapsulates the arguments of the peer command.
@@ -58,6 +68,7 @@ type Options struct {
 
 	// Offloading options
 	CreateVirtualNode bool
+	MultiVirtualNode  bool
 	CPU               string
 	Memory            string
 	Pods              string
@@ -185,13 +196,19 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		return err
 	}
 
+	nsManager := tenantnamespace.NewManager(o.LocalFactory.KubeClient, o.LocalFactory.CRClient.Scheme())
+
+	if o.MultiVirtualNode {
+		return ensureOffloadingPerNode(ctx, o, providerClusterID, providerClusterIDFlag, nsManager)
+	}
+
 	rsOptions := resourceslice.Options{
 		CreateOptions: &rest.CreateOptions{
 			Factory: o.LocalFactory,
 			Name:    string(providerClusterID),
 		},
 
-		NamespaceManager:           tenantnamespace.NewManager(o.LocalFactory.KubeClient, o.LocalFactory.CRClient.Scheme()),
+		NamespaceManager:           nsManager,
 		RemoteClusterID:            providerClusterIDFlag,
 		Class:                      o.ResourceSliceClass,
 		DisableVirtualNodeCreation: !o.CreateVirtualNode,
@@ -202,9 +219,133 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 		OtherResources: o.OtherResources,
 	}
 
-	if err := rsOptions.HandleCreate(ctx); err != nil {
-		return err
+	return rsOptions.HandleCreate(ctx)
+}
+
+func ensureOffloadingPerNode(ctx context.Context, o *Options, providerClusterID liqov1beta1.ClusterID,
+	providerClusterIDFlag argsutils.ClusterIDFlags, nsManager tenantnamespace.Manager) error {
+	var nodeList corev1.NodeList
+	if err := o.RemoteFactory.CRClient.List(ctx, &nodeList); err != nil {
+		return fmt.Errorf("unable to list remote cluster nodes: %w", err)
+	}
+
+	// Resolve the tenant namespace once: ResourceSlices and their VirtualNodes live in the same namespace.
+	tenantNs, err := nsManager.GetNamespace(ctx, providerClusterID)
+	if err != nil {
+		return fmt.Errorf("unable to get tenant namespace: %w", err)
+	}
+	namespace := tenantNs.Name
+
+	workerCount := 0
+	for i := range nodeList.Items {
+		node := &nodeList.Items[i]
+		if isControlPlaneNode(node) {
+			continue
+		}
+		workerCount++
+		rsName := node.Name
+
+		rsOptions := resourceslice.Options{
+			CreateOptions: &rest.CreateOptions{
+				Factory: o.LocalFactory,
+				Name:    rsName,
+			},
+
+			NamespaceManager:           nsManager,
+			RemoteClusterID:            providerClusterIDFlag,
+			Class:                      o.ResourceSliceClass,
+			DisableVirtualNodeCreation: true,
+
+			CPU:            o.CPU,
+			Memory:         o.Memory,
+			Pods:           o.Pods,
+			OtherResources: o.OtherResources,
+		}
+
+		if err := rsOptions.HandleCreate(ctx); err != nil {
+			return fmt.Errorf("unable to create ResourceSlice for node %q: %w", node.Name, err)
+		}
+
+		if !o.CreateVirtualNode {
+			continue
+		}
+
+		if err := createVirtualNodeForNode(ctx, o, providerClusterID, rsName, node.Name, namespace); err != nil {
+			return fmt.Errorf("unable to create VirtualNode for node %q: %w", node.Name, err)
+		}
+	}
+
+	if workerCount == 0 {
+		return fmt.Errorf("no worker nodes found in the remote cluster %q", providerClusterID)
 	}
 
 	return nil
+}
+
+func createVirtualNodeForNode(ctx context.Context, o *Options, providerClusterID liqov1beta1.ClusterID,
+	resourceSliceName, nodeName, namespace string) error {
+	// Get the ResourceSlice created for this node.
+	var resourceSlice authv1beta1.ResourceSlice
+	if err := o.LocalFactory.CRClient.Get(ctx, client.ObjectKey{Name: resourceSliceName, Namespace: namespace}, &resourceSlice); err != nil {
+		return fmt.Errorf("unable to get ResourceSlice %q: %w", resourceSliceName, err)
+	}
+
+	// Get the Identity associated to the ResourceSlice.
+	identity, err := getters.GetIdentityFromResourceSlice(ctx, o.LocalFactory.CRClient, providerClusterID, resourceSliceName)
+	if err != nil {
+		return fmt.Errorf("unable to get Identity for ResourceSlice %q: %w", resourceSliceName, err)
+	}
+
+	// Get the kubeconfig secret referenced by the Identity.
+	kubeconfigSecret, err := getters.GetKubeconfigSecretFromIdentity(ctx, o.LocalFactory.CRClient, identity)
+	if err != nil {
+		return fmt.Errorf("unable to get kubeconfig secret for ResourceSlice %q: %w", resourceSliceName, err)
+	}
+
+	// Forge the VirtualNode options from the ResourceSlice and pin pods to the remote node.
+	vnOpts := offloadingforge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, nil)
+	if vnOpts.NodeSelector == nil {
+		vnOpts.NodeSelector = map[string]string{}
+	}
+	vnOpts.NodeSelector[corev1.LabelHostname] = nodeName
+
+	// Create the VirtualNode.
+	s := o.LocalFactory.Printer.StartSpinner(fmt.Sprintf("Creating VirtualNode %q", resourceSliceName))
+	virtualNode := offloadingforge.VirtualNode(resourceSliceName, namespace)
+	if _, err := resource.CreateOrUpdate(ctx, o.LocalFactory.CRClient, virtualNode, func() error {
+		if err := offloadingforge.MutateVirtualNode(ctx, o.LocalFactory.CRClient, virtualNode,
+			providerClusterID, vnOpts, ptr.To(true), nil, nil); err != nil {
+			return err
+		}
+		if virtualNode.Labels == nil {
+			virtualNode.Labels = map[string]string{}
+		}
+		virtualNode.Labels[consts.ResourceSliceNameLabelKey] = resourceSlice.Name
+		return nil
+	}); err != nil {
+		s.Fail(fmt.Sprintf("Unable to create VirtualNode %q: ", resourceSliceName), output.PrettyErr(err))
+		return err
+	}
+	s.Success(fmt.Sprintf("VirtualNode %q created", resourceSliceName))
+
+	// Wait for the corresponding node to be Ready.
+	waiter := wait.NewWaiterFromFactory(o.LocalFactory)
+	return waiter.ForNodeReady(ctx, resourceSliceName)
+}
+
+func isControlPlaneNode(node *corev1.Node) bool {
+	labels := node.GetLabels()
+	_, hasControlPlane := labels["node-role.kubernetes.io/control-plane"]
+	_, hasMaster := labels["node-role.kubernetes.io/master"]
+	_, hasControlplaneLegacy := labels["node-role.kubernetes.io/controlplane"]
+	if hasControlPlane || hasMaster || hasControlplaneLegacy {
+		return true
+	}
+	for i := range node.Spec.Taints {
+		t := &node.Spec.Taints[i]
+		if t.Key == "node-role.kubernetes.io/control-plane" || t.Key == "node-role.kubernetes.io/master" {
+			return true
+		}
+	}
+	return false
 }

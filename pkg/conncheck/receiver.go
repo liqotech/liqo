@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -30,9 +31,12 @@ import (
 type Peer struct {
 	connected bool
 	latency   time.Duration
-	// lastReceivedTimestamp is the timestamp when the last received PING has been sent.
-	lastReceivedTimestamp time.Time
-	updateCallback        UpdateFunc
+	// lastPingTimestamp is the timestamp of the last received PING (used for out-of-order detection).
+	lastPingTimestamp time.Time
+	// lastPongTimestamp is the time when the last PONG was received.
+	lastPongTimestamp time.Time
+	// observer is called on PONG and disconnect for this peer.
+	observer PingObserver
 }
 
 // Receiver is a receiver for conncheck messages.
@@ -70,50 +74,60 @@ func (r *Receiver) SendPong(raddr *net.UDPAddr, msg *Msg) error {
 }
 
 // ReceivePong receives a PONG message.
-func (r *Receiver) ReceivePong(msg *Msg) error {
+func (r *Receiver) ReceivePong(msg *Msg, receivedAt time.Time) error {
 	r.m.Lock()
-	defer r.m.Unlock()
-	if peer, ok := r.peers[msg.ClusterID]; ok {
-		if msg.TimeStamp.Before(peer.lastReceivedTimestamp) {
-			klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
-			return nil
-		}
-		now := time.Now()
-		peer.lastReceivedTimestamp = msg.TimeStamp
-		peer.latency = now.Sub(msg.TimeStamp)
-		peer.connected = true
 
-		err := peer.updateCallback(true, peer.latency, now)
-		if err != nil {
-			return fmt.Errorf("failed to update peer %s: %w", msg.ClusterID, err)
-		}
+	peer, ok := r.peers[msg.ClusterID]
+	if !ok {
+		r.m.Unlock()
+		return fmt.Errorf("%s sender has not been initialized", msg.ClusterID)
+	}
+
+	if msg.TimeStamp.Before(peer.lastPingTimestamp) {
+		klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
+		r.m.Unlock()
 		return nil
 	}
-	return fmt.Errorf("%s sender has not been initialized", msg.ClusterID)
-}
+	peer.lastPingTimestamp = msg.TimeStamp
+	peer.lastPongTimestamp = receivedAt
+	peer.latency = receivedAt.Sub(msg.TimeStamp)
+	peer.connected = true
+	latency := peer.latency
+	r.m.Unlock()
 
-// InitPeer initializes a peer.
-func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
-	r.m.Lock()
-	defer r.m.Unlock()
-	r.peers[clusterID] = &Peer{
-		connected:             false,
-		latency:               0,
-		lastReceivedTimestamp: time.Now(),
-		updateCallback:        updateCallback,
+	if peer.observer != nil {
+		peer.observer(true, latency)
 	}
 	return nil
 }
 
+// InitPeer initializes a peer.
+func (r *Receiver) InitPeer(clusterID string, observer PingObserver) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.peers[clusterID] = &Peer{
+		connected:         false,
+		latency:           0,
+		lastPingTimestamp: time.Time{},
+		lastPongTimestamp: time.Now(),
+		observer:          observer,
+	}
+}
+
 // Run starts the receiver.
 func (r *Receiver) Run(ctx context.Context) {
-	klog.Infof("conncheck receiver: started")
+	klog.Infof("conncheck receiver: started on %s:%d", r.opts.PingBindIP, r.opts.PingPort)
 	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(_ context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
-			klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
+			if raddr != nil {
+				klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
+			} else {
+				klog.Errorf("conncheck receiver: failed to read: %v", err)
+			}
 			return false, nil
 		}
+		receivedAt := time.Now()
 		msgr := &Msg{}
 		err = json.Unmarshal(r.buff[:n], msgr)
 		if err != nil {
@@ -124,13 +138,14 @@ func (r *Receiver) Run(ctx context.Context) {
 		switch msgr.MsgType {
 		case PING:
 			klog.V(8).Infof("conncheck receiver: received a PING %s -> %s", raddr, msgr)
-			err = r.SendPong(raddr, msgr)
+			if err := r.SendPong(raddr, msgr); err != nil {
+				klog.Errorf("conncheck receiver: sendPong error: %v", err)
+			}
 		case PONG:
 			klog.V(8).Infof("conncheck receiver: received a PONG from %s  -> %s", raddr, msgr)
-			err = r.ReceivePong(msgr)
-		}
-		if err != nil {
-			klog.Errorf("conncheck receiver: %v", err)
+			if err := r.ReceivePong(msgr, receivedAt); err != nil {
+				klog.Errorf("conncheck receiver: receivePong error: %v", err)
+			}
 		}
 		return false, nil
 	})
@@ -143,20 +158,40 @@ func (r *Receiver) Run(ctx context.Context) {
 func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
-	err := wait.PollUntilContextCancel(ctx, time.Duration(r.opts.PingLossThreshold)*r.opts.PingInterval/10, true,
+	threshold := r.opts.PingLossThreshold
+	if threshold > uint(math.MaxInt64) {
+		threshold = uint(math.MaxInt64)
+	}
+	thresholdDuration := time.Duration(threshold)
+	err := wait.PollUntilContextCancel(ctx, thresholdDuration*r.opts.PingInterval/10, true,
 		func(_ context.Context) (done bool, err error) {
-			r.m.Lock()
-			defer r.m.Unlock()
-			for id, peer := range r.peers {
-				if time.Since(peer.lastReceivedTimestamp.Add(peer.latency)) <= r.opts.PingInterval*time.Duration(r.opts.PingLossThreshold) {
+			// Snapshot the peer IDs, then check each peer under the write lock so that
+			// all reads/writes of Peer fields stay synchronized with ReceivePong.
+			r.m.RLock()
+			peerIDs := make([]string, 0, len(r.peers))
+			for id := range r.peers {
+				peerIDs = append(peerIDs, id)
+			}
+			r.m.RUnlock()
+
+			for _, id := range peerIDs {
+				r.m.Lock()
+				peer, ok := r.peers[id]
+				if !ok {
+					r.m.Unlock()
 					continue
 				}
-				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
+				if time.Since(peer.lastPongTimestamp) <= r.opts.PingInterval*thresholdDuration {
+					r.m.Unlock()
+					continue
+				}
 				peer.connected = false
 				peer.latency = 0
-				err := peer.updateCallback(false, 0, time.Time{})
-				if err != nil {
-					klog.Errorf("conncheck receiver: failed to update peer %s: %s", peer.lastReceivedTimestamp, err)
+				r.m.Unlock()
+
+				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
+				if peer.observer != nil {
+					peer.observer(false, 0)
 				}
 			}
 			return false, nil

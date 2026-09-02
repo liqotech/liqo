@@ -104,7 +104,7 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 		return nil
 	}
 
-	s := opts.Printer.StartSpinner("Creating ResourceSlice")
+	s := opts.Printer.StartSpinner(fmt.Sprintf("Creating ResourceSlice %q", opts.Name))
 
 	namespace, err := o.getTenantNamespace(ctx)
 	if err != nil {
@@ -120,10 +120,10 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 		}, !o.DisableVirtualNodeCreation)
 	})
 	if err != nil {
-		s.Fail("Unable to create ResourceSlice: %v", output.PrettyErr(err))
+		s.Fail(fmt.Sprintf("Unable to create ResourceSlice %q: %%v", opts.Name), output.PrettyErr(err))
 		return err
 	}
-	s.Success("ResourceSlice created")
+	s.Success(fmt.Sprintf("ResourceSlice %q created", opts.Name))
 
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
 	if err := waiter.ForResourceSliceAuthentication(ctx, resourceSlice); err != nil {
@@ -137,10 +137,11 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	}
 	resourcesCondition := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeResources)
 	if resourcesCondition == nil || resourcesCondition.Status != authv1beta1.ResourceSliceConditionAccepted {
-		opts.Printer.Warning.Printfln("ResourceSlice resources not accepted. The provider cluster may have cordoned the tenant or the resourceslice")
+		opts.Printer.Warning.Printfln("ResourceSlice %q resources not accepted. "+
+			"The provider cluster may have cordoned the tenant or the resourceslice", opts.Name)
 		return nil
 	}
-	opts.Printer.Success.Printfln("ResourceSlice resources: %s", resourcesCondition.Status)
+	opts.Printer.Success.Printfln("ResourceSlice %q resources: %s", opts.Name, resourcesCondition.Status)
 
 	return nil
 }

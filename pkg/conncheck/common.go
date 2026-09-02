@@ -43,5 +43,10 @@ const (
 	PONG MsgTypes = "PONG"
 )
 
-// UpdateFunc is a function called when a Receiver gets a PONG or when a connection is declared failed.
-type UpdateFunc func(connected bool, latency time.Duration, time time.Time) error
+// PingObserver reports the outcome of a single connectivity measurement for a peer, so a
+// caller can react to it (e.g. record metrics, detect connected/disconnected transitions).
+// It is invoked by the Receiver on every accepted PONG (connected=true, latency set) and
+// whenever a peer is deemed unreachable due to exceeding the ping loss threshold
+// (connected=false, latency zero). Implementations must be safe to call from multiple
+// goroutines and should not block, since they run synchronously on the conncheck receive path.
+type PingObserver func(connected bool, latency time.Duration)

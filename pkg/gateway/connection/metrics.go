@@ -15,25 +15,22 @@
 package connection
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/liqotech/liqo/pkg/conncheck"
-	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
-// Options contains the options for the wireguard interface.
-type Options struct {
-	// EnableConnectionController enables the connection controller.
-	EnableConnectionController bool
-	// GwOptions contains the options for the wireguard interface.
-	GwOptions *gateway.Options
-	// ConnCheckOptions contains the options for the connchecker.
-	ConnCheckOptions *conncheck.Options
-}
+const (
+	driverLabel = "gateway"
+)
 
-// NewOptions returns a new Options struct.
-func NewOptions(gwOptions *gateway.Options,
-	conncheckOptions *conncheck.Options) *Options {
-	return &Options{
-		GwOptions:        gwOptions,
-		ConnCheckOptions: conncheckOptions,
-	}
+// ObserveLatency returns a conncheck.PingObserver that records the round-trip latency
+// into the prometheus metrics at the point of measurement (on each PONG).
+func ObserveLatency(remoteClusterID string) conncheck.PingObserver {
+	return tunnel.ObserveLatencyMetrics(tunnel.MetricsPeerLatency, tunnel.MetricsPeerLatencyHistogram, tunnel.MetricsPeerIsConnected,
+		prometheus.Labels{
+			tunnel.MetricsLabels[0]: driverLabel,
+			tunnel.MetricsLabels[1]: remoteClusterID,
+		})
 }

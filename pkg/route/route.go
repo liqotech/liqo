@@ -18,10 +18,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"k8s.io/utils/ptr"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
@@ -30,13 +33,13 @@ import (
 var ErrNetworkUnreachable = errors.New("network unreachable")
 
 // EnsureRoutesPresence ensures the presence of the given routes.
-func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) error {
+func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32, existing []netlink.Route) error {
 	for i := range routes {
 		route, err := forgeNetlinkRoute(&routes[i], tableID)
 		if err != nil {
 			return err
 		}
-		existingroute, exists, err := ExistsRoute(&routes[i], tableID)
+		existingroute, exists, err := FindRouteInList(&routes[i], existing)
 		if err != nil {
 			return err
 		}
@@ -62,12 +65,12 @@ func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) erro
 }
 
 // EnsureRoutesAbsence ensures the absence of the given routes.
-func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error {
+func EnsureRoutesAbsence(routes []networkingv1beta1.Route, existing []netlink.Route) error {
 	for i := range routes {
 		if routes[i].Dst == nil {
 			continue
 		}
-		existingRoute, exists, err := ExistsRoute(&routes[i], tableID)
+		existingRoute, exists, err := FindRouteInList(&routes[i], existing)
 		if err != nil {
 			return fmt.Errorf("checking route existence: %w", err)
 		}
@@ -80,30 +83,40 @@ func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error
 	return nil
 }
 
-// ExistsRoute checks if the given route is already present in the route list.
-func ExistsRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route, bool, error) {
+// FindRouteInList searches for a route matching the given spec within the provided list of existing routes.
+// It returns the matching netlink.Route and true if found, or an error if more than one route matches.
+func FindRouteInList(route *networkingv1beta1.Route, existing []netlink.Route) (*netlink.Route, bool, error) {
+	if route.Dst == nil {
+		return nil, false, nil
+	}
 	_, dst, err := net.ParseCIDR(route.Dst.String())
 	if err != nil {
 		return nil, false, err
 	}
+	var found *netlink.Route
+	for i := range existing {
+		if existing[i].Dst == nil {
+			continue
+		}
+		if existing[i].Dst.String() != dst.String() {
+			continue
+		}
+		if found != nil {
+			return nil, false, fmt.Errorf("multiple routes found with same destination %s", dst.String())
+		}
+		found = &existing[i]
+	}
+	if found == nil {
+		return nil, false, nil
+	}
+	return found, true, nil
+}
 
-	existingRoutes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
-		Dst:   dst,
+// GetRoutesByTableID returns all the routes associated with the given table ID.
+func GetRoutesByTableID(tableID uint32) ([]netlink.Route, error) {
+	return netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
 		Table: int(tableID),
-	}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if len(existingRoutes) > 1 {
-		return nil, false, fmt.Errorf("%v routes found with same destination", len(existingRoutes))
-	}
-
-	if len(existingRoutes) == 1 {
-		return &existingRoutes[0], true, nil
-	}
-
-	return nil, false, nil
+	}, netlink.RT_FILTER_TABLE)
 }
 
 // IsEqualRoute checks if the two routes are equal.
@@ -123,18 +136,47 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 	if route1.Flags != route2.Flags {
 		return false
 	}
+	multipathLen1 := len(route1.MultiPath)
+	multipathLen2 := len(route2.MultiPath)
+	if multipathLen1 > 0 || multipathLen2 > 0 {
+		if multipathLen1 != multipathLen2 {
+			return false
+		}
+		sorted1 := sortNextHops(route1.MultiPath)
+		sorted2 := sortNextHops(route2.MultiPath)
+
+		for i := range sorted1 {
+			if !sorted1[i].Equal(*sorted2[i]) {
+				return false
+			}
+		}
+	}
 	return true
 }
 
+// sortNextHops returns a sorted copy of the given multipath next-hops,
+// ordered by Gw, then LinkIndex, then Hops, so that two semantically
+// equal multipath sets can be compared positionally regardless of the
+// original ordering (and are robust to duplicate entries).
+func sortNextHops(nextHops []*netlink.NexthopInfo) []*netlink.NexthopInfo {
+	sorted := slices.Clone(nextHops)
+	slices.SortFunc(sorted, func(a, b *netlink.NexthopInfo) int {
+		if c := strings.Compare(a.Gw.String(), b.Gw.String()); c != 0 {
+			return c
+		}
+		if a.LinkIndex != b.LinkIndex {
+			return a.LinkIndex - b.LinkIndex
+		}
+		return a.Hops - b.Hops
+	})
+	return sorted
+}
+
 // CleanRoutes cleans the routes that are not contained in the given route list.
-func CleanRoutes(routes []networkingv1beta1.Route, tableID uint32) error {
-	existingrules, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{Table: int(tableID)}, netlink.RT_FILTER_TABLE)
-	if err != nil {
-		return err
-	}
-	for i := range existingrules {
-		if !IsContainedRoute(&existingrules[i], routes) {
-			if err := netlink.RouteDel(&existingrules[i]); err != nil {
+func CleanRoutes(routes []networkingv1beta1.Route, existing []netlink.Route) error {
+	for i := range existing {
+		if !IsContainedRoute(&existing[i], routes) {
+			if err := netlink.RouteDel(&existing[i]); err != nil {
 				return err
 			}
 		}
@@ -190,14 +232,10 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 	}
 
 	if route.Dev != nil {
-		link, err := netlink.LinkByName(*route.Dev)
+		linkIndex, err = getLinkIDByName(*route.Dev)
 		if err != nil {
-			if errors.As(err, &netlink.LinkNotFoundError{}) {
-				return nil, fmt.Errorf("link %s not found: %w", *route.Dev, err)
-			}
-			return nil, fmt.Errorf("getting link %s: %w", *route.Dev, err)
+			return nil, err
 		}
-		linkIndex = link.Attrs().Index
 	}
 
 	if route.Onlink != nil && *route.Onlink {
@@ -219,14 +257,48 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 		default:
 		}
 	}
+	var multiPath []*netlink.NexthopInfo
+	if len(route.NextHops) > 0 {
+		// MultiPath (ECMP) routes must not have a main gateway or a main link index
+		// All next-hop specific information is contained within the MultiPath slice.
+		gw = nil
+		linkIndex = 0
+		multiPath = make([]*netlink.NexthopInfo, len(route.NextHops))
+		for i, nh := range route.NextHops {
+			nextHopGw := net.ParseIP(nh.Gw.String())
+			weight := ptr.Deref(nh.Weight, 0)
+			linkID, err := getLinkIDByName(nh.Dev)
+			if err != nil {
+				return nil, fmt.Errorf("getting link for nexthop %d: %w", i, err)
+			}
+
+			multiPath[i] = &netlink.NexthopInfo{
+				Gw:        nextHopGw,
+				LinkIndex: linkID,
+				Hops:      weight,
+			}
+		}
+	}
 
 	return &netlink.Route{
 		Dst:       dst,
 		Gw:        gw,
+		MultiPath: multiPath,
 		Src:       src,
 		LinkIndex: linkIndex,
 		Table:     int(tableID),
 		Flags:     flags,
 		Scope:     scope,
 	}, nil
+}
+
+func getLinkIDByName(name string) (int, error) {
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return 0, fmt.Errorf("link %s not found: %w", name, err)
+		}
+		return 0, fmt.Errorf("getting link with name %q: %w", name, err)
+	}
+	return link.Attrs().Index, nil
 }

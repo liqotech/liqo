@@ -21,6 +21,7 @@ spec:
     {{- end }}
       labels:
         {{- include "liqo.selectorLabels" $fabricConfig | nindent 8 }}
+        networking.liqo.io/component: fabric
         {{- if .Values.networking.fabric.pod.labels }}
           {{- toYaml .Values.networking.fabric.pod.labels | nindent 8 }}
         {{- end }}
@@ -58,6 +59,11 @@ spec:
           - --geneve-port={{ .Values.networking.genevePort }}
           - --health-probe-bind-address=:{{ .Values.networking.fabric.config.healthProbeBindAddressPort}}
           - --metrics-address=:{{ .Values.networking.fabric.config.metricsAddressPort}}
+          - --ping-enabled=true
+          - --ping-port=54321
+          - --ping-loss-threshold={{ .Values.networking.fabric.config.ping.lossThreshold }}
+          - --ping-interval={{ .Values.networking.fabric.config.ping.interval }}
+          - --ping-update-status-interval={{ .Values.networking.fabric.config.ping.updateStatusInterval }}
           {{- if not .Values.requirements.kernel.enabled }}
           - --disable-kernel-version-check
           {{- end }}
@@ -93,15 +99,22 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          {{- if and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0") }}
+          {{- if or (and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0")) .Values.metrics.enabled }}
           ports:
-          - name: healthz
-            containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
+          {{- if .Values.metrics.enabled }}
+          - containerPort: {{ .Values.networking.fabric.config.metricsAddressPort }}
+            name: fabric-metrics
+            protocol: TCP
+          {{- end }}
+          {{- if and .Values.networking.fabric.config.healthProbeBindAddressPort (ne .Values.networking.fabric.config.healthProbeBindAddressPort "0") }}
+          - containerPort: {{ .Values.networking.fabric.config.healthProbeBindAddressPort }}
+            name: healthz
             protocol: TCP
           readinessProbe:
             httpGet:
               path: /readyz
               port: healthz
+          {{- end }}
           {{- end }}
       hostNetwork: true
       {{- if .Values.networking.fabric.pod.priorityClassName }}

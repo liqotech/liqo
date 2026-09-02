@@ -16,22 +16,29 @@ package connection
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"sync/atomic"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
@@ -46,12 +53,25 @@ type ConnectionsReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	Options        *Options
+
+	// transitions carries a GenericEvent for the Connection object every time the conncheck
+	// observer detects a connected/disconnected transition, so the reconciler can flush the
+	// status change immediately instead of waiting for the next periodic requeue.
+	transitions chan event.GenericEvent
 }
 
 // NewConnectionsReconciler returns a new PublicKeysReconciler.
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
-	connchecker, err := conncheck.NewConnChecker(options.ConnCheckOptions)
+	conncheckOpts := *options.ConnCheckOptions
+	if cidr := tunnel.GetInterfaceIP(options.GwOptions.Mode, 0); cidr != "" {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse wireguard interface IP %q: %w", cidr, err)
+		}
+		conncheckOpts.PingBindIP = ip.String()
+	}
+	connchecker, err := conncheck.NewConnChecker(&conncheckOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the connection checker: %w", err)
 	}
@@ -63,6 +83,7 @@ func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 		Scheme:         s,
 		EventsRecorder: er,
 		Options:        options,
+		transitions:    make(chan event.GenericEvent, 1),
 	}, nil
 }
 
@@ -78,28 +99,36 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	klog.V(4).Infof("Reconciling connection %q", req.NamespacedName)
 
-	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
-
-	switch r.Options.PingEnabled {
+	switch r.Options.ConnCheckOptions.PingEnabled {
 	case true:
-		remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to get the remote interface IP: %w", err)
+		if err := r.ensureSender(ctx, req.NamespacedName); err != nil {
+			return ctrl.Result{}, err
 		}
 
-		err = r.ConnChecker.AddSender(ctx, r.Options.GwOptions.RemoteClusterID, remoteIP, updateConnection)
-		if err != nil {
-			switch err.(type) {
-			case *conncheck.DuplicateError:
-				return ctrl.Result{}, nil
-			default:
-				return ctrl.Result{}, fmt.Errorf("unable to add the sender: %w", err)
+		status, err := r.ConnChecker.GetStatus(r.Options.GwOptions.RemoteClusterID)
+		var (
+			latency         time.Duration
+			connStatusValue = networkingv1beta1.ConnectionError
+		)
+		if err == nil {
+			latency = status.Latency
+			if status.Connected {
+				connStatusValue = networkingv1beta1.Connected
 			}
+			klog.V(6).Infof("connection %q status: connected=%v latency=%s", req.NamespacedName, status.Connected, latency)
 		}
 
-		go r.ConnChecker.RunSender(r.Options.GwOptions.RemoteClusterID)
+		if err := UpdateConnectionStatus(ctx, r.Client, r.Options, connection, connStatusValue, latency, time.Now()); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to update the connection status: %w", err)
+		}
+
+		// Requeue periodically to flush in-memory latency to the CR.
+		return ctrl.Result{RequeueAfter: r.Options.ConnCheckOptions.PingUpdateStatusInterval}, nil
+
 	case false:
-		if err := updateConnection(true, 0, time.Time{}); err != nil {
+		// Ping disabled — mark the connection as connected with zero latency.
+		if err := UpdateConnectionStatus(ctx, r.Client, r.Options, connection,
+			networkingv1beta1.Connected, 0, time.Time{}); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to update the connection status: %w", err)
 		}
 	}
@@ -107,11 +136,62 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
+// ensureSender adds the conncheck sender for the reconciler's remote cluster if it isn't
+// already running. It is a no-op after the first successful call.
+func (r *ConnectionsReconciler) ensureSender(ctx context.Context, key types.NamespacedName) error {
+	clusterID := r.Options.GwOptions.RemoteClusterID
+	if r.ConnChecker.HasSender(clusterID) {
+		return nil
+	}
+
+	remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
+	if err != nil {
+		return fmt.Errorf("unable to get the remote interface IP: %w", err)
+	}
+
+	observer := onTransition(ObserveLatency(clusterID), r.enqueueTransition(key))
+	if err := r.ConnChecker.AddSender(ctx, clusterID, remoteIP, observer); err != nil {
+		var dupErr *conncheck.DuplicateError
+		if !errors.As(err, &dupErr) {
+			return fmt.Errorf("unable to add the sender: %w", err)
+		}
+		// Sender already added concurrently — nothing else to do.
+		return nil
+	}
+
+	go r.ConnChecker.RunSender(clusterID)
+	return nil
+}
+
+// onTransition wraps a conncheck.PingObserver, calling onChange whenever the connected
+// state flips between two invocations, in addition to invoking the wrapped observer as usual.
+func onTransition(observer conncheck.PingObserver, onChange func()) conncheck.PingObserver {
+	var lastConnected atomic.Bool
+	return func(connected bool, latency time.Duration) {
+		observer(connected, latency)
+		if lastConnected.Swap(connected) != connected {
+			onChange()
+		}
+	}
+}
+
+func (r *ConnectionsReconciler) enqueueTransition(key types.NamespacedName) func() {
+	return func() {
+		select {
+		case r.transitions <- event.GenericEvent{
+			Object: &networkingv1beta1.Connection{
+				ObjectMeta: metav1.ObjectMeta{Name: key.Name, Namespace: key.Namespace},
+			}}:
+		default:
+		}
+	}
+}
+
 // SetupWithManager register the ConnectionReconciler to the manager.
 func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			string(consts.RemoteClusterID): r.Options.GwOptions.RemoteClusterID,
+			consts.RemoteClusterID: r.Options.GwOptions.RemoteClusterID,
 		},
 	})
 	if err != nil {
@@ -119,23 +199,6 @@ func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConnection).
 		For(&networkingv1beta1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
+		WatchesRawSource(source.Channel(r.transitions, &handler.EnqueueRequestForObject{})).
 		Complete(r)
-}
-
-// ForgeUpdateConnectionCallback forges the UpdateConnectionStatus function.
-func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, opts *Options, req ctrl.Request) conncheck.UpdateFunc {
-	return func(connected bool, latency time.Duration, timestamp time.Time) error {
-		connection := &networkingv1beta1.Connection{}
-		if err := cl.Get(ctx, req.NamespacedName, connection); err != nil {
-			return err
-		}
-		var connStatusValue networkingv1beta1.ConnectionStatusValue
-		switch connected {
-		case true:
-			connStatusValue = networkingv1beta1.Connected
-		case false:
-			connStatusValue = networkingv1beta1.ConnectionError
-		}
-		return UpdateConnectionStatus(ctx, cl, opts, connection, connStatusValue, latency, timestamp)
-	}
 }

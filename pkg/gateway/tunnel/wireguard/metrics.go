@@ -15,17 +15,12 @@
 package wireguard
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.zx2c4.com/wireguard/wgctrl"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 const (
@@ -47,10 +42,7 @@ var _ prometheus.Collector = &PrometheusCollector{}
 
 // PrometheusCollector is a prometheus.Collector that collects Wireguard metrics.
 type PrometheusCollector struct {
-	tunnelMetrics tunnel.PrometheusMetrics
-	clientwg      *wgctrl.Client
-	clientctrl    client.Client
-
+	clientwg       *wgctrl.Client
 	metricsOptions *MetricsOptions
 }
 
@@ -62,22 +54,21 @@ type MetricsOptions struct {
 }
 
 // NewPrometheusCollector creates a new PrometheusCollector.
-func NewPrometheusCollector(clctrl client.Client, metricsOpts *MetricsOptions) (*PrometheusCollector, error) {
+func NewPrometheusCollector(metricsOpts *MetricsOptions) (*PrometheusCollector, error) {
 	clwg, err := wgctrl.New()
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Wireguard client: %w", err)
 	}
 	return &PrometheusCollector{
-		tunnelMetrics:  tunnel.PrometheusMetrics{},
 		clientwg:       clwg,
-		clientctrl:     clctrl,
 		metricsOptions: metricsOpts,
 	}, nil
 }
 
 // Describe implements prometheus.Collector.
 func (pc *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
-	pc.tunnelMetrics.Describe(ch)
+	ch <- tunnel.MetricsPeerReceivedBytes
+	ch <- tunnel.MetricsPeerTransmittedBytes
 	ch <- MetricsWgUserImpl
 }
 
@@ -85,7 +76,7 @@ func (pc *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	device, err := pc.clientwg.Device(tunnel.TunnelInterfaceName)
 	if err != nil {
-		pc.tunnelMetrics.MetricsErrorHandler(fmt.Errorf("error collecting wireguard metrics: %w", err), ch)
+		ch <- prometheus.NewInvalidMetric(MetricsWgUserImpl, fmt.Errorf("error collecting wireguard metrics: %w", err))
 		return
 	}
 
@@ -97,34 +88,15 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 
 	if len(device.Peers) != 1 {
-		pc.tunnelMetrics.MetricsErrorHandler(
-			fmt.Errorf("error collecting wireguard metrics: gateway must have exactly 1 peer, it has %d", len(device.Peers)), ch)
+		err := fmt.Errorf("error collecting wireguard metrics: gateway must have exactly 1 peer, it has %d", len(device.Peers))
+		ch <- prometheus.NewInvalidMetric(tunnel.MetricsPeerReceivedBytes, err)
+		ch <- prometheus.NewInvalidMetric(tunnel.MetricsPeerTransmittedBytes, err)
 		return
 	}
 
 	peer := device.Peers[0]
 
 	labels := []string{driverLabelValue, pc.metricsOptions.RemoteClusterID}
-
-	ctx := context.WithoutCancel(context.Background())
-	conn, err := getters.GetConnectionByClusterIDInNamespace(ctx, pc.clientctrl,
-		pc.metricsOptions.RemoteClusterID, pc.metricsOptions.Namespace)
-	if err != nil {
-		pc.tunnelMetrics.MetricsErrorHandler(fmt.Errorf("error collecting wireguard metrics: %w", err), ch)
-		return
-	}
-
-	connected := isConnected(conn)
-	var result float64
-	if connected {
-		result = 1
-	}
-	ch <- prometheus.MustNewConstMetric(
-		tunnel.MetricsPeerIsConnected,
-		prometheus.GaugeValue,
-		result,
-		labels...,
-	)
 
 	ch <- prometheus.MustNewConstMetric(
 		tunnel.MetricsPeerReceivedBytes,
@@ -139,32 +111,4 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 		float64(peer.TransmitBytes),
 		labels...,
 	)
-
-	if connected {
-		latency, err := getLatency(conn)
-		if err != nil {
-			ch <- prometheus.NewInvalidMetric(tunnel.MetricsPeerLatency, err)
-		}
-		ch <- prometheus.MustNewConstMetric(
-			tunnel.MetricsPeerLatency,
-			prometheus.GaugeValue,
-			float64(latency.Microseconds()),
-			labels...,
-		)
-
-		tunnel.MetricsPeerLatencyHistogram.With(prometheus.Labels{
-			tunnel.MetricsLabels[0]: driverLabelValue,
-			tunnel.MetricsLabels[1]: pc.metricsOptions.RemoteClusterID,
-		}).Observe(float64(latency.Microseconds()))
-	}
-
-	tunnel.MetricsPeerLatencyHistogram.Collect(ch)
-}
-
-func isConnected(conn *networkingv1beta1.Connection) bool {
-	return conn.Status.Value == networkingv1beta1.Connected
-}
-
-func getLatency(conn *networkingv1beta1.Connection) (time.Duration, error) {
-	return time.ParseDuration(conn.Status.Latency.Value)
 }

@@ -31,14 +31,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/conncheck"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
-	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -74,9 +76,8 @@ func main() {
 	flagsutils.InitKlogFlags(cmd.Flags())
 	restcfg.InitFlags(cmd.Flags())
 
-	gwoptions := gateway.NewOptions()
 	connoptions = connection.NewOptions(
-		gwoptions,
+		gateway.NewOptions(),
 		conncheck.NewOptions(),
 	)
 
@@ -87,6 +88,7 @@ func main() {
 	}
 
 	connection.InitFlags(cmd.Flags(), connoptions)
+	conncheck.InitFlags(cmd.Flags(), connoptions.ConnCheckOptions)
 
 	// Register the flags for setting global labels and annotations
 	cmd.Flags().Var(&globalLabels, "global-labels", "Global labels to be added to all created resources (key=value)")
@@ -151,6 +153,7 @@ func run(cmd *cobra.Command, _ []string) error {
 			BindAddress: connoptions.GwOptions.MetricsAddress,
 		},
 		HealthProbeBindAddress: connoptions.GwOptions.ProbeAddr,
+		PprofBindAddress:       connoptions.GwOptions.PprofAddr,
 		LeaderElection:         connoptions.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.connections.liqo.io",
@@ -191,6 +194,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		if err = connr.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("unable to setup connections reconciler: %w", err)
 		}
+
+		// Register peer latency and connection metrics.
+		metrics.Registry.MustRegister(
+			tunnel.MetricsPeerLatency,
+			tunnel.MetricsPeerIsConnected,
+			tunnel.MetricsPeerLatencyHistogram,
+		)
 	}
 
 	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(

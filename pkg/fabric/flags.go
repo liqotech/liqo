@@ -58,6 +58,9 @@ const (
 	FlagNameGenevePort FlagName = "geneve-port"
 	// FlagNameGeneveCleanupInterval is the flag to set the Geneve cleanup interval.
 	FlagNameGeneveCleanupInterval FlagName = "geneve-cleanup-interval"
+
+	// FlagNameGenevePingPort is the UDP port for the geneve ping receiver.
+	FlagNameGenevePingPort FlagName = "geneve-ping-port"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -85,6 +88,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
 	flagset.DurationVar(&opts.GeneveCleanupInterval, FlagNameGeneveCleanupInterval.String(),
 		consts.DefaultGeneveCleanupInterval, "Geneve cleanup interval")
+	flagset.IntVar(&opts.ConnCheckOptions.PingPort, FlagNameGenevePingPort.String(), 12346,
+		"UDP port to listen on for geneve tunnel ping health checks (must match gateway geneve-ping-port)")
 }
 
 // MarkFlagsRequired marks the flags as required.

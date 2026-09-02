@@ -162,7 +162,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	klog.Infof("Successfully setup %d WireGuard interfaces", len(ports))
 
 	// Create the Prometheus collector and register it inside the controller-runtime metrics server.
-	promcollect, err := wireguard.NewPrometheusCollector(mgr.GetClient(), &wireguard.MetricsOptions{
+	promcollect, err := wireguard.NewPrometheusCollector(&wireguard.MetricsOptions{
 		RemoteClusterID:  options.GwOptions.RemoteClusterID,
 		Namespace:        options.GwOptions.Namespace,
 		WgImplementation: options.Implementation,
