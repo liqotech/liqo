@@ -71,7 +71,7 @@ var _ = Describe("ShadowPod Description", func() {
 				delete(peeringInfo.shadowPods, testShadowPodName)
 			})
 			It("should return a new one without errors", func() {
-				Expect(spDescription.running).To(BeTrue())
+				Expect(spDescription.active).To(BeTrue())
 				Expect(err).To(BeNil())
 			})
 		})
@@ -110,7 +110,7 @@ var _ = Describe("ShadowPod Description", func() {
 				peeringInfo.shadowPods[spNamespacedName.String()] = spDescriptionTest
 			})
 			It("should return a new running one without errors", func() {
-				Expect(spDescription.running).To(BeTrue())
+				Expect(spDescription.active).To(BeTrue())
 				Expect(err).To(BeNil())
 			})
 		})

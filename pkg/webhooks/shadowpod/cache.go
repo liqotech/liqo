@@ -115,16 +115,31 @@ func (pi *peeringInfo) alignTerminatingOrNotExistingShadowPods(shadowPodList *of
 	spMap := make(map[string]struct{})
 	// Check on all cluster ShadowPods and saving a list of them in a temporary map
 	for i := range shadowPodList.Items {
-		nsname := types.NamespacedName{Name: shadowPodList.Items[i].Name, Namespace: shadowPodList.Items[i].Namespace}
-		found := pi.checkAndAddShadowPods(&shadowPodList.Items[i], nsname)
+		sp := &shadowPodList.Items[i]
+		nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
+		found := pi.checkAndAddShadowPods(sp, nsname)
 		if !found {
 			klog.Warningf("Warning: ShadowPod %s not found in cache, added", nsname.String())
 		}
 		spMap[nsname.String()] = struct{}{}
+		// If the ShadowPod reached a terminal phase, release its quota even if it is still present
+		// in the cluster, so that completed/failed pods do not keep consuming resources.
+		if isTerminalPodPhase(sp.Status.Phase) {
+			pi.releaseTerminatedShadowPod(nsname)
+		}
 	}
 	klog.V(5).Infof("Searching for terminated ShadowPodDescription to be removed from cache")
 	// Alignment of all ShadowPodDescriptions in cache
 	pi.alignTerminatingShadowPodDescriptions(spMap)
+}
+
+// releaseTerminatedShadowPod releases the quota of the ShadowPodDescription identified by nsname if it is
+// currently active (i.e. its quota is still accounted). It is a no-op when the description does not exist
+// or has already been terminated.
+func (pi *peeringInfo) releaseTerminatedShadowPod(nsname types.NamespacedName) {
+	if spd, found := pi.shadowPods[nsname.String()]; found && spd.active {
+		pi.terminateShadowPod(spd)
+	}
 }
 
 func (pi *peeringInfo) alignTerminatingShadowPodDescriptions(spMap map[string]struct{}) {
@@ -132,7 +147,7 @@ func (pi *peeringInfo) alignTerminatingShadowPodDescriptions(spMap map[string]st
 		// Check if the ShadowPod is in terminating phase in cache and has been already terminated/deleted from the cluster
 		// if true ShadowPodDescription can be also deleted from the cache
 		if _, stillPresent := spMap[shadowPodDescription.namespacedName.String()]; !stillPresent {
-			if !shadowPodDescription.running {
+			if !shadowPodDescription.active {
 				pi.removeShadowPod(shadowPodDescription)
 				klog.V(5).Infof("ShadowPodDescription %s removed from cache", shadowPodDescription.namespacedName.String())
 			} else if time.Since(shadowPodDescription.creationTimestamp) > 30*time.Second {
@@ -160,7 +175,13 @@ func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *offloadingv1beta1.Shadow
 	if !found {
 		// Errors are intentionally ignored here.
 		spQuota, _ := getQuotaFromShadowPod(shadowPod, offloadingv1beta1.NoLimitsEnforcement)
-		pi.addShadowPod(createShadowPodDescription(shadowPod.GetName(), shadowPod.GetNamespace(), shadowPod.GetUID(), *spQuota))
+		spd := createShadowPodDescription(shadowPod.GetName(), shadowPod.GetNamespace(), shadowPod.GetUID(), *spQuota)
+		// Shadow pods in a terminal phase (Succeeded or Failed) are not consuming resources anymore,
+		// hence they must not be accounted in the used quota.
+		if isTerminalPodPhase(shadowPod.Status.Phase) {
+			spd.terminate()
+		}
+		pi.addShadowPod(spd)
 	}
 	return
 }
