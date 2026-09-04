@@ -52,7 +52,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 	return o.Options.Initialize(ctx)
 }
 
-// Values returns the customized provider-specifc values file parameters.
+// Values returns the customized provider-specific values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"networking": map[string]interface{}{
