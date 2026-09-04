@@ -126,8 +126,10 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	}
 
 	shadowEpsReconciler := &shadowepsctrl.Reconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		//nolint:staticcheck // matches the record.EventRecorder type used everywhere else in this codebase
+		Recorder:              mgr.GetEventRecorderFor("shadowendpointslice-controller"),
 		DenyDirectConnections: opts.DenyDirectConnections,
 	}
 	if err = shadowEpsReconciler.SetupWithManager(ctx, mgr, opts.ShadowEndpointSliceWorkers); err != nil {

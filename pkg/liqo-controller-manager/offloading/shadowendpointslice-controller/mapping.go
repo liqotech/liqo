@@ -64,36 +64,6 @@ func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 	return nil
 }
 
-// FilterOutDirectConnectionEndpoints returns the subset of endpoints that do not reference any
-// direct-connection address. An endpoint is dropped entirely if at least one of its addresses is
-// found in the direct connection index, i.e. it refers to a pod hosted on another provider and
-// reachable only through a direct provider-to-provider connection.
-func FilterOutDirectConnectionEndpoints(endpoints []discoveryv1.Endpoint,
-	index *directconnectioninfo.AddressIndex,
-) []discoveryv1.Endpoint {
-	if index == nil {
-		return endpoints
-	}
-
-	filtered := make([]discoveryv1.Endpoint, 0, len(endpoints))
-	for i := range endpoints {
-		isDirect := false
-		for _, addr := range endpoints[i].Addresses {
-			if _, found := index.LookupClusterID(addr); found {
-				isDirect = true
-				break
-			}
-		}
-		if isDirect {
-			klog.V(4).Infof("Dropping endpoint with addresses %v: direct connections are denied", endpoints[i].Addresses)
-			continue
-		}
-		filtered = append(filtered, endpoints[i])
-	}
-
-	return filtered
-}
-
 // MapOnlyDirectConnectionEndpoints remaps only the endpoint addresses that are found in the direct connection index.
 //
 // Unlike MapEndpointsWithConfiguration, it does not fall back to a local-cluster remapping for addresses

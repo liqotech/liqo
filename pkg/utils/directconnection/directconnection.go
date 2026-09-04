@@ -46,6 +46,15 @@ func (c *ClusterAddresses) Add(clusterID string, ips ...string) {
 	c.Clusters[clusterID] = append(c.Clusters[clusterID], ips...)
 }
 
+// ClusterIDs returns the IDs of the clusters for which direct-connection addresses are recorded.
+func (c *ClusterAddresses) ClusterIDs() []string {
+	ids := make([]string, 0, len(c.Clusters))
+	for clusterID := range c.Clusters {
+		ids = append(ids, clusterID)
+	}
+	return ids
+}
+
 // BuildIndex creates an IP-based lookup table from the marshaled data.
 func (c *ClusterAddresses) BuildIndex() *AddressIndex {
 	if c == nil || len(c.Clusters) == 0 {
