@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -107,9 +106,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = liqov1beta1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = networkingv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 
