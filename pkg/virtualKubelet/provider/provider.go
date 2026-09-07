@@ -16,12 +16,16 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -37,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/networkconfig"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/custom"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -66,6 +71,7 @@ type InitConfig struct {
 	InformerResyncPeriod time.Duration
 
 	ReflectorsConfigs map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig
+	CustomResources   []offloadingv1beta1.CustomResourceReflectorConfig
 
 	EnableAPIServerSupport          bool
 	EnableStorage                   bool
@@ -100,6 +106,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	remoteClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
+
+	var localDynamic, remoteDynamic dynamic.Interface
+	if len(cfg.CustomResources) > 0 {
+		localDynamic = dynamic.NewForConfigOrDie(cfg.LocalConfig)
+		remoteDynamic = dynamic.NewForConfigOrDie(cfg.RemoteConfig)
+	}
 
 	apiServerSupport := forge.APIServerSupportDisabled
 	if cfg.EnableAPIServerSupport {
@@ -149,7 +161,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	forgingOpts := forge.NewForgingOpts(cfg.OffloadingPatch)
 
-	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb, &forgingOpts).
+	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
+		localDynamic, remoteDynamic, cfg.InformerResyncPeriod, eb, &forgingOpts).
 		With(podreflector).
 		With(exposition.NewServiceReflector(ptr.To(cfg.ReflectorsConfigs[resources.Service]), cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
 		With(exposition.NewIngressReflector(ptr.To(cfg.ReflectorsConfigs[resources.Ingress]), cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
@@ -164,6 +177,25 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	if !cfg.DisableIPReflection {
 		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDRs, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
+	}
+
+	for i := range cfg.CustomResources {
+		cr := &cfg.CustomResources[i]
+		gvr := cr.GVR()
+		available, err := isGVRAvailable(localClient, gvr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to discover custom resource %s", gvr)
+		}
+		if !available {
+			klog.Warningf("Skipping custom resource reflector for %s: CRD not found in the local cluster", gvr)
+			continue
+		}
+		reflectionType := cr.Type
+		if reflectionType == "" {
+			reflectionType = offloadingv1beta1.AllowList
+		}
+		klog.Infof("Registering custom resource reflector for %s (workers=%d, type=%s)", gvr, cr.NumWorkers, reflectionType)
+		reflectionManager.With(custom.NewGVRReflector(gvr, &cr.ReflectorConfig))
 	}
 
 	reflectionManager.Start(ctx)
@@ -191,6 +223,25 @@ func isSATokenAPISupport(localClient kubernetes.Interface) (bool, error) {
 		}
 	}
 
+	return false, nil
+}
+
+// isGVRAvailable returns whether the given GVR is served by the cluster API.
+// A missing group/version (NotFound) means the CRD is absent. Other discovery
+// errors are returned so callers can fail closed instead of silently skipping.
+func isGVRAvailable(client kubernetes.Interface, gvr schema.GroupVersionResource) (bool, error) {
+	res, err := client.Discovery().ServerResourcesForGroupVersion(gvr.GroupVersion().String())
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("discover %s: %w", gvr.GroupVersion(), err)
+	}
+	for i := range res.APIResources {
+		if res.APIResources[i].Name == gvr.Resource {
+			return true, nil
+		}
+	}
 	return false, nil
 }
 

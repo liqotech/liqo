@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -153,6 +155,11 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	customResources, err := parseCustomResources(c.CustomResources)
+	if err != nil {
+		return err
+	}
+
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
 	ns := os.Getenv("POD_NAMESPACE")
@@ -194,6 +201,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		ReflectorsConfigs: reflectorsConfigs,
+		CustomResources:   customResources,
 
 		EnableAPIServerSupport:          c.EnableAPIServerSupport,
 		EnableStorage:                   c.EnableStorage,
@@ -382,11 +390,77 @@ func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1
 				reflectionType = offloadingv1beta1.ReflectionType(*c.ReflectorsType[string(*resource)])
 			}
 			if reflectionType != offloadingv1beta1.DenyList && reflectionType != offloadingv1beta1.AllowList {
-				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
+				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Admitted values: %q, %q",
 					reflectionType, *resource, offloadingv1beta1.DenyList, offloadingv1beta1.AllowList)
 			}
 		}
 		reflectorsConfigs[*resource] = offloadingv1beta1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
+}
+
+// defaultCustomResourceWorkers is the default number of workers for a custom resource reflector
+// when --custom-resource-reflection does not specify one.
+const defaultCustomResourceWorkers uint = 2
+
+// parseCustomResources parses --custom-resource-reflection flag values.
+// Format: group/version/resource[,workers[,type]]
+// Defaults: workers=defaultCustomResourceWorkers, type=AllowList.
+func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceReflectorConfig, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	result := make([]offloadingv1beta1.CustomResourceReflectorConfig, 0, len(values))
+	for _, value := range values {
+		parts := strings.Split(value, ",")
+		if len(parts) < 1 || parts[0] == "" {
+			return nil, fmt.Errorf("invalid custom-resource-reflection %q: expected group/version/resource[,workers[,type]]", value)
+		}
+
+		gvrParts := strings.SplitN(parts[0], "/", 3)
+		if len(gvrParts) != 3 {
+			return nil, fmt.Errorf("invalid custom-resource-reflection %q: GVR must be group/version/resource", value)
+		}
+		if gvrParts[0] == "" || gvrParts[1] == "" || gvrParts[2] == "" {
+			return nil, fmt.Errorf("invalid custom-resource-reflection %q: group, version and resource must be non-empty", value)
+		}
+
+		cfg := offloadingv1beta1.CustomResourceReflectorConfig{
+			Group:    gvrParts[0],
+			Version:  gvrParts[1],
+			Resource: gvrParts[2],
+			ReflectorConfig: offloadingv1beta1.ReflectorConfig{
+				NumWorkers: defaultCustomResourceWorkers,
+				Type:       offloadingv1beta1.AllowList,
+			},
+		}
+
+		if len(parts) >= 2 && parts[1] != "" {
+			workers, err := strconv.ParseUint(parts[1], 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid workers in custom-resource-reflection %q: %w", value, err)
+			}
+			if workers == 0 {
+				return nil, fmt.Errorf("invalid workers in custom-resource-reflection %q: must be >= 1 (omit the GVR to disable)", value)
+			}
+			cfg.NumWorkers = uint(workers)
+		}
+
+		if len(parts) >= 3 && parts[2] != "" {
+			reflectionType := offloadingv1beta1.ReflectionType(parts[2])
+			if reflectionType != offloadingv1beta1.DenyList && reflectionType != offloadingv1beta1.AllowList {
+				return nil, fmt.Errorf("reflection type %q is not valid for custom resource %s/%s/%s. Admitted values: %q, %q",
+					reflectionType, cfg.Group, cfg.Version, cfg.Resource, offloadingv1beta1.DenyList, offloadingv1beta1.AllowList)
+			}
+			cfg.Type = reflectionType
+		}
+
+		if len(parts) > 3 {
+			return nil, fmt.Errorf("invalid custom-resource-reflection %q: too many fields", value)
+		}
+
+		result = append(result, cfg)
+	}
+	return result, nil
 }

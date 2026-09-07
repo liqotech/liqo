@@ -67,4 +67,6 @@ const (
 	RemoteExternalCIDR VirtualKubeletOptsFlag = "--remote-external-cidr"
 	// RemoteExternalCIDRRemap is the flag used to specify the remote external CIDR as remapped by the local cluster.
 	RemoteExternalCIDRRemap VirtualKubeletOptsFlag = "--remote-external-cidr-remap"
+	// CustomResourceReflection is the flag used to configure reflection of a custom resource GVR.
+	CustomResourceReflection VirtualKubeletOptsFlag = "--custom-resource-reflection"
 )
