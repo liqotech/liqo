@@ -87,7 +87,7 @@ func health(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 
 	list.Kind = "APIResourceList"
 	list.GroupVersion = groupVersion
-	list.APIVersion = version
+	list.APIVersion = "v1"
 	list.APIResources = []metav1.APIResource{
 		{
 			Name:       "scrape/metrics",
