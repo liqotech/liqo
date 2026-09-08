@@ -217,7 +217,10 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// OFFLOADING MODULE
 	if opts.OffloadingEnabled {
-		offOpts := modules.NewOffloadingOption(clientset, clusterID, namespaceManager, opts)
+		offOpts, err := modules.NewOffloadingOption(clientset, clusterID, namespaceManager, opts)
+		if err != nil {
+			return fmt.Errorf("creating the offloading module options: %w", err)
+		}
 
 		if err := modules.SetupOffloadingModule(cmd.Context(), mgr, offOpts); err != nil {
 			return fmt.Errorf("unable to setup the offloading module: %w", err)

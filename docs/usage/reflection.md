@@ -54,7 +54,7 @@ To modify the list of not-reflected labels/annotations if Liqo is already instal
 
 * Set the [`OffloadingPatch`](OffloadingPatch) of the individual virtual nodes using the fields `spec.offloadingPatch.labelsNotReflected` and `spec.offloadingPatch.annotationsNotReflected`.
 * Reference a custom [`VkOptionsTemplate`](VkOptionsTemplate) CR in the virtual node spec.
-* Patch the default [`VkOptionsTemplate`](VkOptionsTemplate) CR or upgrade Liqo with the new Helm values (but keep in mind that existing virtual nodes will not be updated dynamically, so you should unpeer first and peer again to apply the new changes to existing peers).
+* Patch the default [`VkOptionsTemplate`](VkOptionsTemplate) CR or upgrade Liqo with the new Helm values (the changes are automatically propagated to the existing virtual nodes, whose *virtual-kubelet* deployment is updated accordingly).
 
 (UsageReflectionPods)=
 

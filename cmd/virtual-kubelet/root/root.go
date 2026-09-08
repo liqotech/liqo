@@ -105,25 +105,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	eb := record.NewBroadcaster()
 	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
 
-	// active-passive leader election; blocking leader election.
-	// here we have multiple virtual kubelet pods running for the same virtual node.
-	// We want to avoid that multiple virtual kubelet pods reflect the same resources.
-	if leader, err := leaderelection.Blocking(ctx, localConfig, eb, &leaderelection.Opts{
-		PodInfo: leaderelection.PodInfo{
-			PodName:   c.PodName,
-			Namespace: c.TenantNamespace,
-		},
-		LeaderElectorName: c.NodeName,
-		LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
-		RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,
-		RetryPeriod:       c.VirtualKubeletLeaseRetryPeriod,
-	}); err != nil {
-		return err
-	} else if !leader {
-		klog.Error("This virtual-kubelet is not the leader")
-		os.Exit(1)
-	}
-
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient, cl.Scheme()) // Do not use the cached version, as leveraged only once.
 	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
@@ -153,7 +134,35 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	// Get virtual node
+	// Start the health server before the leader election: the server being up certifies that
+	// the startup succeeded, so that also virtual-kubelets waiting to acquire the leadership
+	// (hence not reconciling yet) report themselves as ready.
+	go setupHealthServer()
+
+	// active-passive leader election; blocking leader election.
+	// here we have multiple virtual kubelet pods running for the same virtual node.
+	// We want to avoid that multiple virtual kubelet pods reflect the same resources.
+	leader, err := leaderelection.Blocking(ctx, localConfig, eb, &leaderelection.Opts{
+		PodInfo: leaderelection.PodInfo{
+			PodName:   c.PodName,
+			Namespace: c.TenantNamespace,
+		},
+		LeaderElectorName: c.NodeName,
+		LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
+		RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,
+		RetryPeriod:       c.VirtualKubeletLeaseRetryPeriod,
+	})
+	if err != nil {
+		return fmt.Errorf("blocking leader election failed: %w", err)
+	}
+	if !leader {
+		klog.Error("This virtual-kubelet is not the leader")
+		os.Exit(1)
+	}
+
+	// Retrieve the virtual node and the network configuration only after the leadership has
+	// been acquired, so that replicas which waited a long time to become leaders do not
+	// consume stale objects.
 	vnName := os.Getenv("VIRTUALNODE_NAME")
 	ns := os.Getenv("POD_NAMESPACE")
 	var vn offloadingv1beta1.VirtualNode
@@ -208,7 +217,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		HomeAPIServerHost: c.HomeAPIServerHost,
 		HomeAPIServerPort: c.HomeAPIServerPort,
 
-		OffloadingPatch: vn.Spec.OffloadingPatch,
+		OffloadingPatch: effectiveOffloadingPatch(&vn),
 
 		NetConfiguration: netConfiguration,
 	}
@@ -389,4 +398,14 @@ func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1
 		reflectorsConfigs[*resource] = offloadingv1beta1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
+}
+
+// effectiveOffloadingPatch returns the offloading patch to enforce, preferring the
+// effective one published in the status by the controller, and falling back to the
+// spec one for VirtualNodes reconciled by older controller versions.
+func effectiveOffloadingPatch(vn *offloadingv1beta1.VirtualNode) *offloadingv1beta1.OffloadingPatch {
+	if vn.Status.EffectiveOffloadingPatch != nil {
+		return vn.Status.EffectiveOffloadingPatch
+	}
+	return vn.Spec.OffloadingPatch
 }

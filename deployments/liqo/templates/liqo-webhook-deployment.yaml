@@ -1,5 +1,4 @@
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook" "version" .Values.webhook.image.version) .) -}}
-{{- $kubeletConfig := (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -51,18 +50,9 @@ spec:
           {{- if gt .Values.webhook.replicas 1.0 }}
           - --enable-leader-election=true
           {{- end }}
-          - --cluster-id=$(CLUSTER_ID)
           - --liqo-namespace=$(POD_NAMESPACE)
           - --secret-name={{ include "liqo.prefixedName" $webhookConfig }}-certs
           - --liqo-runtime-class={{ .Values.offloading.runtimeClass.name }}
-          {{- if .Values.ipam.podCIDRs }}
-          {{- range $cidr := .Values.ipam.podCIDRs }}
-          - --podcidr={{ $cidr }}
-          {{- end }}
-          {{- else if .Values.ipam.podCIDR }}
-          - --podcidr={{ .Values.ipam.podCIDR }}
-          {{- end }}
-          - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}

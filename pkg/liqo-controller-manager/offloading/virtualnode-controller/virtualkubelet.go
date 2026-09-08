@@ -19,42 +19,64 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	k8strings "k8s.io/utils/strings"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/utils/resource"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
 )
 
 const offloadingPatchHashAnnotation = "liqo.io/offloading-patch-hash"
 
-// createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
+// getVkOptionsTemplate returns the VkOptionsTemplate referenced by the given VirtualNode,
+// falling back to the default one when no explicit reference is set.
+func (r *VirtualNodeReconciler) getVkOptionsTemplate(ctx context.Context,
+	virtualNode *offloadingv1beta1.VirtualNode) (*offloadingv1beta1.VkOptionsTemplate, error) {
+	ref := virtualNode.Spec.VkOptionsTemplateRef
+	if ref == nil {
+		ref = r.VkOptsDefaultTemplate
+	}
+	if ref == nil {
+		r.EventsRecorder.Event(virtualNode, "Warning", "NoVkOptionsTemplate",
+			"No VkOptionsTemplate reference set on this virtual node, and no default template configured on the controller")
+		return nil, fmt.Errorf("no VkOptionsTemplate reference set on the virtual-node %q, and no default configured",
+			client.ObjectKeyFromObject(virtualNode))
+	}
+
+	refKey := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+	vkOpts := &offloadingv1beta1.VkOptionsTemplate{}
+	if err := r.Get(ctx, refKey, vkOpts); err != nil {
+		return nil, fmt.Errorf("getting the VkOptionsTemplate %q: %w", refKey, err)
+	}
+	return vkOpts, nil
+}
+
+// ensureVirtualKubeletDeploymentPresence creates or updates the VirtualKubelet Deployment,
+// deterministically forging it from the given VirtualNode and VkOptionsTemplate.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
-	ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode) (err error) {
+	ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode,
+	vkOpts *offloadingv1beta1.VkOptionsTemplate) (err error) {
 	var nodeStatusInitial offloadingv1beta1.VirtualNodeConditionStatusType
-	if *virtualNode.Spec.CreateNode {
+	if vkforge.EffectiveCreateNode(virtualNode, vkOpts) {
 		nodeStatusInitial = offloadingv1beta1.CreatingConditionStatusType
 	} else {
 		nodeStatusInitial = offloadingv1beta1.NoneConditionStatusType
 	}
 	defer func() {
 		if interr := r.Client.Status().Update(ctx, virtualNode); interr != nil {
-			if err != nil {
-				klog.Error(err)
-			}
-			err = fmt.Errorf("error updating virtual node status: %w", interr)
+			err = errors.Join(err, fmt.Errorf("updating virtual node status: %w", interr))
 		}
 	}()
 
@@ -67,47 +89,82 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		},
 	)
 
+	// Publish the effective offloading patch (the spec's one with the NotReflected lists
+	// merged with the VkOptionsTemplate ones) in the status: the virtual-kubelet reads it
+	// at startup, preferring it over the spec one.
+	virtualNode.Status.EffectiveOffloadingPatch = vkforge.EffectiveOffloadingPatch(virtualNode, vkOpts)
+	// Publish the effective createNode and disableNetworkCheck values (defaulting to the
+	// VkOptionsTemplate ones when not set in the spec) in the status, for observability.
+	virtualNode.Status.EffectiveCreateNode = ptr.To(vkforge.EffectiveCreateNode(virtualNode, vkOpts))
+	virtualNode.Status.EffectiveDisableNetworkCheck = ptr.To(vkforge.EffectiveDisableNetworkCheck(virtualNode, vkOpts))
+
 	namespace := virtualNode.Namespace
 	name := virtualNode.Name
 	remoteClusterID := virtualNode.Spec.ClusterID
-	// create the base resources
-	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace, name)
+
+	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(virtualNode)
 	var op controllerutil.OperationResult
 	op, err = resource.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
+		// Set the VirtualNode as controller owner, so that the garbage collector deletes
+		// the ServiceAccount upon VirtualNode deletion.
+		if err := controllerutil.SetControllerReference(virtualNode, vkServiceAccount, r.Scheme); err != nil {
+			return fmt.Errorf("setting the owner reference on the virtual-kubelet ServiceAccount: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("enforcing virtual-kubelet ServiceAccount: %w", err)
 	}
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
 		remoteClusterID, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, name, remoteClusterID)
-	op, err = resource.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
-		return nil
-	})
+	vkClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: vkforge.VirtualKubeletClusterRoleBindingName(name),
+		},
+	}
+	op, err = resource.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding,
+		vkforge.VirtualKubeletClusterRoleBindingMutateFn(vkClusterRoleBinding, virtualNode))
 	if err != nil {
-		return err
+		return fmt.Errorf("enforcing virtual-kubelet ClusterRoleBinding: %w", err)
 	}
 
 	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s",
 		remoteClusterID, vkClusterRoleBinding.Name, op)
 
-	// forge the virtual Kubelet Deployment
+	// forge the VirtualKubelet Deployment from the VirtualNode and the VkOptionsTemplate.
+	forgedDeployment := vkforge.VirtualKubeletDeployment(r.HomeClusterID, r.LiqoNamespace, r.LocalPodCIDRs, virtualNode, vkOpts)
 	vkDeployment := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      virtualNode.Spec.Template.GetName(),
-			Namespace: virtualNode.Spec.Template.GetNamespace(),
+			Name:      forgedDeployment.Name,
+			Namespace: forgedDeployment.Namespace,
 		},
 	}
 	op, err = resource.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
-		vkDeployment.Annotations = labels.Merge(vkDeployment.Annotations, virtualNode.Spec.Template.ObjectMeta.GetAnnotations())
-		vkDeployment.Labels = labels.Merge(vkDeployment.Labels, virtualNode.Spec.Template.ObjectMeta.GetLabels())
+		mapsutil.SmartMergeLabels(&vkDeployment, forgedDeployment.Labels)
+		mapsutil.SmartMergeAnnotations(&vkDeployment, forgedDeployment.Annotations)
 
-		vkDeployment.Spec = *virtualNode.Spec.Template.Spec.DeepCopy()
+		// Preserve the pod template annotations and the paused flag, which are not managed
+		// by the forge (e.g., the kubectl.kubernetes.io/restartedAt annotation added by
+		// `kubectl rollout restart`, and `kubectl rollout pause`), before enforcing the
+		// forged spec: reverting them would fight the operators' rollout actions.
+		templateAnnotations := vkDeployment.Spec.Template.Annotations
+		paused := vkDeployment.Spec.Paused
+		vkDeployment.Spec = *forgedDeployment.Spec.DeepCopy() // this override the whole spec
+		vkDeployment.Spec.Paused = paused
+		vkDeployment.Spec.Template.Annotations = templateAnnotations
+		mapsutil.SmartMergeAnnotations(&vkDeployment.Spec.Template.ObjectMeta, forgedDeployment.Spec.Template.Annotations)
 
-		// Add the hash of the offloading patch as annotation
-		opHash, err := offloadingPatchHash(virtualNode.Spec.OffloadingPatch)
+		// Set the VirtualNode as controller owner, to ensure garbage collection
+		// even in case the finalizer is not correctly removed.
+		if err := controllerutil.SetControllerReference(virtualNode, &vkDeployment, r.Scheme); err != nil {
+			return fmt.Errorf("setting the owner reference on the virtual-kubelet Deployment: %w", err)
+		}
+
+		// Add the hash of the effective offloading patch as annotation, to restart the
+		// virtual-kubelet whenever the fields read at startup change (including the
+		// NotReflected lists contributed by the VkOptionsTemplate).
+		opHash, err := offloadingPatchHash(virtualNode.Status.EffectiveOffloadingPatch)
 		if err != nil {
 			return err
 		}
@@ -119,7 +176,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("enforcing virtual-kubelet Deployment: %w", err)
 	}
 	klog.V(5).Infof("[%v] Deployment %s/%s reconciled: %s",
 		remoteClusterID, vkDeployment.Namespace, vkDeployment.Name, op)
@@ -138,7 +195,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 			},
 		})
 
-	if *virtualNode.Spec.CreateNode {
+	if vkforge.EffectiveCreateNode(virtualNode, vkOpts) {
 		ForgeCondition(virtualNode,
 			VnConditionMap{
 				offloadingv1beta1.NodeConditionType: VnCondition{
@@ -171,7 +228,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		return err
 	}
 
-	crbName := k8strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, virtualNode.Name), 253)
+	crbName := vkforge.VirtualKubeletClusterRoleBindingName(virtualNode.Name)
 	err = r.Client.Delete(ctx, &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
 		Name: crbName,
 	}})
@@ -180,12 +237,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 	}
 	klog.Info(fmt.Sprintf("[%v] Deleted virtual-kubelet CRB %s", virtualNode.Spec.ClusterID, crbName))
 
-	err = r.Client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{
-		Name: virtualNode.Name, Namespace: virtualNode.Namespace,
-	}})
-	if client.IgnoreNotFound(err) != nil {
-		return err
-	}
+	// The ServiceAccount is garbage collected by the owner reference, no need to delete it.
 
 	return nil
 }
@@ -197,8 +249,7 @@ func offloadingPatchHash(offloadingPatch *offloadingv1beta1.OffloadingPatch) (st
 
 	opString, err := json.Marshal(offloadingPatch)
 	if err != nil {
-		klog.Error(err)
-		return "", err
+		return "", fmt.Errorf("marshaling offloading patch: %w", err)
 	}
 
 	opHash := sha256.Sum256(opString)

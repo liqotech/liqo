@@ -53,4 +53,9 @@ const (
 	// ForeignClusterPermanentlyUnreachableAnnotationKey is the annotation used to signal that the foreign cluster is not reachable and it will
 	// never come up.
 	ForeignClusterPermanentlyUnreachableAnnotationKey = "liqo.io/foreign-cluster-permanently-unreachable"
+
+	// SkipVkDeploymentAnnotation is the annotation used to signal that the virtual-kubelet
+	// deployment (and its supporting resources) must not be created by the controller,
+	// as it is managed externally.
+	SkipVkDeploymentAnnotation = "liqo.io/skip-vk-deployment"
 )

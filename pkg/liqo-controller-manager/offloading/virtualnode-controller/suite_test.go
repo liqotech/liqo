@@ -69,12 +69,18 @@ var (
 
 	nms *offloadingv1beta1.NamespaceMapList
 
-	virtualNode1     *offloadingv1beta1.VirtualNode
-	virtualNode2     *offloadingv1beta1.VirtualNode
-	simpleNode       *corev1.Node
-	tenantNamespace1 *corev1.Namespace
-	tenantNamespace2 *corev1.Namespace
-	namespaceManager tenantnamespace.Manager
+	defaultVkOptsTemplate *offloadingv1beta1.VkOptionsTemplate
+	virtualNode1          *offloadingv1beta1.VirtualNode
+	virtualNode2          *offloadingv1beta1.VirtualNode
+	simpleNode            *corev1.Node
+	tenantNamespace1      *corev1.Namespace
+	tenantNamespace2      *corev1.Namespace
+	namespaceManager      tenantnamespace.Manager
+)
+
+const (
+	liqoNamespace     = "liqo"
+	defaultVkOptsName = "default-vk-opts"
 )
 
 func TestVirtualNode(t *testing.T) {
@@ -124,12 +130,20 @@ var _ = BeforeSuite(func() {
 		k8sClient,
 		scheme.Scheme,
 		k8sManager.GetEventRecorderFor("virtualnode-controller"),
-		localID,
 		namespaceManager,
+		VirtualNodeReconcilerOptions{
+			HomeClusterID: localID,
+			LiqoNamespace: liqoNamespace,
+			LocalPodCIDRs: []string{"10.0.0.0/16"},
+			VkOptsDefaultTemplate: &corev1.ObjectReference{
+				Namespace: liqoNamespace,
+				Name:      defaultVkOptsName,
+			},
+		},
 	)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (vnr).SetupWithManager(k8sManager)
+	err = (vnr).SetupWithManager(ctx, k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
@@ -138,6 +152,22 @@ var _ = BeforeSuite(func() {
 	}()
 
 	nms = &offloadingv1beta1.NamespaceMapList{}
+
+	// create the namespace hosting the default VkOptionsTemplate, and the template itself
+	liqoNs := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: liqoNamespace}}
+	err = k8sClient.Create(ctx, liqoNs)
+	Expect(err).ToNot(HaveOccurred())
+
+	defaultVkOptsTemplate = &offloadingv1beta1.VkOptionsTemplate{
+		ObjectMeta: metav1.ObjectMeta{Name: defaultVkOptsName, Namespace: liqoNamespace},
+		Spec: offloadingv1beta1.VkOptionsTemplateSpec{
+			CreateNode:          true,
+			DisableNetworkCheck: false,
+			ContainerImage:      "liqo/virtual-kubelet:test",
+		},
+	}
+	err = k8sClient.Create(ctx, defaultVkOptsTemplate)
+	Expect(err).ToNot(HaveOccurred())
 
 	// create the 2 tenant namespace
 	tenantNamespace1, err = namespaceManager.CreateNamespace(ctx, remoteClusterID1)
