@@ -97,15 +97,16 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	authOpts := func(c *nodeutil.WebhookAuthConfig) error {
 		// Load the cluster CA PEM bytes to create a CA content provider for client cert verification.
 		var caData []byte
-		if len(localConfig.CAData) > 0 {
+		switch {
+		case len(localConfig.CAData) > 0:
 			caData = localConfig.CAData
-		} else if localConfig.CAFile != "" {
+		case localConfig.CAFile != "":
 			var readErr error
 			caData, readErr = os.ReadFile(localConfig.CAFile)
 			if readErr != nil {
 				return fmt.Errorf("failed to read CA file %q: %w", localConfig.CAFile, readErr)
 			}
-		} else {
+		default:
 			return fmt.Errorf("no cluster CA available in the local rest config")
 		}
 

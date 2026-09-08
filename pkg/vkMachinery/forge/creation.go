@@ -117,7 +117,42 @@ func VirtualKubeletClusterRoleBindingMutateFn(crb *rbacv1.ClusterRoleBinding, vi
 		// ServiceAccount name) are preserved and virtual-kubelets from older versions keep their permissions during the rollout.
 		sa := VirtualKubeletServiceAccount(virtualNode)
 		desiredSubject := rbacv1.Subject{
-			Kind:      "ServiceAccount",
+			Kind:      "ServiceAccount", //nolint:goconst // only two occurrences, keeping the RBAC kind inline reads better
+			APIGroup:  "",
+			Name:      sa.Name,
+			Namespace: sa.Namespace,
+		}
+		if !slices.Contains(crb.Subjects, desiredSubject) {
+			crb.Subjects = append(crb.Subjects, desiredSubject)
+		}
+
+		return nil
+	}
+}
+
+// VirtualKubeletAuthDelegatorClusterRoleBindingName returns the name of the auth-delegator
+// ClusterRoleBinding of a VirtualKubelet.
+func VirtualKubeletAuthDelegatorClusterRoleBindingName(virtualNodeName string) string {
+	return strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.AuthDelegatorCRBPrefix, virtualNodeName), 253)
+}
+
+// VirtualKubeletAuthDelegatorClusterRoleBindingMutateFn returns a mutate function enforcing the
+// desired state on the given auth-delegator ClusterRoleBinding.
+func VirtualKubeletAuthDelegatorClusterRoleBindingMutateFn(crb *rbacv1.ClusterRoleBinding,
+	virtualNode *offloadingv1beta1.VirtualNode) func() error {
+	return func() error {
+		crb.Labels = labels.Merge(crb.Labels, ClusterRoleLabels(virtualNode.Spec.ClusterID))
+		crb.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "system:auth-delegator",
+		}
+
+		// The desired subject is added without removing the existing ones, so that legacy subjects (targeting the previous
+		// ServiceAccount name) are preserved and virtual-kubelets from older versions keep their permissions during the rollout.
+		sa := VirtualKubeletServiceAccount(virtualNode)
+		desiredSubject := rbacv1.Subject{
+			Kind:      "ServiceAccount", //nolint:goconst // only two occurrences, keeping the RBAC kind inline reads better
 			APIGroup:  "",
 			Name:      sa.Name,
 			Namespace: sa.Namespace,
@@ -133,26 +168,6 @@ func VirtualKubeletClusterRoleBindingMutateFn(crb *rbacv1.ClusterRoleBinding, vi
 // VirtualKubeletServiceAccountName returns the name of the ServiceAccount of a VirtualKubelet.
 func VirtualKubeletServiceAccountName(virtualNodeName string) string {
 	return vkNamePrefix + virtualNodeName
-}
-
-// VirtualKubeletAuthDelegatorClusterRoleBinding forges a ClusterRoleBinding binding the virtual kubelet
-// service account to the built-in system:auth-delegator role.
-func VirtualKubeletAuthDelegatorClusterRoleBinding(kubeletNamespace, kubeletName string,
-	remoteCluster liqov1beta1.ClusterID) *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.AuthDelegatorCRBPrefix, kubeletName), 253),
-			Labels: ClusterRoleLabels(remoteCluster),
-		},
-		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: rbacv1.GroupName,
-			Kind:     "ClusterRole",
-			Name:     "system:auth-delegator",
-		},
-	}
 }
 
 // VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
