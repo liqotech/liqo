@@ -17,22 +17,19 @@ package virtualnodectrl
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -40,12 +37,15 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
+	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const (
 	// virtualNodeControllerFinalizer is the finalizer added to virtual-node to allow the controller to clean up.
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
+	// vkOptionsTemplateRefIndexField is the field used to index the VirtualNodes by the referenced VkOptionsTemplate.
+	vkOptionsTemplateRefIndexField = "spec.vkOptionsTemplateRef"
 )
 
 // VirtualNodeReconciler manage NamespaceMap lifecycle.
@@ -54,32 +54,48 @@ type VirtualNodeReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	HomeClusterID    liqov1beta1.ClusterID
+	HomeClusterID         liqov1beta1.ClusterID
+	LiqoNamespace         string
+	LocalPodCIDRs         []string
+	VkOptsDefaultTemplate *corev1.ObjectReference
+
 	namespaceManager tenantnamespace.Manager
 	dr               *DeletionRoutine
+}
+
+// VirtualNodeReconcilerOptions contains the options to create a new VirtualNodeReconciler.
+type VirtualNodeReconcilerOptions struct {
+	HomeClusterID         liqov1beta1.ClusterID
+	LiqoNamespace         string
+	LocalPodCIDRs         []string
+	VkOptsDefaultTemplate *corev1.ObjectReference
 }
 
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
 func NewVirtualNodeReconciler(
 	ctx context.Context,
 	cl client.Client,
-	s *runtime.Scheme, er record.EventRecorder,
-	hci liqov1beta1.ClusterID,
+	s *runtime.Scheme,
+	er record.EventRecorder,
 	namespaceManager tenantnamespace.Manager,
+	opts VirtualNodeReconcilerOptions,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
 
-		HomeClusterID:    hci,
+		HomeClusterID:         opts.HomeClusterID,
+		LiqoNamespace:         opts.LiqoNamespace,
+		LocalPodCIDRs:         opts.LocalPodCIDRs,
+		VkOptsDefaultTemplate: opts.VkOptsDefaultTemplate,
+
 		namespaceManager: namespaceManager,
 	}
 	var err error
 	vnr.dr, err = RunDeletionRoutine(ctx, vnr)
 	if err != nil {
-		klog.Errorf("Unable to run the deletion routine: %s", err)
-		return nil, err
+		return nil, fmt.Errorf("running virtualnode deletion routine: %w", err)
 	}
 	return vnr, nil
 }
@@ -89,6 +105,7 @@ func NewVirtualNodeReconciler(
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=vkoptionstemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
@@ -120,13 +137,37 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to create the virtual-kubelet deployment: %w", err)
+	// The embedded deployment template is deprecated: the deployment is now deterministically
+	// forged from the VkOptionsTemplate at every reconcile. Remove the legacy field if set.
+	if virtualNode.Spec.Template != nil { //nolint:staticcheck // reading the deprecated field to clear it
+		if err := r.clearLegacyTemplate(ctx, virtualNode); err != nil {
+			return ctrl.Result{}, fmt.Errorf("clearing legacy template: %w", err)
+		}
 	}
-	if !*virtualNode.Spec.CreateNode {
-		// If the virtual-node is not enabled, it deletes the node but not the virtual-node resource.
-		if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to delete the node: %w", err)
+
+	// Resolve the VkOptionsTemplate referenced by the VirtualNode, defaulting to the configured one.
+	vkOpts, err := r.getVkOptionsTemplate(ctx, virtualNode)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("resolving the VkOptionsTemplate: %w", err)
+	}
+
+	// If the VirtualNode is annotated to skip the virtual-kubelet deployment, only the
+	// meta-management (finalizer, NamespaceMap) is performed: the deployment (and its
+	// supporting resources) is expected to be managed externally.
+	skipVkDeployment := virtualNode.Annotations != nil &&
+		virtualNode.Annotations[consts.SkipVkDeploymentAnnotation] != "" &&
+		!strings.EqualFold(virtualNode.Annotations[consts.SkipVkDeploymentAnnotation], "false")
+	if skipVkDeployment {
+		klog.V(4).Infof("Skipping the virtual-kubelet deployment for the annotated virtual-node %q", req.NamespacedName)
+	} else {
+		if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode, vkOpts); err != nil {
+			return ctrl.Result{}, fmt.Errorf("ensuring virtual-kubelet deployment presence: %w", err)
+		}
+		if !vkforge.EffectiveCreateNode(virtualNode, vkOpts) {
+			// If the virtual-node is not enabled, it deletes the node but not the virtual-node resource.
+			if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
+				return ctrl.Result{}, fmt.Errorf("deleting the node: %w", err)
+			}
 		}
 	}
 
@@ -135,28 +176,6 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
-}
-
-func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	rli.Add(
-		reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      dep.Labels[consts.VirtualNodeLabel],
-				Namespace: dep.Namespace,
-			},
-		},
-	)
-}
-
-var deploymentHandler = &handler.Funcs{
-	DeleteFunc: func(_ context.Context, de event.TypedDeleteEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-		dep := de.Object.(*appsv1.Deployment)
-		enqueFromDeployment(dep, trli)
-	},
-	UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-		dep := ue.ObjectNew.(*appsv1.Deployment)
-		enqueFromDeployment(dep, trli)
-	},
 }
 
 func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
@@ -189,19 +208,79 @@ func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 		})
 }
 
-// SetupWithManager register the VirtualNodeReconciler to the manager.
-func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// select virtual kubelet deployments only
-	deployPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: vkMachinery.KubeletBaseLabels,
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
+// clearLegacyTemplate removes the deprecated embedded deployment template from the given VirtualNode.
+func (r *VirtualNodeReconciler) clearLegacyTemplate(ctx context.Context, virtualNode *offloadingv1beta1.VirtualNode) error {
+	virtualNode.Spec.Template = nil //nolint:staticcheck // clearing the deprecated field
+	if err := r.Update(ctx, virtualNode); err != nil {
+		return fmt.Errorf("updating virtual node %q: %w", client.ObjectKeyFromObject(virtualNode), err)
 	}
+
+	klog.Infof("Removed the legacy deployment template from virtual-node %q", client.ObjectKeyFromObject(virtualNode))
+	r.EventsRecorder.Event(virtualNode, "Normal", "LegacyTemplateRemoved", "The legacy deployment template has been removed")
+
+	return nil
+}
+
+// vkOptionsTemplateRefIndexer returns the indexer function that maps each VirtualNode to
+// the key of the VkOptionsTemplate it references, falling back to the configured default
+// one when no explicit reference is set.
+func (r *VirtualNodeReconciler) vkOptionsTemplateRefIndexer() client.IndexerFunc {
+	return func(rawObj client.Object) []string {
+		virtualNode, ok := rawObj.(*offloadingv1beta1.VirtualNode)
+		if !ok {
+			return nil
+		}
+		ref := virtualNode.Spec.VkOptionsTemplateRef
+		if ref == nil {
+			ref = r.VkOptsDefaultTemplate
+		}
+		if ref == nil {
+			return nil
+		}
+		return []string{types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}.String()}
+	}
+}
+
+// enqueueFromVkOptionsTemplate enqueues the VirtualNodes affected by a change of the given VkOptionsTemplate.
+func (r *VirtualNodeReconciler) enqueueFromVkOptionsTemplate() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, o client.Object) []reconcile.Request {
+			vkOpts, ok := o.(*offloadingv1beta1.VkOptionsTemplate)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			key := client.ObjectKeyFromObject(vkOpts).String()
+			virtualnodes := &offloadingv1beta1.VirtualNodeList{}
+			if err := r.List(ctx, virtualnodes,
+				client.MatchingFields{vkOptionsTemplateRefIndexField: key}); err != nil {
+				klog.Errorf("listing virtualnodes referencing the VkOptionsTemplate %q: %v", key, err)
+				return []reconcile.Request{}
+			}
+
+			requests := make([]reconcile.Request, 0, len(virtualnodes.Items))
+			for i := range virtualnodes.Items {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&virtualnodes.Items[i]),
+				})
+			}
+			return requests
+		})
+}
+
+// SetupWithManager register the VirtualNodeReconciler to the manager.
+func (r *VirtualNodeReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	// Index the VirtualNodes by the referenced VkOptionsTemplate, to react to template changes.
+	if err := indexer.IndexField(ctx, mgr, &offloadingv1beta1.VirtualNode{},
+		vkOptionsTemplateRefIndexField, r.vkOptionsTemplateRefIndexer()); err != nil {
+		return fmt.Errorf("setting up the VkOptionsTemplate reference indexer: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlVirtualNode).
 		For(&offloadingv1beta1.VirtualNode{}).
-		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.ServiceAccount{}).
+		Watches(&offloadingv1beta1.VkOptionsTemplate{}, r.enqueueFromVkOptionsTemplate()).
 		Watches(&offloadingv1beta1.NamespaceMap{}, r.enqueFromNamespaceMap()).
 		Complete(r)
 }

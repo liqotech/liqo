@@ -16,10 +16,13 @@ package forge
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -68,12 +71,17 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1beta1.LoadBalancerT
 
 func forgeVKContainers(
 	homeCluster, remoteCluster liqov1beta1.ClusterID,
-	nodeName, vkNamespace, liqoNamespace string, localPodCIDRs []string,
-	storageClasses []liqov1beta1.StorageType, ingressClasses []liqov1beta1.IngressType, loadBalancerClasses []liqov1beta1.LoadBalancerType,
+	vkNamespace, liqoNamespace string, localPodCIDRs []string,
+	virtualNode *offloadingv1beta1.VirtualNode,
 	opts *offloadingv1beta1.VkOptionsTemplate) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
+
+	nodeName := virtualNode.Name
+	storageClasses := virtualNode.Spec.StorageClasses
+	ingressClasses := virtualNode.Spec.IngressClasses
+	loadBalancerClasses := virtualNode.Spec.LoadBalancerClasses
 
 	args := []string{
 		StringifyArgument(string(ForeignClusterID), string(remoteCluster)),
@@ -86,6 +94,14 @@ func forgeVKContainers(
 	for i := range localPodCIDRs {
 		args = append(args, StringifyArgument(string(LocalPodCIDR), localPodCIDRs[i]))
 	}
+
+	if virtualNode.Spec.KubeconfigSecretRef != nil && virtualNode.Spec.KubeconfigSecretRef.Name != "" {
+		args = append(args, StringifyArgument(string(ForeignClusterKubeconfigSecretName), virtualNode.Spec.KubeconfigSecretRef.Name))
+	}
+	args = append(args,
+		StringifyArgument(string(CreateNode), strconv.FormatBool(EffectiveCreateNode(virtualNode, opts))),
+		StringifyArgument(string(NodeCheckNetwork), strconv.FormatBool(!EffectiveDisableNetworkCheck(virtualNode, opts))),
+	)
 
 	if len(storageClasses) > 0 {
 		args = append(args, string(EnableStorage),
@@ -167,8 +183,66 @@ func forgeVKContainers(
 				},
 			},
 			Ports: containerPorts,
+			// The readiness probe only asserts that the virtual-kubelet started correctly
+			// (i.e., the arguments have been parsed), not that it is reconciling.
+			ReadinessProbe: &v1.Probe{
+				ProbeHandler: v1.ProbeHandler{
+					HTTPGet: &v1.HTTPGetAction{
+						Path: "/readyz",
+						Port: intstr.FromInt32(vk.HealthPort),
+					},
+				},
+				InitialDelaySeconds: 2,
+				PeriodSeconds:       5,
+				TimeoutSeconds:      1,
+				FailureThreshold:    3,
+			},
 		},
 	}
+}
+
+// EffectiveCreateNode returns whether the node has to be created, defaulting to the
+// value specified in the VkOptionsTemplate when not set in the VirtualNode spec.
+func EffectiveCreateNode(virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) bool {
+	return ptr.Deref(virtualNode.Spec.CreateNode, opts.Spec.CreateNode)
+}
+
+// EffectiveDisableNetworkCheck returns whether the network check has to be disabled,
+// defaulting to the value specified in the VkOptionsTemplate when not set in the VirtualNode spec.
+func EffectiveDisableNetworkCheck(virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) bool {
+	return ptr.Deref(virtualNode.Spec.DisableNetworkCheck, opts.Spec.DisableNetworkCheck)
+}
+
+// EffectiveOffloadingPatch returns the offloading patch actually enforced by the
+// virtual-kubelet: the spec's OffloadingPatch with the labels and annotations not to
+// be reflected merged with the ones specified in the VkOptionsTemplate.
+func EffectiveOffloadingPatch(virtualNode *offloadingv1beta1.VirtualNode,
+	opts *offloadingv1beta1.VkOptionsTemplate) *offloadingv1beta1.OffloadingPatch {
+	if virtualNode.Spec.OffloadingPatch == nil {
+		if len(opts.Spec.LabelsNotReflected) == 0 && len(opts.Spec.AnnotationsNotReflected) == 0 {
+			return nil
+		}
+		return &offloadingv1beta1.OffloadingPatch{
+			LabelsNotReflected:      opts.Spec.LabelsNotReflected,
+			AnnotationsNotReflected: opts.Spec.AnnotationsNotReflected,
+		}
+	}
+
+	effective := virtualNode.Spec.OffloadingPatch.DeepCopy()
+	effective.LabelsNotReflected = mergeUnique(effective.LabelsNotReflected, opts.Spec.LabelsNotReflected)
+	effective.AnnotationsNotReflected = mergeUnique(effective.AnnotationsNotReflected, opts.Spec.AnnotationsNotReflected)
+	return effective
+}
+
+// mergeUnique returns the ordered union of the two slices, without duplicates.
+func mergeUnique(primary, secondary []string) []string {
+	merged := make([]string, 0, len(primary)+len(secondary))
+	for _, s := range slices.Concat(primary, secondary) {
+		if !slices.Contains(merged, s) {
+			merged = append(merged, s)
+		}
+	}
+	return merged
 }
 
 func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, liqoNamespace string, localPodCIDRs []string,
@@ -176,10 +250,9 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, liqoN
 	return v1.PodSpec{
 		Containers: forgeVKContainers(
 			homeCluster, virtualNode.Spec.ClusterID,
-			virtualNode.Name, vkNamespace, liqoNamespace, localPodCIDRs,
-			virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses, virtualNode.Spec.LoadBalancerClasses,
-			opts),
-		ServiceAccountName: virtualNode.Name,
+			vkNamespace, liqoNamespace, localPodCIDRs,
+			virtualNode, opts),
+		ServiceAccountName: VirtualKubeletServiceAccountName(virtualNode.Name),
 		ImagePullSecrets:   opts.Spec.ImagePullSecrets,
 		Tolerations:        opts.Spec.Tolerations,
 	}

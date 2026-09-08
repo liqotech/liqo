@@ -16,12 +16,15 @@ package forge
 
 import (
 	"fmt"
+	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/strings"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -30,9 +33,14 @@ import (
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
+// vkNamePrefix is the prefix of the names of the virtual-kubelet resources (e.g., the
+// Deployment and the ServiceAccount ones), to avoid collisions with other components'
+// resources named after the cluster ID.
+const vkNamePrefix = "vk-"
+
 // VirtualKubeletName returns the name of the virtual-kubelet.
 func VirtualKubeletName(virtualNode *offloadingv1beta1.VirtualNode) string {
-	return "vk-" + virtualNode.Name
+	return vkNamePrefix + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
@@ -53,6 +61,16 @@ func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, liqoNamespace s
 				MatchLabels: matchLabels,
 			},
 			Replicas: opts.Spec.Replicas,
+			// The rolling update is surge-only: the old pod is not deleted before the new one
+			// is ready, so that a virtual-kubelet failing to start (e.g., due to invalid
+			// arguments) does not leave the node without a running virtual-kubelet.
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appsv1.RollingUpdateDeployment{
+					MaxSurge:       ptr.To(intstr.FromInt32(1)),
+					MaxUnavailable: ptr.To(intstr.FromInt32(0)),
+				},
+			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      depLabels,
@@ -79,31 +97,50 @@ func ClusterRoleLabels(remoteClusterID liqov1beta1.ClusterID) map[string]string 
 	})
 }
 
-// VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
-func VirtualKubeletClusterRoleBinding(kubeletNamespace, kubeletName string,
-	remoteCluster liqov1beta1.ClusterID) *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, kubeletName), 253),
-			Labels: ClusterRoleLabels(remoteCluster),
-		},
-		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},
-		},
-		RoleRef: rbacv1.RoleRef{
+// VirtualKubeletClusterRoleBindingName returns the name of the ClusterRoleBinding of a VirtualKubelet.
+func VirtualKubeletClusterRoleBindingName(virtualNodeName string) string {
+	return strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, virtualNodeName), 253)
+}
+
+// VirtualKubeletClusterRoleBindingMutateFn returns a mutate function enforcing the desired
+// state on the given ClusterRoleBinding.
+func VirtualKubeletClusterRoleBindingMutateFn(crb *rbacv1.ClusterRoleBinding, virtualNode *offloadingv1beta1.VirtualNode) func() error {
+	return func() error {
+		crb.Labels = labels.Merge(crb.Labels, ClusterRoleLabels(virtualNode.Spec.ClusterID))
+		crb.RoleRef = rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
 			Name:     vkMachinery.LocalClusterRoleName,
-		},
+		}
+
+		// The desired subject is added without removing the existing ones, so that legacy subjects (targeting the previous
+		// ServiceAccount name) are preserved and virtual-kubelets from older versions keep their permissions during the rollout.
+		sa := VirtualKubeletServiceAccount(virtualNode)
+		desiredSubject := rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			APIGroup:  "",
+			Name:      sa.Name,
+			Namespace: sa.Namespace,
+		}
+		if !slices.Contains(crb.Subjects, desiredSubject) {
+			crb.Subjects = append(crb.Subjects, desiredSubject)
+		}
+
+		return nil
 	}
 }
 
+// VirtualKubeletServiceAccountName returns the name of the ServiceAccount of a VirtualKubelet.
+func VirtualKubeletServiceAccountName(virtualNodeName string) string {
+	return vkNamePrefix + virtualNodeName
+}
+
 // VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
-func VirtualKubeletServiceAccount(namespace, name string) *v1.ServiceAccount {
+func VirtualKubeletServiceAccount(virtualNode *offloadingv1beta1.VirtualNode) *v1.ServiceAccount {
 	return &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      VirtualKubeletServiceAccountName(virtualNode.Name),
+			Namespace: virtualNode.Namespace,
 		},
 	}
 }

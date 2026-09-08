@@ -42,7 +42,6 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/leaderelection"
-	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -82,11 +81,8 @@ func main() {
 	secretName := pflag.String("secret-name", "", "The name of the secret containing the webhook certificates")
 
 	// Global parameters
-	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
 	liqoNamespace := pflag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
-	podcidrs := pflag.StringSlice("podcidr", nil, "The CIDRs to use for the pod network")
-	vkOptsDefaultTemplate := pflag.String("vk-options-default-template", "", "Namespaced name of the virtual-kubelet options template")
 	enableResourceValidation := pflag.Bool("enable-resource-enforcement", false,
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
 	refreshInterval := pflag.Duration("resource-validator-refresh-interval",
@@ -100,8 +96,6 @@ func main() {
 	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
-
-	clusterID := clusterIDFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -183,21 +177,13 @@ func main() {
 		}
 	}
 
-	// Options for the virtual kubelet.
-	vkOptsDefaultTemplateRef, err := argsutils.GetObjectRefFromNamespacedName(*vkOptsDefaultTemplate)
-	if err != nil {
-		klog.Errorf("Invalid namespaced name for virtual-kubelet options template %s: %v", *vkOptsDefaultTemplate, err)
-		os.Exit(1)
-	}
-
 	// Register the webhooks.
 	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient(), *enableResourceValidation))
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *liqoRuntimeClassName))
-	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
-		mgr.GetClient(), clusterID, *podcidrs, *liqoNamespace, vkOptsDefaultTemplateRef))
+	mgr.GetWebhookServer().Register("/validate/virtualnodes", virtualnodewh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())

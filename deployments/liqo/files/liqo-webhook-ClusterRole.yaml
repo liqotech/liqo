@@ -93,18 +93,8 @@ rules:
   - namespaceoffloadings
   - quotas
   - shadowpods
-  - vkoptionstemplates
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - virtualnodes
   verbs:
   - get
   - list
-  - patch
-  - update
   - watch
