@@ -30,7 +30,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	route "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -123,7 +123,7 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1beta1.InternalNode, r
 
 		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 2 {
 			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{})
-			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
+			routecfg.Spec.Table.Rules[1].FwMark = ptr.To(route.GwNodeMark)
 		}
 
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
