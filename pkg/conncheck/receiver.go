@@ -39,22 +39,63 @@ type Peer struct {
 	observer PingObserver
 }
 
+// PeerMonitor manages and aggregates the connectivity status across multiple interfaces.
+type PeerMonitor struct {
+	mu        sync.RWMutex
+	connected bool
+	latency   time.Duration
+	observer  PingObserver
+}
+
 // Receiver is a receiver for conncheck messages.
 type Receiver struct {
-	peers map[string]*Peer
-	m     sync.RWMutex
-	buff  []byte
-	conn  *net.UDPConn
-	opts  *Options
+	peers         map[string]*Peer
+	m             sync.RWMutex
+	buff          []byte
+	conn          *net.UDPConn
+	opts          *Options
+	numInterfaces int
+	peerMonitor   PeerMonitor
+}
+
+// SetPeerMonitorObserver updates the aggregated PingObserver inside PeerMonitor.
+func (r *Receiver) SetPeerMonitorObserver(observer PingObserver) {
+	r.peerMonitor.mu.Lock()
+	defer r.peerMonitor.mu.Unlock()
+	r.peerMonitor.observer = observer
+}
+
+// PeerMonitorObserver returns safely the current observer (or nil if not set).
+func (r *Receiver) PeerMonitorObserver() PingObserver {
+	r.peerMonitor.mu.RLock()
+	defer r.peerMonitor.mu.RUnlock()
+	return r.peerMonitor.observer
+}
+
+// UpdatePeerMonitor updates the aggregated status in PeerMonitor in a thread-safe way.
+func (r *Receiver) UpdatePeerMonitor(connected bool, latency time.Duration) {
+	r.peerMonitor.mu.Lock()
+	defer r.peerMonitor.mu.Unlock()
+
+	r.peerMonitor.connected = connected
+	r.peerMonitor.latency = latency
+}
+
+// GetPeerMonitorStatus returns the aggregated connected status and latency.
+func (r *Receiver) GetPeerMonitorStatus() (bool, time.Duration) {
+	r.peerMonitor.mu.RLock()
+	defer r.peerMonitor.mu.RUnlock()
+	return r.peerMonitor.connected, r.peerMonitor.latency
 }
 
 // NewReceiver creates a new conncheck receiver.
-func NewReceiver(conn *net.UDPConn, opts *Options) *Receiver {
+func NewReceiver(conn *net.UDPConn, opts *Options, numInterfaces int) *Receiver {
 	return &Receiver{
-		peers: make(map[string]*Peer),
-		buff:  make([]byte, opts.PingBufferSize),
-		conn:  conn,
-		opts:  opts,
+		peers:         make(map[string]*Peer),
+		buff:          make([]byte, opts.PingBufferSize),
+		conn:          conn,
+		opts:          opts,
+		numInterfaces: numInterfaces,
 	}
 }
 
@@ -77,14 +118,14 @@ func (r *Receiver) SendPong(raddr *net.UDPAddr, msg *Msg) error {
 func (r *Receiver) ReceivePong(msg *Msg, receivedAt time.Time) error {
 	r.m.Lock()
 
-	peer, ok := r.peers[msg.ClusterID]
+	peer, ok := r.peers[msg.InterfaceID]
 	if !ok {
 		r.m.Unlock()
-		return fmt.Errorf("%s sender has not been initialized", msg.ClusterID)
+		return fmt.Errorf("%s sender has not been initialized", msg.InterfaceID)
 	}
 
 	if msg.TimeStamp.Before(peer.lastPingTimestamp) {
-		klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.ClusterID)
+		klog.V(8).Infof("dropped a PONG message from %s because out-of-order", msg.InterfaceID)
 		r.m.Unlock()
 		return nil
 	}
@@ -94,18 +135,18 @@ func (r *Receiver) ReceivePong(msg *Msg, receivedAt time.Time) error {
 	peer.connected = true
 	latency := peer.latency
 	r.m.Unlock()
-
-	if peer.observer != nil {
+	if peer.observer != nil && r.numInterfaces == 1 {
 		peer.observer(true, latency)
 	}
+
 	return nil
 }
 
 // InitPeer initializes a peer.
-func (r *Receiver) InitPeer(clusterID string, observer PingObserver) {
+func (r *Receiver) InitPeer(interfaceID string, observer PingObserver) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.peers[clusterID] = &Peer{
+	r.peers[interfaceID] = &Peer{
 		connected:         false,
 		latency:           0,
 		lastPingTimestamp: time.Time{},
@@ -190,7 +231,7 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 				r.m.Unlock()
 
 				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
-				if peer.observer != nil {
+				if peer.observer != nil && r.numInterfaces == 1 {
 					peer.observer(false, 0)
 				}
 			}
@@ -198,5 +239,54 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 		})
 	if err != nil {
 		klog.Errorf("conncheck disconnect observer: %v", err)
+	}
+}
+
+// RunPeerMonitor starts the aggregator for multi-interface connections.
+func (r *Receiver) RunPeerMonitor(ctx context.Context) {
+	monitorInterval := r.opts.PingInterval
+	klog.Infof("conncheck receiver peer monitor: started (interval: %v)", monitorInterval)
+
+	err := wait.PollUntilContextCancel(ctx, monitorInterval, true,
+		func(_ context.Context) (done bool, err error) {
+			r.m.RLock()
+			if len(r.peers) == 0 || len(r.peers) < r.numInterfaces {
+				r.m.RUnlock()
+				return false, nil
+			}
+
+			var (
+				allConnected = true
+				totalLatency time.Duration
+				peerCount    = int64(len(r.peers))
+			)
+			for _, p := range r.peers {
+				if !p.connected {
+					allConnected = false
+					break
+				}
+				totalLatency += p.latency
+			}
+			r.m.RUnlock()
+
+			var avgLatency time.Duration
+			if allConnected && peerCount > 0 {
+				avgLatency = totalLatency / time.Duration(peerCount)
+			} else {
+				allConnected = false
+				avgLatency = 0
+			}
+
+			r.UpdatePeerMonitor(allConnected, avgLatency)
+
+			if obs := r.PeerMonitorObserver(); obs != nil {
+				obs(allConnected, avgLatency)
+			}
+
+			return false, nil
+		})
+
+	if err != nil && ctx.Err() == nil {
+		klog.Errorf("conncheck peer monitor error: %v", err)
 	}
 }
