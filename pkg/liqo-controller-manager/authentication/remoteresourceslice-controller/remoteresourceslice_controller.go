@@ -17,6 +17,7 @@ package remoteresourceslicecontroller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -242,9 +243,39 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 	return requeueIn, nil
 }
 
+// resolveClass records the class the provider assigns to a ResourceSlice that did not request an explicit
+// one. It is recorded in the status, which is owned by the provider, so that the spec keeps reflecting what
+// the consumer asked for. The class is resolved at most once, and never for the ResourceSlices whose
+// resources have already been handled, so that configuring or changing the default on the provider leaves
+// the existing ResourceSlices untouched, and only affects the ones created later on.
+func (r *RemoteResourceSliceReconciler) resolveClass(resourceSlice *authv1beta1.ResourceSlice) {
+	resourcesCondition := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeResources)
+
+	switch {
+	case r.sliceStatusOptions.DefaultResourceSliceClass == authv1beta1.ResourceSliceClassUnknown:
+		// No default configured: the ResourceSlice keeps being handled by the built-in default class.
+	case resourceSlice.Status.Class != authv1beta1.ResourceSliceClassUnknown:
+		// The class has already been resolved, and it is never reconsidered.
+	case resourceSlice.Spec.Class != authv1beta1.ResourceSliceClassUnknown:
+		// The consumer requested an explicit class, which is honored as it is.
+	case resourcesCondition != nil && resourcesCondition.Status != "":
+		// The resources have already been handled, hence the ResourceSlice predates the configuration of
+		// the default class: reassigning it now would change the controller responsible for it.
+	default:
+		resourceSlice.Status.Class = r.sliceStatusOptions.DefaultResourceSliceClass
+		klog.Infof("ResourceSlice %q class resolved to %q",
+			client.ObjectKeyFromObject(resourceSlice), resourceSlice.Status.Class)
+		r.eventRecorder.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceClassResolved",
+			fmt.Sprintf("ResourceSlice class resolved to %q", resourceSlice.Status.Class))
+	}
+}
+
 func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Context,
 	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
 	var err error
+
+	// Fill in the class requested by the consumer, if empty, with the one configured on the provider.
+	r.resolveClass(resourceSlice)
 
 	switch tenant.Spec.TenantCondition {
 	case authv1beta1.TenantConditionActive:
@@ -455,12 +486,7 @@ func denyResourcesWithReason(resourceSlice *authv1beta1.ResourceSlice, er record
 }
 
 func isInResourceClasses(resourceSlice *authv1beta1.ResourceSlice, classes ...authv1beta1.ResourceSliceClass) bool {
-	for _, class := range classes {
-		if resourceSlice.Spec.Class == class {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(classes, resourceSlice.EffectiveClass())
 }
 
 // validateRSNamespace makes sure that the ResourceSlice has been created in the tenant namespace dedicated to the consumer cluster.

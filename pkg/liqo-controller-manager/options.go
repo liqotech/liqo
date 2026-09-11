@@ -63,6 +63,7 @@ type Options struct {
 	TrustedCA                        bool
 	TLSCompatibilityMode             bool
 	DefaultResourceSliceClassEnabled bool
+	DefaultResourceSliceClass        string
 	AWSConfig                        *identitymanager.LocalAwsConfig
 	ClusterLabels                    args.StringMap
 	IngressClasses                   args.ClassNameList

@@ -55,7 +55,8 @@ spec:
             description: ResourceSliceSpec defines the desired state of ResourceSlice.
             properties:
               class:
-                description: Class contains the class of the ResourceSlice.
+                description: Class contains the class of the ResourceSlice. It is
+                  immutable once the ResourceSlice is created.
                 type: string
               consumerClusterID:
                 description: ConsumerClusterID is the id of the consumer cluster.
@@ -80,6 +81,10 @@ spec:
                 description: Resources contains the slice of resources requested.
                 type: object
             type: object
+            x-kubernetes-validations:
+            - message: Class is immutable
+              rule: has(self.class) == has(oldSelf.class) && (!has(self.class) ||
+                self.class == oldSelf.class)
           status:
             description: ResourceSliceStatus defines the observed state of ResourceSlice.
             properties:
@@ -119,6 +124,13 @@ spec:
                     format: byte
                     type: string
                 type: object
+              class:
+                description: |-
+                  Class contains the class resolved by the provider cluster, when the consumer did not request
+                  an explicit one. It is set at most once, when the resources of the ResourceSlice are first
+                  handled, so that configuring or changing the default on the provider only affects the
+                  ResourceSlices created afterwards.
+                type: string
               conditions:
                 description: Conditions contains the conditions of the ResourceSlice.
                 items:

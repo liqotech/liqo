@@ -92,6 +92,10 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.BoolVar(&opts.DefaultResourceSliceClassEnabled, "default-resource-slice-class-enabled", true,
 		"Enable the built-in default ResourceSlice class. When disabled, the provider denies ResourceSlices "+
 			"that use the \"default\" class, so consumers must use an explicit provider-approved class")
+	flagset.StringVar(&opts.DefaultResourceSliceClass, "default-resource-slice-class", "",
+		"The ResourceSlice class the provider assigns to the ResourceSlices that do not request an explicit one. "+
+			"The resolved class is recorded once, hence changing this value only affects the ResourceSlices created afterwards. "+
+			"Leave empty to keep handling them with the built-in default class")
 	flagset.StringVar(&opts.AWSConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
 	flagset.StringVar(&opts.AWSConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")

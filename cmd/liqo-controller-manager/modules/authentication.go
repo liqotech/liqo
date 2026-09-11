@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
@@ -71,6 +72,7 @@ func NewAuthOption(identityProvider identitymanager.IdentityProvider, namespaceM
 			ClusterLabels:                    opts.ClusterLabels.StringMap,
 			DefaultResourceQuantity:          opts.DefaultNodeResources.ToResourceList(),
 			DefaultResourceSliceClassEnabled: opts.DefaultResourceSliceClassEnabled,
+			DefaultResourceSliceClass:        authv1beta1.ResourceSliceClass(opts.DefaultResourceSliceClass),
 		},
 	}
 }
