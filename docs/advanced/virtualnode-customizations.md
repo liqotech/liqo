@@ -48,6 +48,43 @@ Any change to the template (e.g., a new pod image released during a Liqo upgrade
 The `.spec.template` field of the VirtualNode CR (which used to embed the rendered *virtual-kubelet* deployment) is deprecated and ignored: if set, it is removed by the controller.
 ```
 
+(SkipVkDeployment)=
+
+## External management of the virtual-kubelet deployment
+
+In some use cases, the user may want to manage the *virtual-kubelet* deployment on their own (e.g., with an external operator or a GitOps tool), instead of letting Liqo create and update it automatically.
+This is possible by annotating the VirtualNode CR with the `liqo.io/skip-vk-deployment` annotation:
+
+```yaml
+apiVersion: offloading.liqo.io/v1beta1
+kind: VirtualNode
+metadata:
+  name: my-virtual-node
+  annotations:
+    liqo.io/skip-vk-deployment: "true"
+spec:
+  # ...
+```
+
+When this annotation is set (to any value other than `false`, case-insensitive), the virtualnode controller does not create the *virtual-kubelet* deployment, nor its supporting resources (i.e., the ServiceAccount and the ClusterRoleBinding).
+The remaining management operations are still performed normally (e.g., NamespaceMap creation).
+
+```{admonition} Note
+When the annotation is set, the user is fully responsible for the *virtual-kubelet* deployment: its container needs to be configured with the appropriate arguments (e.g., the kubeconfig secret, the flags, and the volume mounts) that Liqo would have rendered automatically.
+```
+
+To re-enable the automatic management, it is sufficient to either remove the annotation or set it to `false`:
+
+```yaml
+metadata:
+  annotations:
+    liqo.io/skip-vk-deployment: "false"
+```
+
+```{admonition} Note
+When the automatic management is (re-)enabled, the controller creates the deployment only if it is not already present: the existing resources with the expected name are adopted and updated, not replaced.
+```
+
 ## Disable creation of the k8s Liqo node
 
 When you create a VirtualNode CR, automatically an associated K8s node to schedule workloads is created.
