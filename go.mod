@@ -61,7 +61,10 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
-replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20241004150443-cb08879adf2f
+replace (
+	github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20241004150443-cb08879adf2f
+	github.com/vishvananda/netlink => github.com/cheina97/netlink v0.0.0-20260904140506-bcbb72a110e6
+)
 
 require (
 	atomicgo.dev/cursor v0.2.0 // indirect
@@ -240,7 +243,7 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/ti-mo/netfilter v0.5.3 // indirect
 	github.com/urfave/cli/v2 v2.23.7 // indirect
-	github.com/vishvananda/netns v0.0.4 // indirect
+	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
