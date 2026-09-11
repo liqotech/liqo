@@ -17,6 +17,7 @@ package sourcedetector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -87,6 +88,15 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	klog.V(4).Infof("Reconciling gateway pod %s", req.String())
+
+	// Verify that the gateway pod is actually reachable via ICMP before
+	// trusting the route selected by the kernel. This avoids recording a
+	// transient/wrong source IP when the CNI has not finished setting up
+	// the node routes yet.
+	if err := PingIP(pod.Status.PodIP, PingTimeout); err != nil {
+		klog.V(4).Infof("Gateway pod %s is not reachable yet: %v. Checking later", req.String(), err)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
 
 	src, err := GetSrcIPFromDstIP(pod.Status.PodIP)
 	if err != nil {
