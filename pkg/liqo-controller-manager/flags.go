@@ -115,6 +115,9 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 	flagset.BoolVar(&opts.DenyDirectConnections, "deny-direct-connections", false,
 		"Prevents the usage of direct connections between provider clusters.")
+	flagset.StringSliceVar(&opts.LocalPodCIDRs, "podcidr", nil, "The CIDRs to use for the pod network")
+	flagset.StringVar(&opts.VkOptionsDefaultTemplate, "vk-options-default-template", "",
+		"Namespaced name of the default virtual-kubelet options template")
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerProxyIPRemapping, "enable-api-server-proxy-ip-remapping", true, "Enable the API server proxy IP remapping")

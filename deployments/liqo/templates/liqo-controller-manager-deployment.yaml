@@ -1,6 +1,7 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager" "version" .Values.controllerManager.image.version) .) -}}
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
 {{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
+{{- $kubeletConfig := (dict "name" "virtual-kubelet") -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -55,6 +56,14 @@ spec:
           - --tls-compatibility-mode={{ .Values.authentication.tlsCompatibilityMode }}
           - --default-resource-slice-class-enabled={{ .Values.authentication.defaultResourceSliceClassEnabled }}
           - --offloading-enabled={{ .Values.offloading.enabled }}
+          {{- if .Values.ipam.podCIDRs }}
+          {{- range $cidr := .Values.ipam.podCIDRs }}
+          - --podcidr={{ $cidr }}
+          {{- end }}
+          {{- else if .Values.ipam.podCIDR }}
+          - --podcidr={{ .Values.ipam.podCIDR }}
+          {{- end }}
+          - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
           {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}

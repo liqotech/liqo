@@ -41,3 +41,4 @@ package local
 
 // Additional permissions necessary for the networking module
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch

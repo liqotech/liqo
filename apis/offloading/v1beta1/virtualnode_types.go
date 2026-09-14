@@ -56,6 +56,9 @@ type VirtualNodeSpec struct {
 	// ClusterID contains the id of the remote cluster targeted by the created virtualKubelet.
 	ClusterID liqov1beta1.ClusterID `json:"clusterID,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
+	//
+	// Deprecated: the VirtualKubelet deployment is forged by the virtualnode controller
+	// from the referenced VkOptionsTemplate. This field is ignored and removed if set.
 	// +optional
 	Template *DeploymentTemplate `json:"template,omitempty"`
 	// OffloadingPatch contains the information to target a groups of node on the remote cluster.
@@ -135,6 +138,17 @@ type VirtualNodeCondition struct {
 // VirtualNodeStatus contains some information about remote namespace status.
 type VirtualNodeStatus struct {
 	Conditions []VirtualNodeCondition `json:"conditions,omitempty"`
+	// EffectiveOffloadingPatch is the offloading patch actually enforced by the virtual-kubelet:
+	// the spec's OffloadingPatch with the labels and annotations not to be reflected merged
+	// with the ones of the referenced VkOptionsTemplate.
+	EffectiveOffloadingPatch *OffloadingPatch `json:"effectiveOffloadingPatch,omitempty"`
+	// EffectiveCreateNode is whether the node has to be created, defaulting to the value
+	// specified in the VkOptionsTemplate when not set in the spec. It is set by the controller.
+	EffectiveCreateNode *bool `json:"effectiveCreateNode,omitempty"`
+	// EffectiveDisableNetworkCheck is whether the network check has to be disabled, defaulting
+	// to the value specified in the VkOptionsTemplate when not set in the spec. It is set by
+	// the controller.
+	EffectiveDisableNetworkCheck *bool `json:"effectiveDisableNetworkCheck,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -142,7 +156,7 @@ type VirtualNodeStatus struct {
 // +kubebuilder:subresource:status
 // +genclient
 // +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.spec.clusterID`
-// +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.spec.createNode`
+// +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.status.effectiveCreateNode`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.status.conditions[?(@.type=="Node")].status`,priority=1
 // +kubebuilder:printcolumn:name="VirtualKubelet",type=string,JSONPath=`.status.conditions[?(@.type=="VirtualKubelet")].status`,priority=1

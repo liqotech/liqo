@@ -40,3 +40,6 @@ var ClusterRoleBindingLabels = map[string]string{
 
 // MetricsAddress is the default address used to expose metrics.
 const MetricsAddress = ":8082"
+
+// HealthPort is the port used to expose the health endpoints (i.e., /healthz and /readyz).
+const HealthPort = 8081

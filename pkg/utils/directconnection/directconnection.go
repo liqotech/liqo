@@ -17,6 +17,9 @@ package directconnection
 
 import (
 	"encoding/json"
+	"fmt"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // ClusterAddresses represents the addresses of pods deployed on remote clusters
@@ -79,4 +82,30 @@ func (c *ClusterAddresses) ToJSON() ([]byte, error) {
 // FromJSON deserializes JSON data into ClusterAddresses.
 func (c *ClusterAddresses) FromJSON(data []byte) error {
 	return json.Unmarshal(data, c)
+}
+
+// FromAnnotations extracts the [ClusterAddresses] from the given annotations map.
+// Returns an error if the annotation is not found or if the data cannot be parsed.
+func FromAnnotations(annotations map[string]string) (*ClusterAddresses, error) {
+	val, ok := annotations[consts.DirectConnectionDataAnnotationKey]
+	if !ok {
+		return nil, fmt.Errorf("%s not found in provided annotations", consts.DirectConnectionDataAnnotationKey)
+	}
+
+	var c ClusterAddresses
+	if err := c.FromJSON([]byte(val)); err != nil {
+		return nil, fmt.Errorf("failed to parse %s from json: %w", consts.DirectConnectionDataAnnotationKey, err)
+	}
+
+	return &c, nil
+}
+
+// ClusterIDs returns a slice of all cluster IDs present in the [ClusterAddresses].
+func (c *ClusterAddresses) ClusterIDs() []string {
+	clusterIDs := make([]string, 0, len(c.Clusters))
+	for id := range c.Clusters {
+		clusterIDs = append(clusterIDs, id)
+	}
+
+	return clusterIDs
 }

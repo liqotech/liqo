@@ -51,5 +51,6 @@ docs/_build
 /graphviz
 /k3s-ansible
 
-# claude
+# AI tools
 .claude
+.kimchi

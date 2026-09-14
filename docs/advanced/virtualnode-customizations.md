@@ -13,6 +13,7 @@ We call this feature `OffloadingPatch` and it is configurable directly on the Vi
 In particular, it is possible to specify custom *NodeSelector*, *Tolerations*, and *Affinity* that will applied to remote offloaded pods.
 For example, with node selectors, you can target specific pools of nodes on the provider cluster.
 Another feature is the possibility to disable the reflection of specific labels and annotations on all reflected resources, as described [here](UsageReflectionLabelsAnnots).
+The *virtual-kubelet* enforces the *effective* offloading patch, published by the controller in the `status.effectiveOffloadingPatch` field: the spec's one, with the labels and annotations not to be reflected merged with the ones specified in the referenced [`VkOptionsTemplate`](VkOptionsTemplate).
 
 ```{admonition} Note
 If any field of the offloading patch changes, the *virtual-kubelet* deployment is restarted.
@@ -38,6 +39,15 @@ Some of the most important allows to:
 * add extra labels and annotations to the virtual k8s node
 * turn off metrics or change its address
 
+```{admonition} Note
+The *virtual-kubelet* deployment is deterministically rendered by the virtualnode controller from the referenced `VkOptionsTemplate`.
+Any change to the template (e.g., a new pod image released during a Liqo upgrade) is automatically propagated to all the virtual nodes referencing it, and their *virtual-kubelet* deployment is updated accordingly.
+```
+
+```{admonition} Note
+The `.spec.template` field of the VirtualNode CR (which used to embed the rendered *virtual-kubelet* deployment) is deprecated and ignored: if set, it is removed by the controller.
+```
+
 ## Disable creation of the k8s Liqo node
 
 When you create a VirtualNode CR, automatically an associated K8s node to schedule workloads is created.
@@ -45,6 +55,7 @@ In some use cases, the user may want to only use the [**resource reflection**](/
 Even if the k8s node is absent, the *virtual-kubelet* pod is able to reflect on the remote cluster the above-mentioned resource, as they are not tied to a local k8s node. In this case, it may be convenient to completely disable the creation of the K8s node.
 
 This feature can be set by customizing the `createNode` field in the `VirtualNode` CR or by referencing a `VkOptionsTemplate` with the `createNode` modified.
+When the field is not set on the VirtualNode CR, the value specified in the referenced `VkOptionsTemplate` is used, and changes to the template are automatically propagated.
 
 ## Disable network condition check
 
@@ -54,6 +65,7 @@ This event makes the k8s scheduler prevent scheduling pods on this node.
 If you **do not need this check** you can completely disable the update of this condition, and the condition will be always **ready**, allowing the user to schedule pods independently from the state of the network.
 
 This feature can be set by customizing the `disableNetworkCheck` field in the `VirtualNode` CR or by referencing a `VkOptionsTemplate` with the `disableNetworkCheck` modified.
+When the field is not set on the VirtualNode CR, the value specified in the referenced `VkOptionsTemplate` is used, and changes to the template are automatically propagated.
 
 ```{admonition} Note
 In case the network module is not enabled for this pair of clusters (or disabled globally), Liqo will always set the network condition to **ready** (or equivalently not putting it at all). As a consequence pods can always be scheduled on the virtual node indipendently from the underlying network technology or connectivity.

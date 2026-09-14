@@ -40,6 +40,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 type crtretriever func(*tls.ClientHelloInfo) (*tls.Certificate, error)
@@ -107,6 +108,36 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	}()
 
 	return nil
+}
+
+// setupHealthServer starts the health server, serving the /healthz and /readyz endpoints.
+// It is started after the startup inputs have been retrieved and before the leader
+// election: the server being up certifies that the startup succeeded, so that also
+// virtual-kubelets waiting to acquire the leadership (hence not reconciling yet)
+// report themselves as ready.
+func setupHealthServer() {
+	mux := http.NewServeMux()
+	// The readiness only asserts that the virtual-kubelet started correctly (i.e., the
+	// arguments have been parsed), not that it is reconciling.
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	server := &http.Server{
+		Addr:              fmt.Sprintf("0.0.0.0:%d", vkMachinery.HealthPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Required to limit the effects of the Slowloris attack.
+	}
+
+	klog.Infof("Starting the virtual kubelet health server listening on %q", server.Addr)
+	// Key and certificate paths are not specified, since no TLS is required.
+	if err := server.ListenAndServe(); err != nil {
+		klog.Errorf("Failed to start the health server: %v", err)
+		os.Exit(1)
+	}
 }
 
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID liqov1beta1.ClusterID) {

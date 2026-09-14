@@ -80,6 +80,8 @@ type Options struct {
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
 	DenyDirectConnections       bool
+	LocalPodCIDRs               []string
+	VkOptionsDefaultTemplate    string
 
 	// Cross module
 	EnableAPIServerProxyIPRemapping bool
