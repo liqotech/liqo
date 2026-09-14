@@ -235,9 +235,14 @@ networking:
       routeMonitor: true
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
+      # IMPORTANT: the fabric pod runs in the host network namespace, hence this port is bound on every node where it is scheduled.
+      # Make sure it is not already in use by other host-network workloads or node services, otherwise the fabric pod will fail to start.
       healthProbeBindAddressPort: "8081"
       # -- Set the port where the fabric pod will expose the metrics.
       # To disable the metrics, set the port to 0.
+      # IMPORTANT: the fabric pod runs in the host network namespace, hence this port is bound on every node where it is scheduled
+      # (regardless of whether metrics.enabled is set). Make sure it is not already in use by other host-network workloads or node services,
+      # otherwise the fabric pod will fail to start.
       metricsAddressPort: "8082"
       # -- Set the options to configure the fabric ping used to check connection with the gateway through geneve
       ping:

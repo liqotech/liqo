@@ -23,6 +23,35 @@ An accurate analysis of the Liqo performance compared to vanilla Kubernetes, inc
 
 Liqo requires a **Linux kernel version 5.10 or later** to run correctly, as it leverages some **nftables** features that are not available in older versions.
 
+(RequirementsHostPorts)=
+
+## Host ports
+
+The **network fabric** runs as a *DaemonSet* on all the physical nodes of the cluster, with `hostNetwork: true`.
+Hence, its ports are **bound directly on each node**, and must not be already in use by other components, such as node agents, monitoring exporters, ingress controllers, or other workloads running in the host network namespace.
+Otherwise, the fabric pod fails to start on the affected nodes (typically reporting an `address already in use` error in its logs), and cross-cluster connectivity is not established through those nodes.
+
+The following ports are used by default:
+
+| Port | Protocol | Purpose | Helm value |
+| ---- | -------- | ------- | ---------- |
+| 8081 | TCP | Health probe | `networking.fabric.config.healthProbeBindAddressPort` |
+| 8082 | TCP | Metrics (bound even if `metrics.enabled` is `false`) | `networking.fabric.config.metricsAddressPort` |
+| 6091 | UDP | Geneve overlay tunnels | `networking.genevePort` |
+
+```{warning}
+Ports in the `808x` range are a common choice for many applications, and they may already be in use on some nodes.
+This is particularly relevant on **managed Kubernetes services**, where the cluster provider may run additional host-network agents on the nodes, which might not be visible to the cluster user.
+```
+
+If any of these ports conflicts with existing services, you can change it at install time, for example:
+
+```bash
+liqoctl install <provider> \
+  --set networking.fabric.config.healthProbeBindAddressPort=9091 \
+  --set networking.fabric.config.metricsAddressPort=9092
+```
+
 ## Connectivity
 
 Liqo requires a set of **connectivity requirements** to establish peerings with remote clusters.
