@@ -196,6 +196,32 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
+	// If the deployment already exists and its desired spec differs from the current one update the deployment making sure
+	// to respect the rollout gate.
+	if deploy != nil {
+		desired := deploy.DeepCopy()
+		if err := r.mutateFnWgServerDeployment(desired, wgServer); err != nil {
+			return ctrl.Result{}, fmt.Errorf("computing desired deployment %q: %w", deployNsName, err)
+		}
+		if isDeploymentUpdateNeeded(deploy, desired) {
+			remoteClusterID := getRemoteClusterID(deploy)
+			desiredTemplateName := wgServer.GetAnnotations()[consts.TemplateNameAnnotationKey]
+			desiredTemplateNamespace := wgServer.GetAnnotations()[consts.TemplateNamespaceAnnotationKey]
+			desiredGeneration := wgServer.GetAnnotations()[consts.TemplateGenerationAnnotationKey]
+			delay, reason, err := ShouldDelayRollout(ctx, r.Client, remoteClusterID,
+				types.NamespacedName{Namespace: deploy.Namespace, Name: deploy.Name},
+				desiredTemplateName, desiredTemplateNamespace, desiredGeneration)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("checking rollout gate for %q: %w", deployNsName, err)
+			}
+			if delay {
+				r.eventRecorder.Eventf(wgServer, corev1.EventTypeNormal, "DeploymentUpdateDelayed",
+					"Deployment update delayed: %s", reason)
+				return ctrl.Result{RequeueAfter: DefaultRolloutRequeueInterval}, nil
+			}
+		}
+	}
+
 	// Ensure deployment (create or update)
 	_, err = r.ensureDeployment(ctx, wgServer, deployNsName)
 	if err != nil {
@@ -283,6 +309,22 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv
 
 	// Forge spec
 	deployment.Spec = wgServer.Spec.Deployment.Spec
+
+	// Copy the source template identity annotations from the WgGatewayServer object.
+	// ShouldDelayRollout uses them to consider only peers that originate from the
+	// same template (including namespace).
+	if deployment.Annotations == nil {
+		deployment.Annotations = map[string]string{}
+	}
+	if templateName := wgServer.GetAnnotations()[consts.TemplateNameAnnotationKey]; templateName != "" {
+		deployment.Annotations[consts.TemplateNameAnnotationKey] = templateName
+	}
+	if templateNamespace := wgServer.GetAnnotations()[consts.TemplateNamespaceAnnotationKey]; templateNamespace != "" {
+		deployment.Annotations[consts.TemplateNamespaceAnnotationKey] = templateNamespace
+	}
+	if templateGeneration := wgServer.GetAnnotations()[consts.TemplateGenerationAnnotationKey]; templateGeneration != "" {
+		deployment.Annotations[consts.TemplateGenerationAnnotationKey] = templateGeneration
+	}
 
 	if wgServer.Status.SecretRef != nil {
 		for i := range deployment.Spec.Template.Spec.Volumes {
