@@ -161,6 +161,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Create the Prometheus collector and register it inside the controller-runtime metrics server.
 	promcollect, err := wireguard.NewPrometheusCollector(&wireguard.MetricsOptions{
 		RemoteClusterID:  options.GwOptions.RemoteClusterID,
+		GatewayName:      options.GwOptions.Name,
 		Namespace:        options.GwOptions.Namespace,
 		WgImplementation: options.Implementation,
 	})

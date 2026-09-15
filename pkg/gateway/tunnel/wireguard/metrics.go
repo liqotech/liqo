@@ -49,6 +49,7 @@ type PrometheusCollector struct {
 // MetricsOptions contains the options for the PrometheusCollector.
 type MetricsOptions struct {
 	RemoteClusterID  string
+	GatewayName      string
 	Namespace        string
 	WgImplementation WgImplementation
 }
@@ -96,7 +97,7 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 
 	peer := device.Peers[0]
 
-	labels := []string{driverLabelValue, pc.metricsOptions.RemoteClusterID}
+	labels := []string{driverLabelValue, pc.metricsOptions.RemoteClusterID, pc.metricsOptions.GatewayName}
 
 	ch <- prometheus.MustNewConstMetric(
 		tunnel.MetricsPeerReceivedBytes,

@@ -291,7 +291,7 @@
                       "spec": {
                         "editorMode": "builder",
                         "exemplar": false,
-                        "expr": "liqo_peer_is_connected{cluster_id=\"$clusterid\"}",
+                        "expr": "max by(cluster_id) (liqo_peer_is_connected{cluster_id=\"$clusterid\"})",
                         "format": "table",
                         "instant": false,
                         "interval": "",
@@ -2123,6 +2123,56 @@
                     "refId": "Transmitted",
                     "hidden": false
                   }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${datasource}"
+                      },
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "code",
+                        "expr": "sum by(gateway) (rate(liqo_peer_receive_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval])) * 8",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "legendFormat": "Received {{gateway}}",
+                        "range": true,
+                        "useBackend": false
+                      }
+                    },
+                    "refId": "ReceivedGateway",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${datasource}"
+                      },
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "code",
+                        "expr": "sum by(gateway) (rate(liqo_peer_transmit_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval])) * 8",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "legendFormat": "Transmitted {{gateway}}",
+                        "range": true,
+                        "useBackend": false
+                      }
+                    },
+                    "refId": "TransmittedGateway",
+                    "hidden": false
+                  }
                 }
               ],
               "transformations": [],
@@ -2933,15 +2983,40 @@
                       "spec": {
                         "disableTextWrap": false,
                         "editorMode": "builder",
-                        "expr": "sum(liqo_peer_latency_us{cluster_id=\"$clusterid\"})",
+                        "expr": "sum by(gateway) (liqo_peer_latency_us{cluster_id=\"$clusterid\"})",
                         "fullMetaSearch": false,
                         "includeNullMetadata": true,
-                        "legendFormat": "Latency",
+                        "legendFormat": "{{gateway}}",
                         "range": true,
                         "useBackend": false
                       }
                     },
                     "refId": "Latency",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${datasource}"
+                      },
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "builder",
+                        "expr": "avg(liqo_peer_latency_us{cluster_id=\"$clusterid\"} > 0)",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "legendFormat": "Average",
+                        "range": true,
+                        "useBackend": false
+                      }
+                    },
+                    "refId": "LatencyAverage",
                     "hidden": false
                   }
                 }
@@ -2966,7 +3041,7 @@
                   "enableFacetedFilter": false,
                   "overflow": "ellipsis",
                   "placement": "bottom",
-                  "showLegend": false
+                  "showLegend": true
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -2987,8 +3062,7 @@
                     ]
                   },
                   "color": {
-                    "mode": "fixed",
-                    "fixedColor": "semi-dark-blue"
+                    "mode": "palette-classic"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -3014,6 +3088,117 @@
                       "type": "linear"
                     },
                     "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-60": {
+        "kind": "Panel",
+        "spec": {
+          "id": 60,
+          "title": "Gateway connectivity",
+          "description": "Connection status (1 = connected, 0 = disconnected) for each gateway.",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${datasource}"
+                      },
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "builder",
+                        "expr": "liqo_peer_is_connected{cluster_id=\"$clusterid\"}",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "legendFormat": "{{gateway}}",
+                        "range": true,
+                        "useBackend": false
+                      }
+                    },
+                    "refId": "Connectivity",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.1.0",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "none",
+                  "min": 0,
+                  "max": 1,
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "always",
                     "showValues": false,
                     "spanNulls": false,
                     "stacking": {
@@ -3289,6 +3474,19 @@
                                   "element": {
                                     "kind": "ElementReference",
                                     "name": "panel-44"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 0,
+                                  "y": 24,
+                                  "width": 24,
+                                  "height": 6,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-60"
                                   }
                                 }
                               }

@@ -54,7 +54,7 @@ var (
 
 // InitDefaultMetrics initializes the default metrics.
 func init() {
-	MetricsLabels = []string{"driver", "cluster_id"}
+	MetricsLabels = []string{"driver", "cluster_id", "gateway"}
 
 	MetricsPeerReceivedBytes = prometheus.NewDesc(
 		"liqo_peer_receive_bytes_total",

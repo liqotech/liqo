@@ -21,12 +21,15 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
+const driverLabelValue = "wireguard"
+
 // ObserveLatency returns a conncheck.PingObserver that records the round-trip latency
 // into the prometheus metrics at the point of measurement (on each PONG).
 func ObserveLatency(remoteClusterID, gatewayName string) conncheck.PingObserver {
 	return tunnel.ObserveLatencyMetrics(tunnel.MetricsPeerLatency, tunnel.MetricsPeerLatencyHistogram, tunnel.MetricsPeerIsConnected,
 		prometheus.Labels{
-			tunnel.MetricsLabels[0]: gatewayName,
+			tunnel.MetricsLabels[0]: driverLabelValue,
 			tunnel.MetricsLabels[1]: remoteClusterID,
+			tunnel.MetricsLabels[2]: gatewayName,
 		})
 }
