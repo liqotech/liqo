@@ -682,8 +682,12 @@ func (npr *NamespacedPodReflector) Stats(ctx context.Context) ([]statsv1alpha1.P
 	klog.V(4).Infof("Requested to retrieve stats for local namespace %q (remote %q)", npr.LocalNamespace(), npr.RemoteNamespace())
 	var stats []statsv1alpha1.PodStats
 
-	// Retrieve all metrics from the remote namespace.
-	metrics, err := npr.remoteMetrics.List(ctx, metav1.ListOptions{LabelSelector: forge.ReflectedLabelSelector().String()})
+	// Retrieve the metrics from the remote namespace, limited to the pods offloaded by this
+	// virtual node instance. Indeed, pods managed by other virtual-kubelet instances targeting
+	// the same remote cluster and namespace could be present, but their local counterpart would
+	// not be scheduled on the virtual node handled by this instance, hence not retrievable.
+	selector := forge.ReflectionLabelsWithNodeName(forge.LiqoNodeName).AsSelectorPreValidated()
+	metrics, err := npr.remoteMetrics.List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while listing remote pod metrics in namespace %q", npr.RemoteNamespace())
 	}
@@ -693,7 +697,15 @@ func (npr *NamespacedPodReflector) Stats(ctx context.Context) ([]statsv1alpha1.P
 
 		// Retrieve the local pod corresponding to the remote metrics.
 		local, err := npr.localPods.Get(name)
-		if err != nil {
+		switch {
+		case err == nil:
+		case kerrors.IsNotFound(err):
+			// The local pod has been deleted, but its metrics have not been garbage collected
+			// yet, or the metrics still refer to a terminating remote pod. Skip the entry
+			// instead of failing the whole stats summary.
+			klog.V(4).Infof("Skipping stats for local pod %q, as it no longer exists", npr.LocalRef(name))
+			continue
+		default:
 			return nil, errors.Wrapf(err, "error while retrieving local pod %q", npr.LocalRef(name))
 		}
 

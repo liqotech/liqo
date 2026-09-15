@@ -15,13 +15,16 @@
 package workload_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	metricsapi "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
@@ -49,6 +53,20 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
+// fakePodMetrics implements metricsv1beta1.PodMetricsInterface, returning a fixed list
+// of metrics and recording the label selector passed to the last List invocation.
+type fakePodMetrics struct {
+	metricsv1beta1.PodMetricsInterface
+
+	items    []metricsapi.PodMetrics
+	selector string
+}
+
+func (f *fakePodMetrics) List(_ context.Context, opts metav1.ListOptions) (*metricsapi.PodMetricsList, error) {
+	f.selector = opts.LabelSelector
+	return &metricsapi.PodMetricsList{Items: f.items}, nil
+}
+
 var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 	Describe("pod handling", func() {
@@ -57,11 +75,13 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			client     *fake.Clientset
 			liqoClient liqoclient.Interface
 			netConfig  *networkingv1beta1.Configuration
+			podMetrics *fakePodMetrics
 		)
 
 		BeforeEach(func() {
 			client = fake.NewSimpleClientset()
 			liqoClient = liqoclientfake.NewSimpleClientset()
+			podMetrics = &fakePodMetrics{}
 			netConfig = &networkingv1beta1.Configuration{
 				ObjectMeta: metav1.ObjectMeta{Generation: 1},
 				Spec: networkingv1beta1.ConfigurationSpec{
@@ -96,7 +116,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 
 			broadcaster := record.NewBroadcaster()
-			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
+			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return podMetrics }
 			reflectorConfig := offloadingv1beta1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
@@ -415,6 +435,54 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					_, err = liqoClient.OffloadingV1beta1().ShadowPods(RemoteNamespace).Get(ctx, PodName, metav1.GetOptions{})
 					Expect(GetShadowPodError(liqoClient, RemoteNamespace, PodName)).To(BeNotFound())
 				})
+			})
+		})
+
+		Context("stats retrieval", func() {
+			const PodName = "name"
+			const StalePodName = "stale"
+
+			var (
+				output []statsv1alpha1.PodStats
+				err    error
+			)
+
+			BeforeEach(func() {
+				local := corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: LocalNamespace},
+					Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "bar", Image: "foo"}}},
+				}
+				CreatePod(client, &local)
+
+				containerMetrics := []metricsapi.ContainerMetrics{{
+					Name: "bar",
+					Usage: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("100Mi"),
+					},
+				}}
+				podMetrics.items = []metricsapi.PodMetrics{
+					{ObjectMeta: metav1.ObjectMeta{Name: PodName}, Containers: containerMetrics},
+					// Metrics associated with a pod no longer existing locally (e.g., deleted
+					// after having been offloaded, or managed by another virtual node of the
+					// same peering): it must be skipped, rather than failing the whole summary.
+					{ObjectMeta: metav1.ObjectMeta{Name: StalePodName}, Containers: containerMetrics},
+				}
+			})
+
+			JustBeforeEach(func() {
+				output, err = reflector.(workload.NamespacedPodHandler).Stats(ctx)
+			})
+
+			It("should succeed, skipping the metrics of pods no longer existing locally", func() {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(output).To(HaveLen(1))
+				Expect(output[0].PodRef.Name).To(BeIdenticalTo(PodName))
+			})
+
+			It("should request the metrics of the pods offloaded by this virtual node only", func() {
+				Expect(podMetrics.selector).To(BeIdenticalTo(
+					forge.ReflectionLabelsWithNodeName(LiqoNodeName).AsSelectorPreValidated().String()))
 			})
 		})
 
