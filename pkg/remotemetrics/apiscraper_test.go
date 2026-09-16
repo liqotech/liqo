@@ -21,6 +21,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 var _ = Context("ApiScraper", func() {
@@ -67,7 +70,11 @@ var _ = Context("ApiScraper", func() {
 
 		scraper = &apiServiceScraper{
 			resourceManager: &fakeResourceGetter{
-				nodes: []string{"node1", "node2", "node3"},
+				nodes: []corev1.Node{
+					{ObjectMeta: metav1.ObjectMeta{Name: "node1"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: map[string]string{"position": "edge"}}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "node3"}},
+				},
 				namespaces: map[string][]MappedNamespace{
 					"cluster1": {
 						{
@@ -106,7 +113,7 @@ var _ = Context("ApiScraper", func() {
 
 	JustBeforeEach(func() {
 		ctx := context.Background()
-		metrics, err = scraper.Scrape(ctx, "metrics", "cluster1")
+		metrics, err = scraper.Scrape(ctx, "metrics", "cluster1", nil)
 	})
 
 	It("should scrape metrics", func() {
@@ -147,6 +154,25 @@ var _ = Context("ApiScraper", func() {
 			Expect(metrics[1].values).To(ConsistOf(
 				"metric2{namespace=\"original_namespace1\",pod=\"pod1\"} 1 1000000000",
 			))
+		})
+	})
+
+	When("a node selector is provided", func() {
+		It("should scrape the matching nodes only", func() {
+			selector := labels.SelectorFromSet(map[string]string{"position": "edge"})
+			scoped, err := scraper.Scrape(context.Background(), "metrics", "cluster1", selector)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(scoped).To(HaveLen(1))
+			Expect(scoped[0].values).To(ConsistOf(
+				"metric1{namespace=\"original_namespace1\",pod=\"pod5\"} 4 1000000000",
+			))
+		})
+
+		It("should return no metrics when no node matches the selector", func() {
+			selector := labels.SelectorFromSet(map[string]string{"position": "nowhere"})
+			scoped, err := scraper.Scrape(context.Background(), "metrics", "cluster1", selector)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(scoped).To(BeEmpty())
 		})
 	})
 

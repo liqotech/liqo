@@ -25,17 +25,20 @@ import (
 	"github.com/julienschmidt/httprouter"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // countingScraper is a fake Scraper counting the number of times it has been invoked.
 type countingScraper struct {
-	calls   atomic.Int32
-	metrics Metrics
-	err     error
+	calls    atomic.Int32
+	metrics  Metrics
+	err      error
+	selector labels.Selector
 }
 
-func (c *countingScraper) Scrape(_ context.Context, _, _ string) (Metrics, error) {
+func (c *countingScraper) Scrape(_ context.Context, _, _ string, selector labels.Selector) (Metrics, error) {
 	c.calls.Add(1)
+	c.selector = selector
 	return c.metrics, c.err
 }
 
@@ -60,10 +63,11 @@ var _ = Context("HTTP handler", func() {
 			}},
 		}
 		handler = &metricHandler{
-			Router:   httprouter.New(),
-			scraper:  scraper,
-			cacheTTL: defaultScrapeCacheTTL,
-			cache:    map[string]cacheEntry{},
+			Router:        httprouter.New(),
+			scraper:       scraper,
+			cacheTTL:      defaultScrapeCacheTTL,
+			errorCacheTTL: defaultScrapeErrorCacheTTL,
+			cache:         map[string]cacheEntry{},
 		}
 		handler.GET(fmt.Sprintf("%s/scrape/:cluster-id/:path", basePath), handler.metricHTTP)
 	})
@@ -92,14 +96,26 @@ var _ = Context("HTTP handler", func() {
 		Expect(scraper.calls.Load()).To(Equal(int32(2)))
 	})
 
-	It("should not cache failed scrapes", func() {
+	It("should briefly cache failed scrapes", func() {
 		scraper.err = fmt.Errorf("boom")
 
 		rec := scrape()
 		Expect(rec.Code).To(Equal(http.StatusInternalServerError))
 		Expect(scraper.calls.Load()).To(Equal(int32(1)))
 
-		By("retrying the scrape instead of serving a cached error")
+		By("serving the cached error, without scraping again")
+		rec = scrape()
+		Expect(rec.Code).To(Equal(http.StatusInternalServerError))
+		Expect(rec.Body.String()).To(ContainSubstring("boom"))
+		Expect(scraper.calls.Load()).To(Equal(int32(1)))
+
+		By("retrying the scrape once the cached error is expired")
+		handler.cacheMu.Lock()
+		for key, entry := range handler.cache {
+			handler.cache[key] = cacheEntry{data: entry.data, err: entry.err, expiresAt: time.Now().Add(-time.Hour)}
+		}
+		handler.cacheMu.Unlock()
+
 		scraper.err = nil
 		rec = scrape()
 		Expect(rec.Code).To(Equal(http.StatusOK))

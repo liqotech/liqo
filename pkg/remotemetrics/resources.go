@@ -94,8 +94,9 @@ func (m *resourceGetter) GetPodsPerNode(ctx context.Context, clusterID string) m
 	return res
 }
 
-// GetNodeNames returns the names of all physical nodes in the cluster.
-func (m *resourceGetter) GetNodeNames(ctx context.Context) []string {
+// GetNodes returns the names of the ready physical nodes in the cluster matching the given selector.
+// A nil or empty selector matches all nodes.
+func (m *resourceGetter) GetNodes(ctx context.Context, selector labels.Selector) []string {
 	nodes := &corev1.NodeList{}
 
 	// we exclude virtual nodes to avoid infinite loops, both for bidirectional peerings
@@ -103,8 +104,16 @@ func (m *resourceGetter) GetNodeNames(ctx context.Context) []string {
 	realNode, err := labels.NewRequirement(consts.TypeLabel, selection.NotIn, []string{consts.TypeNode})
 	utilruntime.Must(err)
 
+	nodeSelector := labels.NewSelector().Add(*realNode)
+	if selector != nil {
+		requirements, selectable := selector.Requirements()
+		if selectable {
+			nodeSelector = nodeSelector.Add(requirements...)
+		}
+	}
+
 	err = m.cl.List(ctx, nodes, client.MatchingLabelsSelector{
-		Selector: labels.NewSelector().Add(*realNode),
+		Selector: nodeSelector,
 	})
 	utilruntime.Must(err)
 
