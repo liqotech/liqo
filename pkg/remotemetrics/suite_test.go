@@ -38,9 +38,15 @@ func (m *fakeResourceGetter) GetNamespaces(ctx context.Context, clusterID string
 	return m.namespaces[clusterID]
 }
 
-// GetPodNames returns the names of all pods in the cluster owned by the remote clusterID and scheduled in the given node.
-func (m *fakeResourceGetter) GetPodNames(ctx context.Context, clusterID, node string) []string {
-	return m.pods[node][clusterID]
+// GetPodsPerNode returns, for each node, the names of the pods in the cluster owned by the remote clusterID.
+func (m *fakeResourceGetter) GetPodsPerNode(ctx context.Context, clusterID string) map[string][]string {
+	res := map[string][]string{}
+	for node, podsByCluster := range m.pods {
+		if pods, ok := podsByCluster[clusterID]; ok {
+			res[node] = pods
+		}
+	}
+	return res
 }
 
 // GetNodeNames returns the names of all physical nodes in the cluster.
@@ -50,8 +56,9 @@ func (m *fakeResourceGetter) GetNodeNames(ctx context.Context) []string {
 
 type fakeRawGetter struct {
 	data map[string][]byte
+	errs map[string]error
 }
 
 func (rg *fakeRawGetter) get(ctx context.Context, nodeName, path string) ([]byte, error) {
-	return rg.data[nodeName], nil
+	return rg.data[nodeName], rg.errs[nodeName]
 }

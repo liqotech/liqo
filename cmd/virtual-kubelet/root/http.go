@@ -194,7 +194,7 @@ func setupHealthServer() {
 
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID liqov1beta1.ClusterID) {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		klog.Infof("Received request for %s", r.RequestURI)
+		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
 
 		res := cl.Get().RequestURI(path.Clean(fmt.Sprintf("/apis/metrics.liqo.io/v1beta1/scrape/%s/%s",
 			localClusterID, r.RequestURI))).Do(ctx)
