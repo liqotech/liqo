@@ -20,6 +20,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func TestRemoteMetrics(t *testing.T) {
@@ -30,7 +32,7 @@ func TestRemoteMetrics(t *testing.T) {
 type fakeResourceGetter struct {
 	namespaces map[string][]MappedNamespace
 	pods       map[string]map[string][]string
-	nodes      []string
+	nodes      []corev1.Node
 }
 
 // GetNamespaces returns the names of all namespaces in the cluster owned by the remote clusterID.
@@ -49,9 +51,15 @@ func (m *fakeResourceGetter) GetPodsPerNode(ctx context.Context, clusterID strin
 	return res
 }
 
-// GetNodeNames returns the names of all physical nodes in the cluster.
-func (m *fakeResourceGetter) GetNodeNames(ctx context.Context) []string {
-	return m.nodes
+// GetNodes returns the names of the nodes matching the given selector (nil matches all).
+func (m *fakeResourceGetter) GetNodes(_ context.Context, selector labels.Selector) []string {
+	res := []string{}
+	for i := range m.nodes {
+		if selector == nil || selector.Empty() || selector.Matches(labels.Set(m.nodes[i].GetLabels())) {
+			res = append(res, m.nodes[i].GetName())
+		}
+	}
+	return res
 }
 
 type fakeRawGetter struct {

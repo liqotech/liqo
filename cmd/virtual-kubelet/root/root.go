@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -258,7 +259,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		go leaderelection.Run(ctx, leaderElector)
 	}
 
-	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, localConfig, remoteConfig, c)
+	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, localConfig, remoteConfig, c,
+		metricsNodeSelector(effectiveOffloadingPatch(&vn)))
 	if err != nil {
 		return fmt.Errorf("error while setting up HTTPS server: %w", err)
 	}
@@ -398,6 +400,17 @@ func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1
 		reflectorsConfigs[*resource] = offloadingv1beta1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
+}
+
+// metricsNodeSelector returns a label selector restricting the metrics served by this virtual
+// kubelet to the remote nodes targeting by the offloading patch node selector. An empty string
+// is returned when no node selector is defined, meaning metrics are aggregated over all the
+// remote nodes (legacy behavior).
+func metricsNodeSelector(patch *offloadingv1beta1.OffloadingPatch) string {
+	if patch == nil || len(patch.NodeSelector) == 0 {
+		return ""
+	}
+	return labels.SelectorFromSet(patch.NodeSelector).String()
 }
 
 // effectiveOffloadingPatch returns the offloading patch to enforce, preferring the

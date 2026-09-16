@@ -28,6 +28,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,8 +64,14 @@ func NewAPIServiceScraper(restClient rest.Interface, cl client.Client) Scraper {
 }
 
 // Scrape scrapes metrics from the API server for the given (relative) path and clusterID.
-func (s *apiServiceScraper) Scrape(ctx context.Context, path, clusterID string) (Metrics, error) {
-	nodes := s.resourceManager.GetNodeNames(ctx)
+// When nodeSelector is not nil nor empty, only the matching nodes are scraped, otherwise all of
+// them are scraped and the metrics aggregated.
+func (s *apiServiceScraper) Scrape(ctx context.Context, path, clusterID string, nodeSelector labels.Selector) (Metrics, error) {
+	nodes := s.resourceManager.GetNodes(ctx, nodeSelector)
+	if len(nodes) == 0 {
+		klog.Warningf("No nodes matching selector %q found while scraping metrics for cluster id %s", nodeSelector, clusterID)
+		return Metrics{}, nil
+	}
 
 	metricsChan := make(chan Metrics, len(nodes))
 	defer close(metricsChan)

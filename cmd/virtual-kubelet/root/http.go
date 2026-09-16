@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"time"
@@ -49,7 +50,7 @@ import (
 type crtretriever func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 
 func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClient kubernetes.Interface,
-	localConfig, remoteConfig *rest.Config, cfg *Opts) (err error) {
+	localConfig, remoteConfig *rest.Config, cfg *Opts, metricsNodeSelector string) (err error) {
 	var retriever crtretriever
 
 	parsedIP := net.ParseIP(cfg.NodeIP)
@@ -76,7 +77,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID())
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector)
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -192,12 +193,35 @@ func setupHealthServer() {
 	}
 }
 
-func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID liqov1beta1.ClusterID) {
+func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface,
+	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string) {
+	// Restrict the scraping to the remote nodes matching the given label selector (i.e., the ones
+	// targeted by this virtual kubelet through its offloading patch), so that node and pod metrics
+	// are not aggregated over the whole remote cluster. An empty selector preserves the aggregated
+	// behavior.
+	query := url.Values{}
+	if metricsNodeSelector != "" {
+		query.Add("nodeSelector", metricsNodeSelector)
+	}
+
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
 
-		res := cl.Get().RequestURI(path.Clean(fmt.Sprintf("/apis/metrics.liqo.io/v1beta1/scrape/%s/%s",
-			localClusterID, r.RequestURI))).Do(ctx)
+		// Only the request path is used to build the scrape URI: r.RequestURI also carries the raw
+		// query string, which would be merged with (and break) the node selector one. The incoming
+		// query parameters are still forwarded, and the node selector takes precedence over any
+		// homonymous parameter set by the client.
+		reqQuery := r.URL.Query()
+		for key, values := range query {
+			reqQuery[key] = values
+		}
+
+		uri := path.Clean(fmt.Sprintf("/apis/metrics.liqo.io/v1beta1/scrape/%s/%s", localClusterID, r.URL.Path))
+		if len(reqQuery) > 0 {
+			uri += "?" + reqQuery.Encode()
+		}
+
+		res := cl.Get().RequestURI(uri).Do(ctx)
 		err := res.Error()
 		if err != nil {
 			klog.Error(err)
