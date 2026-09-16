@@ -30,7 +30,7 @@ type MappedNamespace struct {
 // ResourceGetter is the interface for a local resource getter.
 type ResourceGetter interface {
 	GetNamespaces(ctx context.Context, clusterID string) []MappedNamespace
-	GetPodNames(ctx context.Context, clusterID, node string) []string
+	GetPodsPerNode(ctx context.Context, clusterID string) map[string][]string
 	GetNodeNames(ctx context.Context) []string
 }
 

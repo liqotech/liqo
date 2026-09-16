@@ -116,26 +116,16 @@ var _ = Context("Resources", func() {
 		}))
 	})
 
-	It("should retrieve pods", func() {
-		pods := getter.GetPodNames(ctx, "cluster1", "node1")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod1"))
-		Expect(pods).ToNot(ContainElements("pod2", "pod3", "pod4"))
+	It("should retrieve pods grouped by node", func() {
+		pods := getter.GetPodsPerNode(ctx, "cluster1")
+		Expect(pods).To(HaveLen(2))
+		Expect(pods["node1"]).To(ConsistOf("pod1"))
+		Expect(pods["node2"]).To(ConsistOf("pod2"))
 
-		pods = getter.GetPodNames(ctx, "cluster1", "node2")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod2"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod3", "pod4"))
-
-		pods = getter.GetPodNames(ctx, "cluster2", "node1")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod3"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod2", "pod4"))
-
-		pods = getter.GetPodNames(ctx, "cluster2", "node2")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod4"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod2", "pod3"))
+		pods = getter.GetPodsPerNode(ctx, "cluster2")
+		Expect(pods).To(HaveLen(2))
+		Expect(pods["node1"]).To(ConsistOf("pod3"))
+		Expect(pods["node2"]).To(ConsistOf("pod4"))
 	})
 
 })

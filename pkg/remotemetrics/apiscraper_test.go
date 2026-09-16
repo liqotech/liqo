@@ -17,6 +17,7 @@ package remotemetrics
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -125,6 +126,43 @@ var _ = Context("ApiScraper", func() {
 		Expect(metrics[1].values).To(ConsistOf(
 			"metric2{namespace=\"original_namespace1\",pod=\"pod1\"} 1 1000000000",
 		))
+	})
+
+	When("a node fails to be scraped", func() {
+		BeforeEach(func() {
+			scraper.(*apiServiceScraper).rawGetter.(*fakeRawGetter).errs = map[string]error{
+				"node2": fmt.Errorf("dial tcp 10.0.0.8:10250: i/o timeout"),
+			}
+		})
+
+		It("should succeed returning the metrics of the other nodes only", func() {
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(metrics)).To(Equal(2))
+
+			// metric2 and the pod5 values came from node1 and node2 respectively.
+			Expect(metrics[0].values).To(ConsistOf(
+				"metric1{namespace=\"original_namespace1\",pod=\"pod1\"} 1 1000000000",
+				"metric1{namespace=\"original_namespace1\",pod=\"pod2\"} 2 2000000000",
+			))
+			Expect(metrics[1].values).To(ConsistOf(
+				"metric2{namespace=\"original_namespace1\",pod=\"pod1\"} 1 1000000000",
+			))
+		})
+	})
+
+	When("all nodes fail to be scraped", func() {
+		BeforeEach(func() {
+			scraper.(*apiServiceScraper).rawGetter.(*fakeRawGetter).errs = map[string]error{
+				"node1": fmt.Errorf("dial tcp 10.0.0.7:10250: i/o timeout"),
+				"node2": fmt.Errorf("dial tcp 10.0.0.8:10250: i/o timeout"),
+				"node3": fmt.Errorf("dial tcp 10.0.0.9:10250: i/o timeout"),
+			}
+		})
+
+		It("should fail, rather than silently returning empty metrics", func() {
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to scrape metrics from all 3 nodes"))
+		})
 	})
 
 })

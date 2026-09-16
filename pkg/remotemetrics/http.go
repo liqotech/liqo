@@ -15,11 +15,16 @@
 package remotemetrics
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"golang.org/x/sync/singleflight"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -42,16 +47,40 @@ var (
 	}
 )
 
+const (
+	// defaultScrapeCacheTTL is the time-to-live of cached scrape responses. Multiple consumers
+	// (virtual kubelets forwarding metrics-server and Prometheus requests) typically request the
+	// same (cluster, path) combination at similar times; caching the response for a short period
+	// avoids re-scraping all the nodes for each of them, which is the dominant CPU cost.
+	defaultScrapeCacheTTL = 15 * time.Second
+	// scrapeDetachTimeout bounds the time allotted to a deduplicated scrape once detached from
+	// the caller's context (see metricHTTP).
+	scrapeDetachTimeout = 60 * time.Second
+)
+
+// cacheEntry contains a cached scrape response and its expiration time.
+type cacheEntry struct {
+	data      []byte
+	expiresAt time.Time
+}
+
 type metricHandler struct {
 	*httprouter.Router
 	scraper Scraper
+
+	cacheTTL time.Duration
+	cacheMu  sync.Mutex
+	cache    map[string]cacheEntry
+	inflight singleflight.Group
 }
 
 // GetHTTPHandler returns a handler for the metrics API.
 func GetHTTPHandler(restClient rest.Interface, cl client.Client) (http.Handler, error) {
 	router := &metricHandler{
-		Router:  httprouter.New(),
-		scraper: NewAPIServiceScraper(restClient, cl),
+		Router:   httprouter.New(),
+		scraper:  NewAPIServiceScraper(restClient, cl),
+		cacheTTL: defaultScrapeCacheTTL,
+		cache:    map[string]cacheEntry{},
 	}
 
 	// Return empty api resource list.
@@ -159,9 +188,7 @@ func openAPIDoc(doc map[string]interface{}) httprouter.Handle {
 	}
 }
 
-func (handler *metricHandler) metricHTTP(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-
+func (handler *metricHandler) metricHTTP(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 	clusterID := ps.ByName("cluster-id")
 	path := ps.ByName("path")
 	subpath := ps.ByName("subpath")
@@ -175,19 +202,57 @@ func (handler *metricHandler) metricHTTP(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	metrics, err := handler.scraper.Scrape(ctx, path, clusterID)
-	if err != nil {
-		klog.Errorf("failed to scrape metrics: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, err = w.Write([]byte(err.Error())); err != nil {
-			klog.Errorf("failed to write error: %s", err)
+	key := clusterID + "/" + path
+
+	handler.cacheMu.Lock()
+	entry, found := handler.cache[key]
+	handler.cacheMu.Unlock()
+
+	var data []byte
+	if found && time.Now().Before(entry.expiresAt) {
+		klog.V(4).Infof("Serving cached metrics for %q", key)
+		data = entry.data
+	} else {
+		// Deduplicate concurrent scrapes of the same (cluster, path): only one of them
+		// actually performs the scraping, while the others wait for the shared result.
+		// Errors are not cached, so that failed scrapes can be immediately retried.
+		res, err, _ := handler.inflight.Do(key, func() (interface{}, error) {
+			// Detach the scraping from the caller's context: a client disconnecting early
+			// (e.g., a short scrape timeout) must not abort the shared scraping the other
+			// waiters depend on, nor prevent the result from being cached.
+			ctx, cancel := context.WithTimeout(context.Background(), scrapeDetachTimeout)
+			defer cancel()
+
+			metrics, err := handler.scraper.Scrape(ctx, path, clusterID)
+			if err != nil {
+				return nil, err
+			}
+
+			var buf bytes.Buffer
+			metrics.Write(&buf)
+
+			handler.cacheMu.Lock()
+			handler.cache[key] = cacheEntry{data: buf.Bytes(), expiresAt: time.Now().Add(handler.cacheTTL)}
+			handler.cacheMu.Unlock()
+
+			return buf.Bytes(), nil
+		})
+		if err != nil {
+			klog.Errorf("failed to scrape metrics: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			if _, err = w.Write([]byte(err.Error())); err != nil {
+				klog.Errorf("failed to write error: %s", err)
+			}
+			return
 		}
-		return
+		data = res.([]byte)
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	metrics.Write(w)
+	if _, err := w.Write(data); err != nil {
+		klog.Errorf("failed to write metrics: %s", err)
+	}
 }
 
 func (handler *metricHandler) isValidPath(path string) bool {

@@ -23,12 +23,24 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	// maxConcurrentScrapes bounds the number of nodes scraped concurrently for a single metrics request.
+	// Without a limit, each request issues one API server proxy request per node at the same time, causing
+	// burst of requests that exhaust the client-side rate limiter in clusters with many nodes.
+	maxConcurrentScrapes = 32
+	// nodeScrapeTimeout bounds the time spent scraping a single node. It prevents unreachable kubelets
+	// (e.g., which dial times out after ~30s) from stalling the whole metrics request.
+	nodeScrapeTimeout = 10 * time.Second
 )
 
 type rawGetter interface {
@@ -58,23 +70,36 @@ func (s *apiServiceScraper) Scrape(ctx context.Context, path, clusterID string) 
 	defer close(metricsChan)
 
 	namespaces := s.resourceManager.GetNamespaces(ctx, clusterID)
+	// List the pods of the given cluster once, grouped by node, to avoid performing
+	// one list operation for each node being scraped.
+	podsByNode := s.resourceManager.GetPodsPerNode(ctx, clusterID)
 
 	nodeMetricsMatcher := MatchNodeMetrics()
 	metricsMapper := NewNamespaceMapper(namespaces...)
 
+	var failedNodes atomic.Int32
+
 	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(maxConcurrentScrapes)
 	for i := range nodes {
 		node := nodes[i]
 		// run each scraper in a separate goroutine
 		errGroup.Go(func() error {
 			podMetricsMatcher := MatchAll().
 				Add(MatchNamespaces(namespaces...)).
-				Add(MatchPods(s.resourceManager.GetPodNames(ctx, clusterID, node)...))
+				Add(MatchPods(podsByNode[node]...))
 
 			metrics, err := s.getMetrics(ctx, node, path,
 				MatchAny().Add(nodeMetricsMatcher).Add(podMetricsMatcher), metricsMapper)
 			if err != nil {
-				return err
+				// A single unreachable or broken kubelet must not fail the whole metrics request,
+				// discarding the data successfully retrieved from all the other nodes: log the
+				// failure and skip the node. The error is propagated only if all nodes failed.
+				if ctx.Err() == nil {
+					klog.Warningf("Skipping metrics for node %q, which failed to be scraped: %s", node, err)
+				}
+				failedNodes.Add(1)
+				metrics = Metrics{}
 			}
 
 			metricsChan <- metrics
@@ -102,7 +127,8 @@ func (s *apiServiceScraper) Scrape(ctx context.Context, path, clusterID string) 
 		}
 	}()
 
-	// if one of the scrapers returns an error, cancel the merge
+	// node scrapers never fail individually (failures are logged and the node is skipped),
+	// hence the only possible error is a canceled context.
 	if err := errGroup.Wait(); err != nil {
 		return Metrics{}, err
 	}
@@ -111,6 +137,13 @@ func (s *apiServiceScraper) Scrape(ctx context.Context, path, clusterID string) 
 
 	// wait for the merge to finish
 	wg.Wait()
+
+	// Fail the request only if no node provided metrics at all (e.g., API server unreachable,
+	// misconfigured RBAC): serving an empty response would silently mask the issue.
+	if len(nodes) > 0 && int(failedNodes.Load()) == len(nodes) {
+		return Metrics{}, fmt.Errorf("failed to scrape metrics from all %d nodes", len(nodes))
+	}
+
 	return aggregator.Aggregate(fullMetrics), nil
 }
 
@@ -170,6 +203,9 @@ type rawGetterImpl struct {
 }
 
 func (rg *rawGetterImpl) get(ctx context.Context, nodeName, path string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, nodeScrapeTimeout)
+	defer cancel()
+
 	res := rg.restClient.Get().RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/%s", nodeName, path)).Do(ctx)
 	err := res.Error()
 	if err != nil {
