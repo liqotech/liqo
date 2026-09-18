@@ -76,8 +76,18 @@ do
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
 
+  # Install the e2e Widget CRD before Liqo so Virtual Kubelets can discover it at startup.
+  WIDGET_CRD="${SCRIPT_DIR}/../../../manifests/example-widget/crd.yaml"
+  "${KUBECTL}" apply -f "${WIDGET_CRD}"
+  "${KUBECTL}" wait --for=condition=Established --timeout=60s crd/widgets.example.io
+
   COMMON_ARGS=(--cluster-id "${CLUSTER_NAME}" --local-chart-path ./deployments/liqo
-    --version "${LIQO_VERSION}" --set metrics.enabled=true)
+    --version "${LIQO_VERSION}" --set metrics.enabled=true
+    --set offloading.reflection.customResources[0].group=example.io
+    --set offloading.reflection.customResources[0].version=v1
+    --set offloading.reflection.customResources[0].resource=widgets
+    --set offloading.reflection.customResources[0].workers=2
+    --set offloading.reflection.customResources[0].type=AllowList)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi

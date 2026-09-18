@@ -9,6 +9,7 @@ Briefly, the set of supported resources includes (by category):
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PersistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
+* [**Custom Resources**](UsageReflectionCustomResources): *arbitrary namespaced GVRs* (opt-in)
 
 (UsageReflectionPolicies)=
 
@@ -26,7 +27,8 @@ liqoctl install ... --set "offloading.reflection.secret.type=AllowList"
 ```
 
 ````{warning}
-* ***DenyList*** is the **default** reflection policy for all resources.
+* ***DenyList*** is the **default** reflection policy for built-in resources.
+* Custom resource reflection (when configured) defaults to ***AllowList***.
 * Only the *Pods*, *PVCs*, and *ServiceAccounts* reflectors follow a **custom** Liqo logic and can't be customized.
 * The *EndpointSlice* reflector inherits the reflection policy from the *Service* reflector, and follows the following policy:
   * an endpointslice is (not) reflected if the associated service is (not) reflected
@@ -198,6 +200,60 @@ More specifically, an event is propagated if it belongs to an offloaded namespac
 The event reflector is the only one that propagates a resource from the remote cluster to the local cluster.
 Local events are not reflected to the remote cluster.
 ```
+
+(UsageReflectionCustomResources)=
+
+## Custom resources (opt-in)
+
+Liqo can optionally reflect **arbitrary namespaced custom resources** between offloaded namespaces.
+When enabled for a given Group/Version/Resource (GVR):
+
+* the **spec** is propagated **local → remote**;
+* the **status** is propagated **remote → local**.
+
+No application CRDs are hardcoded in Liqo: you configure the GVRs you need.
+Liqo does **not** install CRDs; compatible CRDs must already exist on both clusters.
+
+### Configuration
+
+Configure the list through the Helm value `offloading.reflection.customResources` (default: empty — feature off):
+
+```yaml
+offloading:
+  reflection:
+    customResources:
+      - group: example.io
+        version: v1
+        resource: widgets   # plural resource name
+        workers: 2
+        type: AllowList     # recommended default
+```
+
+Then upgrade Liqo on the **consumer** cluster (VK config + RBAC) and ensure the **provider** tenant permissions include the same GVRs (the chart templates the remote Virtual Kubelet ClusterRole from the same list when Liqo is installed/upgraded there).
+
+The default reflection policy for custom resources is **AllowList**. Annotate individual instances to opt in:
+
+```yaml
+metadata:
+  annotations:
+    liqo.io/allow-reflection: "true"
+```
+
+### Operations checklist
+
+1. Install the relevant CRDs (and controllers, if needed) on both clusters as appropriate.
+2. Set `offloading.reflection.customResources` to the desired GVR list; upgrade Liqo on the **consumer**.
+3. Ensure **provider** tenant permissions include those GVRs (re-upgrade Liqo on the provider, or apply equivalent Role/ClusterRole rules).
+4. Offload the namespace; annotate CR instances with `liqo.io/allow-reflection: "true"`.
+5. Verify the remote twin exists and that status written remotely appears on the local object.
+
+````{warning}
+* Existing VirtualNodes may need recreate/restart so the Virtual Kubelet picks up new flags and RBAC after changing the list.
+* Run the controller for a reflected type on **one** side only to avoid double reconcile fights.
+* Spec ownership is local-only: remote edits to `spec` are overwritten by the Virtual Kubelet.
+* Cluster-scoped custom resources are **not** supported.
+* Cross-references and hardcoded namespaces in the CR `spec` are copied as-is and may be invalid remotely.
+````
 
 (UsageReflectionRuntimeClass)=
 

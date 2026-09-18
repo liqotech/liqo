@@ -22,6 +22,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -46,6 +48,8 @@ type manager struct {
 	remote           kubernetes.Interface
 	localLiqo        liqoclient.Interface
 	remoteLiqo       liqoclient.Interface
+	localDynamic     dynamic.Interface
+	remoteDynamic    dynamic.Interface
 	resync           time.Duration
 	eventBroadcaster record.EventBroadcaster
 
@@ -61,7 +65,8 @@ type manager struct {
 }
 
 // New returns a new manager to start the reflection towards a remote cluster.
-func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration,
+func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface,
+	localDynamic, remoteDynamic dynamic.Interface, resync time.Duration,
 	eb record.EventBroadcaster, forgingOpts *forge.ForgingOpts) Manager {
 	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
 	localPodTweakListOptions := func(opts *metav1.ListOptions) {
@@ -73,6 +78,8 @@ func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.In
 		remote:           remote,
 		localLiqo:        localLiqo,
 		remoteLiqo:       remoteLiqo,
+		localDynamic:     localDynamic,
+		remoteDynamic:    remoteDynamic,
 		resync:           resync,
 		eventBroadcaster: eb,
 
@@ -172,6 +179,13 @@ func (m *manager) StartNamespace(local, remote string) {
 	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync, informers.WithNamespace(remote))
 	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync, liqoinformers.WithNamespace(remote))
 
+	// Dynamic factories are only needed for custom resource reflection.
+	var localDynamicFactory, remoteDynamicFactory dynamicinformer.DynamicSharedInformerFactory
+	if m.localDynamic != nil && m.remoteDynamic != nil {
+		localDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.localDynamic, m.resync, local, nil)
+		remoteDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.remoteDynamic, m.resync, remote, nil)
+	}
+
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.NewNamespaced().
@@ -179,6 +193,10 @@ func (m *manager) StartNamespace(local, remote string) {
 			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
 			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster).
 			WithForgingOpts(&m.forgingOpts)
+		if localDynamicFactory != nil {
+			opts = opts.WithDynamicLocal(m.localDynamic, localDynamicFactory).
+				WithDynamicRemote(m.remoteDynamic, remoteDynamicFactory)
+		}
 		reflector.StartNamespace(opts)
 	}
 
@@ -192,11 +210,19 @@ func (m *manager) StartNamespace(local, remote string) {
 		localLiqoFactory.Start(ctx.Done())
 		remoteFactory.Start(ctx.Done())
 		remoteLiqoFactory.Start(ctx.Done())
+		if localDynamicFactory != nil {
+			localDynamicFactory.Start(ctx.Done())
+			remoteDynamicFactory.Start(ctx.Done())
+		}
 
 		localFactory.WaitForCacheSync(ctx.Done())
 		localLiqoFactory.WaitForCacheSync(ctx.Done())
 		remoteFactory.WaitForCacheSync(ctx.Done())
 		remoteLiqoFactory.WaitForCacheSync(ctx.Done())
+		if localDynamicFactory != nil {
+			localDynamicFactory.WaitForCacheSync(ctx.Done())
+			remoteDynamicFactory.WaitForCacheSync(ctx.Done())
+		}
 
 		// If the context was closed before the cache was ready, let abort the setup
 		select {

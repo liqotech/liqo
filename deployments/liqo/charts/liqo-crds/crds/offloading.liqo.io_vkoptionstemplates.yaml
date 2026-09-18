@@ -57,6 +57,39 @@ spec:
                 type: string
               createNode:
                 type: boolean
+              customResources:
+                items:
+                  description: CustomResourceReflectorConfig contains configuration
+                    parameters for reflecting a custom resource GVR.
+                  properties:
+                    group:
+                      description: Group is the API group of the custom resource (e.g.,
+                        "example.io").
+                      type: string
+                    resource:
+                      description: Resource is the plural resource name of the custom
+                        resource (e.g., "widgets").
+                      type: string
+                    type:
+                      description: Type of reflection.
+                      enum:
+                      - AllowList
+                      - DenyList
+                      type: string
+                    version:
+                      description: Version is the API version of the custom resource
+                        (e.g., "v1").
+                      type: string
+                    workers:
+                      description: Number of workers for the reflector.
+                      type: integer
+                  required:
+                  - group
+                  - resource
+                  - version
+                  - workers
+                  type: object
+                type: array
               disableNetworkCheck:
                 type: boolean
               extraAnnotations:
@@ -116,6 +149,9 @@ spec:
                   properties:
                     type:
                       description: Type of reflection.
+                      enum:
+                      - AllowList
+                      - DenyList
                       type: string
                     workers:
                       description: Number of workers for the reflector.
