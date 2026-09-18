@@ -181,6 +181,11 @@ func main() {
 			klog.Errorf("Unable to add the resource validator cache refresher to the manager: %v", err)
 			os.Exit(1)
 		}
+
+		if err := spv.SetupQuotaReleaser(mgr); err != nil {
+			klog.Errorf("Unable to set up the shadowpod quota releaser: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	// Options for the virtual kubelet.
