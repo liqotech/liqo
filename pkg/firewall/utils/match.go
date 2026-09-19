@@ -29,17 +29,24 @@ import (
 )
 
 func applyMatch(m *firewallv1beta1.Match, rule *nftables.Rule) error {
+	// Proto must be emitted first: nftables evaluates expressions in order,
+	// and the protocol match must appear before interface or set matches
+	if m.Proto != nil {
+		if err := applyMatchProto(m, rule); err != nil {
+			return err
+		}
+	}
+	// If a Set match is present, it is applied after Proto and the function returns early,
+	// since Set replaces Dev and the eq/neq comparison path does not apply to set membership.
+	if m.Set != nil {
+		return applyMatchSet(m, rule)
+	}
+
 	op, err := getMatchCmpOp(m)
 	if err != nil {
 		return err
 	}
 
-	if m.Proto != nil {
-		err = applyMatchProto(m, rule)
-		if err != nil {
-			return err
-		}
-	}
 	if m.Dev != nil {
 		err = applyMatchDev(m, rule, op)
 		if err != nil {
@@ -232,7 +239,7 @@ func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp)
 		// interface name that starts with the given prefix.
 		data = []byte(m.Dev.Value)
 	} else {
-		data = ifname(m.Dev.Value)
+		data = Ifname(m.Dev.Value)
 	}
 
 	rule.Exprs = append(rule.Exprs,
@@ -299,6 +306,30 @@ func applyMatchIPRange(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.Cm
 		},
 	)
 
+	return nil
+}
+
+// applyMatchSet translates a Set match into nftables expressions.
+// It loads the interface name from the metadata (iifname or oifname)
+// into a register and then performs a set lookup against the named set.
+func applyMatchSet(m *firewallv1beta1.Match, rule *nftables.Rule) error {
+	metakey, err := getMatchSetMetaKey(m)
+	if err != nil {
+		return err
+	}
+	invert := m.Op == firewallv1beta1.MatchOperationNin
+	setName := fmt.Sprintf("tunnel-list-%d", len(m.Set.Values))
+	rule.Exprs = append(rule.Exprs,
+		&expr.Meta{
+			Register: 1,
+			Key:      metakey,
+		},
+		&expr.Lookup{
+			SourceRegister: 1,
+			SetName:        setName,
+			Invert:         invert,
+		},
+	)
 	return nil
 }
 
@@ -372,7 +403,24 @@ func getMatchDevMetaKey(m *firewallv1beta1.Match) (expr.MetaKey, error) {
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)
 }
 
-func ifname(n string) []byte {
+// getMatchSetMetaKey returns the nftables metadata key for the set match position.
+func getMatchSetMetaKey(m *firewallv1beta1.Match) (expr.MetaKey, error) {
+	if m.Set == nil {
+		return 0, fmt.Errorf("match set is not defined")
+	}
+	switch m.Set.Position {
+	case firewallv1beta1.MatchDevPositionIn:
+		return expr.MetaKeyIIFNAME, nil
+	case firewallv1beta1.MatchDevPositionOut:
+		return expr.MetaKeyOIFNAME, nil
+	default:
+		return 0, fmt.Errorf("invalid match set position %s", m.Set.Position)
+	}
+}
+
+// Ifname converts an interface name to a 16-byte null-terminated array
+// as required by nftables.
+func Ifname(n string) []byte {
 	b := make([]byte, 16)
 	copy(b, n+"\x00")
 	return b
