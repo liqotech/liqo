@@ -179,11 +179,13 @@ spec:
                                           - value
                                           type: object
                                         op:
-                                          description: Op is the operation of the
-                                            match.
+                                          description: Use 'eq'/'neq' for IP, Port,
+                                            Proto, Dev. Use 'in'/'nin' for Set.
                                           enum:
                                           - eq
                                           - neq
+                                          - in
+                                          - nin
                                           type: string
                                         port:
                                           description: Port contains the options to
@@ -217,6 +219,27 @@ spec:
                                               type: string
                                           required:
                                           - value
+                                          type: object
+                                        set:
+                                          description: Set contains the options to
+                                            match a set of devices.
+                                          properties:
+                                            position:
+                                              description: Position is the source
+                                                device of the packet. (in or out)
+                                              enum:
+                                              - in
+                                              - out
+                                              type: string
+                                            values:
+                                              description: Values are the names of
+                                                the devices to be matched.
+                                              items:
+                                                type: string
+                                              type: array
+                                          required:
+                                          - position
+                                          - values
                                           type: object
                                       required:
                                       - op
@@ -306,11 +329,13 @@ spec:
                                           - value
                                           type: object
                                         op:
-                                          description: Op is the operation of the
-                                            match.
+                                          description: Use 'eq'/'neq' for IP, Port,
+                                            Proto, Dev. Use 'in'/'nin' for Set.
                                           enum:
                                           - eq
                                           - neq
+                                          - in
+                                          - nin
                                           type: string
                                         port:
                                           description: Port contains the options to
@@ -344,6 +369,27 @@ spec:
                                               type: string
                                           required:
                                           - value
+                                          type: object
+                                        set:
+                                          description: Set contains the options to
+                                            match a set of devices.
+                                          properties:
+                                            position:
+                                              description: Position is the source
+                                                device of the packet. (in or out)
+                                              enum:
+                                              - in
+                                              - out
+                                              type: string
+                                            values:
+                                              description: Values are the names of
+                                                the devices to be matched.
+                                              items:
+                                                type: string
+                                              type: array
+                                          required:
+                                          - position
+                                          - values
                                           type: object
                                       required:
                                       - op
