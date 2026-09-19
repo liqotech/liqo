@@ -22,6 +22,12 @@ const (
 	MatchOperationEq MatchOperation = "eq"
 	// MatchOperationNeq is the operation of the match.
 	MatchOperationNeq MatchOperation = "neq"
+	// MatchOperationIn indicates the element must be part of the set.
+	// Use only with Set.
+	MatchOperationIn MatchOperation = "in"
+	// MatchOperationNin indicates the element must not be part of the set.
+	// Use only with Set.
+	MatchOperationNin MatchOperation = "nin"
 )
 
 // MatchPosition is the position of the IP in the packet.
@@ -89,6 +95,17 @@ type MatchDev struct {
 	Wildcard bool `json:"wildcard,omitempty"`
 }
 
+// MatchSet is a set of devices to be matched.
+// It is an extension of MatchDev struct.
+// +kubebuilder:object:generate=true
+type MatchSet struct {
+	// Values are the names of the devices to be matched.
+	Values []string `json:"values"`
+	// Position is the source device of the packet. (in or out)
+	// +kubebuilder:validation:Enum=in;out
+	Position MatchDevPosition `json:"position"`
+}
+
 // MatchProto is a protocol to be matched.
 // +kubebuilder:object:generate=true
 type MatchProto struct {
@@ -107,8 +124,8 @@ type MatchMark struct {
 // Match is a match to be applied to a rule.
 // +kubebuilder:object:generate=true
 type Match struct {
-	// Op is the operation of the match.
-	// +kubebuilder:validation:Enum=eq;neq
+	// Use 'eq'/'neq' for IP, Port, Proto, Dev. Use 'in'/'nin' for Set.
+	// +kubebuilder:validation:Enum=eq;neq;in;nin
 	Op MatchOperation `json:"op"`
 	// IP contains the options to match an IP or a Subnet.
 	IP *MatchIP `json:"ip,omitempty"`
@@ -120,4 +137,6 @@ type Match struct {
 	Dev *MatchDev `json:"dev,omitempty"`
 	// Mark contains the options to match a packet fwmark.
 	Mark *MatchMark `json:"mark,omitempty"`
+	// Set contains the options to match a set of devices.
+	Set *MatchSet `json:"set,omitempty"`
 }

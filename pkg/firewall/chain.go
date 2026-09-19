@@ -15,12 +15,20 @@
 package firewall
 
 import (
+	"net"
+	"sort"
+	"strings"
+
 	"github.com/google/nftables"
 	"k8s.io/klog/v2"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
+
+// tunnelInterfaceName is a local copy of tunnel.TunnelInterfaceName ("liqo-tunnel").
+// It's duplicated here (instead of importing pkg/gateway/tunnel) to avoid an import cycle.
+const tunnelInterfaceName = "liqo-tunnel"
 
 func addChains(nftConn *nftables.Conn, chains []firewallapi.Chain, table *nftables.Table) (bool, error) {
 	notrackAppliedTotal := false
@@ -216,12 +224,20 @@ func isChainModified(nftChain *nftables.Chain, chain *firewallapi.Chain) bool {
 }
 
 // FromChainToRulesArray converts a chain to an array of rules.
-func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallutils.Rule) {
+// For filter rules, it expands any match targeting the liqo-tunnel placeholder
+// on the outbound interface (oifname) into a Set match containing all real tunnel interfaces.
+func FromChainToRulesArray(chain *firewallapi.Chain, tunnels []string) (rules []firewallutils.Rule) {
 	switch chain.Type {
 	case firewallapi.ChainTypeFilter:
-		rules = make([]firewallutils.Rule, len(chain.Rules.FilterRules))
+		rules = []firewallutils.Rule{}
 		for i := range chain.Rules.FilterRules {
-			rules[i] = &firewallutils.FilterRuleWrapper{FilterRule: &chain.Rules.FilterRules[i]}
+			filterRule := &chain.Rules.FilterRules[i]
+			if len(tunnels) > 1 {
+				filterRule = expandOifFilterWithSet(filterRule, tunnels)
+			}
+			rules = append(rules, &firewallutils.FilterRuleWrapper{
+				FilterRule: filterRule,
+			})
 		}
 		return rules
 	case firewallapi.ChainTypeNAT:
@@ -242,13 +258,43 @@ func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallutils.Rule
 	return rules
 }
 
+// expandOifFilterWithSet replaces the oifname Dev match targeting liqo-tunnel
+// with a Set match containing all real tunnel interfaces,
+// preserving the original eq/neq operator as in/nin.
+func expandOifFilterWithSet(filterRule *firewallapi.FilterRule, tunnels []string) *firewallapi.FilterRule {
+	if len(tunnels) == 0 {
+		return filterRule
+	}
+	newRule := filterRule.DeepCopy()
+	for i := range newRule.Match {
+		if newRule.Match[i].Dev == nil ||
+			newRule.Match[i].Dev.Value != tunnelInterfaceName ||
+			newRule.Match[i].Dev.Position != firewallapi.MatchDevPositionOut {
+			continue
+		}
+		op := firewallapi.MatchOperationIn
+		if newRule.Match[i].Op == firewallapi.MatchOperationNeq {
+			op = firewallapi.MatchOperationNin
+		}
+		newRule.Match[i].Set = &firewallapi.MatchSet{
+			Values:   tunnels,
+			Position: newRule.Match[i].Dev.Position,
+		}
+		newRule.Match[i].Op = op
+		newRule.Match[i].Dev = nil
+		break
+	}
+	return newRule
+}
+
 // cleanChain removes all the rules that are not present in the firewall configuration or that have been modified.
 func cleanChain(nftconn *nftables.Conn, chain *firewallapi.Chain, nftChain *nftables.Chain) error {
 	nftRules, err := nftconn.GetRules(nftChain.Table, nftChain)
 	if err != nil {
 		return err
 	}
-	rules := FromChainToRulesArray(chain)
+	tunnels := GetTunnelInterfaces()
+	rules := FromChainToRulesArray(chain, tunnels)
 	for i := range nftRules {
 		// If the rule is outdated, delete it.
 		outdated, ruleName := isRuleOutdated(nftRules[i], rules)
@@ -260,4 +306,18 @@ func cleanChain(nftconn *nftables.Conn, chain *firewallapi.Chain, nftChain *nfta
 		}
 	}
 	return nil
+}
+
+// GetTunnelInterfaces returns the sorted names of all local network interfaces
+// whose name starts with the liqo tunnel prefix.
+func GetTunnelInterfaces() []string {
+	ifaces, _ := net.Interfaces()
+	var tunnels []string
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.Name, tunnelInterfaceName) {
+			tunnels = append(tunnels, iface.Name)
+		}
+	}
+	sort.Strings(tunnels)
+	return tunnels
 }
