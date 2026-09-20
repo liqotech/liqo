@@ -57,7 +57,7 @@ type Provider interface {
 
 	// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
 	Initialize(ctx context.Context) error
-	// Values returns the customized provider-specifc values file parameters.
+	// Values returns the customized provider-specific values file parameters.
 	Values() map[string]interface{}
 }
 
