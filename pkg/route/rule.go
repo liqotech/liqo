@@ -20,9 +20,73 @@ import (
 	"net"
 
 	"github.com/vishvananda/netlink"
+	"k8s.io/utils/ptr"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
+
+// maxAssignablePriority is the highest priority the controller assigns to rules
+// that do not have an explicit priority. It sits just below the default "main"
+// table rule (priority 32766), mirroring the behavior of iproute2, which packs
+// auto-assigned rules immediately below "main" and counts downwards.
+const maxAssignablePriority = 32765
+
+// AssignRulePriorities assigns a deterministic priority to every rule in the
+// list that does not already have one. Priorities are handed out counting down
+// from maxAssignablePriority, skipping any value already used by an explicitly
+// prioritized rule or by an existing kernel rule, so that auto-assigned rules
+// never collide with explicit ones nor with each other.
+//
+// If an existing kernel rule has the same selector as a desired rule (ignoring
+// priority), the existing priority is reused. This keeps priorities stable
+// across reconciles even when other rules are added or removed, without having
+// to persist the assigned value into the RouteConfiguration.
+//
+// The assignment is performed in-memory only: it is used when applying the rule
+// to the kernel, but it is NOT persisted into the RouteConfiguration spec.
+func AssignRulePriorities(rules []networkingv1beta1.Rule, existing []netlink.Rule) {
+	// Collect the priorities already taken by explicit CRD rules and by rules
+	// already present in the kernel, so that we never assign a new priority that
+	// collides with them.
+	used := make(map[int]struct{})
+	for i := range rules {
+		if rules[i].Priority != nil {
+			used[*rules[i].Priority] = struct{}{}
+		}
+	}
+	for i := range existing {
+		used[existing[i].Priority] = struct{}{}
+	}
+
+	next := maxAssignablePriority
+	for i := range rules {
+		if rules[i].Priority != nil {
+			continue
+		}
+		// Reuse the priority of an existing kernel rule with the same selector.
+		// RuleIsEqual ignores priority when the desired rule has none, so this
+		// matches purely on the selector.
+		for j := range existing {
+			if RuleIsEqual(&rules[i], &existing[j]) {
+				rules[i].Priority = ptr.To(existing[j].Priority)
+				break
+			}
+		}
+		if rules[i].Priority != nil {
+			continue
+		}
+		// Find the next free priority counting downwards.
+		for {
+			if _, taken := used[next]; !taken {
+				break
+			}
+			next--
+		}
+		rules[i].Priority = ptr.To(next)
+		used[next] = struct{}{}
+		next--
+	}
+}
 
 // EnsureRulePresence ensures the presence of the given rule.
 func EnsureRulePresence(rule *networkingv1beta1.Rule, tableID uint32, existing []netlink.Rule) error {
