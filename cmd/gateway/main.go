@@ -126,6 +126,15 @@ func run(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to enable multipath hash policy: %w", err)
 		}
 	}
+
+	// Deprioritize the default local routing rule, so that the rules routing
+	// the remote pod CIDR through the tunnel are evaluated first. This prevents
+	// fabric traffic directed to a remote pod whose IP collides with the
+	// gateway pod IP from being delivered locally.
+	if err = kernel.DeprioritizeLocalRule(); err != nil {
+		return fmt.Errorf("failed to deprioritize local routing rule: %w", err)
+	}
+
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
 
