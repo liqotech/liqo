@@ -101,7 +101,7 @@ Hence, also this traffic, tunneled with Wireguard, is handled as normal traffic 
 The flow of a packet from a pod in one cluster to a pod in another cluster involves several steps:
 
 1. The packet originates from a pod and reaches the TCP/IP stack of the node through a virtual Ethernet interface. This step is managed by the CNI and follows the standard behavior of Kubernetes networking (Liqo is not involved in this step).
-2. From the node, the packet enters into a Geneve tunnel using a specific [route](routeconfiguration.md#remote-cluster-id-node-gw-node), added by Liqo. The Liqo route captures all the traffic that goes towards the Pod CIDR of the remote Liqo cluster. The packet arrives at the other end of the Geneve tunnel, inside the gateway pod. 
+2. From the node, the packet enters into a Geneve tunnel using a specific [route](routeconfiguration.md#remote-cluster-id-node-gw-node), added by Liqo. The Liqo route captures all the traffic that goes towards the Pod CIDR of the remote Liqo cluster. The packet arrives at the other end of the Geneve tunnel, inside the gateway pod.
 3. In case the local and remote clusters have overlapped Pod CIDRs, the gateway applies proper DNAT rules; then, it routes the packet into the WireGuard tunnel ([check [this route](routeconfiguration.md#remote-cluster-id-gw-ext-gateway)]), where is properly encrypted, then passed to the node TCP/IP stack for further processing.
 4. From the node, the packet follows the normal TCP/IP stack processing and exits from the local cluster. This step is managed by the CNI and follows the standard behavior of Kubernetes networking (Liqo is not involved in this step).
 5. The tunneled Wireguard traffic reaches the gateway pod in the remote cluster. It is decrypted by the WireGuard driver and re-injected into the stack, within the pod itself. Then, it is routed to the Geneve interface of the tunnel that terminates on the node hosting the target pod. This is achieved using the following [routes](routeconfiguration.md#local-cluster-id-node-name-gw-node-gateway). After routing, and in case the local and remote clusters have overlapped Pod CIDRs, SNAT is applied.
@@ -115,11 +115,9 @@ The return traffic follows the same path in opposite order, ensuring symmetric r
 
 When the IP traffic traverses a tunnel, there is always the risk that large IP packets need to be fragmented before encapsulating them into the tunnel.
 Unfortunately, not all the packets can be fragmented (e.g., the ones that have the IP _Don't Fragment_ flag turned on), and in this case the packet is dropped.
-	
 Although Liqo does it best to limit this problem, e.g., by reducing the MTU at the traffic source, this is not always effective.
 Therefore, starting from version 1.1, Liqo implements the TCP Clamping mechanism on all the traffic traversing the Wireguard tunnel.
 This behavior is controlled by a new flag that is active by default, although it can be changed in the [Helm values file](https://github.com/liqotech/liqo/blob/6b287acbfe0c2bb2ea065aa6f4ae7928b00a4d95/deployments/liqo/values.yaml#L60).
-	
 In a nutshell, when the TCP handshake mechanism establishes a new TCP session, the two TCP endpoints agree on the maximum chunk of data that can be exchanged on that connection, the so called Maximum Segment Size (MSS).
 The TCP clamping mechanism acts as a _bump in the wire_ and it intercepts this negotiation, adapting the MSS value to the MTU of the Wireguard tunnel, so that the TCP endpoints will never generate a chunk of data that requires the IP packet to be fragmented.
 
@@ -156,7 +154,6 @@ The same remapping logic also applies to the **External CIDR**.
 External CIDR is a dedicated IP range, its addressed are used as proxy destinations when the cluster has no direct route to a remote Pod. Traffic sent to an external-CIDR address is recognized by the network fabric and routed across the inter-cluster tunnels to the provider cluster that actually hosts the Pod.
 Since the External CIDR may overlap across clusters, Liqo applies the same remapping mechanism used for Pod CIDRs, allowing each cluster to locally remap a neighbor’s External CIDR to a non-conflicting range.
 By default, Liqo assigns the same External CIDR to every cluster. If this default value is not changed (see the Helm values), all neighboring clusters will appear to use overlapping External CIDRs, and remapping will always be required. To avoid remapping, you must change the default value.
-
 
 ## Example
 

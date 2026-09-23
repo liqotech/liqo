@@ -1,7 +1,9 @@
 # Pod-to-Pod Packet Journey Example
+
 This example presents the complete journey of an ICMP packet sent from a pod in a consumer cluster to a pod in a provider cluster.
 
 Before reading this example, see the [Basic Concepts](basic.md) section
+
 ## Setup
 
 For this example, we will use two Kubernetes-in-Docker (KinD) clusters with only one worker each and Calico as the CNI.
@@ -57,10 +59,10 @@ The encapsulated packet arrives at the default interface (e.g. `eth0`) of the ga
   > `SRC: 10.200.1.2` > `DST: 10.201.1.4`
 - **DNAT (Destination NAT):** This packet's destination (`10.201.1.4`) is meaningless to the remote cluster. The gateway must translate it back to the pod's _real_ IP. This is done using **`nftables`**. A rule in the `remap-podcidr` table performs a Destination NAT:
   > `ip daddr 10.201.0.0/16 ... dnat prefix to 10.200.0.0/16`
-```{admonition} TIP
 It is possible to see this rule, together with the SNAT rule for incoming traffic, using the command:
 nft list table ip remap-podcidr
 ```
+
 - **Packet Transformation:**
   - **Before DNAT:** `10.200.1.2` > `10.201.1.4`
   - **After DNAT:** `10.200.1.2` > `10.200.1.4`
