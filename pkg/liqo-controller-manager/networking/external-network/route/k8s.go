@@ -32,27 +32,10 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
-)
-
-const (
-	// GwExtMark is the fwmark value used to tag traffic arriving on Geneve interfaces (liqo.*).
-	// It allows the gw-ext RouteConfiguration to match on FwMark + Dst instead of Iif + Dst,
-	// collapsing N*R rules to R rules while still preventing routing loops (packets arriving
-	// on the WireGuard interface liqo-tunnel are not marked and do not match).
-	// The mark is set per-packet in the prerouting chain (not via conntrack) so it is available
-	// for route lookup and does not leak to return traffic.
-	//
-	// The value 0xFF00 is chosen to avoid collision with the internal-network mark allocator
-	// (pkg/liqo-controller-manager/networking/internal-network/route/mark.go), which assigns
-	// sequential marks starting from 1, one per node. A high value ensures no overlap even in
-	// very large clusters.
-	GwExtMark = 0xFF00
-
-	// GwNodeMark is the fwmark value used to tag traffic arriving on WireGuard tunnel interfaces (liqo-tunnel*).
-	GwNodeMark = 0xFE00
 )
 
 // GenerateRouteConfigurationName generates the name of the RouteConfiguration object.
@@ -109,7 +92,8 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		},
 	}
 	if _, err = resource.CreateOrUpdate(ctx, cl, fwcfgExt,
-		forgeMutateFirewallConfiguration(cfg, fwcfgExt, scheme, remoteClusterID, "gw-ext-mark", internalnetwork.InterfaceNamePrefix, gwExtMark)); err != nil {
+		forgeMutateFirewallConfiguration(cfg, fwcfgExt, scheme, remoteClusterID, "gw-ext-mark",
+			internalnetwork.InterfaceNamePrefix, utils.GwExtMark)); err != nil {
 		return fmt.Errorf("ensuring firewall configuration %q: %w", fwcfgExt.Name, err)
 	}
 	// Ensure the FirewallConfiguration that marks traffic arriving on Wireguard tunnels.
@@ -120,7 +104,8 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		},
 	}
 	if _, err = resource.CreateOrUpdate(ctx, cl, fwcfgNode,
-		forgeMutateFirewallConfiguration(cfg, fwcfgNode, scheme, remoteClusterID, "gw-node-mark", tunnel.TunnelInterfaceName, GwNodeMark)); err != nil {
+		forgeMutateFirewallConfiguration(cfg, fwcfgNode, scheme, remoteClusterID, "gw-node-mark",
+			tunnel.TunnelInterfaceName, utils.GwNodeMark)); err != nil {
 		return fmt.Errorf("ensuring firewall configuration %q: %w", fwcfgNode.Name, err)
 	}
 
@@ -215,7 +200,7 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 		}
 
 		remoteCIDRs := slices.Concat(cfg.Spec.Remote.CIDR.Pod, cfg.Spec.Remote.CIDR.External)
-		mark := GwExtMark
+		mark := utils.GwExtMark
 		for j := range remoteCIDRs {
 			dst := &remoteCIDRs[j]
 			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
