@@ -14,11 +14,4 @@ If you want details about each CRDs, you can check:
 - [IP](ip.md): This page provides detailed information about IP configuration resource and how they work.
 - [InternalNode](internalnode.md): This page provides detailed information about the InternalNode resource and its role in the Liqo network.
 
-## Useful debug commands for Liqo networking
-
-- `tcpdump -tnl -i any \<protocol\>`: capture all traffic for a specific protocol (e.g., `tcp`, `udp`, `icmp`, etc.)
-- `tcpdump -tnl -i any tcp port 8080`: capture all TCP traffic on port 8080
-- `tcpdump -tnl -i any tcp dst port 8080`: capture traffic destined to port 8080
-- `conntrack -D`: delete all the conntrack entries
-- `conntrack -L`: list all the conntrack entries
-- `nft list ruleset`: list all the rules in the nftables
+Some more information about debugging Liqo network is in the [FAQ](/faq/faq.md) section of this site.
