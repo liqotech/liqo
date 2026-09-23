@@ -59,10 +59,7 @@ The encapsulated packet arrives at the default interface (e.g. `eth0`) of the ga
   > `SRC: 10.200.1.2` > `DST: 10.201.1.4`
 - **DNAT (Destination NAT):** This packet's destination (`10.201.1.4`) is meaningless to the remote cluster. The gateway must translate it back to the pod's _real_ IP. This is done using **`nftables`**. A rule in the `remap-podcidr` table performs a Destination NAT:
   > `ip daddr 10.201.0.0/16 ... dnat prefix to 10.200.0.0/16`
-It is possible to see this rule, together with the SNAT rule for incoming traffic, using the command:
-nft list table ip remap-podcidr
-```
-
+It is possible to see this rule, together with the SNAT rule for incoming traffic, using the command `nft list table ip remap-podcidr`.
 - **Packet Transformation:**
   - **Before DNAT:** `10.200.1.2` > `10.201.1.4`
   - **After DNAT:** `10.200.1.2` > `10.200.1.4`
