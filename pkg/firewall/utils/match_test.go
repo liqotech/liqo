@@ -292,7 +292,7 @@ var _ = Describe("Match Functions", func() {
 			cmp, ok := rule.Exprs[1].(*expr.Cmp)
 			Expect(ok).To(BeTrue())
 			Expect(cmp.Data).To(HaveLen(16))
-			Expect(cmp.Data).To(Equal(ifname("liqo.")))
+			Expect(cmp.Data).To(Equal(Ifname("liqo.")))
 		})
 
 		It("should apply combined match (proto + IP + port + dev)", func() {
