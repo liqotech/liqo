@@ -254,3 +254,13 @@ ping -c1 <REMOTE_POD_IP>
 ```
 
 Now check the packets in the gateway pod, and share the output with the maintainers.
+
+### Useful debug commands for Liqo networking
+
+- `tcpdump -tnl -i any \<protocol\>`: capture all traffic for a specific protocol (e.g., `tcp`, `udp`, `icmp`, etc.)
+- `tcpdump -tnl -i any tcp port 8080`: capture all TCP traffic on port 8080
+- `tcpdump -tnl -i any tcp dst port 8080`: capture traffic destined to port 8080
+- `conntrack -D`: delete all the conntrack entries
+- `conntrack -L`: list all the conntrack entries
+- `nft list ruleset`: list all the rules in the nftables
+- 
