@@ -82,6 +82,11 @@ type MatchDev struct {
 	// Position is the source device of the packet.
 	// +kubebuilder:validation:Enum=in;out
 	Position MatchDevPosition `json:"position"`
+	// Wildcard enables prefix matching on the device name.
+	// When true, the match compares only the prefix bytes of Value against the interface name,
+	// allowing a single rule to match all interfaces sharing a common prefix (e.g. "liqo.").
+	// +kubebuilder:default=false
+	Wildcard bool `json:"wildcard,omitempty"`
 }
 
 // MatchProto is a protocol to be matched.

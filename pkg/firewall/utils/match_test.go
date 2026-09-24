@@ -18,6 +18,7 @@ package utils
 
 import (
 	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -251,6 +252,47 @@ var _ = Describe("Match Functions", func() {
 			err := applyMatch(match, rule)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(rule.Exprs).NotTo(BeEmpty())
+		})
+
+		It("should apply dev match with wildcard prefix", func() {
+			match := &firewallv1beta1.Match{
+				Op: firewallv1beta1.MatchOperationEq,
+				Dev: &firewallv1beta1.MatchDev{
+					Value:    "liqo.",
+					Position: firewallv1beta1.MatchDevPositionIn,
+					Wildcard: true,
+				},
+			}
+			err := applyMatch(match, rule)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rule.Exprs).To(HaveLen(2))
+
+			meta, ok := rule.Exprs[0].(*expr.Meta)
+			Expect(ok).To(BeTrue())
+			Expect(meta.Key).To(Equal(expr.MetaKeyIIFNAME))
+
+			cmp, ok := rule.Exprs[1].(*expr.Cmp)
+			Expect(ok).To(BeTrue())
+			// The wildcard match compares only the prefix bytes, without null-padding to 16 bytes.
+			Expect(cmp.Data).To(Equal([]byte("liqo.")))
+		})
+
+		It("should null-pad dev match without wildcard", func() {
+			match := &firewallv1beta1.Match{
+				Op: firewallv1beta1.MatchOperationEq,
+				Dev: &firewallv1beta1.MatchDev{
+					Value:    "liqo.",
+					Position: firewallv1beta1.MatchDevPositionIn,
+				},
+			}
+			err := applyMatch(match, rule)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rule.Exprs).To(HaveLen(2))
+
+			cmp, ok := rule.Exprs[1].(*expr.Cmp)
+			Expect(ok).To(BeTrue())
+			Expect(cmp.Data).To(HaveLen(16))
+			Expect(cmp.Data).To(Equal(ifname("liqo.")))
 		})
 
 		It("should apply combined match (proto + IP + port + dev)", func() {
