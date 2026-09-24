@@ -17,9 +17,12 @@ package route
 import (
 	"context"
 	"fmt"
+	"net"
 	"slices"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -115,10 +118,79 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 			Namespace: cfg.Namespace,
 		},
 	}
+
+	// The collision rule is only needed when the local and remote clusters
+	// share the same pod CIDR, because in that case the gateway pod IP belongs
+	// to the remote pod CIDR and would otherwise be delivered locally.
+	addCollisionRule := podCIDROverlap(cfg.Spec.Local.CIDR.Pod, cfg.Spec.Remote.CIDR.Pod)
+
+	var gwPodIP string
+	if addCollisionRule {
+		gwPodIP, err = getActiveGatewayPodIP(ctx, cl, cfg.Namespace)
+		if err != nil {
+			return fmt.Errorf("unable to get the active gateway pod IP for collision rule: %w", err)
+		}
+	}
+
 	_, err = resource.CreateOrUpdate(ctx, cl, routecfg,
-		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP))
+		forgeMutateRouteConfiguration(cfg, routecfg, scheme, remoteClusterID, remoteInterfaceIP, addCollisionRule, gwPodIP))
 	return err
 }
+
+// podCIDROverlap returns true if at least one local pod CIDR overlaps with at
+// least one remote pod CIDR.
+func podCIDROverlap(local, remote []networkingv1beta1.CIDR) bool {
+	for i := range local {
+		_, localNet, err := net.ParseCIDR(local[i].String())
+		if err != nil {
+			continue
+		}
+		for j := range remote {
+			_, remoteNet, err := net.ParseCIDR(remote[j].String())
+			if err != nil {
+				continue
+			}
+			if localNet.Contains(remoteNet.IP) || remoteNet.Contains(localNet.IP) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// getActiveGatewayPodIP returns the IP of the active gateway pod in the given namespace.
+func getActiveGatewayPodIP(ctx context.Context, cl client.Client, namespace string) (string, error) {
+	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
+	var podList corev1.PodList
+	if err := cl.List(ctx, &podList, client.InNamespace(namespace), podsSelector); err != nil {
+		return "", fmt.Errorf("listing active gateway pods: %w", err)
+	}
+
+	var activePod *corev1.Pod
+	activeCount := 0
+	for i := range podList.Items {
+		if podList.Items[i].Status.Phase == corev1.PodRunning && podList.Items[i].DeletionTimestamp == nil {
+			activePod = &podList.Items[i]
+			activeCount++
+		}
+	}
+
+	if activeCount != 1 {
+		return "", fmt.Errorf("expected exactly one active gateway pod in namespace %q, found %d", namespace, activeCount)
+	}
+
+	if activePod.Status.PodIP == "" {
+		return "", fmt.Errorf("active gateway pod %s has no IP assigned yet", client.ObjectKeyFromObject(activePod))
+	}
+
+	return activePod.Status.PodIP, nil
+}
+
+// collisionRulePriority is the priority of the rule diverting fabric traffic
+// directed to the gateway pod IP through the tunnel. It must be lower (more
+// preferred) than the priority of the local routing rule (10, see
+// kernel.DeprioritizeLocalRule), so that this rule is evaluated first.
+const collisionRulePriority = 1
 
 // forgeMutateFirewallConfiguration mutates a FirewallConfiguration object that marks traffic
 // arriving on any Geneve interface (liqo.*) with a constant fwmark. The mark is set directly
@@ -183,7 +255,7 @@ func forgeMutateFirewallConfiguration(cfg *networkingv1beta1.Configuration,
 func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 	routecfg *networkingv1beta1.RouteConfiguration, scheme *runtime.Scheme,
 	remoteClusterID liqov1beta1.ClusterID,
-	remoteInterfaceIP string) func() error {
+	remoteInterfaceIP string, addCollisionRule bool, gwPodIP string) func() error {
 	return func() error {
 		var err error
 
@@ -209,6 +281,27 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 				Routes: []networkingv1beta1.Route{
 					{
 						Dst: dst,
+						Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
+					},
+				},
+			})
+		}
+
+		// When the local and remote clusters share the same pod CIDR, the
+		// gateway pod IP belongs to the remote pod CIDR. Add a single rule
+		// diverting fabric (geneve) traffic directed to the gateway pod IP
+		// through the tunnel, so that it is forwarded to the remote cluster
+		// instead of being delivered locally. The rule priority is lower (more
+		// preferred) than the local routing rule, so it is evaluated first.
+		if addCollisionRule {
+			gwPodIPCIDR := networkingv1beta1.CIDR(gwPodIP + "/32")
+			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{
+				FwMark:   &mark,
+				Dst:      &gwPodIPCIDR,
+				Priority: ptr.To(collisionRulePriority),
+				Routes: []networkingv1beta1.Route{
+					{
+						Dst: &gwPodIPCIDR,
 						Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 					},
 				},
