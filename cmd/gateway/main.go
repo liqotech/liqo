@@ -110,6 +110,11 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Check if the number of interfaces is valid (must be at least 1).
+	if connoptions.GwOptions.NumInterfaces < 1 {
+		return fmt.Errorf("invalid number of interfaces (%d): must be at least 1", connoptions.GwOptions.NumInterfaces)
+	}
+
 	// Enable ip_forwarding.
 	if err = kernel.EnableIPForwarding(); err != nil {
 		return err

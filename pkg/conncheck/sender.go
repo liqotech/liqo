@@ -26,31 +26,31 @@ import (
 
 // Sender is a sender for the conncheck server.
 type Sender struct {
-	Ctx       context.Context
-	clusterID string
-	cancel    func()
-	conn      *net.UDPConn
-	raddr     net.UDPAddr
+	Ctx         context.Context
+	interfaceID string
+	cancel      func()
+	conn        *net.UDPConn
+	raddr       net.UDPAddr
 }
 
 // NewSender creates a new conncheck sender.
-func NewSender(ctx context.Context, opts *Options, clusterID string, cancel func(), conn *net.UDPConn, ip string) (*Sender, error) {
+func NewSender(ctx context.Context, opts *Options, interfaceID string, cancel func(), conn *net.UDPConn, ip string) (*Sender, error) {
 	pip := net.ParseIP(ip)
 	if pip == nil {
 		return nil, fmt.Errorf("conncheck sender: invalid IP address %s", ip)
 	}
 	return &Sender{
-		Ctx:       ctx,
-		clusterID: clusterID,
-		cancel:    cancel,
-		conn:      conn,
-		raddr:     net.UDPAddr{IP: pip, Port: opts.PingPort},
+		Ctx:         ctx,
+		interfaceID: interfaceID,
+		cancel:      cancel,
+		conn:        conn,
+		raddr:       net.UDPAddr{IP: pip, Port: opts.PingPort},
 	}, nil
 }
 
 // SendPing sends a PING message to the given address.
 func (s *Sender) SendPing() error {
-	msgOut := Msg{ClusterID: s.clusterID, MsgType: PING, TimeStamp: time.Now()}
+	msgOut := Msg{InterfaceID: s.interfaceID, MsgType: PING, TimeStamp: time.Now()}
 	b, err := json.Marshal(msgOut)
 	if err != nil {
 		return fmt.Errorf("conncheck sender: failed to marshal msg: %w", err)
