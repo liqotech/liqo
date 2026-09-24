@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -190,6 +191,45 @@ var _ = Describe("Webhook Cache", func() {
 				Expect(ok).To(BeFalse())
 				Expect(peering.shadowPods[nsName3.String()]).ToNot(BeNil())
 				Expect(peering.shadowPods[nsName4.String()]).ToNot(BeNil())
+			})
+		})
+	})
+
+	Describe("Terminal ShadowPods quota handling", func() {
+		When("aligning existing ShadowPods during cache initialization", func() {
+			It("should not account terminal (Succeeded/Failed) ShadowPods in the used quota", func() {
+				peering = createPeeringInfo(userName, *resourceQuota)
+
+				succeeded := forgeShadowPod("succeeded", testNamespace, "uid-succeeded", userName)
+				succeeded.Status.Phase = corev1.PodSucceeded
+				failed := forgeShadowPod("failed", testNamespace, "uid-failed", userName)
+				failed.Status.Phase = corev1.PodFailed
+				running := forgeShadowPod("running", testNamespace, "uid-running", userName)
+
+				peering.alignExistingShadowPods(forgeShadowPodList(succeeded, failed, running))
+
+				// Only the active (non-terminal) ShadowPod is accounted in the used quota.
+				Expect(peering.usedQuota.Cpu().Value()).To(Equal(resourceQuota4.Cpu().Value()))
+				Expect(peering.usedQuota.Memory().Value()).To(Equal(resourceQuota4.Memory().Value()))
+				// Terminal ShadowPods are tracked but marked as terminated.
+				Expect(peering.shadowPods["test-namespace/succeeded"].active).To(BeFalse())
+			})
+		})
+
+		When("a running ShadowPod transitions to a terminal phase while still present", func() {
+			It("should release its quota during the cache refresh", func() {
+				peering = createPeeringInfo(userName, *resourceQuota)
+
+				running := forgeShadowPod("running", testNamespace, "uid-running", userName)
+				peering.alignExistingShadowPods(forgeShadowPodList(running))
+				Expect(peering.usedQuota.Cpu().Value()).To(Equal(resourceQuota4.Cpu().Value()))
+
+				// The same ShadowPod is now Succeeded, but still present in the cluster.
+				running.Status.Phase = corev1.PodSucceeded
+				peering.alignTerminatingOrNotExistingShadowPods(forgeShadowPodList(running))
+
+				Expect(peering.usedQuota.Cpu().Value()).To(Equal(int64(0)))
+				Expect(peering.usedQuota.Memory().Value()).To(Equal(int64(0)))
 			})
 		})
 	})
