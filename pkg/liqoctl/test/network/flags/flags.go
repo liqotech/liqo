@@ -36,6 +36,8 @@ const (
 	FlagNamesLoadbalancer FlagNames = "lb"
 	// FlagNamesBasic is the flag that runs only pod-to-pod checks.
 	FlagNamesBasic FlagNames = "basic"
+	// FlagNamesNodePod is the flag that enables curl from node to pod.
+	FlagNamesNodePod FlagNames = "node-pod"
 	// FlagNamesPodNodeport is the flag that enables curl from pod to nodeport service.
 	FlagNamesPodNodeport FlagNames = "pod-np"
 	// FlagNamesIP is the flag that enables IP remapping for the tests.
@@ -52,6 +54,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(&o.NodePortNodes, string(FlagNamesNodeportNodes), "Select nodes type for NodePort tests. Possible values: all, workers, control-planes")
 	fs.BoolVar(&o.LoadBalancer, string(FlagNamesLoadbalancer), false, "Enable curl from external to loadbalancer service")
 	fs.BoolVar(&o.Basic, string(FlagNamesBasic), false, "Run only pod-to-pod checks")
+	fs.BoolVar(&o.NodePod, string(FlagNamesNodePod), false, "Enable curl from node to pod")
 	fs.BoolVar(&o.PodToNodePort, string(FlagNamesPodNodeport), false, "Enable curl from pod to nodeport service")
 	fs.BoolVar(&o.IPRemapping, string(FlagNamesIP), false, "Enable IP remapping for the tests")
 }

@@ -23,8 +23,8 @@ set -o pipefail  # Fail if one of the piped commands fails
 set_certificate_renewal_policy() {
   local POLICY_MANIFEST
   POLICY_MANIFEST=$(cat <<'EOF'
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
 metadata:
   name: patch-csr-expiration
   annotations:
@@ -36,29 +36,46 @@ metadata:
       This policy patches CertificateSigningRequest resources with names
       starting with 'liqo-identity' to set the expiration duration to 600 seconds.
 spec:
-  rules:
-    - name: set-csr-expiration
-      match:
-        any:
-          - resources:
-              kinds:
-                - CertificateSigningRequest
-              names:
-                - "liqo-identity*"
-      mutate:
-        patchStrategicMerge:
-          spec:
-            expirationSeconds: 600
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - certificates.k8s.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - certificatesigningrequests
+  matchConditions:
+    - name: match-liqo-identity
+      expression: "object.metadata.name.startsWith('liqo-identity')"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: |
+          Object{
+            spec: Object.spec{
+              expirationSeconds: 600
+            }
+          }
 EOF
 )
 
   for i in $(seq 1 "${CLUSTER_NUMBER}")
   do
     export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-    echo "Applying Kyverno ClusterPolicy on cluster ${i} to set the CSR expiration time to 600 seconds"
+    echo "Applying Kyverno MutatingPolicy on cluster ${i} to set the CSR expiration time to 600 seconds"
     echo "${POLICY_MANIFEST}" | "${KUBECTL}" apply -f -
-    echo "Waiting for Kyverno ClusterPolicy to become ready on cluster ${i}"
-    "${KUBECTL}" wait --for=condition=Ready clusterpolicy/patch-csr-expiration --timeout=120s
+    echo "Waiting for Kyverno MutatingPolicy to become ready on cluster ${i}"
+    # Kyverno MutatingPolicy exposes readiness as status.conditionStatus.ready,
+    # not as a "Ready" condition, so wait on the jsonpath value.
+    "${KUBECTL}" wait --for=jsonpath='{.status.conditionStatus.ready}'=true mutatingpolicy/patch-csr-expiration --timeout=120s
   done
 }
 

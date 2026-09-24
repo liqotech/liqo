@@ -80,6 +80,5 @@ const (
 	CtrlResourceSliceQuotaCreator = "resourceslice_quotacreator"
 	CtrlResourceSliceVNCreator    = "resourceslice_vncreator"
 	CtrlPodIPMapping              = "pod_ipmapping"
-	CtrlConfigurationIPMapping    = "configuration_ipmapping"
 	CtrlEndpointSlice             = "endpointslice"
 )
