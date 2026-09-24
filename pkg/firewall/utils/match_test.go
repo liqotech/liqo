@@ -292,7 +292,7 @@ var _ = Describe("Match Functions", func() {
 			cmp, ok := rule.Exprs[1].(*expr.Cmp)
 			Expect(ok).To(BeTrue())
 			Expect(cmp.Data).To(HaveLen(16))
-			Expect(cmp.Data).To(Equal(ifname("liqo.")))
+			Expect(cmp.Data).To(Equal(Ifname("liqo.")))
 		})
 
 		It("should apply combined match (proto + IP + port + dev)", func() {
@@ -373,13 +373,13 @@ var _ = Describe("Match Functions", func() {
 
 	Context("ifname function", func() {
 		It("should convert interface name to 16-byte array", func() {
-			result := ifname("eth0")
+			result := Ifname("eth0")
 			Expect(result).To(HaveLen(16))
 			Expect(result[0:5]).To(Equal([]byte("eth0\x00")))
 		})
 
 		It("should handle long interface names", func() {
-			result := ifname("verylonginterfacename")
+			result := Ifname("verylonginterfacename")
 			Expect(result).To(HaveLen(16))
 		})
 	})

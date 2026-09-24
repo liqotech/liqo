@@ -28,7 +28,8 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
+	ipam "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -150,6 +151,21 @@ func cidrPairsForType(cfg *networkingv1beta1.Configuration, cidrtype CIDRType) (
 	return nil, nil
 }
 
+// getUnknownSourceIPFromConfiguration returns the first IP of the local ExternalCIDR,
+// which is used to identify NodePort traffic originating from unknown sources.
+// Returns an empty string if no external CIDR is found.
+func getUnknownSourceIPFromConfiguration(cfg *networkingv1beta1.Configuration) string {
+	extCIDRs := cfg.Spec.Local.CIDR.External
+	if len(extCIDRs) == 0 {
+		return ""
+	}
+	ip, err := ipam.GetUnknownSourceIP(extCIDRs[0].String())
+	if err != nil {
+		return ""
+	}
+	return ip
+}
+
 func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	spec, status := cidrPairsForType(cfg, cidrtype)
 	rules := make([]firewall.NatRule, 0, len(spec))
@@ -168,17 +184,9 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuratio
 					},
 				},
 				{
-					Op: firewall.MatchOperationNeq,
-					Dev: &firewall.MatchDev{
-						Value:    opts.DefaultInterfaceName,
-						Position: firewall.MatchDevPositionIn,
-					},
-				},
-				{
-					Op: firewall.MatchOperationNeq,
-					Dev: &firewall.MatchDev{
-						Value:    tunnel.TunnelInterfaceName,
-						Position: firewall.MatchDevPositionIn,
+					Op: firewall.MatchOperationEq,
+					Mark: &firewall.MatchMark{
+						Value: fmt.Sprintf("%d", utils.GwExtMark),
 					},
 				},
 			},
@@ -192,6 +200,7 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 	opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	spec, status := cidrPairsForType(cfg, cidrtype)
 	rules := make([]firewall.NatRule, 0, len(spec))
+	unknownSourceIP := getUnknownSourceIPFromConfiguration(cfg)
 	for i := range spec {
 		if spec[i] == status[i] {
 			continue
@@ -216,13 +225,45 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 				},
 				{
 					Op: firewall.MatchOperationEq,
-					Dev: &firewall.MatchDev{
-						Value:    tunnel.TunnelInterfaceName,
-						Position: firewall.MatchDevPositionIn,
+					Mark: &firewall.MatchMark{
+						Value: fmt.Sprintf("%d", utils.GwNodeMark),
 					},
 				},
 			},
-		})
+		}, firewall.NatRule{
+			NatType: firewall.NatTypeSource,
+			To:      ptr.To(status[i].String()),
+			Match: []firewall.Match{
+				{
+					Op: firewall.MatchOperationNeq,
+					Dev: &firewall.MatchDev{
+						Value:    opts.DefaultInterfaceName,
+						Position: firewall.MatchDevPositionOut,
+					},
+				},
+				{
+					Op: firewall.MatchOperationEq,
+					IP: &firewall.MatchIP{
+						Value:    spec[i].String(),
+						Position: firewall.MatchPositionSrc,
+					},
+				},
+				{
+					Op: firewall.MatchOperationEq,
+					IP: &firewall.MatchIP{
+						Value:    unknownSourceIP,
+						Position: firewall.MatchPositionDst,
+					},
+				},
+				{
+					Op: firewall.MatchOperationNeq,
+					Mark: &firewall.MatchMark{
+						Value: fmt.Sprintf("%d", utils.GwExtMark),
+					},
+				},
+			},
+		},
+		)
 	}
 	return rules
 }
