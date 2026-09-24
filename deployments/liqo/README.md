@@ -10,6 +10,7 @@
 | authentication.awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
 | authentication.awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
 | authentication.awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
+| authentication.defaultResourceSliceClass | string | `""` | The ResourceSlice class assigned by the provider to the ResourceSlices that do not request an explicit one. The resolved class is recorded once, hence changing this value only affects the ResourceSlices created afterwards. Leave empty to keep handling them with the built-in default class. |
 | authentication.defaultResourceSliceClassEnabled | bool | `true` | Enable the built-in default ResourceSlice class. When set to false, the provider denies ResourceSlices that use the "default" class, so consumers must use an explicit, provider-approved ResourceSlice class. |
 | authentication.enabled | bool | `true` | Enable/Disable the authentication module. |
 | authentication.tlsCompatibilityMode | bool | `false` | Enable TLS compatibility mode for client certificates and keys. If set to true, Liqo will use widely supported algorithm (RSA) instead of Ed25519 (default) for generating private keys and CSRs. Enable this option to ensure compatibility with systems that do not yet support Ed25519 as signature algorithm. |

@@ -22,6 +22,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	argutils "github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -37,6 +38,9 @@ type SliceStatusOptions struct {
 	// DefaultResourceSliceClassEnabled enables the built-in default ResourceSlice class.
 	// When false, ResourceSlices of the default (or empty) class are denied instead of accepted.
 	DefaultResourceSliceClassEnabled bool
+	// DefaultResourceSliceClass is the class assigned to the ResourceSlices that do not request an
+	// explicit one. When empty, they keep being handled by the built-in default class.
+	DefaultResourceSliceClass authv1beta1.ResourceSliceClass
 }
 
 func getIngressClasses(opts *SliceStatusOptions) []liqov1beta1.IngressType {
