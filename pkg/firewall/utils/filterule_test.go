@@ -18,6 +18,7 @@ package utils
 
 import (
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -489,6 +490,119 @@ var _ = Describe("FilterRuleWrapper", func() {
 			}
 			_, err := forgeFilterRule(fr, chain)
 			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should error on nil CtMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("nil-ctmark"),
+				Action: firewallv1beta1.ActionCtMark,
+				Value:  nil,
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("value is required for ctmark action"))
+		})
+
+		It("should error on nil SetMetaMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("nil-setmetamark"),
+				Action: firewallv1beta1.ActionSetMetaMark,
+				Value:  nil,
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("value is required for setmetamark action"))
+		})
+
+		It("should error on invalid SetMetaMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("invalid-setmetamark"),
+				Action: firewallv1beta1.ActionSetMetaMark,
+				Value:  ptr.To("not-a-number"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cannot apply setmetamark action"))
+		})
+
+		It("should error on out-of-range CtMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("overflow-ctmark"),
+				Action: firewallv1beta1.ActionCtMark,
+				Value:  ptr.To("4294967296"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("out of range"))
+		})
+
+		It("should error on negative SetMetaMark value", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("negative-setmetamark"),
+				Action: firewallv1beta1.ActionSetMetaMark,
+				Value:  ptr.To("-1"),
+			}
+			_, err := forgeFilterRule(fr, chain)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("out of range"))
+		})
+	})
+
+	Context("Mark actions", func() {
+		It("should forge a valid setmetamark rule", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("setmetamark-rule"),
+				Action: firewallv1beta1.ActionSetMetaMark,
+				Value:  ptr.To("65280"),
+			}
+			rule, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rule.Exprs).To(HaveLen(2))
+
+			imm, ok := rule.Exprs[0].(*expr.Immediate)
+			Expect(ok).To(BeTrue())
+			Expect(imm.Register).To(Equal(uint32(1)))
+			Expect(imm.Data).To(Equal(binaryutil.NativeEndian.PutUint32(65280)))
+
+			meta, ok := rule.Exprs[1].(*expr.Meta)
+			Expect(ok).To(BeTrue())
+			Expect(meta.Key).To(Equal(expr.MetaKeyMARK))
+			Expect(meta.SourceRegister).To(BeTrue())
+			Expect(meta.Register).To(Equal(uint32(1)))
+		})
+
+		It("should forge a valid ctmark rule", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name:   ptr.To("ctmark-rule"),
+				Action: firewallv1beta1.ActionCtMark,
+				Value:  ptr.To("100"),
+			}
+			rule, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rule.Exprs).To(HaveLen(2))
+
+			imm, ok := rule.Exprs[0].(*expr.Immediate)
+			Expect(ok).To(BeTrue())
+			Expect(imm.Register).To(Equal(uint32(1)))
+			Expect(imm.Data).To(Equal(binaryutil.NativeEndian.PutUint32(100)))
+
+			ct, ok := rule.Exprs[1].(*expr.Ct)
+			Expect(ok).To(BeTrue())
+			Expect(ct.Key).To(Equal(expr.CtKeyMARK))
+			Expect(ct.SourceRegister).To(BeTrue())
+			Expect(ct.Register).To(Equal(uint32(1)))
+		})
+
+		It("should accept boundary mark values", func() {
+			for _, v := range []string{"0", "4294967295"} {
+				fr := &firewallv1beta1.FilterRule{
+					Name:   ptr.To("boundary-mark"),
+					Action: firewallv1beta1.ActionSetMetaMark,
+					Value:  ptr.To(v),
+				}
+				_, err := forgeFilterRule(fr, chain)
+				Expect(err).NotTo(HaveOccurred())
+			}
 		})
 	})
 })
