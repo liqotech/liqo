@@ -31,6 +31,8 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
+	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
@@ -48,9 +50,6 @@ const (
 	// sequential marks starting from 1, one per node. A high value ensures no overlap even in
 	// very large clusters.
 	gwExtMark = 0xFF00
-
-	// gwExtGenevePrefix is the prefix shared by all Geneve interfaces created by Liqo.
-	gwExtGenevePrefix = "liqo."
 )
 
 // GenerateRouteConfigurationName generates the name of the RouteConfiguration object.
@@ -134,7 +133,7 @@ func forgeMutateFirewallConfiguration(cfg *networkingv1beta1.Configuration,
 			return err
 		}
 
-		fwcfg.Labels = gateway.ForgeFirewallExternalTargetLabels(string(remoteClusterID))
+		fwcfg.Labels = remapping.ForgeFirewallTargetLabels(string(remoteClusterID))
 
 		markValue := fmt.Sprintf("%d", gwExtMark)
 
@@ -161,7 +160,7 @@ func forgeMutateFirewallConfiguration(cfg *networkingv1beta1.Configuration,
 										{
 											Op: firewall.MatchOperationEq,
 											Dev: &firewall.MatchDev{
-												Value:    gwExtGenevePrefix,
+												Value:    internalnetwork.InterfaceNamePrefix,
 												Position: firewall.MatchDevPositionIn,
 												Wildcard: true,
 											},
