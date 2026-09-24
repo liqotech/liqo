@@ -45,6 +45,11 @@ type ReflectorOpts struct {
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
 	Ready func() bool
+
+	// NamespaceMapped returns whether a local namespace is currently mapped to a remote namespace
+	// in accepted phase. An error indicates that the mapping state is uncertain. It may be nil if the
+	// information is not available.
+	NamespaceMapped func(namespace string) (bool, error)
 }
 
 // New returns a new ReflectorOpts object.
@@ -64,9 +69,15 @@ func (ro *ReflectorOpts) WithReadinessFunc(ready func() bool) *ReflectorOpts {
 	return ro
 }
 
-// WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
+// WithEventBroadcaster configures the event broadcaster of the ReflectorOpts.
 func (ro *ReflectorOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *ReflectorOpts {
 	ro.EventBroadcaster = broadcaster
+	return ro
+}
+
+// WithNamespaceMappedFunc configures the function reporting whether a namespace is currently mapped.
+func (ro *ReflectorOpts) WithNamespaceMappedFunc(mapped func(namespace string) (bool, error)) *ReflectorOpts {
+	ro.NamespaceMapped = mapped
 	return ro
 }
 

@@ -16,6 +16,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -108,6 +109,16 @@ var _ = Describe("Manager tests", func() {
 
 				It("should start the registered NamespaceMapEventHandler", func() { Expect(handler.StartCalled).To(BeEquivalentTo(1)) })
 			})
+
+			Context("the handler fails to start", func() {
+				BeforeEach(func() {
+					handler.err = errors.New("timed out waiting for the namespaceMap handler registration to sync")
+				})
+
+				It("should panic, to avoid running with an undefined reflection state", func() {
+					Expect(func() { mgr.Start(ctx) }).To(Panic())
+				})
+			})
 		})
 
 		Context("a reflector is registered", func() {
@@ -183,9 +194,11 @@ var _ = Describe("Manager tests", func() {
 // fakeNamespaceHandler implements a fake NamespaceHandler for testing purpouses.
 type fakeNamespaceHandler struct {
 	StartCalled int
+	err         error
 }
 
 // Start is the fake Start method.
-func (nh *fakeNamespaceHandler) Start(_ context.Context, _ NamespaceStartStopper) {
+func (nh *fakeNamespaceHandler) Start(_ context.Context, _ NamespaceStartStopper) error {
 	nh.StartCalled++
+	return nh.err
 }

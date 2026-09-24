@@ -16,6 +16,7 @@ package workload
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -105,6 +106,7 @@ type FallbackPodReflector struct {
 	localPodsClient func(namespace string) corev1clients.PodInterface
 	ready           func() bool
 	recorder        record.EventRecorder
+	namespaceMapped func(namespace string) (bool, error)
 }
 
 // String returns the name of the PodReflector.
@@ -172,6 +174,7 @@ func (pr *PodReflector) NewFallback(opts *options.ReflectorOpts) manager.Fallbac
 		localPods:       opts.LocalPodInformer.Lister(),
 		localPodsClient: opts.LocalClient.CoreV1().Pods,
 		ready:           opts.Ready,
+		namespaceMapped: opts.NamespaceMapped,
 		recorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme,
 			corev1.EventSource{Component: "liqo-pod-reflection"}),
 	}
@@ -308,6 +311,25 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 	// The local pod already failed (terminal), hence no change shall be performed.
 	if local.Status.Phase == corev1.PodFailed {
 		return nil
+	}
+
+	// The namespace is still mapped to a remote one: the absence of the namespaced reflector must hence
+	// be transient (e.g., the reflection manager is still starting, or the namespace momentarily flapped).
+	// Do not reject the pod, as the namespaced reflector will take over once it (re)starts.
+	// Likewise, do not take irreversible decisions (i.e., pod rejection) when the mapping state is
+	// uncertain, and retry later: genuine offload removal is detected from the NamespaceMap instead.
+	if fpr.namespaceMapped != nil {
+		mapped, err := fpr.namespaceMapped(key.Namespace)
+		if err != nil {
+			klog.Warningf("Skipping rejection of local pod %q: failed to determine whether namespace %q is mapped: %v",
+				klog.KObj(local), key.Namespace, err)
+			return fmt.Errorf("determining whether namespace %q is mapped: %w", key.Namespace, err)
+		}
+		if mapped {
+			klog.Warningf("Skipping rejection of local pod %q: namespace %q is still mapped to the remote cluster, reflection will resume once the namespaced reflector is ready",
+				klog.KObj(local), key.Namespace)
+			return nil
+		}
 	}
 
 	// Otherwise, mark the pod as rejected (either Pending or Failed based on its previous status).
