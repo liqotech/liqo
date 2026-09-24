@@ -106,6 +106,7 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 		return err
 	}
 
+	p.setProviderID(virtualNode)
 	p.applyVirtualNodeStatus(virtualNode)
 
 	return p.updateNode()
