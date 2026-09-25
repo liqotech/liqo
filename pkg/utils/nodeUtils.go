@@ -91,11 +91,11 @@ func MergeNodeSelector(ns1, ns2 *corev1.NodeSelector) corev1.NodeSelector {
 	mergedNodeSelector := corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}}
 	for i := range ns1.NodeSelectorTerms {
 		for j := range ns2.NodeSelectorTerms {
-			newMatchExpression := ns1.NodeSelectorTerms[i].DeepCopy().MatchExpressions
-			newMatchExpression = append(newMatchExpression, ns2.NodeSelectorTerms[j].MatchExpressions...)
-			mergedNodeSelector.NodeSelectorTerms = append(mergedNodeSelector.NodeSelectorTerms, corev1.NodeSelectorTerm{
-				MatchExpressions: newMatchExpression,
-			})
+			term := ns1.NodeSelectorTerms[i].DeepCopy()
+			other := ns2.NodeSelectorTerms[j].DeepCopy()
+			term.MatchExpressions = append(term.MatchExpressions, other.MatchExpressions...)
+			term.MatchFields = append(term.MatchFields, other.MatchFields...)
+			mergedNodeSelector.NodeSelectorTerms = append(mergedNodeSelector.NodeSelectorTerms, *term)
 		}
 	}
 	return mergedNodeSelector
