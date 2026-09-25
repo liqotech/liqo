@@ -89,7 +89,7 @@ const (
 // when the items are dequeued: in case the namespace reflection is quickly restarted (e.g., due to
 // a transient flapping of the NamespaceMap), the grace period lets the items be routed back to the
 // namespaced reflector, instead of being erroneously handled (e.g., rejected) by the fallback one.
-var fallbackGracePeriod = 30 * time.Second
+var fallbackGracePeriod = 15 * time.Second
 
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
