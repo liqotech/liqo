@@ -326,7 +326,7 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 			return fmt.Errorf("determining whether namespace %q is mapped: %w", key.Namespace, err)
 		}
 		if mapped {
-			klog.Warningf("Skipping rejection of local pod %q: namespace %q is still mapped to the remote cluster, reflection will resume once the namespaced reflector is ready",
+			klog.Warningf("Skipping rejection of local pod %q: namespace %q is still mapped, reflection will resume once the namespaced reflector is ready",
 				klog.KObj(local), key.Namespace)
 			return nil
 		}

@@ -38,7 +38,7 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 
 	BeforeEach(func() {
 		fakeManager = fake.NewNamespaceStartStopper()
-		fakeLiqoClient = liqoclient.NewSimpleClientset()
+		fakeLiqoClient = liqoclient.NewSimpleClientset() //nolint:staticcheck // NewClientset is not generated in this repo (requires --with-applyconfig).
 
 		nmh = NewHandler(fakeLiqoClient, "ns", 0)
 		Expect(nmh.Start(context.Background(), fakeManager)).ToNot(HaveOccurred())
