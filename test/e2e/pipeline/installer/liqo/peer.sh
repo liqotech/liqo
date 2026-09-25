@@ -16,15 +16,16 @@
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 set_certificate_renewal_policy() {
   local POLICY_MANIFEST
-  POLICY_MANIFEST=$(cat <<'EOF'
-apiVersion: policies.kyverno.io/v1
-kind: MutatingPolicy
+  POLICY_MANIFEST=$(
+    cat <<'EOF'
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
 metadata:
   name: patch-csr-expiration
   annotations:
@@ -36,57 +37,39 @@ metadata:
       This policy patches CertificateSigningRequest resources with names
       starting with 'liqo-identity' to set the expiration duration to 600 seconds.
 spec:
-  evaluation:
-    admission:
-      enabled: true
-    background:
-      enabled: false
-  matchConstraints:
-    resourceRules:
-      - apiGroups:
-          - certificates.k8s.io
-        apiVersions:
-          - v1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - certificatesigningrequests
-  matchConditions:
-    - name: match-liqo-identity
-      expression: "object.metadata.name.startsWith('liqo-identity')"
-  mutations:
-    - patchType: ApplyConfiguration
-      applyConfiguration:
-        expression: |
-          Object{
-            spec: Object.spec{
-              expirationSeconds: 600
-            }
-          }
+  rules:
+    - name: set-csr-expiration
+      match:
+        any:
+          - resources:
+              kinds:
+                - CertificateSigningRequest
+              names:
+                - "liqo-identity*"
+      mutate:
+        patchStrategicMerge:
+          spec:
+            expirationSeconds: 600
 EOF
-)
+  )
 
-  for i in $(seq 1 "${CLUSTER_NUMBER}")
-  do
+  for i in $(seq 1 "${CLUSTER_NUMBER}"); do
     export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-    echo "Applying Kyverno MutatingPolicy on cluster ${i} to set the CSR expiration time to 600 seconds"
+    echo "Applying Kyverno ClusterPolicy on cluster ${i} to set the CSR expiration time to 600 seconds"
     echo "${POLICY_MANIFEST}" | "${KUBECTL}" apply -f -
-    echo "Waiting for Kyverno MutatingPolicy to become ready on cluster ${i}"
-    # Kyverno MutatingPolicy exposes readiness as status.conditionStatus.ready,
-    # not as a "Ready" condition, so wait on the jsonpath value.
-    "${KUBECTL}" wait --for=jsonpath='{.status.conditionStatus.ready}'=true mutatingpolicy/patch-csr-expiration --timeout=120s
+    echo "Waiting for Kyverno ClusterPolicy to become ready on cluster ${i}"
+    "${KUBECTL}" wait --for=condition=Ready clusterpolicy/patch-csr-expiration --timeout=120s
   done
 }
 
 error() {
-   local sourcefile=$1
-   local lineno=$2
-   echo "An error occurred at $sourcefile:$lineno."
+  local sourcefile=$1
+  local lineno=$2
+  echo "An error occurred at $sourcefile:$lineno."
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 # shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "${SCRIPT_DIR}/../../utils.sh"
@@ -96,8 +79,7 @@ set_certificate_renewal_policy
 
 mkdir -p "${TMPDIR}/kubeconfigs/generated"
 CLUSTER_ID=$(forge_clustername 1)
-for i in $(seq 2 "${CLUSTER_NUMBER}")
-do
+for i in $(seq 2 "${CLUSTER_NUMBER}"); do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
@@ -106,7 +88,7 @@ do
     PROVIDER_KUBECONFIG=$PROVIDER_KUBECONFIG_ADMIN
   else
     echo "Generating kubeconfig for consumer cluster 1 on provider cluster ${i}"
-    "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" > "${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+    "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" >"${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
     PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
   fi
 
