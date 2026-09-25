@@ -16,6 +16,7 @@ package workload_test
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -132,6 +133,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 			err   error
 
 			fallbackReflectorReady bool
+			namespaceMapped        bool
+			namespaceMappedErr     error
 		)
 
 		BeforeEach(func() { local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: "not-existing"}} })
@@ -150,6 +153,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).
 				WithReadinessFunc(func() bool { return fallbackReflectorReady }).
+				WithNamespaceMappedFunc(func(string) (bool, error) { return namespaceMapped, namespaceMappedErr }).
 				WithEventBroadcaster(record.NewBroadcaster())
 			fallback = reflector.NewFallback(opts)
 
@@ -190,6 +194,34 @@ var _ = Describe("Pod Reflection Tests", func() {
 					)
 					When("phase is running", WhenBody(corev1.PodStatus{Phase: corev1.PodRunning}, corev1.PodFailed, forge.PodOffloadingAbortedReason))
 					When("phase is failed", WhenBody(corev1.PodStatus{Phase: corev1.PodFailed}, corev1.PodFailed, ""))
+
+					When("the namespace is still mapped to the remote cluster", func() {
+						BeforeEach(func() {
+							namespaceMapped = true
+							local.Status = corev1.PodStatus{Phase: corev1.PodRunning}
+						})
+
+						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should not mark the pod as rejected", func() {
+							localAfter := GetPod(client, LocalNamespace, PodName)
+							Expect(localAfter.Status.Phase).To(BeIdenticalTo(corev1.PodRunning))
+							Expect(localAfter.Status.Reason).To(BeEmpty())
+						})
+					})
+
+					When("the namespace mapping state is uncertain", func() {
+						BeforeEach(func() {
+							namespaceMappedErr = errors.New("no NamespaceMap is present at the moment")
+							local.Status = corev1.PodStatus{Phase: corev1.PodRunning}
+						})
+
+						It("should return an error, so that the key is retried", func() { Expect(err).To(HaveOccurred()) })
+						It("should not mark the pod as rejected", func() {
+							localAfter := GetPod(client, LocalNamespace, PodName)
+							Expect(localAfter.Status.Phase).To(BeIdenticalTo(corev1.PodRunning))
+							Expect(localAfter.Status.Reason).To(BeEmpty())
+						})
+					})
 				})
 
 				When("it is terminating", func() {

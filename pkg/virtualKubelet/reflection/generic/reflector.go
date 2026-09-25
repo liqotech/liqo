@@ -84,6 +84,13 @@ const (
 	ConcurrencyModeAll ConcurrencyMode = "all"
 )
 
+// fallbackGracePeriod is the delay before the items of a stopped namespace are re-enqueued for
+// fallback processing. The routing between the namespaced and the fallback reflector is performed
+// when the items are dequeued: in case the namespace reflection is quickly restarted (e.g., due to
+// a transient flapping of the NamespaceMap), the grace period lets the items be routed back to the
+// namespaced reflector, instead of being erroneously handled (e.g., rejected) by the fallback one.
+var fallbackGracePeriod = 15 * time.Second
+
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
 	workers uint, reflectionType offloadingv1beta1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
@@ -172,10 +179,11 @@ func (gr *reflector) StopNamespace(local, remote string) {
 
 	delete(gr.reflectors, local)
 
-	// In case a fallback reflector exists, re-enqueue all the elements returned for the given namespace.
+	// In case a fallback reflector exists, re-enqueue all the elements returned for the given namespace,
+	// after a grace period to account for transient flapping of the namespace reflection.
 	if gr.fallback != nil {
 		for _, key := range gr.fallback.Keys(local, remote) {
-			gr.workqueue.Add(key)
+			gr.workqueue.AddAfter(key, fallbackGracePeriod)
 		}
 	}
 
