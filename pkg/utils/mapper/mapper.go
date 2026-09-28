@@ -17,6 +17,7 @@ package mapper
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	adminssionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -72,7 +73,7 @@ func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schem
 }
 
 // add most used groups to the mapper, this includes all Liqo groups with core/v1, apps/v1 and rbac/v1.
-func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMapper) error {
+func addDefaults(dClient discovery.DiscoveryInterface, mapper *meta.DefaultRESTMapper) error {
 	var err error
 
 	// Liqo groups
@@ -142,7 +143,7 @@ const (
 )
 
 // add all the resources in the specified groupVersion to the mapper.
-func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion,
+func addGroup(dClient discovery.DiscoveryInterface, groupVersion schema.GroupVersion,
 	mapper *meta.DefaultRESTMapper, required bool) error {
 	res, err := dClient.ServerResourcesForGroupVersion(groupVersion.String())
 	var dErr *apierrors.StatusError
@@ -156,17 +157,29 @@ func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersi
 	}
 	for i := range res.APIResources {
 		apiRes := &res.APIResources[i]
+		// Subresources (e.g., status) share the kind of the parent resource, hence they are skipped.
+		if strings.Contains(apiRes.Name, "/") {
+			continue
+		}
+
 		var scope meta.RESTScope
 		if apiRes.Namespaced {
 			scope = meta.RESTScopeNamespace
 		} else {
 			scope = meta.RESTScopeRoot
 		}
-		mapper.Add(schema.GroupVersionKind{
+
+		// The resource names are retrieved from the discovery, as the ones guessed from the kind may be wrong
+		// (e.g., the plural of "Gateway" would be guessed as "gatewaies").
+		singular := apiRes.SingularName
+		if singular == "" {
+			singular = strings.ToLower(apiRes.Kind)
+		}
+		mapper.AddSpecific(schema.GroupVersionKind{
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,
 			Kind:    apiRes.Kind,
-		}, scope)
+		}, groupVersion.WithResource(apiRes.Name), groupVersion.WithResource(singular), scope)
 		mapper.Add(schema.GroupVersionKind{
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,
