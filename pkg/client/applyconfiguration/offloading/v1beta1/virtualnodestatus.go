@@ -22,6 +22,17 @@ package v1beta1
 // VirtualNodeStatus contains some information about remote namespace status.
 type VirtualNodeStatusApplyConfiguration struct {
 	Conditions []VirtualNodeConditionApplyConfiguration `json:"conditions,omitempty"`
+	// EffectiveOffloadingPatch is the offloading patch actually enforced by the virtual-kubelet:
+	// the spec's OffloadingPatch with the labels and annotations not to be reflected merged
+	// with the ones of the referenced VkOptionsTemplate.
+	EffectiveOffloadingPatch *OffloadingPatchApplyConfiguration `json:"effectiveOffloadingPatch,omitempty"`
+	// EffectiveCreateNode is whether the node has to be created, defaulting to the value
+	// specified in the VkOptionsTemplate when not set in the spec. It is set by the controller.
+	EffectiveCreateNode *bool `json:"effectiveCreateNode,omitempty"`
+	// EffectiveDisableNetworkCheck is whether the network check has to be disabled, defaulting
+	// to the value specified in the VkOptionsTemplate when not set in the spec. It is set by
+	// the controller.
+	EffectiveDisableNetworkCheck *bool `json:"effectiveDisableNetworkCheck,omitempty"`
 }
 
 // VirtualNodeStatusApplyConfiguration constructs a declarative configuration of the VirtualNodeStatus type for use with
@@ -40,5 +51,29 @@ func (b *VirtualNodeStatusApplyConfiguration) WithConditions(values ...*VirtualN
 		}
 		b.Conditions = append(b.Conditions, *values[i])
 	}
+	return b
+}
+
+// WithEffectiveOffloadingPatch sets the EffectiveOffloadingPatch field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the EffectiveOffloadingPatch field is set to the value of the last call.
+func (b *VirtualNodeStatusApplyConfiguration) WithEffectiveOffloadingPatch(value *OffloadingPatchApplyConfiguration) *VirtualNodeStatusApplyConfiguration {
+	b.EffectiveOffloadingPatch = value
+	return b
+}
+
+// WithEffectiveCreateNode sets the EffectiveCreateNode field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the EffectiveCreateNode field is set to the value of the last call.
+func (b *VirtualNodeStatusApplyConfiguration) WithEffectiveCreateNode(value bool) *VirtualNodeStatusApplyConfiguration {
+	b.EffectiveCreateNode = &value
+	return b
+}
+
+// WithEffectiveDisableNetworkCheck sets the EffectiveDisableNetworkCheck field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the EffectiveDisableNetworkCheck field is set to the value of the last call.
+func (b *VirtualNodeStatusApplyConfiguration) WithEffectiveDisableNetworkCheck(value bool) *VirtualNodeStatusApplyConfiguration {
+	b.EffectiveDisableNetworkCheck = &value
 	return b
 }

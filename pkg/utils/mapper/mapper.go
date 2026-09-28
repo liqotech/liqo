@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -116,6 +117,12 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 
 	// Prometheus operator group
 	if err = addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional); err != nil {
+		return err
+	}
+
+	// Gateway API group, whose resources are reflected and whose status is aggregated, if available.
+	gatewayAPIGroupVersion := schema.GroupVersion{Group: gwv1.GroupName, Version: gwv1.GroupVersion.Version}
+	if err = addGroup(dClient, gatewayAPIGroupVersion, mapper, GroupOptional); err != nil {
 		return err
 	}
 
