@@ -30,6 +30,9 @@ type VirtualNodeSpecApplyConfiguration struct {
 	// ClusterID contains the id of the remote cluster targeted by the created virtualKubelet.
 	ClusterID *corev1beta1.ClusterID `json:"clusterID,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
+	//
+	// Deprecated: the VirtualKubelet deployment is forged by the virtualnode controller
+	// from the referenced VkOptionsTemplate. This field is ignored and removed if set.
 	Template *DeploymentTemplateApplyConfiguration `json:"template,omitempty"`
 	// OffloadingPatch contains the information to target a groups of node on the remote cluster.
 	OffloadingPatch *OffloadingPatchApplyConfiguration `json:"offloadingPatch,omitempty"`
