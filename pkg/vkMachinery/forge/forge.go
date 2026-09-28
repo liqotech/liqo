@@ -60,6 +60,41 @@ func getDefaultIngressClass(ingressClasses []liqov1beta1.IngressType) liqov1beta
 	return ingressClasses[0]
 }
 
+func getDefaultGatewayClass(gatewayClasses []liqov1beta1.GatewayClassType) liqov1beta1.GatewayClassType {
+	for _, gatewayClass := range gatewayClasses {
+		if gatewayClass.Default {
+			return gatewayClass
+		}
+	}
+	return gatewayClasses[0]
+}
+
+func getDefaultSharedGateway(sharedGateways []liqov1beta1.SharedGatewayType) liqov1beta1.SharedGatewayType {
+	for _, sharedGateway := range sharedGateways {
+		if sharedGateway.Default {
+			return sharedGateway
+		}
+	}
+	return sharedGateways[0]
+}
+
+// appendArgsGatewayAPI enables the Gateway API reflection if the remote cluster offers any GatewayClass or shared Gateway.
+func appendArgsGatewayAPI(args []string, gatewayClasses []liqov1beta1.GatewayClassType, sharedGateways []liqov1beta1.SharedGatewayType) []string {
+	if len(gatewayClasses) == 0 && len(sharedGateways) == 0 {
+		return args
+	}
+
+	args = append(args, string(EnableGatewayAPI))
+	if len(gatewayClasses) > 0 {
+		args = append(args, StringifyArgument(string(RemoteRealGatewayClassName), getDefaultGatewayClass(gatewayClasses).GatewayClassName))
+	}
+	if len(sharedGateways) > 0 {
+		gateway := getDefaultSharedGateway(sharedGateways)
+		args = append(args, StringifyArgument(string(RemoteSharedGateway), fmt.Sprintf("%s/%s", gateway.Namespace, gateway.Name)))
+	}
+	return args
+}
+
 func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1beta1.LoadBalancerType) liqov1beta1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
@@ -82,6 +117,8 @@ func forgeVKContainers(
 	storageClasses := virtualNode.Spec.StorageClasses
 	ingressClasses := virtualNode.Spec.IngressClasses
 	loadBalancerClasses := virtualNode.Spec.LoadBalancerClasses
+	gatewayClasses := virtualNode.Spec.GatewayClasses
+	sharedGateways := virtualNode.Spec.SharedGateways
 
 	args := []string{
 		StringifyArgument(string(ForeignClusterID), string(remoteCluster)),
@@ -118,6 +155,8 @@ func forgeVKContainers(
 			StringifyArgument(string(RemoteRealLoadBalancerClassName),
 				getDefaultLoadBalancerClass(loadBalancerClasses).LoadBalancerClassName))
 	}
+
+	args = appendArgsGatewayAPI(args, gatewayClasses, sharedGateways)
 
 	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsConfig)
 	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsConfig)

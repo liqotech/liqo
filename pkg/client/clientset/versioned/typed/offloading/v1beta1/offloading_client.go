@@ -29,13 +29,15 @@ type OffloadingV1beta1Interface interface {
 	RESTClient() rest.Interface
 	NamespaceMapsGetter
 	ShadowEndpointSlicesGetter
+	ShadowGatewayStatusesGetter
 	ShadowIngressStatusesGetter
 	ShadowPodsGetter
+	ShadowRouteStatusesGetter
 	VirtualNodesGetter
 	VkOptionsTemplatesGetter
 }
 
-// OffloadingV1beta1Client is used to interact with features provided by the offloading group.
+// OffloadingV1beta1Client is used to interact with features provided by the offloading.liqo.io group.
 type OffloadingV1beta1Client struct {
 	restClient rest.Interface
 }
@@ -48,12 +50,20 @@ func (c *OffloadingV1beta1Client) ShadowEndpointSlices(namespace string) ShadowE
 	return newShadowEndpointSlices(c, namespace)
 }
 
+func (c *OffloadingV1beta1Client) ShadowGatewayStatuses(namespace string) ShadowGatewayStatusInterface {
+	return newShadowGatewayStatuses(c, namespace)
+}
+
 func (c *OffloadingV1beta1Client) ShadowIngressStatuses(namespace string) ShadowIngressStatusInterface {
 	return newShadowIngressStatuses(c, namespace)
 }
 
 func (c *OffloadingV1beta1Client) ShadowPods(namespace string) ShadowPodInterface {
 	return newShadowPods(c, namespace)
+}
+
+func (c *OffloadingV1beta1Client) ShadowRouteStatuses(namespace string) ShadowRouteStatusInterface {
+	return newShadowRouteStatuses(c, namespace)
 }
 
 func (c *OffloadingV1beta1Client) VirtualNodes(namespace string) VirtualNodeInterface {

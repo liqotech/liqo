@@ -13,4 +13,6 @@
 // limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the ipam v1alpha1 API group
+//
+// +groupName=ipam.liqo.io
 package v1alpha1

@@ -156,6 +156,72 @@ When the local *Ingress* specifies an *IngressClass* managed by Liqo (e.g., `liq
 Each remote cluster reports the status of its own reflected *Ingress* (e.g., the assigned load-balancer IPs), and the Liqo controller manager aggregates these statuses back into the local *Ingress* status.
 This allows the origin cluster to present a unified view of the ingress endpoints, combining the load-balancer information from all peered clusters where the *Ingress* has been offloaded.
 
+### Gateway API
+
+Liqo supports the reflection of the [Gateway API](https://gateway-api.sigs.k8s.io/) **Gateway**, **HTTPRoute**, **GRPCRoute** and **ReferenceGrant** resources.
+Similarly to the ingress classes, the reflection is enabled when the provider cluster offers any *GatewayClass*, used for the reflected *Gateways*, or any **shared Gateway**, which the reflected routes are attached to.
+They are configured at install time in the **provider cluster** through the following Helm values, and they are propagated to the consumer clusters during the peering process (i.e., through the *ResourceSlice* and *VirtualNode* resources):
+
+```bash
+liqoctl install ... \
+  --set "offloading.reflection.gateway.gatewayClasses[0].name=envoy" \
+  --set "offloading.reflection.gateway.sharedGateways[0].name=infra/public"
+```
+
+When multiple *GatewayClasses* or shared *Gateways* are offered, the one marked as `default: true` (or the first one otherwise) is used.
+The same information can be specified when manually creating a virtual node, through the `--gateway-classes` and `--shared-gateways` flags of `liqoctl create virtualnode`.
+Alternatively, the reflection can be configured through the following virtual kubelet flags (e.g., through the `virtualKubelet.extra.args` Helm value in the consumer cluster):
+
+* `--enable-gateway-api`: enables the reflection of the Gateway API resources.
+* `--remote-real-gateway-class-name`: the *GatewayClass* offered by the remote cluster, used for the reflected *Gateways*.
+* `--remote-shared-gateway` (in the form `<namespace>/<name>`): the *Gateway* offered by the remote cluster the reflected routes are attached to, when their *Gateways* are not reflected.
+
+If the Gateway API CRDs are installed in the local cluster, Liqo creates the **liqo** virtual *GatewayClass* (the name can be customized through the `offloading.reflection.gateway.virtualGatewayClassName` Helm value).
+The *Gateways* of this class are not served by the local cluster, but they are **reflected to the remote clusters** where their namespace is offloaded, using the *GatewayClass* offered by the remote cluster.
+This enables the exposition of the offloaded applications in the remote clusters, e.g., to implement a global ingress.
+*Gateways* of other classes are served by the local cluster, and they are not reflected.
+
+The reflected *Gateways* are translated as follows:
+
+* The namespaces of the **certificate references** are translated to the corresponding remote namespaces.
+  Listeners referring to certificates in namespaces not offloaded to the remote cluster are dropped.
+* Listeners allowing the attachment of routes from **all namespaces** are restricted to the remote namespaces hosting the workloads offloaded from the local cluster, while the ones leveraging **label selectors** are restricted to the same namespace, since selectors refer to the labels of the local namespaces.
+* Fields referring to the local cluster (i.e., `addresses` and `infrastructure.parametersRef`), or affecting other tenants of the remote cluster (i.e., `defaultScope` and `allowedListeners`), are dropped.
+
+**Routes** are reflected independently of the class of their *Gateways*, and they are translated as follows:
+
+* **Parent references** to *Gateways* of the virtual class are translated to the remote copies of the *Gateways*, preserving the listener they are attached to.
+  References to other *Gateways*, which are not reflected, are replaced by a single reference to the **shared Gateway** offered by the remote cluster.
+  The shared *Gateway* must allow the attachment of routes from the remote namespaces hosting the offloaded workloads (i.e., through the `allowedRoutes` field of its listeners).
+  References to *Services* (i.e., mesh routes) are preserved, translating their namespace.
+* **Backend references** to *Services* in the same namespace are preserved as is, while the ones to *Services* in other namespaces are translated to the corresponding remote namespace, if offloaded to the same cluster.
+  References to namespaces not offloaded to the remote cluster, as well as to other kinds of backends, are dropped.
+* **Filters** not referring to other objects are preserved as is, while *RequestMirror* filters are dropped if their backend cannot be translated.
+
+**ReferenceGrants** are reflected to allow cross-namespace references between namespaces offloaded to the same remote cluster.
+The namespaces the references are granted from are translated to the corresponding remote namespaces, while the ones not offloaded to the remote cluster are dropped.
+
+Resources are **never reflected in a less restrictive form**: *Gateways* including a Gateway-level TLS configuration (which may enforce the authentication of clients and backends), routes including *ExtensionRef* filters (which refer to implementation-specific resources, possibly enforcing security policies), or *ExternalAuth* filters whose backend cannot be translated, are not reflected at all.
+The same applies to resources which would be meaningless in the remote cluster, such as routes not attached to any parent, or *Gateways* without listeners.
+
+The **status** of the reflected *Gateways* and routes is reported back to the local cluster.
+Since the same resource may be reflected to multiple remote clusters, each virtual kubelet reports the status of the resources in its remote cluster through *ShadowGatewayStatus* and *ShadowRouteStatus* custom resources, which are then aggregated by the Liqo controller manager:
+
+* The virtual *GatewayClass* is marked as *Accepted*, as Liqo acts as its controller.
+* The *Gateways* of the virtual class report the union of the **addresses** assigned in all remote clusters (e.g., to configure a DNS record pointing to all of them), and they are *Programmed* if programmed in at least one remote cluster.
+  The listeners report the total number of routes attached in all remote clusters.
+* Routes report one entry for each parent reflected, managed by the `liqo.io/gateway-controller` controller, whose conditions are satisfied only if satisfied in all remote clusters, and whose messages identify the clusters where they are not.
+  The entries managed by other controllers (e.g., the local one serving the *Gateways* of other classes) are preserved.
+
+Liqo generates Kubernetes events on the local resources to notify about the outcome of the reflection, including the ID of the remote cluster and the name of the virtual node, to simplify troubleshooting when a namespace is offloaded to multiple clusters.
+In particular, a *PartialReflection* warning event lists the references dropped during the translation, while a *FailedReflection* warning event reports why the resource could not be reflected.
+
+```{warning}
+The Gateway API resources available in both clusters are detected when the virtual kubelet starts.
+If a resource is available in the local cluster only, or the Liqo version installed in the remote cluster does not allow the virtual kubelet to operate on it, the corresponding local resources are not reflected, and a *FailedReflection* warning event is generated for each of them.
+The virtual kubelet must be restarted in case the Gateway API CRDs are installed in either cluster afterwards.
+```
+
 (UsageReflectionStorage)=
 
 ## Persistent storage

@@ -40,7 +40,7 @@ func VirtualNode(name, namespace string) *VirtualNodeApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("VirtualNode")
-	b.WithAPIVersion("offloading/v1beta1")
+	b.WithAPIVersion("offloading.liqo.io/v1beta1")
 	return b
 }
 

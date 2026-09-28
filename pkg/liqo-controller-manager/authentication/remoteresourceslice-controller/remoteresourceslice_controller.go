@@ -321,6 +321,8 @@ func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Contex
 		}
 
 		resourceSlice.Status.IngressClasses = getIngressClasses(r.sliceStatusOptions)
+		resourceSlice.Status.GatewayClasses = getGatewayClasses(r.sliceStatusOptions)
+		resourceSlice.Status.SharedGateways = getSharedGateways(r.sliceStatusOptions)
 		resourceSlice.Status.LoadBalancerClasses = getLoadBalancerClasses(r.sliceStatusOptions)
 		resourceSlice.Status.NodeLabels = getNodeLabels(r.sliceStatusOptions)
 

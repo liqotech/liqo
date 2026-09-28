@@ -30,7 +30,7 @@ type IpamV1alpha1Interface interface {
 	IPsGetter
 }
 
-// IpamV1alpha1Client is used to interact with features provided by the ipam group.
+// IpamV1alpha1Client is used to interact with features provided by the ipam.liqo.io group.
 type IpamV1alpha1Client struct {
 	restClient rest.Interface
 }

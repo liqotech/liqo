@@ -100,6 +100,11 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		[]string{}, "The storage classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringSliceVar(&o.ingressClasses, "ingress-classes",
 		[]string{}, "The ingress classes offered by the remote cluster. The first one will be used as default")
+	cmd.Flags().StringSliceVar(&o.gatewayClasses, "gateway-classes",
+		[]string{}, "The Gateway API GatewayClasses offered by the remote cluster. The first one will be used as default")
+	cmd.Flags().StringSliceVar(&o.sharedGateways, "shared-gateways",
+		[]string{}, "The Gateway API Gateways (in the form <namespace>/<name>) offered by the remote cluster, "+
+			"which the reflected routes are attached to. The first one will be used as default")
 	cmd.Flags().StringSliceVar(&o.loadBalancerClasses, "load-balancer-classes",
 		[]string{}, "The load balancer classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
@@ -263,6 +268,20 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		ingressClasses[i] = ic
 	}
 
+	gatewayClasses := make([]liqov1beta1.GatewayClassType, len(o.gatewayClasses))
+	for i, gatewayClass := range o.gatewayClasses {
+		gatewayClasses[i] = liqov1beta1.GatewayClassType{GatewayClassName: gatewayClass, Default: i == 0}
+	}
+
+	sharedGateways := make([]liqov1beta1.SharedGatewayType, len(o.sharedGateways))
+	for i, sharedGateway := range o.sharedGateways {
+		splits, err := args.SplitNamespacedName(sharedGateway)
+		if err != nil {
+			return nil, fmt.Errorf("invalid shared gateway %q: %w", sharedGateway, err)
+		}
+		sharedGateways[i] = liqov1beta1.SharedGatewayType{Namespace: splits[0], Name: splits[1], Default: i == 0}
+	}
+
 	loadBalancerClasses := make([]liqov1beta1.LoadBalancerType, len(o.loadBalancerClasses))
 	for i, loadBalancerClass := range o.loadBalancerClasses {
 		lbc := liqov1beta1.LoadBalancerType{
@@ -280,6 +299,8 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		ResourceList:         resourceMap,
 		StorageClasses:       storageClasses,
 		IngressClasses:       ingressClasses,
+		GatewayClasses:       gatewayClasses,
+		SharedGateways:       sharedGateways,
 		LoadBalancerClasses:  loadBalancerClasses,
 		NodeLabels:           o.labels,
 		NodeSelector:         o.nodeSelector,

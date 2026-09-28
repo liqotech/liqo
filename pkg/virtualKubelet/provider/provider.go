@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -75,6 +76,10 @@ type InitConfig struct {
 	RemoteRealIngressClassName      string
 	EnableLoadBalancer              bool
 	RemoteRealLoadBalancerClassName string
+	EnableGatewayAPI                bool
+	RemoteSharedGateway             *types.NamespacedName
+	VirtualGatewayClassName         string
+	RemoteRealGatewayClassName      string
 	EnableMetrics                   bool
 
 	HomeAPIServerHost string
@@ -161,6 +166,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 			cfg.EnableStorage, ptr.To(cfg.ReflectorsConfigs[resources.PersistentVolumeClaim]))).
 		With(event.NewEventReflector(ptr.To(cfg.ReflectorsConfigs[resources.Event]))).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
+
+	if cfg.EnableGatewayAPI {
+		if err := setupGatewayAPIReflection(cfg, localClient, remoteClient, reflectionManager); err != nil {
+			return nil, err
+		}
+	}
 
 	if !cfg.DisableIPReflection {
 		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDRs, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))

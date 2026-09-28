@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	gwclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gwinformers "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
@@ -36,6 +38,9 @@ type Keyer func(metadata metav1.Object) []types.NamespacedName
 // EventFilter filters out the events matching a given type.
 type EventFilter func(watch.EventType) bool
 
+// NamespaceMapper returns the remote namespace mapped to the given local one, and whether such a mapping exists.
+type NamespaceMapper func(local string) (remote string, found bool)
+
 // ReflectorOpts is a structure grouping the parameters to start a Reflector.
 type ReflectorOpts struct {
 	LocalClient      kubernetes.Interface
@@ -43,6 +48,11 @@ type ReflectorOpts struct {
 	EventBroadcaster record.EventBroadcaster
 
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
+
+	// LocalGatewayFactory is the cluster-wide Gateway API informer factory for the local cluster,
+	// which is nil if the Gateway API support is not enabled. It is started once all reflectors are started.
+	LocalGatewayFactory gwinformers.SharedInformerFactory
+	NamespaceMapper     NamespaceMapper
 
 	Ready func() bool
 }
@@ -70,6 +80,18 @@ func (ro *ReflectorOpts) WithEventBroadcaster(broadcaster record.EventBroadcaste
 	return ro
 }
 
+// WithGatewayLocal configures the cluster-wide local Gateway API informer factory of the ReflectorOpts.
+func (ro *ReflectorOpts) WithGatewayLocal(factory gwinformers.SharedInformerFactory) *ReflectorOpts {
+	ro.LocalGatewayFactory = factory
+	return ro
+}
+
+// WithNamespaceMapper configures the function to map local namespaces to the corresponding remote ones.
+func (ro *ReflectorOpts) WithNamespaceMapper(mapper NamespaceMapper) *ReflectorOpts {
+	ro.NamespaceMapper = mapper
+	return ro
+}
+
 // NamespacedOpts is a structure grouping the parameters to start a NamespacedReflector.
 type NamespacedOpts struct {
 	LocalNamespace  string
@@ -84,6 +106,15 @@ type NamespacedOpts struct {
 	RemoteFactory     informers.SharedInformerFactory
 	LocalLiqoFactory  liqoinformers.SharedInformerFactory
 	RemoteLiqoFactory liqoinformers.SharedInformerFactory
+
+	// The Gateway API clients and factories are nil if the Gateway API support is not enabled.
+	// The local factory is cluster-wide, and shared by all namespaces, while the remote one is namespaced.
+	LocalGatewayClient   gwclient.Interface
+	RemoteGatewayClient  gwclient.Interface
+	LocalGatewayFactory  gwinformers.SharedInformerFactory
+	RemoteGatewayFactory gwinformers.SharedInformerFactory
+
+	NamespaceMapper NamespaceMapper
 
 	EventBroadcaster record.EventBroadcaster
 
@@ -126,6 +157,26 @@ func (ro *NamespacedOpts) WithRemote(namespace string, client kubernetes.Interfa
 func (ro *NamespacedOpts) WithLiqoRemote(client liqoclient.Interface, factory liqoinformers.SharedInformerFactory) *NamespacedOpts {
 	ro.RemoteLiqoClient = client
 	ro.RemoteLiqoFactory = factory
+	return ro
+}
+
+// WithGatewayLocal configures the local Gateway API client and informer factory parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithGatewayLocal(client gwclient.Interface, factory gwinformers.SharedInformerFactory) *NamespacedOpts {
+	ro.LocalGatewayClient = client
+	ro.LocalGatewayFactory = factory
+	return ro
+}
+
+// WithGatewayRemote configures the remote Gateway API client and informer factory parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithGatewayRemote(client gwclient.Interface, factory gwinformers.SharedInformerFactory) *NamespacedOpts {
+	ro.RemoteGatewayClient = client
+	ro.RemoteGatewayFactory = factory
+	return ro
+}
+
+// WithNamespaceMapper configures the function to map local namespaces to the corresponding remote ones.
+func (ro *NamespacedOpts) WithNamespaceMapper(mapper NamespaceMapper) *NamespacedOpts {
+	ro.NamespaceMapper = mapper
 	return ro
 }
 

@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -82,6 +83,7 @@ func init() {
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = networkingv1beta1.AddToScheme(scheme)
 	_ = authv1beta1.AddToScheme(scheme)
+	_ = gwv1.Install(scheme)
 }
 
 func main() {

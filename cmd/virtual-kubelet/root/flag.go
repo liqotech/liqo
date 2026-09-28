@@ -71,6 +71,13 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.BoolVar(&o.EnableLoadBalancer, "enable-load-balancer", false, "Enable the Liqo load balancer reflection")
 	flags.StringVar(&o.RemoteRealLoadBalancerClassName, "remote-real-load-balancer-class-name", "",
 		"Name of the real load balancer class to use for the actual load balancer")
+	flags.BoolVar(&o.EnableGatewayAPI, "enable-gateway-api", false, "Enable the Liqo Gateway API reflection")
+	flags.Var(&o.RemoteSharedGateway, "remote-shared-gateway",
+		"Namespace and name (in the form <namespace>/<name>) of the Gateway offered by the remote cluster the reflected routes are attached to")
+	flags.StringVar(&o.VirtualGatewayClassName, "virtual-gateway-class-name", "liqo",
+		"Name of the virtual GatewayClass, whose Gateways are reflected to the remote cluster")
+	flags.StringVar(&o.RemoteRealGatewayClassName, "remote-real-gateway-class-name", "",
+		"Name of the real GatewayClass to use for the reflected Gateways")
 	flags.BoolVar(&o.EnableMetrics, "metrics-enabled", false, "Enable the metrics server")
 	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8082", "The address to listen to for metrics requests")
 	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",

@@ -20,9 +20,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/api/resource"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 func TestParseArguments(t *testing.T) {
@@ -312,4 +314,54 @@ var _ = Describe("ParseArguments", func() {
 		)
 	})
 
+})
+
+var _ = Describe("NamespacedName", func() {
+	var nn NamespacedName
+
+	BeforeEach(func() { nn = NamespacedName{} })
+
+	It("should be empty if not set", func() {
+		Expect(nn.String()).To(BeEmpty())
+		Expect(nn.NamespacedName).To(BeNil())
+	})
+
+	It("should parse a valid namespaced name", func() {
+		Expect(nn.Set("infra/public")).To(Succeed())
+		Expect(nn.NamespacedName).To(PointTo(Equal(k8stypes.NamespacedName{Namespace: "infra", Name: "public"})))
+		Expect(nn.String()).To(Equal("infra/public"))
+		Expect(nn.Type()).To(Equal("namespacedName"))
+	})
+
+	DescribeTable("should reject invalid values",
+		func(value string) { Expect(nn.Set(value)).ToNot(Succeed()) },
+		Entry("empty", ""),
+		Entry("without separator", "public"),
+		Entry("with empty namespace", "/public"),
+		Entry("with empty name", "infra/"),
+		Entry("with multiple separators", "infra/public/extra"),
+	)
+})
+
+var _ = Describe("NamespacedClassNameList", func() {
+	var list NamespacedClassNameList
+
+	BeforeEach(func() { list = NamespacedClassNameList{} })
+
+	It("should parse a valid list", func() {
+		Expect(list.Set("infra/public;default,infra/internal")).To(Succeed())
+		Expect(list.Classes).To(Equal([]ClassName{{Name: "infra/public", IsDefault: true}, {Name: "infra/internal"}}))
+		Expect(list.String()).To(Equal("infra/public;default,infra/internal"))
+		Expect(list.Type()).To(Equal("namespacedClassNameList"))
+	})
+
+	It("should accept an empty value", func() {
+		Expect(list.Set("")).To(Succeed())
+		Expect(list.Classes).To(BeEmpty())
+	})
+
+	It("should reject names not in the namespaced form", func() {
+		Expect(list.Set("infra/public,internal")).ToNot(Succeed())
+		Expect(list.Classes).To(BeEmpty())
+	})
 })

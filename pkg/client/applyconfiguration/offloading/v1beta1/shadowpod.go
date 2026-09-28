@@ -40,7 +40,7 @@ func ShadowPod(name, namespace string) *ShadowPodApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ShadowPod")
-	b.WithAPIVersion("offloading/v1beta1")
+	b.WithAPIVersion("offloading.liqo.io/v1beta1")
 	return b
 }
 

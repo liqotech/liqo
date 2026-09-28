@@ -32,7 +32,7 @@ import (
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=ipam, Version=v1alpha1
+	// Group=ipam.liqo.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("IP"):
 		return &ipamv1alpha1.IPApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("IPSpec"):
@@ -42,7 +42,7 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	case v1alpha1.SchemeGroupVersion.WithKind("ServiceTemplate"):
 		return &ipamv1alpha1.ServiceTemplateApplyConfiguration{}
 
-		// Group=offloading, Version=v1beta1
+		// Group=offloading.liqo.io, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithKind("Affinity"):
 		return &offloadingv1beta1.AffinityApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("DeploymentTemplate"):
@@ -65,6 +65,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &offloadingv1beta1.ShadowEndpointSliceApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowEndpointSliceSpec"):
 		return &offloadingv1beta1.ShadowEndpointSliceSpecApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowGatewayStatus"):
+		return &offloadingv1beta1.ShadowGatewayStatusApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowGatewayStatusSpec"):
+		return &offloadingv1beta1.ShadowGatewayStatusSpecApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowIngressStatus"):
 		return &offloadingv1beta1.ShadowIngressStatusApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowIngressStatusSpec"):
@@ -75,6 +79,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &offloadingv1beta1.ShadowPodSpecApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowPodStatus"):
 		return &offloadingv1beta1.ShadowPodStatusApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowRouteStatus"):
+		return &offloadingv1beta1.ShadowRouteStatusApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowRouteStatusSpec"):
+		return &offloadingv1beta1.ShadowRouteStatusSpecApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("VirtualNode"):
 		return &offloadingv1beta1.VirtualNodeApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("VirtualNodeCondition"):

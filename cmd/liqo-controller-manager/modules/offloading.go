@@ -24,14 +24,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	gatewayapistatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/gatewayapistatus-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/nodefailure-controller"
@@ -44,6 +47,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/csr"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 )
 
 // OffloadingOption defines the options to setup the offloading module.
@@ -63,6 +67,7 @@ type OffloadingOption struct {
 	ShadowEndpointSliceWorkers  int
 	DenyDirectConnections       bool
 	ShadowIngressStatusWorkers  int
+	GatewayAPIStatusWorkers     int
 	ResyncPeriod                time.Duration
 }
 
@@ -95,6 +100,7 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 		ShadowEndpointSliceWorkers:  opts.ShadowEndpointSliceWorkers,
 		DenyDirectConnections:       opts.DenyDirectConnections,
 		ShadowIngressStatusWorkers:  opts.ShadowIngressStatusWorkers,
+		GatewayAPIStatusWorkers:     opts.GatewayAPIStatusWorkers,
 		ResyncPeriod:                opts.ResyncPeriod,
 	}, nil
 }
@@ -168,6 +174,10 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 		return err
 	}
 
+	if err = setupGatewayAPIStatusControllers(ctx, mgr, opts); err != nil {
+		return err
+	}
+
 	if opts.EnableStorage {
 		liqoProvisioner, err := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
 			opts.VirtualStorageClassName, opts.StorageNamespace, opts.RealStorageClassName)
@@ -210,6 +220,61 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 		}
 		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to setup the nodefailure reconciler: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setupGatewayAPIStatusControllers sets up the controllers aggregating the status of the Gateway API resources reflected
+// to the remote clusters. Each controller is set up only if the corresponding resources are available in the local cluster,
+// as the controller would otherwise fail to start, preventing the whole manager from starting.
+func setupGatewayAPIStatusControllers(ctx context.Context, mgr manager.Manager, opts *OffloadingOption) error {
+	available, err := gwutils.Detect(opts.Clientset.Discovery())
+	if err != nil {
+		klog.Errorf("Unable to detect the Gateway API resources: %v", err)
+		return err
+	}
+
+	if available.Has(gwutils.GatewayClassesGVR) {
+		gatewayClassReconciler := &gatewayapistatusctrl.GatewayClassReconciler{Client: mgr.GetClient()}
+		if err := gatewayClassReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to setup the gatewayclass status reconciler: %v", err)
+			return err
+		}
+	}
+
+	if available.Has(gwutils.GatewayClassesGVR) && available.Has(gwutils.GatewaysGVR) {
+		gatewayReconciler := &gatewayapistatusctrl.GatewayReconciler{Client: mgr.GetClient()}
+		if err := gatewayReconciler.SetupWithManager(ctx, mgr, opts.GatewayAPIStatusWorkers); err != nil {
+			klog.Errorf("Unable to setup the shadowgatewaystatus reconciler: %v", err)
+			return err
+		}
+	}
+
+	routes := map[offloadingv1beta1.RouteKind]schema.GroupVersionResource{
+		offloadingv1beta1.HTTPRouteKind: gwutils.HTTPRoutesGVR,
+		offloadingv1beta1.GRPCRouteKind: gwutils.GRPCRoutesGVR,
+	}
+	indexed := false
+	for kind, gvr := range routes {
+		if !available.Has(gvr) {
+			klog.Infof("Gateway API resource %s not available: status aggregation disabled", gvr.GroupResource())
+			continue
+		}
+
+		if !indexed {
+			if err := gatewayapistatusctrl.SetupRouteIndexer(ctx, mgr); err != nil {
+				klog.Errorf("Unable to setup the shadowroutestatus indexer: %v", err)
+				return err
+			}
+			indexed = true
+		}
+
+		routeReconciler := &gatewayapistatusctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind}
+		if err := routeReconciler.SetupWithManager(mgr, opts.GatewayAPIStatusWorkers); err != nil {
+			klog.Errorf("Unable to setup the %s status reconciler: %v", kind, err)
 			return err
 		}
 	}

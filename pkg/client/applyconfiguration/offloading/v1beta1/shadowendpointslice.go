@@ -39,7 +39,7 @@ func ShadowEndpointSlice(name, namespace string) *ShadowEndpointSliceApplyConfig
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ShadowEndpointSlice")
-	b.WithAPIVersion("offloading/v1beta1")
+	b.WithAPIVersion("offloading.liqo.io/v1beta1")
 	return b
 }
 

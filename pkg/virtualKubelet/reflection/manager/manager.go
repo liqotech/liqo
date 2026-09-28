@@ -28,6 +28,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"k8s.io/utils/trace"
+	gwclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gwinformers "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
@@ -46,16 +48,25 @@ type manager struct {
 	remote           kubernetes.Interface
 	localLiqo        liqoclient.Interface
 	remoteLiqo       liqoclient.Interface
+	localGateway     gwclient.Interface
+	remoteGateway    gwclient.Interface
 	resync           time.Duration
 	eventBroadcaster record.EventBroadcaster
 
 	reflectors              []Reflector
 	localPodInformerFactory informers.SharedInformerFactory
+	// localGatewayFactory is the cluster-wide Gateway API informer factory for the local cluster, if enabled.
+	localGatewayFactory gwinformers.SharedInformerFactory
 
 	namespaceHandler NamespaceHandler
 
 	started bool
 	stop    map[string]context.CancelFunc
+
+	// namespaces maps the local namespaces currently reflected to the corresponding remote ones.
+	// It is protected by a dedicated lock, as it is accessed by the reflectors while processing items.
+	namespacesLock sync.RWMutex
+	namespaces     map[string]string
 
 	forgingOpts forge.ForgingOpts
 }
@@ -80,8 +91,9 @@ func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.In
 		localPodInformerFactory: informers.NewSharedInformerFactoryWithOptions(local, resync,
 			informers.WithTweakListOptions(localPodTweakListOptions)),
 
-		started: false,
-		stop:    make(map[string]context.CancelFunc),
+		started:    false,
+		stop:       make(map[string]context.CancelFunc),
+		namespaces: make(map[string]string),
 
 		forgingOpts: ptr.Deref(forgingOpts, forge.NewEmptyForgingOpts()),
 	}
@@ -106,6 +118,31 @@ func (m *manager) WithNamespaceHandler(handler NamespaceHandler) Manager {
 	return m
 }
 
+// WithGatewayAPI configures the Gateway API clients used by the Gateway API reflectors.
+// Each client shall be nil if no Gateway API resource is available in the corresponding cluster,
+// to avoid starting informers for missing resources, which would never sync.
+func (m *manager) WithGatewayAPI(local, remote gwclient.Interface) Manager {
+	if m.started {
+		panic("Attempted to configure the Gateway API clients while already running")
+	}
+
+	m.localGateway = local
+	m.remoteGateway = remote
+	if local != nil {
+		m.localGatewayFactory = gwinformers.NewSharedInformerFactory(local, m.resync)
+	}
+	return m
+}
+
+// RemoteNamespaceFor returns the remote namespace associated with the given local one, if currently reflected.
+func (m *manager) RemoteNamespaceFor(local string) (string, bool) {
+	m.namespacesLock.RLock()
+	defer m.namespacesLock.RUnlock()
+
+	remote, found := m.namespaces[local]
+	return remote, found
+}
+
 // Start starts the reflection manager. It panics if executed twice.
 func (m *manager) Start(ctx context.Context) {
 	if m.started {
@@ -116,13 +153,18 @@ func (m *manager) Start(ctx context.Context) {
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()).
-			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
+			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster).
+			WithGatewayLocal(m.localGatewayFactory).WithNamespaceMapper(m.RemoteNamespaceFor)
 		reflector.Start(ctx, opts)
 	}
 
 	// This is a no-op in case no informers/listers have been retrieved.
 	m.localPodInformerFactory.Start(ctx.Done())
 	m.localPodInformerFactory.WaitForCacheSync(ctx.Done())
+	if m.localGatewayFactory != nil {
+		m.localGatewayFactory.Start(ctx.Done())
+		m.localGatewayFactory.WaitForCacheSync(ctx.Done())
+	}
 
 	m.started = true
 
@@ -163,6 +205,10 @@ func (m *manager) StartNamespace(local, remote string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stop[local] = cancel
 
+	m.namespacesLock.Lock()
+	m.namespaces[local] = remote
+	m.namespacesLock.Unlock()
+
 	// The local informer factories, which select all resources in the given namespace.
 	localFactory := informers.NewSharedInformerFactoryWithOptions(m.local, m.resync, informers.WithNamespace(local))
 	localLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.localLiqo, m.resync, liqoinformers.WithNamespace(local))
@@ -172,13 +218,26 @@ func (m *manager) StartNamespace(local, remote string) {
 	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync, informers.WithNamespace(remote))
 	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync, liqoinformers.WithNamespace(remote))
 
+	// The remote Gateway API informer factory, which is created only if the Gateway API support is enabled.
+	// The local one is instead cluster-wide, and shared by all namespaces.
+	var remoteGatewayFactory gwinformers.SharedInformerFactory
+	if m.remoteGateway != nil {
+		remoteGatewayFactory = gwinformers.NewSharedInformerFactoryWithOptions(m.remoteGateway, m.resync, gwinformers.WithNamespace(remote))
+	}
+
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.NewNamespaced().
 			WithLocal(local, m.local, localFactory).WithLiqoLocal(m.localLiqo, localLiqoFactory).
 			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
 			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster).
-			WithForgingOpts(&m.forgingOpts)
+			WithForgingOpts(&m.forgingOpts).WithNamespaceMapper(m.RemoteNamespaceFor)
+		if m.localGatewayFactory != nil {
+			opts.WithGatewayLocal(m.localGateway, m.localGatewayFactory)
+		}
+		if remoteGatewayFactory != nil {
+			opts.WithGatewayRemote(m.remoteGateway, remoteGatewayFactory)
+		}
 		reflector.StartNamespace(opts)
 	}
 
@@ -192,11 +251,17 @@ func (m *manager) StartNamespace(local, remote string) {
 		localLiqoFactory.Start(ctx.Done())
 		remoteFactory.Start(ctx.Done())
 		remoteLiqoFactory.Start(ctx.Done())
+		if remoteGatewayFactory != nil {
+			remoteGatewayFactory.Start(ctx.Done())
+		}
 
 		localFactory.WaitForCacheSync(ctx.Done())
 		localLiqoFactory.WaitForCacheSync(ctx.Done())
 		remoteFactory.WaitForCacheSync(ctx.Done())
 		remoteLiqoFactory.WaitForCacheSync(ctx.Done())
+		if remoteGatewayFactory != nil {
+			remoteGatewayFactory.WaitForCacheSync(ctx.Done())
+		}
 
 		// If the context was closed before the cache was ready, let abort the setup
 		select {
@@ -226,6 +291,10 @@ func (m *manager) StopNamespace(local, remote string) {
 
 	stop()
 	delete(m.stop, local)
+
+	m.namespacesLock.Lock()
+	delete(m.namespaces, local)
+	m.namespacesLock.Unlock()
 
 	for _, reflector := range m.reflectors {
 		reflector.StopNamespace(local, remote)

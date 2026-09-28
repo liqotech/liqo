@@ -99,3 +99,29 @@ func (cnl *ClassNameList) Set(str string) error {
 func (cnl ClassNameList) Type() string {
 	return "classNameList"
 }
+
+// NamespacedClassNameList is a ClassNameList whose names are in the form "<namespace>/<name>",
+// e.g., "infra/public;default,infra/internal".
+type NamespacedClassNameList struct {
+	ClassNameList
+}
+
+// Set parses the provided string into the []ClassName list, validating the namespaced names.
+func (ncnl *NamespacedClassNameList) Set(str string) error {
+	var parsed ClassNameList
+	if err := parsed.Set(str); err != nil {
+		return err
+	}
+	for _, c := range parsed.Classes {
+		if _, err := SplitNamespacedName(c.Name); err != nil {
+			return err
+		}
+	}
+	ncnl.Classes = append(ncnl.Classes, parsed.Classes...)
+	return nil
+}
+
+// Type returns the namespacedClassNameList type.
+func (ncnl NamespacedClassNameList) Type() string {
+	return "namespacedClassNameList"
+}
