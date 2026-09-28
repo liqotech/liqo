@@ -361,6 +361,7 @@ rules:
   - offloading.liqo.io
   resources:
   - shadowingressstatuses
+  - vkoptionstemplates
   verbs:
   - get
   - list
@@ -375,14 +376,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
-  - vkoptionstemplates
-  verbs:
-  - get
-  - list
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
