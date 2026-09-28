@@ -215,6 +215,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		RemoteRealLoadBalancerClassName: c.RemoteRealLoadBalancerClassName,
 		EnableMetrics:                   c.EnableMetrics,
 
+		StatsSummaryCacheTTL: c.StatsSummaryCacheTTL,
+
 		HomeAPIServerHost: c.HomeAPIServerHost,
 		HomeAPIServerPort: c.HomeAPIServerPort,
 

@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -62,7 +63,7 @@ var _ = Describe("Metrics proxy routes", func() {
 		}
 
 		mux = http.NewServeMux()
-		attachMetricsRoutes(ctx, mux, cl, clusterID, "")
+		attachMetricsRoutes(ctx, mux, cl, clusterID, "", 15*time.Second)
 	})
 
 	doRequest := func(path string) *httptest.ResponseRecorder {

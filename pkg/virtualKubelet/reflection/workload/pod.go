@@ -59,8 +59,10 @@ const (
 	// statsSummaryCacheKey is the cache key of the node stats summary, as a single summary is
 	// served by each virtual-kubelet instance.
 	statsSummaryCacheKey = "summary"
-	// statsSummaryCacheTTL is the time-to-live of the cached stats summary.
-	statsSummaryCacheTTL = 20 * time.Second
+	// statsSummaryCacheDefaultTTL is the fallback time-to-live of the cached stats summary, used
+	// when the configured value is not positive. The actual value is configurable through the
+	// stats-summary-cache-ttl flag.
+	statsSummaryCacheDefaultTTL = 20 * time.Second
 	// statsSummaryErrorCacheTTL is the time-to-live of failed stats summaries, kept much shorter
 	// than successful ones so that a persistent failure is not retried at each request, while
 	// still allowing a prompt recovery.
@@ -114,6 +116,9 @@ type PodReflectorConfig struct {
 
 	KubernetesServiceIPMapper func(context.Context) ([]string, error)
 	NetConfiguration          *networkingv1beta1.Configuration
+
+	// StatsSummaryCacheTTL is the time-to-live of the cached node stats summary.
+	StatsSummaryCacheTTL time.Duration
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -135,10 +140,15 @@ func NewPodReflector(
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
 	podReflectorconfig *PodReflectorConfig,
 	reflectorConfig *offloadingv1beta1.ReflectorConfig) *PodReflector {
+	statsCacheTTL := podReflectorconfig.StatsSummaryCacheTTL
+	if statsCacheTTL <= 0 {
+		statsCacheTTL = statsSummaryCacheDefaultTTL
+	}
+
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
-		statsCache:           cache.New[*statsv1alpha1.Summary](statsSummaryCacheTTL, statsSummaryErrorCacheTTL),
+		statsCache:           cache.New[*statsv1alpha1.Summary](statsCacheTTL, statsSummaryErrorCacheTTL),
 		config:               podReflectorconfig,
 	}
 

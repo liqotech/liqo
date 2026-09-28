@@ -701,7 +701,7 @@ func (npr *NamespacedPodReflector) Stats(ctx context.Context) ([]statsv1alpha1.P
 		stats = append(stats, forge.LocalPodStats(local, &metrics.Items[idx]))
 	}
 
-	klog.Infof("Stats for local namespace %q (remote %q) correctly retrieved", npr.LocalNamespace(), npr.RemoteNamespace())
+	klog.V(2).Infof("Stats for local namespace %q (remote %q) correctly retrieved", npr.LocalNamespace(), npr.RemoteNamespace())
 	return stats, nil
 }
 

@@ -78,7 +78,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector)
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector, cfg.MetricsProxyCacheTTL)
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -195,14 +195,10 @@ func setupHealthServer() {
 }
 
 const (
-	// metricsProxyCacheTTL is the time-to-live of cached metrics proxy responses. Multiple
-	// consumers (metrics-server, Prometheus) typically scrape the same virtual-kubelet at similar
-	// times; caching the response for a short period collapses concurrent and near-duplicate
-	// scrapes into a single remote sweep.
-	metricsProxyCacheTTL = 15 * time.Second
 	// metricsProxyErrorCacheTTL is the time-to-live of failed metrics proxy responses. Errors are
 	// cached briefly (much shorter than successful ones), so that a persistently failing scraping
 	// is not retried at each request, while still allowing a prompt recovery once solved.
+	// The time-to-live of successful responses is configurable through the metrics-proxy-cache-ttl flag.
 	metricsProxyErrorCacheTTL = 5 * time.Second
 )
 
@@ -213,7 +209,7 @@ type scrapeResponse struct {
 }
 
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface,
-	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string) {
+	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string, cacheTTL time.Duration) {
 	// Restrict the scraping to the remote nodes matching the given label selector (i.e., the ones
 	// targeted by this virtual kubelet through its offloading patch), so that node and pod metrics
 	// are not aggregated over the whole remote cluster. An empty selector preserves the aggregated
@@ -225,7 +221,7 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 
 	// scrapeCache collapses concurrent and near-duplicate scrapes into a single remote sweep. The
 	// key is the full outgoing URI, hence requests differing in path or query do not alias.
-	scrapeCache := cache.New[scrapeResponse](metricsProxyCacheTTL, metricsProxyErrorCacheTTL)
+	scrapeCache := cache.New[scrapeResponse](cacheTTL, metricsProxyErrorCacheTTL)
 
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
