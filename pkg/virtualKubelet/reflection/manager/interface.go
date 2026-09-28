@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/types"
+	gwclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -28,6 +29,10 @@ type Manager interface {
 	With(reflector Reflector) Manager
 	// WithNamespaceHandler add the given NamespaceHandler to the manager.
 	WithNamespaceHandler(handler NamespaceHandler) Manager
+	// WithGatewayAPI configures the Gateway API clients used by the Gateway API reflectors.
+	WithGatewayAPI(local, remote gwclient.Interface) Manager
+	// RemoteNamespaceFor returns the remote namespace associated with the given local one, if currently reflected.
+	RemoteNamespaceFor(local string) (string, bool)
 	// Start starts the reflection manager. It panics if executed twice.
 	Start(ctx context.Context)
 	// Resync triggers a resync of the reflectors.

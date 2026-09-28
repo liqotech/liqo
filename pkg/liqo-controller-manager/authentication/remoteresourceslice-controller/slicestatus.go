@@ -32,6 +32,8 @@ type SliceStatusOptions struct {
 	EnableStorage             bool
 	LocalRealStorageClassName string
 	IngressClasses            argutils.ClassNameList
+	GatewayClasses            argutils.ClassNameList
+	SharedGateways            argutils.NamespacedClassNameList
 	LoadBalancerClasses       argutils.ClassNameList
 	ClusterLabels             map[string]string
 	DefaultResourceQuantity   corev1.ResourceList
@@ -54,6 +56,38 @@ func getIngressClasses(opts *SliceStatusOptions) []liqov1beta1.IngressType {
 		ingressClasses[i].Default = opts.IngressClasses.Classes[i].IsDefault
 	}
 	return ingressClasses
+}
+
+func getGatewayClasses(opts *SliceStatusOptions) []liqov1beta1.GatewayClassType {
+	if opts == nil {
+		return []liqov1beta1.GatewayClassType{}
+	}
+
+	gatewayClasses := make([]liqov1beta1.GatewayClassType, len(opts.GatewayClasses.Classes))
+	for i := range opts.GatewayClasses.Classes {
+		gatewayClasses[i].GatewayClassName = opts.GatewayClasses.Classes[i].Name
+		gatewayClasses[i].Default = opts.GatewayClasses.Classes[i].IsDefault
+	}
+	return gatewayClasses
+}
+
+func getSharedGateways(opts *SliceStatusOptions) []liqov1beta1.SharedGatewayType {
+	if opts == nil {
+		return []liqov1beta1.SharedGatewayType{}
+	}
+
+	sharedGateways := make([]liqov1beta1.SharedGatewayType, 0, len(opts.SharedGateways.Classes))
+	for i := range opts.SharedGateways.Classes {
+		// The format is validated when parsing the flags.
+		splits, err := argutils.SplitNamespacedName(opts.SharedGateways.Classes[i].Name)
+		if err != nil {
+			continue
+		}
+		sharedGateways = append(sharedGateways, liqov1beta1.SharedGatewayType{
+			Namespace: splits[0], Name: splits[1], Default: opts.SharedGateways.Classes[i].IsDefault,
+		})
+	}
+	return sharedGateways
 }
 
 func getLoadBalancerClasses(opts *SliceStatusOptions) []liqov1beta1.LoadBalancerType {

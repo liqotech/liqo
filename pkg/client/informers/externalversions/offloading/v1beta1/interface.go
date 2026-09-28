@@ -26,10 +26,14 @@ type Interface interface {
 	NamespaceMaps() NamespaceMapInformer
 	// ShadowEndpointSlices returns a ShadowEndpointSliceInformer.
 	ShadowEndpointSlices() ShadowEndpointSliceInformer
+	// ShadowGatewayStatuses returns a ShadowGatewayStatusInformer.
+	ShadowGatewayStatuses() ShadowGatewayStatusInformer
 	// ShadowIngressStatuses returns a ShadowIngressStatusInformer.
 	ShadowIngressStatuses() ShadowIngressStatusInformer
 	// ShadowPods returns a ShadowPodInformer.
 	ShadowPods() ShadowPodInformer
+	// ShadowRouteStatuses returns a ShadowRouteStatusInformer.
+	ShadowRouteStatuses() ShadowRouteStatusInformer
 	// VirtualNodes returns a VirtualNodeInformer.
 	VirtualNodes() VirtualNodeInformer
 	// VkOptionsTemplates returns a VkOptionsTemplateInformer.
@@ -57,6 +61,11 @@ func (v *version) ShadowEndpointSlices() ShadowEndpointSliceInformer {
 	return &shadowEndpointSliceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// ShadowGatewayStatuses returns a ShadowGatewayStatusInformer.
+func (v *version) ShadowGatewayStatuses() ShadowGatewayStatusInformer {
+	return &shadowGatewayStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // ShadowIngressStatuses returns a ShadowIngressStatusInformer.
 func (v *version) ShadowIngressStatuses() ShadowIngressStatusInformer {
 	return &shadowIngressStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -65,6 +74,11 @@ func (v *version) ShadowIngressStatuses() ShadowIngressStatusInformer {
 // ShadowPods returns a ShadowPodInformer.
 func (v *version) ShadowPods() ShadowPodInformer {
 	return &shadowPodInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ShadowRouteStatuses returns a ShadowRouteStatusInformer.
+func (v *version) ShadowRouteStatuses() ShadowRouteStatusInformer {
+	return &shadowRouteStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // VirtualNodes returns a VirtualNodeInformer.

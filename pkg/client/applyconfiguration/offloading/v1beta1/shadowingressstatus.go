@@ -39,7 +39,7 @@ func ShadowIngressStatus(name, namespace string) *ShadowIngressStatusApplyConfig
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("ShadowIngressStatus")
-	b.WithAPIVersion("offloading/v1beta1")
+	b.WithAPIVersion("offloading.liqo.io/v1beta1")
 	return b
 }
 

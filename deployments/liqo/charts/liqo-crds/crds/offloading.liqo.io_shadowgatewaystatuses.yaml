@@ -1,0 +1,330 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: shadowgatewaystatuses.offloading.liqo.io
+spec:
+  group: offloading.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: ShadowGatewayStatus
+    listKind: ShadowGatewayStatusList
+    plural: shadowgatewaystatuses
+    shortNames:
+    - shgws
+    singular: shadowgatewaystatus
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.gatewayName
+      name: Gateway
+      type: string
+    - jsonPath: .spec.clusterID
+      name: Cluster
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: ShadowGatewayStatus reports the status of a Gateway reflected
+          to a remote cluster, which is then aggregated into the local Gateway.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ShadowGatewayStatusSpec defines the desired state of ShadowGatewayStatus.
+            properties:
+              addresses:
+                description: |-
+                  Addresses are the addresses assigned to the remote Gateway.
+                  The maximum number of items matches the one of the Gateway API, and it is required to bound the cost of the validation rules.
+                items:
+                  description: GatewayStatusAddress describes a network address that
+                    is bound to a Gateway.
+                  properties:
+                    type:
+                      default: IPAddress
+                      description: Type of the address.
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^Hostname|IPAddress|NamedAddress|[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[A-Za-z0-9\/\-._~%!$&'()*+,;=:]+$
+                      type: string
+                    value:
+                      description: |-
+                        Value of the address. The validity of the values will depend
+                        on the type and support by the controller.
+
+                        Examples: `1.2.3.4`, `128::1`, `my-ip-address`.
+                      maxLength: 253
+                      minLength: 1
+                      type: string
+                  required:
+                  - value
+                  type: object
+                  x-kubernetes-validations:
+                  - message: Hostname value must only contain valid characters (matching
+                      ^(\*\.)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$)
+                    rule: 'self.type == ''Hostname'' ? self.value.matches(r"""^(\*\.)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"""):
+                      true'
+                maxItems: 16
+                type: array
+              clusterID:
+                description: ClusterID is the ID of the remote cluster that owns this
+                  status.
+                type: string
+              conditions:
+                description: Conditions are the conditions of the remote Gateway.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                maxItems: 8
+                type: array
+              gatewayName:
+                description: GatewayName is the name of the local Gateway whose remote
+                  status is reported.
+                type: string
+              listeners:
+                description: Listeners are the statuses of the listeners of the remote
+                  Gateway.
+                items:
+                  description: ListenerStatus is the status associated with a Listener.
+                  properties:
+                    attachedRoutes:
+                      description: |-
+                        AttachedRoutes represents the total number of Routes that have been
+                        successfully attached to this Listener.
+
+                        Successful attachment of a Route to a Listener is based solely on the
+                        combination of the AllowedRoutes field on the corresponding Listener
+                        and the Route's ParentRefs field. A Route is successfully attached to
+                        a Listener when it is selected by the Listener's AllowedRoutes field
+                        AND the Route has a valid ParentRef selecting the whole Gateway
+                        resource or a specific Listener as a parent resource (more detail on
+                        attachment semantics can be found in the documentation on the various
+                        Route kinds ParentRefs fields). Listener or Route status does not impact
+                        successful attachment, i.e. the AttachedRoutes field count MUST be set
+                        for Listeners, even if the Accepted condition of an individual Listener is set
+                        to "False". The AttachedRoutes number represents the number of Routes with
+                        the Accepted condition set to "True" that have been attached to this Listener.
+                        Routes with any other value for the Accepted condition MUST NOT be included
+                        in this count.
+
+                        Uses for this field include troubleshooting Route attachment and
+                        measuring blast radius/impact of changes to a Listener.
+                      format: int32
+                      type: integer
+                    conditions:
+                      description: |-
+                        Conditions describe the current condition of this listener.
+
+                        <gateway:util:excludeFromCRD>
+                        Notes for implementors:
+
+                        Conditions are a listType `map`, which means that they function like a
+                        map with a key of the `type` field _in the k8s apiserver_.
+
+                        This means that implementations must obey some rules when updating this
+                        section.
+
+                        * Implementations MUST perform a read-modify-write cycle on this field
+                          before modifying it. That is, when modifying this field, implementations
+                          must be confident they have fetched the most recent version of this field,
+                          and ensure that changes they make are on that recent version.
+                        * Implementations MUST NOT remove or reorder Conditions that they are not
+                          directly responsible for. For example, if an implementation sees a Condition
+                          with type `special.io/SomeField`, it MUST NOT remove, change or update that
+                          Condition.
+                        * Implementations MUST always _merge_ changes into Conditions of the same Type,
+                          rather than creating more than one Condition of the same Type.
+                        * Implementations MUST always update the `observedGeneration` field of the
+                          Condition to the `metadata.generation` of the Gateway at the time of update creation.
+                        * If the `observedGeneration` of a Condition is _greater than_ the value the
+                          implementation knows about, then it MUST NOT perform the update on that Condition,
+                          but must wait for a future reconciliation and status update. (The assumption is that
+                          the implementation's copy of the object is stale and an update will be re-triggered
+                          if relevant.)
+
+                        </gateway:util:excludeFromCRD>
+                      items:
+                        description: Condition contains details for one aspect of
+                          the current state of this API Resource.
+                        properties:
+                          lastTransitionTime:
+                            description: |-
+                              lastTransitionTime is the last time the condition transitioned from one status to another.
+                              This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                            format: date-time
+                            type: string
+                          message:
+                            description: |-
+                              message is a human readable message indicating details about the transition.
+                              This may be an empty string.
+                            maxLength: 32768
+                            type: string
+                          observedGeneration:
+                            description: |-
+                              observedGeneration represents the .metadata.generation that the condition was set based upon.
+                              For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                              with respect to the current state of the instance.
+                            format: int64
+                            minimum: 0
+                            type: integer
+                          reason:
+                            description: |-
+                              reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                              Producers of specific condition types may define expected values and meanings for this field,
+                              and whether the values are considered a guaranteed API.
+                              The value should be a CamelCase string.
+                              This field may not be empty.
+                            maxLength: 1024
+                            minLength: 1
+                            pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                            type: string
+                          status:
+                            description: status of the condition, one of True, False,
+                              Unknown.
+                            enum:
+                            - "True"
+                            - "False"
+                            - Unknown
+                            type: string
+                          type:
+                            description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            maxLength: 316
+                            pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                            type: string
+                        required:
+                        - lastTransitionTime
+                        - message
+                        - reason
+                        - status
+                        - type
+                        type: object
+                      maxItems: 8
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - type
+                      x-kubernetes-list-type: map
+                    name:
+                      description: Name is the name of the Listener that this status
+                        corresponds to.
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                      type: string
+                    supportedKinds:
+                      description: |-
+                        SupportedKinds is the list indicating the Kinds supported by this
+                        listener. This MUST represent the kinds supported by an implementation for
+                        that Listener configuration.
+
+                        If kinds are specified in Spec that are not supported, they MUST NOT
+                        appear in this list and an implementation MUST set the "ResolvedRefs"
+                        condition to "False" with the "InvalidRouteKinds" reason. If both valid
+                        and invalid Route kinds are specified, the implementation MUST
+                        reference the valid Route kinds that have been specified.
+                      items:
+                        description: RouteGroupKind indicates the group and kind of
+                          a Route resource.
+                        properties:
+                          group:
+                            default: gateway.networking.k8s.io
+                            description: Group is the group of the Route.
+                            maxLength: 253
+                            pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                            type: string
+                          kind:
+                            description: Kind is the kind of the Route.
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
+                            type: string
+                        required:
+                        - kind
+                        type: object
+                      maxItems: 8
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  required:
+                  - attachedRoutes
+                  - conditions
+                  - name
+                  type: object
+                maxItems: 64
+                type: array
+            required:
+            - clusterID
+            - gatewayName
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}

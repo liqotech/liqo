@@ -427,6 +427,16 @@ func (in *ResourceSliceStatus) DeepCopyInto(out *ResourceSliceStatus) {
 		*out = make([]corev1beta1.IngressType, len(*in))
 		copy(*out, *in)
 	}
+	if in.GatewayClasses != nil {
+		in, out := &in.GatewayClasses, &out.GatewayClasses
+		*out = make([]corev1beta1.GatewayClassType, len(*in))
+		copy(*out, *in)
+	}
+	if in.SharedGateways != nil {
+		in, out := &in.SharedGateways, &out.SharedGateways
+		*out = make([]corev1beta1.SharedGatewayType, len(*in))
+		copy(*out, *in)
+	}
 	if in.LoadBalancerClasses != nil {
 		in, out := &in.LoadBalancerClasses, &out.LoadBalancerClasses
 		*out = make([]corev1beta1.LoadBalancerType, len(*in))
