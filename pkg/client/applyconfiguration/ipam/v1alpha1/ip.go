@@ -40,7 +40,7 @@ func IP(name, namespace string) *IPApplyConfiguration {
 	b.WithName(name)
 	b.WithNamespace(namespace)
 	b.WithKind("IP")
-	b.WithAPIVersion("ipam/v1alpha1")
+	b.WithAPIVersion("ipam.liqo.io/v1alpha1")
 	return b
 }
 

@@ -5,6 +5,10 @@
 {{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
 {{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
 {{- end }}
+{{- /* Configure the name of the virtual GatewayClass, if not the default one */ -}}
+{{- if ne .Values.offloading.reflection.gateway.virtualGatewayClassName "liqo" }}
+{{- $vkargs = append $vkargs (printf "--virtual-gateway-class-name=%s" .Values.offloading.reflection.gateway.virtualGatewayClassName) }}
+{{- end }}
 {{- /* Configure the appropriate flags if the IP reflection is disabled, if not overridden by the user */ -}}
 {{- if not .Values.networking.reflectIPs }}
 {{- if not (or (has "--disable-ip-reflection" $vkargs ) (has "--disable-ip-reflection=true" $vkargs ) (has "--disable-ip-reflection=false" $vkargs )) }}
@@ -69,6 +73,17 @@ spec:
     event:
       workers: {{ .Values.offloading.reflection.event.workers }}
       type: {{ .Values.offloading.reflection.event.type }}
+    gateway:
+      workers: {{ .Values.offloading.reflection.gateway.workers }}
+      type: {{ .Values.offloading.reflection.gateway.type }}
+    httproute:
+      workers: {{ .Values.offloading.reflection.httproute.workers }}
+      type: {{ .Values.offloading.reflection.httproute.type }}
+    grpcroute:
+      workers: {{ .Values.offloading.reflection.grpcroute.workers }}
+      type: {{ .Values.offloading.reflection.grpcroute.type }}
+    referencegrant:
+      workers: {{ .Values.offloading.reflection.referencegrant.workers }}
   {{- if .Values.virtualKubelet.extra.resources }}
   resources:
     {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}

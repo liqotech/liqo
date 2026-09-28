@@ -1,0 +1,13 @@
+{{- if .Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1/GatewayClass" -}}
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ .Values.offloading.reflection.gateway.virtualGatewayClassName }}
+  labels:
+    {{- include "liqo.labels" (merge (dict "name" "gateway-class" "module" "virtualkubelet") .) | nindent 4 }}
+spec:
+  controllerName: liqo.io/gateway-controller
+  description: Gateways of this class are reflected to the remote clusters where their namespace is offloaded.
+
+{{- end -}}

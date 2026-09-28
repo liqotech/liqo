@@ -54,6 +54,11 @@ type VirtualNodeSpecApplyConfiguration struct {
 	StorageClasses []corev1beta1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
 	IngressClasses []corev1beta1.IngressType `json:"ingressClasses,omitempty"`
+	// GatewayClasses contains the list of the Gateway API GatewayClasses offered by the cluster.
+	GatewayClasses []corev1beta1.GatewayClassType `json:"gatewayClasses,omitempty"`
+	// SharedGateways contains the list of the Gateway API Gateways offered by the cluster,
+	// which the reflected routes can be attached to.
+	SharedGateways []corev1beta1.SharedGatewayType `json:"sharedGateways,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
 	LoadBalancerClasses []corev1beta1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	// VkOptionsTemplateRef contains the namespaced reference to the VkOptionsTemplate.
@@ -187,6 +192,26 @@ func (b *VirtualNodeSpecApplyConfiguration) WithStorageClasses(values ...corev1b
 func (b *VirtualNodeSpecApplyConfiguration) WithIngressClasses(values ...corev1beta1.IngressType) *VirtualNodeSpecApplyConfiguration {
 	for i := range values {
 		b.IngressClasses = append(b.IngressClasses, values[i])
+	}
+	return b
+}
+
+// WithGatewayClasses adds the given value to the GatewayClasses field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the GatewayClasses field.
+func (b *VirtualNodeSpecApplyConfiguration) WithGatewayClasses(values ...corev1beta1.GatewayClassType) *VirtualNodeSpecApplyConfiguration {
+	for i := range values {
+		b.GatewayClasses = append(b.GatewayClasses, values[i])
+	}
+	return b
+}
+
+// WithSharedGateways adds the given value to the SharedGateways field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SharedGateways field.
+func (b *VirtualNodeSpecApplyConfiguration) WithSharedGateways(values ...corev1beta1.SharedGatewayType) *VirtualNodeSpecApplyConfiguration {
+	for i := range values {
+		b.SharedGateways = append(b.SharedGateways, values[i])
 	}
 	return b
 }

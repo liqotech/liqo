@@ -164,6 +164,28 @@ rules:
   - update
   - watch
 - apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  - gateways
+  - grpcroutes
+  - httproutes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses/status
+  - gateways/status
+  - grpcroutes/status
+  - httproutes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - ipam.liqo.io
   resources:
   - ips
@@ -325,6 +347,16 @@ rules:
   - quotas/finalizers
   verbs:
   - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowgatewaystatuses
+  - shadowroutestatuses
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
 - apiGroups:
   - offloading.liqo.io
   resources:

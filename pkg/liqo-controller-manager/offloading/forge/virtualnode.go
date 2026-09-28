@@ -33,12 +33,14 @@ type VirtualNodeOptions struct {
 	KubeconfigSecretRef  corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
 	VkOptionsTemplateRef *corev1.ObjectReference     `json:"vkOptionsTemplateRef,omitempty"`
 
-	ResourceList        corev1.ResourceList            `json:"resourceList,omitempty"`
-	StorageClasses      []liqov1beta1.StorageType      `json:"storageClasses,omitempty"`
-	IngressClasses      []liqov1beta1.IngressType      `json:"ingressClasses,omitempty"`
-	LoadBalancerClasses []liqov1beta1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
-	NodeLabels          map[string]string              `json:"nodeLabels,omitempty"`
-	NodeSelector        map[string]string              `json:"nodeSelector,omitempty"`
+	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
+	StorageClasses      []liqov1beta1.StorageType       `json:"storageClasses,omitempty"`
+	IngressClasses      []liqov1beta1.IngressType       `json:"ingressClasses,omitempty"`
+	GatewayClasses      []liqov1beta1.GatewayClassType  `json:"gatewayClasses,omitempty"`
+	SharedGateways      []liqov1beta1.SharedGatewayType `json:"sharedGateways,omitempty"`
+	LoadBalancerClasses []liqov1beta1.LoadBalancerType  `json:"loadBalancerClasses,omitempty"`
+	NodeLabels          map[string]string               `json:"nodeLabels,omitempty"`
+	NodeSelector        map[string]string               `json:"nodeSelector,omitempty"`
 }
 
 // VirtualNode forges a VirtualNode resource.
@@ -86,6 +88,8 @@ func MutateVirtualNode(ctx context.Context, cl client.Client, virtualNode *offlo
 	}
 	virtualNode.Spec.StorageClasses = opts.StorageClasses
 	virtualNode.Spec.IngressClasses = opts.IngressClasses
+	virtualNode.Spec.GatewayClasses = opts.GatewayClasses
+	virtualNode.Spec.SharedGateways = opts.SharedGateways
 	virtualNode.Spec.LoadBalancerClasses = opts.LoadBalancerClasses
 
 	if runtimeClassName != nil && *runtimeClassName != "" {
@@ -116,6 +120,8 @@ func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1beta1.ResourceSlic
 		ResourceList:        resourceSlice.Status.Resources,
 		StorageClasses:      resourceSlice.Status.StorageClasses,
 		IngressClasses:      resourceSlice.Status.IngressClasses,
+		GatewayClasses:      resourceSlice.Status.GatewayClasses,
+		SharedGateways:      resourceSlice.Status.SharedGateways,
 		LoadBalancerClasses: resourceSlice.Status.LoadBalancerClasses,
 		NodeLabels:          resourceSlice.Status.NodeLabels,
 		NodeSelector:        resourceSlice.Status.NodeSelector,

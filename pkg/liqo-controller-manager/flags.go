@@ -28,6 +28,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	// Set up default values for pointer fields
 	opts.ClusterLabels = args.StringMap{}
 	opts.IngressClasses = args.ClassNameList{}
+	opts.GatewayClasses = args.ClassNameList{}
+	opts.SharedGateways = args.NamespacedClassNameList{}
 	opts.LoadBalancerClasses = args.ClassNameList{}
 	opts.DefaultNodeResources = args.ResourceMap{}
 	opts.GatewayServerResources = args.StringList{}
@@ -103,6 +105,10 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Var(&opts.ClusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 	flagset.Var(&opts.IngressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
+	flagset.Var(&opts.GatewayClasses, "gateway-classes",
+		"List of Gateway API GatewayClasses offered by the cluster, used for the reflected Gateways. Example: \"envoy;default,istio\"")
+	flagset.Var(&opts.SharedGateways, "shared-gateways",
+		"List of Gateway API Gateways offered by the cluster, which the reflected routes are attached to. Example: \"infra/public;default\"")
 	flagset.Var(&opts.LoadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
 	flagset.Var(&opts.DefaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 	flagset.Var(&opts.GlobalLabels, "global-labels", "The set of labels that will be added to all resources created by Liqo controllers")
@@ -124,6 +130,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 		"Namespaced name of the default virtual-kubelet options template")
 	flagset.IntVar(&opts.ShadowIngressStatusWorkers, "shadow-ingress-status-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowIngressStatus resources.")
+	flagset.IntVar(&opts.GatewayAPIStatusWorkers, "gateway-api-status-ctrl-workers", 10,
+		"The number of workers used to aggregate the status of the Gateway API resources reflected to remote clusters.")
 
 	// Cross module
 	flagset.BoolVar(&opts.EnableAPIServerProxyIPRemapping, "enable-api-server-proxy-ip-remapping", true, "Enable the API server proxy IP remapping")

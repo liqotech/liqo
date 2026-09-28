@@ -19,7 +19,37 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
+
+// NamespacedName implements the flag.Value interface and allows to parse strings in the form "<namespace>/<name>".
+type NamespacedName struct {
+	// NamespacedName is nil if the flag has not been set.
+	NamespacedName *types.NamespacedName
+}
+
+// String returns the stringified namespaced name.
+func (n *NamespacedName) String() string {
+	if n.NamespacedName == nil {
+		return ""
+	}
+	return n.NamespacedName.String()
+}
+
+// Set parses the provided string into the namespaced name.
+func (n *NamespacedName) Set(str string) error {
+	splits, err := SplitNamespacedName(str)
+	if err != nil {
+		return err
+	}
+	n.NamespacedName = &types.NamespacedName{Namespace: splits[0], Name: splits[1]}
+	return nil
+}
+
+// Type returns the namespacedName type.
+func (n *NamespacedName) Type() string {
+	return "namespacedName"
+}
 
 // SplitNamespacedName splits a namespaced name string into its namespace and name components.
 func SplitNamespacedName(nsName string) (splits []string, err error) {
