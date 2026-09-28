@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -39,6 +40,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/cache"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -53,6 +55,19 @@ var _ manager.FallbackReflector = (*FallbackPodReflector)(nil)
 const (
 	// PodReflectorName -> The name associated with the Pod reflector.
 	PodReflectorName = "Pod"
+
+	// statsSummaryCacheKey is the cache key of the node stats summary, as a single summary is
+	// served by each virtual-kubelet instance.
+	statsSummaryCacheKey = "summary"
+	// statsSummaryCacheTTL is the time-to-live of the cached stats summary.
+	statsSummaryCacheTTL = 20 * time.Second
+	// statsSummaryErrorCacheTTL is the time-to-live of failed stats summaries, kept much shorter
+	// than successful ones so that a persistent failure is not retried at each request, while
+	// still allowing a prompt recovery.
+	statsSummaryErrorCacheTTL = 5 * time.Second
+	// statsSummaryDetachTimeout bounds the time allotted to a deduplicated summary sweep once
+	// detached from the caller's context (see Stats).
+	statsSummaryDetachTimeout = 60 * time.Second
 )
 
 // MetricsFactory represents a function to generate the interface to retrieve the pod metrics for a given namespace.
@@ -84,6 +99,8 @@ type PodReflector struct {
 	remoteMetricsFactory MetricsFactory
 
 	handlers sync.Map /* implicit signature: map[string]NamespacedPodHandler */
+
+	statsCache *cache.Cache[*statsv1alpha1.Summary]
 
 	config *PodReflectorConfig
 }
@@ -121,6 +138,7 @@ func NewPodReflector(
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
+		statsCache:           cache.New[*statsv1alpha1.Summary](statsSummaryCacheTTL, statsSummaryErrorCacheTTL),
 		config:               podReflectorconfig,
 	}
 
@@ -226,23 +244,32 @@ func (pr *PodReflector) Logs(ctx context.Context, namespace, pod, container stri
 	return nil, kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
 }
 
-// Stats retrieves the stats of the reflected pods.
+// Stats retrieves the stats of the reflected pods. The resulting summary is cached for a short
+// time and its computation is deduplicated through singleflight, so that concurrent and
+// near-duplicate scrapes are collapsed into a single sweep of the remote pod metrics.
 func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, error) {
-	var pods []statsv1alpha1.PodStats
-	var err error
+	return pr.statsCache.Do(ctx, statsSummaryCacheKey, func(context.Context) (*statsv1alpha1.Summary, error) {
+		// Detach the sweep from the caller's context: a client disconnecting early must not abort
+		// the shared sweep the other waiters depend on, nor prevent the result from being cached.
+		ctx, cancel := context.WithTimeout(context.Background(), statsSummaryDetachTimeout)
+		defer cancel()
 
-	pr.handlers.Range(func(_, handler interface{}) bool {
-		var stats []statsv1alpha1.PodStats
-		stats, err = handler.(NamespacedPodHandler).Stats(ctx)
-		pods = append(pods, stats...)
-		return err == nil
+		var pods []statsv1alpha1.PodStats
+		var err error
+
+		pr.handlers.Range(func(_, handler interface{}) bool {
+			var stats []statsv1alpha1.PodStats
+			stats, err = handler.(NamespacedPodHandler).Stats(ctx)
+			pods = append(pods, stats...)
+			return err == nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		return forge.LocalNodeStats(pods), nil
 	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return forge.LocalNodeStats(pods), nil
 }
 
 // KubernetesServiceIPGetter returns a function to retrieve the IP associated with the kubernetes.default service.

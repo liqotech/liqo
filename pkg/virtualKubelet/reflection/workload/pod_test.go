@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,6 +34,9 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -228,5 +232,61 @@ var _ = Describe("Pod Reflection Tests", func() {
 				It("should return true", func() { Expect(fallback.Ready()).To(BeTrue()) })
 			})
 		})
+	})
+})
+
+var _ = Describe("Pod Stats caching", func() {
+	var (
+		reflector  *workload.PodReflector
+		client     *fake.Clientset
+		liqoClient liqoclient.Interface
+		podMetrics *fakePodMetrics
+		output     *statsv1alpha1.Summary
+		err        error
+	)
+
+	BeforeEach(func() {
+		client = fake.NewClientset()
+		liqoClient = liqoclientfake.NewSimpleClientset() //nolint:staticcheck // NewClientset is not generated in this repo (requires --with-applyconfig).
+		podMetrics = &fakePodMetrics{}
+	})
+
+	JustBeforeEach(func() {
+		factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
+		liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
+		broadcaster := record.NewBroadcaster()
+
+		metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return podMetrics }
+		reflectorConfig := offloadingv1beta1.ReflectorConfig{
+			NumWorkers: 0,
+			Type:       root.DefaultReflectorsTypes[resources.Pod],
+		}
+		reflector = workload.NewPodReflector(nil, metricsFactory,
+			&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping([]string{""}), nil}, &reflectorConfig)
+		reflector.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
+		reflector.NewNamespaced(options.NewNamespaced().
+			WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
+			WithRemote(RemoteNamespace, client, factory).WithLiqoRemote(liqoClient, liqoFactory).
+			WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(broadcaster).WithForgingOpts(FakeForgingOpts()))
+
+		factory.Start(ctx.Done())
+		liqoFactory.Start(ctx.Done())
+		factory.WaitForCacheSync(ctx.Done())
+		liqoFactory.WaitForCacheSync(ctx.Done())
+
+		output, err = reflector.Stats(ctx)
+	})
+
+	It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+	It("should return a summary", func() { Expect(output).ToNot(BeNil()) })
+
+	When("retrieving the summary again within the cache TTL", func() {
+		JustBeforeEach(func() { output, err = reflector.Stats(ctx) })
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should collapse the two scrapes into a single remote metrics listing", func() {
+			Expect(podMetrics.listCalls).To(BeNumerically("==", 1))
+		})
+		It("should not return a nil summary", func() { Expect(output).ToNot(BeNil()) })
 	})
 })

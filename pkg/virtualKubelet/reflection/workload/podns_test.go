@@ -58,13 +58,15 @@ import (
 type fakePodMetrics struct {
 	metricsv1beta1.PodMetricsInterface
 
-	items    []metricsapi.PodMetrics
-	selector string
+	items     []metricsapi.PodMetrics
+	selector  string
+	listCalls int
 }
 
 //nolint:gocritic // hugeParam: signature imposed by the metricsv1beta1.PodMetricsInterface interface.
 func (f *fakePodMetrics) List(_ context.Context, opts metav1.ListOptions) (*metricsapi.PodMetricsList, error) {
 	f.selector = opts.LabelSelector
+	f.listCalls++
 	return &metricsapi.PodMetricsList{Items: f.items}, nil
 }
 

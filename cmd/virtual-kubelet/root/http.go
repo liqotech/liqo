@@ -43,6 +43,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/cache"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
@@ -193,6 +194,24 @@ func setupHealthServer() {
 	}
 }
 
+const (
+	// metricsProxyCacheTTL is the time-to-live of cached metrics proxy responses. Multiple
+	// consumers (metrics-server, Prometheus) typically scrape the same virtual-kubelet at similar
+	// times; caching the response for a short period collapses concurrent and near-duplicate
+	// scrapes into a single remote sweep.
+	metricsProxyCacheTTL = 15 * time.Second
+	// metricsProxyErrorCacheTTL is the time-to-live of failed metrics proxy responses. Errors are
+	// cached briefly (much shorter than successful ones), so that a persistently failing scraping
+	// is not retried at each request, while still allowing a prompt recovery once solved.
+	metricsProxyErrorCacheTTL = 5 * time.Second
+)
+
+// scrapeResponse is the cached outcome of a proxied scrape: the response body and the status code.
+type scrapeResponse struct {
+	data       []byte
+	statusCode int
+}
+
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface,
 	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string) {
 	// Restrict the scraping to the remote nodes matching the given label selector (i.e., the ones
@@ -203,6 +222,10 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 	if metricsNodeSelector != "" {
 		query.Add("nodeSelector", metricsNodeSelector)
 	}
+
+	// scrapeCache collapses concurrent and near-duplicate scrapes into a single remote sweep. The
+	// key is the full outgoing URI, hence requests differing in path or query do not alias.
+	scrapeCache := cache.New[scrapeResponse](metricsProxyCacheTTL, metricsProxyErrorCacheTTL)
 
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
@@ -221,26 +244,30 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 			uri += "?" + reqQuery.Encode()
 		}
 
-		res := cl.Get().RequestURI(uri).Do(ctx)
-		err := res.Error()
+		resp, err := scrapeCache.Do(ctx, uri, func(ctx context.Context) (scrapeResponse, error) {
+			res := cl.Get().RequestURI(uri).Do(ctx)
+			if err := res.Error(); err != nil {
+				return scrapeResponse{}, err
+			}
+
+			var statusCode int
+			res.StatusCode(&statusCode)
+
+			data, err := res.Raw()
+			if err != nil {
+				return scrapeResponse{}, err
+			}
+
+			return scrapeResponse{data: data, statusCode: statusCode}, nil
+		})
 		if err != nil {
 			klog.Error(err)
 			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 		}
 
-		var statusCode int
-		res.StatusCode(&statusCode)
-
-		data, err := res.Raw()
-		if err != nil {
-			klog.Error(err)
-			http.Error(w, "Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(statusCode)
-		if _, err = w.Write(data); err != nil {
+		w.WriteHeader(resp.statusCode)
+		if _, err = w.Write(resp.data); err != nil {
 			klog.Error(err)
 		}
 	}
