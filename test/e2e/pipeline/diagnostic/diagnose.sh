@@ -43,6 +43,11 @@ do
    echo "Available Nodes"
    echo "|------------------------------------------------------------|"
    ${KUBECTL} get no -o wide --show-labels
+   echo "Gateway API resources"
+   echo "|------------------------------------------------------------|"
+   ${KUBECTL} get gatewayclasses,gateways,httproutes,grpcroutes,tlsroutes,referencegrants -A -o wide || true
+   ${KUBECTL} get shadowgatewaystatuses,shadowroutestatuses -A -o yaml || true
+   ${KUBECTL} get pods,svc -n envoy-gateway-system -o wide || true
    echo "Liqo local status"
    echo "|------------------------------------------------------------|"
    ${LIQOCTL} info --verbose
