@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,6 +34,7 @@ import (
 	offloadingv1beta1apply "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -42,6 +44,8 @@ import (
 type statusReflector[O object] interface {
 	// Enforce ensures the shadow resource reports the status of the given remote object.
 	Enforce(ctx context.Context, local, remote O) error
+	// Fail ensures the shadow resource reports that the given local object could not be reflected, for the given reason.
+	Fail(ctx context.Context, local O, message string) error
 	// Delete ensures the absence of the shadow resource associated with the given local object.
 	Delete(ctx context.Context, name string) error
 	// Cleanup deletes all the shadow resources reporting the status of the objects reflected to the remote cluster.
@@ -100,6 +104,20 @@ func conditionsApply(conditions []metav1.Condition) []*metav1apply.ConditionAppl
 	return result
 }
 
+// failedCondition returns a condition reporting that the object could not be reflected to the remote cluster.
+// The last transition time of the previous condition of the same type is preserved, if the status is unchanged,
+// so that the shadow resource is not modified again when the reflection keeps failing for the same reason.
+func failedCondition(previous []metav1.Condition, conditionType, message string, generation int64) metav1.Condition {
+	condition := metav1.Condition{
+		Type: conditionType, Status: metav1.ConditionFalse, Reason: forge.ConditionReasonReflectionFailed,
+		Message: message, ObservedGeneration: generation, LastTransitionTime: metav1.Now(),
+	}
+	if p := meta.FindStatusCondition(previous, conditionType); p != nil && p.Status == condition.Status {
+		condition.LastTransitionTime = p.LastTransitionTime
+	}
+	return condition
+}
+
 // gatewayStatusReflector reflects the status of the remote Gateways through ShadowGatewayStatus resources.
 type gatewayStatusReflector struct {
 	namespace string
@@ -118,18 +136,36 @@ func newGatewayStatusReflector(opts *options.NamespacedOpts, _ *forge.GatewayAPI
 }
 
 func (gsr *gatewayStatusReflector) Enforce(ctx context.Context, local, remote *gwv1.Gateway) error {
+	return gsr.apply(ctx, local.GetName(), offloadingv1beta1apply.ShadowGatewayStatusSpec().
+		WithAddresses(remote.Status.Addresses...).
+		WithConditions(conditionsApply(remote.Status.Conditions)...).
+		WithListeners(remote.Status.Listeners...))
+}
+
+func (gsr *gatewayStatusReflector) Fail(ctx context.Context, local *gwv1.Gateway, message string) error {
+	var previous []metav1.Condition
+	if shadow, err := gsr.lister.Get(ShadowName("", local.GetName())); err == nil {
+		previous = shadow.Spec.Conditions
+	}
+
+	conditions := []metav1.Condition{
+		failedCondition(previous, string(gwv1.GatewayConditionAccepted), message, local.GetGeneration()),
+		failedCondition(previous, string(gwv1.GatewayConditionProgrammed), message, local.GetGeneration()),
+	}
+	return gsr.apply(ctx, local.GetName(), offloadingv1beta1apply.ShadowGatewayStatusSpec().WithConditions(conditionsApply(conditions)...))
+}
+
+// apply enforces the shadow resource associated with the given local Gateway, completing the given spec.
+func (gsr *gatewayStatusReflector) apply(ctx context.Context, name string,
+	spec *offloadingv1beta1apply.ShadowGatewayStatusSpecApplyConfiguration) error {
 	owner, err := virtualNodeOwnerReference(ctx, gsr.kube)
 	if err != nil {
 		return err
 	}
 
-	shadow := offloadingv1beta1apply.ShadowGatewayStatus(ShadowName("", local.GetName()), gsr.namespace).
+	shadow := offloadingv1beta1apply.ShadowGatewayStatus(ShadowName("", name), gsr.namespace).
 		WithLabels(shadowLabels()).WithOwnerReferences(owner).
-		WithSpec(offloadingv1beta1apply.ShadowGatewayStatusSpec().
-			WithGatewayName(local.GetName()).WithClusterID(string(forge.RemoteCluster)).
-			WithAddresses(remote.Status.Addresses...).
-			WithConditions(conditionsApply(remote.Status.Conditions)...).
-			WithListeners(remote.Status.Listeners...))
+		WithSpec(spec.WithGatewayName(name).WithClusterID(string(forge.RemoteCluster)))
 
 	if _, err := gsr.client.Apply(ctx, shadow, forge.ApplyOptions()); err != nil {
 		return fmt.Errorf("failed to enforce ShadowGatewayStatus %q: %w", klog.KRef(gsr.namespace, *shadow.Name), err)
@@ -194,18 +230,56 @@ func (rsr *routeStatusReflector[O]) shadowName(name string) string {
 }
 
 func (rsr *routeStatusReflector[O]) Enforce(ctx context.Context, local, remote O) error {
+	// The references to the remote parents are translated to the ones of the local route.
+	parents := forge.LocalRouteParentStatuses(rsr.namespace, rsr.remoteNamespace, rsr.parents(local), rsr.statuses(remote), rsr.forgingOpts)
+	return rsr.apply(ctx, local.GetName(), parents)
+}
+
+func (rsr *routeStatusReflector[O]) Fail(ctx context.Context, local O, message string) error {
+	// The failure is reported for each local parent the route would be attached to in the remote cluster.
+	reflected := forge.ReflectedRouteParents(rsr.namespace, rsr.parents(local), rsr.forgingOpts)
+	if len(reflected) == 0 {
+		// The route would not be attached to any parent in the remote cluster, hence no status shall be reported.
+		return rsr.Delete(ctx, local.GetName())
+	}
+
+	var previous []gwv1.RouteParentStatus
+	if shadow, err := rsr.lister.Get(rsr.shadowName(local.GetName())); err == nil {
+		previous = shadow.Spec.Parents
+	}
+
+	parents := make([]gwv1.RouteParentStatus, 0, len(reflected))
+	for i := range reflected {
+		var conditions []metav1.Condition
+		for j := range previous {
+			// The parent references are compared after normalization, since the stored ones include the default values.
+			if forge.ParentRefKey(&previous[j].ParentRef, rsr.namespace) == forge.ParentRefKey(&reflected[i], rsr.namespace) {
+				conditions = previous[j].Conditions
+			}
+		}
+
+		parents = append(parents, gwv1.RouteParentStatus{
+			ParentRef:      reflected[i],
+			ControllerName: consts.GatewayControllerName,
+			Conditions: []metav1.Condition{
+				failedCondition(conditions, string(gwv1.RouteConditionAccepted), message, local.GetGeneration()),
+			},
+		})
+	}
+	return rsr.apply(ctx, local.GetName(), parents)
+}
+
+// apply enforces the shadow resource associated with the given local route, reporting the given parent statuses.
+func (rsr *routeStatusReflector[O]) apply(ctx context.Context, name string, parents []gwv1.RouteParentStatus) error {
 	owner, err := virtualNodeOwnerReference(ctx, rsr.kube)
 	if err != nil {
 		return err
 	}
 
-	// The references to the remote parents are translated to the ones of the local route.
-	parents := forge.LocalRouteParentStatuses(rsr.namespace, rsr.remoteNamespace, rsr.parents(local), rsr.statuses(remote), rsr.forgingOpts)
-
-	shadow := offloadingv1beta1apply.ShadowRouteStatus(rsr.shadowName(local.GetName()), rsr.namespace).
+	shadow := offloadingv1beta1apply.ShadowRouteStatus(rsr.shadowName(name), rsr.namespace).
 		WithLabels(shadowLabels()).WithOwnerReferences(owner).
 		WithSpec(offloadingv1beta1apply.ShadowRouteStatusSpec().
-			WithKind(rsr.kind).WithRouteName(local.GetName()).WithClusterID(string(forge.RemoteCluster)).
+			WithKind(rsr.kind).WithRouteName(name).WithClusterID(string(forge.RemoteCluster)).
 			WithParents(parents...))
 
 	if _, err := rsr.client.Apply(ctx, shadow, forge.ApplyOptions()); err != nil {

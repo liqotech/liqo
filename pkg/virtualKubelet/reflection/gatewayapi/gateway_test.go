@@ -216,6 +216,34 @@ var _ = Describe("Gateway reflection", func() {
 		It("should not generate any event", func() { Consistently(events).ShouldNot(Receive()) })
 	})
 
+	When("the local Gateway belongs to the virtual class, and a remote Gateway not managed by the reflection exists", func() {
+		JustBeforeEach(func() {
+			create(gateway(LocalNamespace, "liqo", false), gateway(RemoteNamespace, "envoy", false))
+			setup(gatewayapi.NewNamespacedGatewayReflector)
+			handle(GatewayName)
+		})
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should not touch the remote Gateway", func() {
+			remote, errGet := getRemoteGateway()
+			Expect(errGet).ToNot(HaveOccurred())
+			Expect(forge.IsReflected(remote)).To(BeFalse())
+		})
+		It("should report the failure through the ShadowGatewayStatus", func() {
+			shadow, errShadow := liqoClient.OffloadingV1beta1().ShadowGatewayStatuses(LocalNamespace).
+				Get(ctx, gatewayapi.ShadowName("", GatewayName), metav1.GetOptions{})
+			Expect(errShadow).ToNot(HaveOccurred())
+			Expect(shadow.Spec.ClusterID).To(Equal(RemoteClusterID))
+			Expect(shadow.Spec.Addresses).To(BeEmpty())
+			failed := And(HaveField("Status", metav1.ConditionFalse), HaveField("Reason", forge.ConditionReasonReflectionFailed),
+				HaveField("Message", ContainSubstring("not managed by Liqo, already exists")))
+			Expect(shadow.Spec.Conditions).To(ConsistOf(
+				And(HaveField("Type", string(gwv1.GatewayConditionAccepted)), failed),
+				And(HaveField("Type", string(gwv1.GatewayConditionProgrammed)), failed),
+			))
+		})
+	})
+
 	When("the remote Gateway reports its status", func() {
 		getShadow := func() (*offloadingv1beta1.ShadowGatewayStatus, error) {
 			return liqoClient.OffloadingV1beta1().ShadowGatewayStatuses(LocalNamespace).Get(ctx, gatewayapi.ShadowName("", GatewayName), metav1.GetOptions{})
@@ -284,7 +312,12 @@ var _ = Describe("Gateway reflection", func() {
 
 		When("the reflection of the namespace is stopped", func() {
 			JustBeforeEach(func() {
-				Expect(reflector.Cleanup(ctx, LocalNamespace, RemoteNamespace)).To(Succeed())
+				// The shadow resources to be deleted are retrieved from the cache, which might not yet include the latest ones.
+				Eventually(func() error {
+					Expect(reflector.Cleanup(ctx, LocalNamespace, RemoteNamespace)).To(Succeed())
+					_, errShadow := getShadow()
+					return errShadow
+				}).Should(BeNotFound())
 			})
 
 			It("should delete the ShadowGatewayStatus", func() {

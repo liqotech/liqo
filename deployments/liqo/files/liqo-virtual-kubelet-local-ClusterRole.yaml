@@ -98,6 +98,9 @@ rules:
   - grpcroutes
   - httproutes
   - referencegrants
+  - tcproutes
+  - tlsroutes
+  - udproutes
   verbs:
   - get
   - list

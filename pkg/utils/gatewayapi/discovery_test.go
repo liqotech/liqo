@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery/fake"
 	k8stesting "k8s.io/client-go/testing"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -69,6 +70,56 @@ var _ = Describe("Gateway API resources discovery", func() {
 	When("the discovery fails", func() {
 		BeforeEach(func() {
 			client.AddReactor("get", "resource", func(k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, errors.New("connection refused")
+			})
+		})
+
+		It("should return an error", func() { Expect(err).To(MatchError(ContainSubstring("connection refused"))) })
+	})
+})
+
+var _ = Describe("Unsupported Gateway API routes discovery", func() {
+	var (
+		client *fake.FakeDiscovery
+		routes []gatewayapi.UnsupportedRoute
+		err    error
+	)
+
+	BeforeEach(func() { client = &fake.FakeDiscovery{Fake: &k8stesting.Fake{}} })
+	JustBeforeEach(func() { routes, err = gatewayapi.DetectUnsupportedRoutes(client) })
+
+	When("the Gateway API group is not served", func() {
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should return no routes", func() { Expect(routes).To(BeEmpty()) })
+	})
+
+	When("the routes are served in different versions", func() {
+		BeforeEach(func() {
+			// The fake discovery returns the group versions in order, the first one being the preferred.
+			client.Resources = []*metav1.APIResourceList{{
+				GroupVersion: gwv1.GroupVersion.String(),
+				APIResources: []metav1.APIResource{{Name: "httproutes", Kind: "HTTPRoute"}, {Name: "tlsroutes", Kind: "TLSRoute"}},
+			}, {
+				GroupVersion: "gateway.networking.k8s.io/v1alpha2",
+				APIResources: []metav1.APIResource{
+					{Name: "tcproutes", Kind: "TCPRoute"}, {Name: "tcproutes/status", Kind: "TCPRoute"}, {Name: "tlsroutes", Kind: "TLSRoute"},
+				},
+			}}
+		})
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should return the unsupported routes only, in the preferred version", func() {
+			Expect(routes).To(ConsistOf(
+				gatewayapi.UnsupportedRoute{GVR: schema.GroupVersionResource{Group: gwv1.GroupName, Version: "v1", Resource: "tlsroutes"}, Kind: "TLSRoute"},
+				gatewayapi.UnsupportedRoute{GVR: schema.GroupVersionResource{Group: gwv1.GroupName, Version: "v1alpha2", Resource: "tcproutes"},
+					Kind: "TCPRoute"},
+			))
+		})
+	})
+
+	When("the discovery fails", func() {
+		BeforeEach(func() {
+			client.AddReactor("get", "group", func(k8stesting.Action) (bool, runtime.Object, error) {
 				return true, nil, errors.New("connection refused")
 			})
 		})
