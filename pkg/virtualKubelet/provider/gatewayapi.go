@@ -19,6 +19,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	gwclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
@@ -88,5 +89,19 @@ func setupGatewayAPIReflection(cfg *InitConfig, localClient, remoteClient kubern
 	}
 
 	reflectionManager.WithGatewayAPI(localGateway, remoteGateway)
+
+	// The routes of the kinds not reflected by Liqo would be otherwise silently ignored: a warning event is generated for each of them.
+	// Failures are not fatal, since the reflection of the other resources is not affected.
+	routes, err := gwutils.DetectUnsupportedRoutes(localClient.Discovery())
+	if err != nil {
+		klog.Warningf("Failed to detect the Gateway API routes not supported by the reflection: %v", err)
+		return nil
+	}
+	if len(routes) > 0 {
+		for _, reflector := range gatewayapi.NewUnsupportedRouteReflectors(localClient, metadata.NewForConfigOrDie(cfg.LocalConfig),
+			routes, ptr.To(cfg.ReflectorsConfigs[resources.HTTPRoute])) {
+			reflectionManager.With(reflector)
+		}
+	}
 	return nil
 }

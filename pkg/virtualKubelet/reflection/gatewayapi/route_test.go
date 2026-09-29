@@ -16,14 +16,20 @@ package gatewayapi_test
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -36,7 +42,7 @@ import (
 	gwinformers "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -54,8 +60,10 @@ var _ = Describe("Route reflection", func() {
 		cancel context.CancelFunc
 
 		localClient, remoteClient gwclient.Interface
+		localLiqoClient           liqoclient.Interface
 		remoteKubeClient          *k8sfake.Clientset
 		remoteAllowed             bool
+		remoteApplyError          error
 		cfg                       gatewayapi.Config
 		reflector                 manager.NamespacedReflector
 		events                    chan *corev1.Event
@@ -100,6 +108,29 @@ var _ = Describe("Route reflection", func() {
 		return remoteClient.GatewayV1().HTTPRoutes(RemoteNamespace).Get(ctx, RouteName, metav1.GetOptions{})
 	}
 
+	getShadow := func() (*offloadingv1beta1.ShadowRouteStatus, error) {
+		return localLiqoClient.OffloadingV1beta1().ShadowRouteStatuses(LocalNamespace).
+			Get(ctx, gatewayapi.ShadowName("httproute", RouteName), metav1.GetOptions{})
+	}
+
+	// expectFailureReported checks that the ShadowRouteStatus reports the failure for the parent of the local route.
+	expectFailureReported := func(message string) {
+		shadow, errShadow := getShadow()
+		Expect(errShadow).ToNot(HaveOccurred())
+		Expect(shadow.Spec.ClusterID).To(Equal(RemoteClusterID))
+		Expect(shadow.Spec.Parents).To(HaveLen(1))
+		parent := shadow.Spec.Parents[0]
+		Expect(parent.ParentRef.Name).To(BeEquivalentTo("edge"))
+		Expect(parent.ParentRef.Namespace).To(PointTo(BeEquivalentTo("infra")))
+		Expect(parent.ControllerName).To(BeEquivalentTo(consts.GatewayControllerName))
+		Expect(parent.Conditions).To(ConsistOf(And(
+			HaveField("Type", string(gwv1.RouteConditionAccepted)),
+			HaveField("Status", metav1.ConditionFalse),
+			HaveField("Reason", forge.ConditionReasonReflectionFailed),
+			HaveField("Message", ContainSubstring(message)),
+		)))
+	}
+
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		cfg = gatewayapi.Config{
@@ -108,15 +139,28 @@ var _ = Describe("Route reflection", func() {
 		}
 		events = make(chan *corev1.Event, 10)
 		remoteAllowed = true
+		remoteApplyError = nil
+		localLiqoClient = liqoclient.NewForConfigOrDie(restConfig)
 		localClient = gwclientfake.NewClientset()
 		remoteClient = gwclientfake.NewClientset()
 	})
-	AfterEach(func() { cancel() })
+	AfterEach(func() {
+		Expect(localLiqoClient.OffloadingV1beta1().ShadowRouteStatuses(LocalNamespace).
+			DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+		cancel()
+	})
 
 	// setup creates the given objects and starts the reflector.
 	setup := func(local, remote []runtime.Object) {
 		localClient = gwclientfake.NewClientset(local...)
-		remoteClient = gwclientfake.NewClientset(remote...)
+		fakeRemoteClient := gwclientfake.NewClientset(remote...)
+		if applyError := remoteApplyError; applyError != nil {
+			// The apply patches are rejected by the remote cluster (e.g., due to a different validation).
+			fakeRemoteClient.PrependReactor("patch", "httproutes", func(k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, applyError
+			})
+		}
+		remoteClient = fakeRemoteClient
 
 		// The SelfSubjectAccessReviews are answered depending on the remoteAllowed flag.
 		allowed := remoteAllowed
@@ -136,12 +180,13 @@ var _ = Describe("Route reflection", func() {
 		localFactory := gwinformers.NewSharedInformerFactory(localClient, 0)
 		remoteFactory := gwinformers.NewSharedInformerFactoryWithOptions(remoteClient, 0, gwinformers.WithNamespace(RemoteNamespace))
 
-		localLiqoClient := liqoclientfake.NewClientset()
+		// The shadow resources are stored in the test API server, as the fake clients do not support their apply patches.
+		localLiqoClient = liqoclient.NewForConfigOrDie(restConfig)
 		localLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(localLiqoClient, 0, liqoinformers.WithNamespace(LocalNamespace))
 
 		forgingOpts := forge.NewEmptyForgingOpts()
 		opts := options.NewNamespaced().
-			WithLocal(LocalNamespace, k8sfake.NewClientset(), nil).WithRemote(RemoteNamespace, remoteKubeClient, nil).
+			WithLocal(LocalNamespace, kubernetes.NewForConfigOrDie(restConfig), nil).WithRemote(RemoteNamespace, remoteKubeClient, nil).
 			WithLiqoLocal(localLiqoClient, localLiqoFactory).
 			WithGatewayLocal(localClient, localFactory).
 			WithNamespaceMapper(mapper).
@@ -241,6 +286,27 @@ var _ = Describe("Route reflection", func() {
 			Expect(event.Message).To(ContainSubstring(RemoteClusterID))
 			Expect(event.Message).To(ContainSubstring("no shared Gateway offered by the remote cluster"))
 		})
+		It("should not report any status, as the route would not be attached to any parent", func() {
+			_, errShadow := getShadow()
+			Expect(errShadow).To(BeNotFound())
+		})
+	})
+
+	When("the local route cannot be reflected without altering its semantic", func() {
+		JustBeforeEach(func() {
+			route := localRoute("", nil)
+			route.Spec.Rules[0].Filters = []gwv1.HTTPRouteFilter{{Type: gwv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gwv1.LocalObjectReference{Group: "example.com", Kind: "Auth", Name: "auth"}}}
+			setup([]runtime.Object{route}, []runtime.Object{remoteRoute(true)})
+			handle()
+		})
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should delete the remote route", func() {
+			_, errGet := getRemote()
+			Expect(errGet).To(BeNotFound())
+		})
+		It("should report the failure in the status", func() { expectFailureReported("not reflected: ") })
 	})
 
 	When("the local route does not exist, and a reflected remote route exists", func() {
@@ -273,6 +339,54 @@ var _ = Describe("Route reflection", func() {
 			Eventually(events).Should(Receive(&event))
 			Expect(event.Reason).To(Equal(forge.EventFailedReflection))
 			Expect(event.Message).To(ContainSubstring("remote object already exists"))
+		})
+		It("should report the failure in the status", func() { expectFailureReported("not managed by Liqo, already exists") })
+	})
+
+	When("the remote cluster rejects the route", func() {
+		BeforeEach(func() {
+			remoteApplyError = kerrors.NewInvalid(schema.GroupKind{Group: gwv1.GroupName, Kind: "HTTPRoute"}, RouteName, nil)
+		})
+		JustBeforeEach(func() {
+			setup([]runtime.Object{localRoute("", nil)}, nil)
+			handle()
+		})
+
+		It("should fail", func() { Expect(err).To(HaveOccurred()) })
+		It("should generate a warning event identifying the remote cluster", func() {
+			var event *corev1.Event
+			Eventually(events).Should(Receive(&event))
+			Expect(event.Reason).To(Equal(forge.EventFailedReflection))
+			Expect(event.Message).To(ContainSubstring(RemoteClusterID))
+		})
+		It("should report the failure in the status, with the error returned by the remote cluster", func() {
+			expectFailureReported("reflection failed: HTTPRoute.gateway.networking.k8s.io \"route\" is invalid")
+		})
+
+		When("the reflection keeps failing", func() {
+			var first metav1.Time
+
+			JustBeforeEach(func() {
+				shadow, errShadow := getShadow()
+				Expect(errShadow).ToNot(HaveOccurred())
+				first = shadow.Spec.Parents[0].Conditions[0].LastTransitionTime
+
+				// Ensure a different transition time would be generated, and the informer observed the shadow resource.
+				time.Sleep(1100 * time.Millisecond)
+				handle()
+			})
+
+			It("should preserve the last transition time", func() {
+				shadow, errShadow := getShadow()
+				Expect(errShadow).ToNot(HaveOccurred())
+				Expect(shadow.Spec.Parents[0].Conditions[0].LastTransitionTime).To(Equal(first))
+			})
+		})
+
+		When("the remote cluster is not reachable", func() {
+			BeforeEach(func() { remoteApplyError = errors.New("connection refused") })
+
+			It("should report the transient error", func() { expectFailureReported("reflection failed: connection refused") })
 		})
 	})
 
@@ -343,6 +457,9 @@ var _ = Describe("Route reflection", func() {
 			It("should list only the local routes", func() {
 				Expect(reflector.List()).To(HaveLen(1))
 			})
+			It("should report the failure in the status", func() {
+				expectFailureReported("httproutes.gateway.networking.k8s.io not available in the remote cluster")
+			})
 		})
 
 		When("the local route is marked to be skipped", func() {
@@ -352,6 +469,10 @@ var _ = Describe("Route reflection", func() {
 			})
 
 			It("should not generate any event", func() { Consistently(events).ShouldNot(Receive()) })
+			It("should not report any status", func() {
+				_, errShadow := getShadow()
+				Expect(errShadow).To(BeNotFound())
+			})
 		})
 	})
 
