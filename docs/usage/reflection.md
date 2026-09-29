@@ -214,8 +214,38 @@ Since the same resource may be reflected to multiple remote clusters, each virtu
 * Routes report one entry for each parent reflected, managed by the `liqo.io/gateway-controller` controller, whose conditions are satisfied only if satisfied in all remote clusters, and whose messages identify the clusters where they are not.
   The entries managed by other controllers (e.g., the local one serving the *Gateways* of other classes) are preserved.
 
-If a resource cannot be reflected to a remote cluster (e.g., it is rejected by the remote API server, since the remote cluster runs a different version of the Gateway API with different validation rules), the failure is also reported in its status, with the `ReflectionFailed` reason: routes are not *Accepted* with respect to the parents they would be attached to, and *Gateways* are not *Programmed* in that cluster.
+The two aggregation policies differ on purpose.
+A *Gateway* is *Programmed* as soon as it serves traffic in at least one remote cluster, since its addresses are the union of those assigned in all clusters, and each of them can be used to reach the offloaded workloads.
+A route is instead *Accepted* only if accepted in **all** remote clusters, since a route working in some clusters only would serve the requests differently depending on the cluster they reach.
+Hence, a route that is not *Accepted* might still serve traffic in some of the remote clusters: the condition message lists the clusters where it is not accepted, together with the reason reported by each of them, while the clusters where it is accepted are not mentioned.
+
+If a resource cannot be reflected to a remote cluster, the failure is also reported in its status, with the `ReflectionFailed` reason: routes are not *Accepted* with respect to the parents they would be attached to, and *Gateways* are not *Programmed* in that cluster.
+This happens, for instance, if the resource is rejected by the remote API server (e.g., since the remote cluster runs a different version of the Gateway API with different validation rules), if it cannot be reflected without altering its semantic, or if a resource with the same name, not managed by Liqo, already exists in the remote namespace.
 The message identifies the remote cluster and includes the error, so that the failure remains visible after the corresponding events expire.
+
+For example, consider a namespace offloaded to `cluster-a` and `cluster-b`, where only `cluster-a` rejects a route (e.g., due to a stricter validation rule), and a *Gateway* with the same name as the reflected one already exists in `cluster-a`:
+
+```yaml
+# Route: the reason is the one of the first cluster where the condition is not satisfied.
+status:
+  parents:
+  - controllerName: liqo.io/gateway-controller
+    parentRef:
+      name: web
+    conditions:
+    - type: Accepted
+      status: "False"
+      reason: ReflectionFailed
+      message: 'cluster "cluster-a": reflection failed: ... retry.codes: duplicate entries for key [=500]'
+---
+# Gateway: programmed in cluster-b, with the reason why it is not programmed in cluster-a.
+status:
+  conditions:
+  - type: Programmed
+    status: "True"
+    reason: Programmed
+    message: 'Programmed in cluster(s) cluster-b (not programmed in cluster "cluster-a": an object with the same name, not managed by Liqo, already exists)'
+```
 
 Liqo generates Kubernetes events on the local resources to notify about the outcome of the reflection, including the ID of the remote cluster and the name of the virtual node, to simplify troubleshooting when a namespace is offloaded to multiple clusters.
 In particular, a *PartialReflection* warning event lists the references dropped during the translation, while a *FailedReflection* warning event reports why the resource could not be reflected.
