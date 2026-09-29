@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package remoteclusterwide defines the ClusterRole containing the permissions required by the virtual kubelet in the remote cluster.
+// Package remoteclusterwide defines the ClusterRole containing the cluster-wide permissions required
+// by the virtual kubelet in the remote cluster (as opposed to the ones granted per remote namespace).
 package remoteclusterwide
 
+// +kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape/metrics,verbs=get;list;watch

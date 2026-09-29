@@ -245,6 +245,8 @@ var _ = Describe("Pod Stats caching", func() {
 		podMetrics *fakePodMetrics
 		output     *statsv1alpha1.Summary
 		err        error
+
+		requestedNamespace string
 	)
 
 	BeforeEach(func() {
@@ -258,7 +260,10 @@ var _ = Describe("Pod Stats caching", func() {
 		liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 		broadcaster := record.NewBroadcaster()
 
-		metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return podMetrics }
+		metricsFactory := func(namespace string) metricsv1beta1.PodMetricsInterface {
+			requestedNamespace = namespace
+			return podMetrics
+		}
 		reflectorConfig := offloadingv1beta1.ReflectorConfig{
 			NumWorkers: 0,
 			Type:       root.DefaultReflectorsTypes[resources.Pod],
@@ -282,6 +287,11 @@ var _ = Describe("Pod Stats caching", func() {
 
 	It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 	It("should return a summary", func() { Expect(output).ToNot(BeNil()) })
+	It("should list the remote pod metrics once, for this virtual node only", func() {
+		Expect(requestedNamespace).To(BeIdenticalTo(metav1.NamespaceAll))
+		Expect(podMetrics.selector).To(BeIdenticalTo(
+			forge.ReflectionLabelsWithNodeName(forge.LiqoNodeName).AsSelectorPreValidated().String()))
+	})
 
 	When("retrieving the summary again within the cache TTL", func() {
 		JustBeforeEach(func() { output, err = reflector.Stats(ctx) })

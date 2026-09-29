@@ -16,6 +16,7 @@ package workload
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -183,7 +184,6 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 
 		remoteRESTClient: opts.RemoteClient.CoreV1().RESTClient(),
 		remoteRESTConfig: pr.remoteRESTConfig,
-		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
 
 		config:                    pr.config,
 		kubernetesServiceIPGetter: pr.KubernetesServiceIPGetter(),
@@ -264,12 +264,21 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 		ctx, cancel := context.WithTimeout(context.Background(), statsSummaryDetachTimeout)
 		defer cancel()
 
-		var pods []statsv1alpha1.PodStats
-		var err error
+		// Retrieve in a single cluster-scoped listing the pod metrics of the pods offloaded by this
+		// virtual node instance: the selector is already restricted to its node name, hence this
+		// replaces the per-namespace listings with a single remote round trip. Pods managed by other
+		// virtual-kubelet instances targeting the same remote cluster are thus excluded, as their
+		// local counterpart would not be scheduled on the virtual node handled by this instance.
+		selector := forge.ReflectionLabelsWithNodeName(forge.LiqoNodeName).AsSelectorPreValidated()
+		metrics, err := pr.remoteMetricsFactory(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			return nil, fmt.Errorf("error while listing the remote pod metrics: %w", err)
+		}
 
+		var pods []statsv1alpha1.PodStats
 		pr.handlers.Range(func(_, handler interface{}) bool {
 			var stats []statsv1alpha1.PodStats
-			stats, err = handler.(NamespacedPodHandler).Stats(ctx)
+			stats, err = handler.(NamespacedPodHandler).Stats(metrics.Items)
 			pods = append(pods, stats...)
 			return err == nil
 		})

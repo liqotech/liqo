@@ -43,7 +43,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
+	metricsapi "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -73,8 +73,9 @@ type NamespacedPodHandler interface {
 	PortForward(ctx context.Context, name string, port int32, stream io.ReadWriteCloser) error
 	// Logs retrieves the logs of a container of a reflected pod.
 	Logs(ctx context.Context, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
-	// Stats retrieves the stats of the reflected pods.
-	Stats(ctx context.Context) ([]statsv1alpha1.PodStats, error)
+	// Stats retrieves the stats of the reflected pods, forging them from the pod metrics of the
+	// virtual node (retrieved once by the parent reflector through a single cluster-scoped listing).
+	Stats(metrics []metricsapi.PodMetrics) ([]statsv1alpha1.PodStats, error)
 }
 
 // NamespacedPodReflector manages the Pod reflection for a given pair of local and remote namespaces.
@@ -92,7 +93,6 @@ type NamespacedPodReflector struct {
 
 	remoteRESTClient rest.Interface
 	remoteRESTConfig *rest.Config
-	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
 	config *PodReflectorConfig
 
@@ -665,23 +665,18 @@ func (npr *NamespacedPodReflector) Logs(ctx context.Context, po, container strin
 	return stream, nil
 }
 
-// Stats retrieves the stats of the reflected pods.
-func (npr *NamespacedPodReflector) Stats(ctx context.Context) ([]statsv1alpha1.PodStats, error) {
+// Stats retrieves the stats of the reflected pods, forging them from the given pod metrics of the
+// virtual node. Only the metrics belonging to the remote namespace handled by this reflector are
+// considered, as the same virtual node may offload pods in several namespaces.
+func (npr *NamespacedPodReflector) Stats(metrics []metricsapi.PodMetrics) ([]statsv1alpha1.PodStats, error) {
 	klog.V(4).Infof("Requested to retrieve stats for local namespace %q (remote %q)", npr.LocalNamespace(), npr.RemoteNamespace())
 	var stats []statsv1alpha1.PodStats
 
-	// Retrieve the metrics from the remote namespace, limited to the pods offloaded by this
-	// virtual node instance. Indeed, pods managed by other virtual-kubelet instances targeting
-	// the same remote cluster and namespace could be present, but their local counterpart would
-	// not be scheduled on the virtual node handled by this instance, hence not retrievable.
-	selector := forge.ReflectionLabelsWithNodeName(forge.LiqoNodeName).AsSelectorPreValidated()
-	metrics, err := npr.remoteMetrics.List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
-	if err != nil {
-		return nil, errors.Wrapf(err, "error while listing remote pod metrics in namespace %q", npr.RemoteNamespace())
-	}
-
-	for idx := range metrics.Items {
-		name := metrics.Items[idx].GetName()
+	for idx := range metrics {
+		if metrics[idx].GetNamespace() != npr.RemoteNamespace() {
+			continue
+		}
+		name := metrics[idx].GetName()
 
 		// Retrieve the local pod corresponding to the remote metrics.
 		local, err := npr.localPods.Get(name)
@@ -698,7 +693,7 @@ func (npr *NamespacedPodReflector) Stats(ctx context.Context) ([]statsv1alpha1.P
 		}
 
 		// Construct the stats for the local object and add them to the list.
-		stats = append(stats, forge.LocalPodStats(local, &metrics.Items[idx]))
+		stats = append(stats, forge.LocalPodStats(local, &metrics[idx]))
 	}
 
 	klog.V(2).Infof("Stats for local namespace %q (remote %q) correctly retrieved", npr.LocalNamespace(), npr.RemoteNamespace())
