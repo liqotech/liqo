@@ -212,6 +212,23 @@ function wait_kyverno() {
   fi
 }
 
+function install_gateway_api_crds() {
+  local kubeconfig=$1
+  local version=$2
+
+  "${KUBECTL}" apply --server-side --kubeconfig "${kubeconfig}" \
+    -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${version}/standard-install.yaml"
+}
+
+function install_envoy_gateway() {
+  local kubeconfig=$1
+  local version=$2
+
+  # The chart also installs the Gateway API CRDs, in the version supported by Envoy Gateway.
+  "${HELM}" install eg oci://docker.io/envoyproxy/gateway-helm --version "${version}" \
+    -n envoy-gateway-system --create-namespace --wait --timeout 10m --kubeconfig "${kubeconfig}"
+}
+
 function install_clusterctl() {
   local os=$1
   local arch=$2

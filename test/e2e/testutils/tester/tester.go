@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -209,5 +210,6 @@ func getScheme() *runtime.Scheme {
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = authv1beta1.AddToScheme(scheme)
 	_ = networkingv1beta1.AddToScheme(scheme)
+	_ = gwv1.Install(scheme)
 	return scheme
 }
