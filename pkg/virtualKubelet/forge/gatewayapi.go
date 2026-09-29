@@ -34,6 +34,9 @@ type NamespaceMapper func(local string) (remote string, found bool)
 // coreGroupAlias is an alias of the core API group, which is accepted by the Gateway API in object references.
 const coreGroupAlias = "core"
 
+// ConditionReasonReflectionFailed is the reason of the conditions reporting that an object could not be reflected to the remote cluster.
+const ConditionReasonReflectionFailed = "ReflectionFailed"
+
 // GatewayAPIForgingOpts groups the parameters to forge the reflected Gateway API resources.
 type GatewayAPIForgingOpts struct {
 	// Mapper maps the local namespaces to the remote ones, to translate cross-namespace references.
@@ -256,7 +259,7 @@ func RemoteRouteParentRefs(localNamespace string, spec *gwv1.CommonRouteSpec, op
 		}
 
 		// Multiple parents may be replaced by the same shared gateway, while parentRefs must be unique.
-		if key := parentRefKey(&parent, ""); !added[key] {
+		if key := ParentRefKey(&parent, ""); !added[key] {
 			remote = append(remote, parent)
 			added[key] = true
 		}
@@ -305,6 +308,18 @@ func RemoteParentRef(localNamespace string, parent gwv1.ParentReference, opts *G
 	}
 }
 
+// ReflectedRouteParents returns the parent references of the local route which are translated for the remote cluster,
+// that is, the ones whose status is reported by the remote cluster.
+func ReflectedRouteParents(localNamespace string, localParents []gwv1.ParentReference, opts *GatewayAPIForgingOpts) []gwv1.ParentReference {
+	var reflected []gwv1.ParentReference
+	for i := range localParents {
+		if _, warning := RemoteParentRef(localNamespace, localParents[i], opts); warning == "" {
+			reflected = append(reflected, localParents[i])
+		}
+	}
+	return reflected
+}
+
 // LocalRouteParentStatuses translates the statuses of a reflected route with respect to its parents into the ones
 // of the local route, associating each remote parent with the local parents it has been translated from.
 // Remote parents not derived from any local parent (e.g., added by other entities) are ignored.
@@ -317,13 +332,13 @@ func LocalRouteParentStatuses(localNamespace, remoteNamespace string, localParen
 		if warning != "" {
 			continue
 		}
-		key := parentRefKey(&parent, remoteNamespace)
+		key := ParentRefKey(&parent, remoteNamespace)
 		origins[key] = append(origins[key], localParents[i])
 	}
 
 	var local []gwv1.RouteParentStatus
 	for i := range remote {
-		for _, parent := range origins[parentRefKey(&remote[i].ParentRef, remoteNamespace)] {
+		for _, parent := range origins[ParentRefKey(&remote[i].ParentRef, remoteNamespace)] {
 			status := remote[i].DeepCopy()
 			status.ParentRef = *parent.DeepCopy()
 			local = append(local, *status)
@@ -332,8 +347,8 @@ func LocalRouteParentStatuses(localNamespace, remoteNamespace string, localParen
 	return local
 }
 
-// parentRefKey returns a key identifying the given parent reference, normalizing the default values.
-func parentRefKey(ref *gwv1.ParentReference, routeNamespace string) string {
+// ParentRefKey returns a key identifying the given parent reference, normalizing the default values.
+func ParentRefKey(ref *gwv1.ParentReference, routeNamespace string) string {
 	group, kind, namespace := gwv1.Group(gwv1.GroupName), gwv1.Kind("Gateway"), gwv1.Namespace(routeNamespace)
 	if ref.Group != nil {
 		group = *ref.Group

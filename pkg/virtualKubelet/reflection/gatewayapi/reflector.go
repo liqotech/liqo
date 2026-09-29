@@ -229,6 +229,7 @@ func (nr *NamespacedReflector[O, A]) Handle(ctx context.Context, name string) er
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local %s %q as remote already exists and is not managed by us", nr.kind.Name, nr.LocalRef(name))
 			nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
+			return nr.reportFailure(ctx, local, "an object with the same name, not managed by Liqo, already exists")
 		}
 		return nil
 	}
@@ -265,14 +266,17 @@ func (nr *NamespacedReflector[O, A]) Handle(ctx context.Context, name string) er
 	switch {
 	case errors.As(ferr, &notReflectable):
 		// The object cannot be reflected as is: ensure the remote copy (if any) is removed, as it would be outdated.
-		klog.Warningf("Local %s %q cannot be reflected: %v", nr.kind.Name, nr.LocalRef(name), ferr)
-		nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventReflectionNotPossibleMsg(
-			strings.Join(append([]string{ferr.Error()}, warnings...), "; ")))
-		return nr.ensureRemoteAbsence(ctx, name, remote, rerr)
+		reason := strings.Join(append([]string{ferr.Error()}, warnings...), "; ")
+		klog.Warningf("Local %s %q cannot be reflected: %v", nr.kind.Name, nr.LocalRef(name), reason)
+		nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventReflectionNotPossibleMsg(reason))
+		if err := nr.deleteRemote(ctx, name, remote, rerr); err != nil {
+			return err
+		}
+		return nr.reportFailure(ctx, local, "not reflected: "+reason)
 	case ferr != nil:
 		klog.Errorf("Failed to forge remote %s %q (local: %q): %v", nr.kind.Name, nr.RemoteRef(name), nr.LocalRef(name), ferr)
 		nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(ferr))
-		return ferr
+		return errors.Join(ferr, nr.reportFailure(ctx, local, "reflection failed: "+ferr.Error()))
 	}
 	tracer.Step("Remote mutation created")
 
@@ -280,7 +284,7 @@ func (nr *NamespacedReflector[O, A]) Handle(ctx context.Context, name string) er
 	if _, err := nr.remoteClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce remote %s %q (local: %q): %v", nr.kind.Name, nr.RemoteRef(name), nr.LocalRef(name), err)
 		nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-		return err
+		return errors.Join(err, nr.reportFailure(ctx, local, "reflection failed: "+err.Error()))
 	}
 
 	klog.Infof("Remote %s %q successfully enforced (local: %q)", nr.kind.Name, nr.RemoteRef(name), nr.LocalRef(name))
@@ -304,13 +308,14 @@ func (nr *NamespacedReflector[O, A]) Handle(ctx context.Context, name string) er
 
 // ensureRemoteAbsence deletes the remote object, if it exists, as well as the shadow resource reporting its status.
 func (nr *NamespacedReflector[O, A]) ensureRemoteAbsence(ctx context.Context, name string, remote O, rerr error) error {
-	if nr.status != nil {
-		if err := nr.status.Delete(ctx, name); err != nil {
-			klog.Errorf("Failed to delete the status of remote %s %q: %v", nr.kind.Name, nr.RemoteRef(name), err)
-			return err
-		}
+	if err := nr.deleteStatus(ctx, name); err != nil {
+		return err
 	}
+	return nr.deleteRemote(ctx, name, remote, rerr)
+}
 
+// deleteRemote deletes the remote object, if it exists.
+func (nr *NamespacedReflector[O, A]) deleteRemote(ctx context.Context, name string, remote O, rerr error) error {
 	if kerrors.IsNotFound(rerr) {
 		klog.V(4).Infof("Remote %s %q already absent", nr.kind.Name, nr.RemoteRef(name))
 		return nil
@@ -320,24 +325,43 @@ func (nr *NamespacedReflector[O, A]) ensureRemoteAbsence(ctx context.Context, na
 	return nr.DeleteRemote(ctx, nr.remoteClient, nr.kind.Name, name, remote.GetUID())
 }
 
+// deleteStatus deletes the shadow resource reporting the status of the remote object, if any.
+func (nr *NamespacedReflector[O, A]) deleteStatus(ctx context.Context, name string) error {
+	if nr.status == nil {
+		return nil
+	}
+	if err := nr.status.Delete(ctx, name); err != nil {
+		klog.Errorf("Failed to delete the status of remote %s %q: %v", nr.kind.Name, nr.RemoteRef(name), err)
+		return err
+	}
+	return nil
+}
+
+// reportFailure reports, through the shadow resource, that the given local object could not be reflected,
+// so that the failure is visible in the status of the local object, in addition to the events.
+func (nr *NamespacedReflector[O, A]) reportFailure(ctx context.Context, local O, message string) error {
+	if nr.status == nil {
+		return nil
+	}
+	if err := nr.status.Fail(ctx, local, message); err != nil {
+		klog.Errorf("Failed to report the reflection failure of local %s %q: %v", nr.kind.Name, klog.KObj(local), err)
+		return err
+	}
+	return nil
+}
+
 // handleDegraded notifies that the local object cannot be reflected, as the resource cannot be reflected to the remote cluster.
 func (nr *NamespacedReflector[O, A]) handleDegraded(ctx context.Context, name string) error {
-	// Ensure no stale status is reported (e.g., in case the resource was previously reflected).
-	if nr.status != nil {
-		if err := nr.status.Delete(ctx, name); err != nil {
-			return err
-		}
-	}
-
 	local, err := nr.localObjects.Get(name)
 	if kerrors.IsNotFound(err) {
-		return nil
+		// Ensure no stale status is reported (e.g., in case the resource was previously reflected).
+		return nr.deleteStatus(ctx, name)
 	}
 	utilruntime.Must(err)
 
 	// Objects not managed by the reflection (e.g., Gateways of other classes) are silently ignored.
 	if _, _, err := nr.kind.Forge(local, nr.RemoteNamespace(), &nr.forgingOpts, nr.ForgingOpts); errors.Is(err, forge.ErrNotManaged) {
-		return nil
+		return nr.deleteStatus(ctx, name)
 	}
 
 	skipReflection, err := nr.ShouldSkipReflection(local)
@@ -346,12 +370,12 @@ func (nr *NamespacedReflector[O, A]) handleDegraded(ctx context.Context, name st
 		return err
 	}
 	if skipReflection {
-		return nil
+		return nr.deleteStatus(ctx, name)
 	}
 
 	klog.Warningf("Local %s %q cannot be reflected: %s", nr.kind.Name, nr.LocalRef(name), nr.degradedMessage)
 	nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, nr.degradedMessage)
-	return nil
+	return nr.reportFailure(ctx, local, nr.degradedMessage)
 }
 
 // Cleanup deletes the shadow resources reporting the status of the objects reflected to the remote cluster,

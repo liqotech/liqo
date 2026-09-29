@@ -159,6 +159,7 @@ This allows the origin cluster to present a unified view of the ingress endpoint
 ### Gateway API
 
 Liqo supports the reflection of the [Gateway API](https://gateway-api.sigs.k8s.io/) **Gateway**, **HTTPRoute**, **GRPCRoute** and **ReferenceGrant** resources.
+Other routes (i.e., *TCPRoutes*, *TLSRoutes* and *UDPRoutes*) are not reflected, and a *FailedReflection* warning event is generated for each of them in the offloaded namespaces.
 Similarly to the ingress classes, the reflection is enabled when the provider cluster offers any *GatewayClass*, used for the reflected *Gateways*, or any **shared Gateway**, which the reflected routes are attached to.
 They are configured at install time in the **provider cluster** through the following Helm values, and they are propagated to the consumer clusters during the peering process (i.e., through the *ResourceSlice* and *VirtualNode* resources):
 
@@ -212,6 +213,9 @@ Since the same resource may be reflected to multiple remote clusters, each virtu
   The listeners report the total number of routes attached in all remote clusters.
 * Routes report one entry for each parent reflected, managed by the `liqo.io/gateway-controller` controller, whose conditions are satisfied only if satisfied in all remote clusters, and whose messages identify the clusters where they are not.
   The entries managed by other controllers (e.g., the local one serving the *Gateways* of other classes) are preserved.
+
+If a resource cannot be reflected to a remote cluster (e.g., it is rejected by the remote API server, since the remote cluster runs a different version of the Gateway API with different validation rules), the failure is also reported in its status, with the `ReflectionFailed` reason: routes are not *Accepted* with respect to the parents they would be attached to, and *Gateways* are not *Programmed* in that cluster.
+The message identifies the remote cluster and includes the error, so that the failure remains visible after the corresponding events expire.
 
 Liqo generates Kubernetes events on the local resources to notify about the outcome of the reflection, including the ID of the remote cluster and the name of the virtual node, to simplify troubleshooting when a namespace is offloaded to multiple clusters.
 In particular, a *PartialReflection* warning event lists the references dropped during the translation, while a *FailedReflection* warning event reports why the resource could not be reflected.
