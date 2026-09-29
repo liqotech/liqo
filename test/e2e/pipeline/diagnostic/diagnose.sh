@@ -48,6 +48,21 @@ do
    ${KUBECTL} get gatewayclasses,gateways,httproutes,grpcroutes,tlsroutes,referencegrants -A -o wide || true
    ${KUBECTL} get shadowgatewaystatuses,shadowroutestatuses -A -o yaml || true
    ${KUBECTL} get pods,svc -n envoy-gateway-system -o wide || true
+   ${KUBECTL} get gateways -A -o yaml || true
+   echo "Envoy Gateway pods details and logs"
+   echo "|------------------------------------------------------------|"
+   ${KUBECTL} describe pods -n envoy-gateway-system || true
+   for pod in $(${KUBECTL} get pods -n envoy-gateway-system -o name 2>/dev/null); do
+      echo "Logs of ${pod}"
+      ${KUBECTL} logs -n envoy-gateway-system "${pod}" --all-containers --prefix --tail=300 || true
+      ${KUBECTL} logs -n envoy-gateway-system "${pod}" --all-containers --prefix --tail=300 --previous || true
+   done
+   echo "Liqo controller manager logs"
+   echo "|------------------------------------------------------------|"
+   for pod in $(${KUBECTL} get pods -n liqo -l app.kubernetes.io/name=controller-manager -o name 2>/dev/null); do
+      ${KUBECTL} logs -n liqo "${pod}" --tail=300 || true
+      ${KUBECTL} logs -n liqo "${pod}" --tail=300 --previous || true
+   done
    echo "Liqo local status"
    echo "|------------------------------------------------------------|"
    ${LIQOCTL} info --verbose
