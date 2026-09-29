@@ -46,7 +46,7 @@ const (
 	DefaultNodeCheckNetwork     = true
 
 	// DefaultMetricsProxyCacheTTL is the default time-to-live of the cached metrics proxy responses.
-	DefaultMetricsProxyCacheTTL = 15 * time.Second
+	DefaultMetricsProxyCacheTTL = 10 * time.Second
 	// DefaultStatsSummaryCacheTTL is the default time-to-live of the cached node stats summary.
 	DefaultStatsSummaryCacheTTL = 20 * time.Second
 )

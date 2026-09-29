@@ -240,6 +240,11 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 			uri += "?" + reqQuery.Encode()
 		}
 
+		// ctx is the server-lifetime context (not r.Context()), hence deliberately shared across all
+		// scrapes: the singleflight computation below is therefore never tied to a single client, so
+		// one disconnecting caller cannot abort it for the others waiting on the same key. Keep it
+		// this way: using r.Context() would let the first caller's cancellation poison the shared
+		// result for every waiter.
 		resp, err := scrapeCache.Do(ctx, uri, func(ctx context.Context) (scrapeResponse, error) {
 			res := cl.Get().RequestURI(uri).Do(ctx)
 			if err := res.Error(); err != nil {

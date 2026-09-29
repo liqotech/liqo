@@ -58,7 +58,11 @@ func New[V any](ttl, errorTTL time.Duration) *Cache[V] {
 
 // Do returns the cached value for key, if present and not expired. Otherwise, it computes it
 // through fn and caches the outcome. Concurrent calls for the same key are collapsed into a
-// single fn invocation, which receives the context of the caller that first triggered it.
+// single fn invocation, which receives the context passed by the caller that first triggered it.
+//
+// Callers whose context is tied to a single request must detach it before calling Do (e.g. by
+// wrapping fn with context.WithTimeout(context.Background(), ...)): otherwise, the cancellation
+// of that first caller would abort the shared computation awaited by every other caller.
 //
 // Errors are cached for errorTTL, except context cancellation and deadline-exceeded ones,
 // which are never cached (they are not a property of the computation itself).
