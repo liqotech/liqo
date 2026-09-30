@@ -15,8 +15,6 @@
 package firewall
 
 import (
-	"fmt"
-
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/userdata"
@@ -112,7 +110,7 @@ func ensureSetsForChain(nftconn *nftables.Conn, table *nftables.Table, apirules 
 // This is deterministic: GetTunnelInterfaces always returns sorted interface names,
 // so the same K tunnels always produce the same set name and elements.
 func ensureSet(nftconn *nftables.Conn, table *nftables.Table, matchSet *firewallapi.MatchSet) error {
-	setName := fmt.Sprintf("tunnel-list-%d", len(matchSet.Values))
+	setName := firewallutils.TunnelListSetName(len(matchSet.Values))
 	existingSets, err := nftconn.GetSets(table)
 	if err == nil {
 		for _, s := range existingSets {
