@@ -70,8 +70,10 @@ func (m *resourceGetter) GetNamespaces(ctx context.Context, clusterID string) []
 	return res
 }
 
-// GetPodNames returns the names of all pods in the cluster owned by the remote clusterID and scheduled in the given node.
-func (m *resourceGetter) GetPodNames(ctx context.Context, clusterID, node string) []string {
+// GetPodsPerNode returns, for each node, the names of the pods in the cluster owned by the remote clusterID
+// scheduled on that node. Pods are listed once and grouped by node name: this avoids performing one list
+// operation per node during each metrics scrape, which is expensive in clusters with many nodes.
+func (m *resourceGetter) GetPodsPerNode(ctx context.Context, clusterID string) map[string][]string {
 	pods := &corev1.PodList{}
 
 	clIDReq, err := labels.NewRequirement(forge.LiqoOriginClusterIDKey, selection.Equals, []string{clusterID})
@@ -82,21 +84,19 @@ func (m *resourceGetter) GetPodNames(ctx context.Context, clusterID, node string
 	})
 	utilruntime.Must(err)
 
-	res := []string{}
+	res := map[string][]string{}
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-
-		if pod.Spec.NodeName == node {
-			res = append(res, pod.Name)
-		}
+		res[pod.Spec.NodeName] = append(res[pod.Spec.NodeName], pod.Name)
 	}
 
-	klog.V(2).Infof("Scraping pods %+v for cluster id %s and node %s", res, clusterID, node)
+	klog.V(2).Infof("Scraping pods %+v for cluster id %s", res, clusterID)
 	return res
 }
 
-// GetNodeNames returns the names of all physical nodes in the cluster.
-func (m *resourceGetter) GetNodeNames(ctx context.Context) []string {
+// GetNodes returns the names of the ready physical nodes in the cluster matching the given selector.
+// A nil or empty selector matches all nodes.
+func (m *resourceGetter) GetNodes(ctx context.Context, selector labels.Selector) []string {
 	nodes := &corev1.NodeList{}
 
 	// we exclude virtual nodes to avoid infinite loops, both for bidirectional peerings
@@ -104,8 +104,16 @@ func (m *resourceGetter) GetNodeNames(ctx context.Context) []string {
 	realNode, err := labels.NewRequirement(consts.TypeLabel, selection.NotIn, []string{consts.TypeNode})
 	utilruntime.Must(err)
 
+	nodeSelector := labels.NewSelector().Add(*realNode)
+	if selector != nil {
+		requirements, selectable := selector.Requirements()
+		if selectable {
+			nodeSelector = nodeSelector.Add(requirements...)
+		}
+	}
+
 	err = m.cl.List(ctx, nodes, client.MatchingLabelsSelector{
-		Selector: labels.NewSelector().Add(*realNode),
+		Selector: nodeSelector,
 	})
 	utilruntime.Must(err)
 

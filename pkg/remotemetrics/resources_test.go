@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -34,10 +35,11 @@ var _ = Context("Resources", func() {
 	var getter ResourceGetter
 	var ctx context.Context
 
-	var getNode = func(name string, conditionReady corev1.ConditionStatus) *corev1.Node {
+	var getNode = func(name string, conditionReady corev1.ConditionStatus, lbls map[string]string) *corev1.Node {
 		return &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:   name,
+				Labels: lbls,
 			},
 			Status: corev1.NodeStatus{
 				Conditions: []corev1.NodeCondition{
@@ -83,9 +85,9 @@ var _ = Context("Resources", func() {
 		ctx = context.Background()
 
 		cl = fake.NewClientBuilder().WithObjects(
-			getNode("node1", corev1.ConditionTrue),
-			getNode("node2", corev1.ConditionTrue),
-			getNode("node3", corev1.ConditionFalse),
+			getNode("node1", corev1.ConditionTrue, map[string]string{"position": "edge"}),
+			getNode("node2", corev1.ConditionTrue, nil),
+			getNode("node3", corev1.ConditionFalse, nil),
 			getNamespace("ns1", "origNs1", "cluster1"),
 			getNamespace("ns2", "origNs2", "cluster2"),
 			getPod("pod1", "ns1", "cluster1", "node1"),
@@ -98,9 +100,15 @@ var _ = Context("Resources", func() {
 	})
 
 	It("should retrieve nodes", func() {
-		nodes := getter.GetNodeNames(ctx)
+		nodes := getter.GetNodes(ctx, nil)
 		Expect(nodes).To(HaveLen(2))
 		Expect(nodes).To(ContainElements("node1", "node2"))
+	})
+
+	It("should retrieve nodes matching the given selector", func() {
+		nodes := getter.GetNodes(ctx, labels.SelectorFromSet(map[string]string{"position": "edge"}))
+		Expect(nodes).To(HaveLen(1))
+		Expect(nodes).To(ContainElements("node1"))
 	})
 
 	It("should retrieve namespaces", func() {
@@ -116,26 +124,16 @@ var _ = Context("Resources", func() {
 		}))
 	})
 
-	It("should retrieve pods", func() {
-		pods := getter.GetPodNames(ctx, "cluster1", "node1")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod1"))
-		Expect(pods).ToNot(ContainElements("pod2", "pod3", "pod4"))
+	It("should retrieve pods grouped by node", func() {
+		pods := getter.GetPodsPerNode(ctx, "cluster1")
+		Expect(pods).To(HaveLen(2))
+		Expect(pods["node1"]).To(ConsistOf("pod1"))
+		Expect(pods["node2"]).To(ConsistOf("pod2"))
 
-		pods = getter.GetPodNames(ctx, "cluster1", "node2")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod2"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod3", "pod4"))
-
-		pods = getter.GetPodNames(ctx, "cluster2", "node1")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod3"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod2", "pod4"))
-
-		pods = getter.GetPodNames(ctx, "cluster2", "node2")
-		Expect(pods).To(HaveLen(1))
-		Expect(pods).To(ContainElements("pod4"))
-		Expect(pods).ToNot(ContainElements("pod1", "pod2", "pod3"))
+		pods = getter.GetPodsPerNode(ctx, "cluster2")
+		Expect(pods).To(HaveLen(2))
+		Expect(pods["node1"]).To(ConsistOf("pod3"))
+		Expect(pods["node2"]).To(ConsistOf("pod4"))
 	})
 
 })

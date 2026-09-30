@@ -20,6 +20,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func TestRemoteMetrics(t *testing.T) {
@@ -30,7 +32,7 @@ func TestRemoteMetrics(t *testing.T) {
 type fakeResourceGetter struct {
 	namespaces map[string][]MappedNamespace
 	pods       map[string]map[string][]string
-	nodes      []string
+	nodes      []corev1.Node
 }
 
 // GetNamespaces returns the names of all namespaces in the cluster owned by the remote clusterID.
@@ -38,20 +40,33 @@ func (m *fakeResourceGetter) GetNamespaces(ctx context.Context, clusterID string
 	return m.namespaces[clusterID]
 }
 
-// GetPodNames returns the names of all pods in the cluster owned by the remote clusterID and scheduled in the given node.
-func (m *fakeResourceGetter) GetPodNames(ctx context.Context, clusterID, node string) []string {
-	return m.pods[node][clusterID]
+// GetPodsPerNode returns, for each node, the names of the pods in the cluster owned by the remote clusterID.
+func (m *fakeResourceGetter) GetPodsPerNode(ctx context.Context, clusterID string) map[string][]string {
+	res := map[string][]string{}
+	for node, podsByCluster := range m.pods {
+		if pods, ok := podsByCluster[clusterID]; ok {
+			res[node] = pods
+		}
+	}
+	return res
 }
 
-// GetNodeNames returns the names of all physical nodes in the cluster.
-func (m *fakeResourceGetter) GetNodeNames(ctx context.Context) []string {
-	return m.nodes
+// GetNodes returns the names of the nodes matching the given selector (nil matches all).
+func (m *fakeResourceGetter) GetNodes(_ context.Context, selector labels.Selector) []string {
+	res := []string{}
+	for i := range m.nodes {
+		if selector == nil || selector.Empty() || selector.Matches(labels.Set(m.nodes[i].GetLabels())) {
+			res = append(res, m.nodes[i].GetName())
+		}
+	}
+	return res
 }
 
 type fakeRawGetter struct {
 	data map[string][]byte
+	errs map[string]error
 }
 
 func (rg *fakeRawGetter) get(ctx context.Context, nodeName, path string) ([]byte, error) {
-	return rg.data[nodeName], nil
+	return rg.data[nodeName], rg.errs[nodeName]
 }

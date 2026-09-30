@@ -219,6 +219,16 @@ func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp)
 		return err
 	}
 
+	var data []byte
+	if m.Dev.Wildcard {
+		// Prefix match: compare only the prefix bytes without null-padding to 16 bytes.
+		// nftables performs a byte-by-byte comparison, so a short data slice matches any
+		// interface name that starts with the given prefix.
+		data = []byte(m.Dev.Value)
+	} else {
+		data = ifname(m.Dev.Value)
+	}
+
 	rule.Exprs = append(rule.Exprs,
 		&expr.Meta{
 			Register: 1,
@@ -227,7 +237,7 @@ func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp)
 		&expr.Cmp{
 			Op:       op,
 			Register: 1,
-			Data:     ifname(m.Dev.Value),
+			Data:     data,
 		},
 	)
 

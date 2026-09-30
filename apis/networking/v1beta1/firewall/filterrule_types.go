@@ -39,6 +39,11 @@ const (
 	// ActionNotrack is the action to be applied to the rule.
 	// ActionNotrack disables connection tracking for the matched packet.
 	ActionNotrack FilterAction = "notrack"
+	// ActionSetMetaMark is the action to be applied to the rule.
+	// It is used to set the packet meta mark (fwmark) directly to the value specified in Value.
+	// Unlike ActionCtMark + ActionSetMetaMarkFromCtMark, this sets the mark per-packet
+	// (not per-connection) and is available immediately for route lookup when used in prerouting.
+	ActionSetMetaMark FilterAction = "setmetamark"
 )
 
 // FilterRule is a rule to be applied to a filter chain.
@@ -53,7 +58,7 @@ type FilterRule struct {
 	// They can be multiple and they are applied with an AND operator.
 	Match []Match `json:"match"`
 	// Action is the action to be applied to the rule.
-	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp;accept;drop;reject;notrack
+	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark;tcpmssclamp;accept;drop;reject;notrack;setmetamark
 	Action FilterAction `json:"action"`
 	// Value is the value to be used for the action.
 	Value *string `json:"value,omitempty"`

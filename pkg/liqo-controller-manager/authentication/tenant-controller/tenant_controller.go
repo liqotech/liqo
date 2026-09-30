@@ -35,8 +35,8 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/certificate"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -202,7 +202,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if authv1beta1.GetAuthzPolicyValue(tenant.Spec.AuthzPolicy) != authv1beta1.TolerateNoHandshake {
 		// create the CSR and forge the AuthParams
 		if tenant.Status.AuthParams != nil && len(tenant.Status.AuthParams.SignedCRT) > 0 {
-			shouldRenew, requeueIn, err = utils.ShouldRenewCertificate(tenant.Status.AuthParams.SignedCRT)
+			shouldRenew, requeueIn, err = certificate.ShouldRenewCertificate(tenant.Status.AuthParams.SignedCRT)
 			if err != nil {
 				klog.Errorf("Unable to check if the certificate should be renewed for the Tenant %q: %s", req.Name, err)
 				r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "CertificateRenewalCheckFailed", err.Error())

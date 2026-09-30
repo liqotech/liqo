@@ -43,7 +43,7 @@ import (
 
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=nodes;pods;namespaces,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=nodes/proxy,verbs=get
+// +kubebuilder:rbac:groups=core,resources=nodes/proxy;nodes/metrics;nodes/stats,verbs=get
 
 func main() {
 	ctx := context.Background()

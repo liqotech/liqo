@@ -14,11 +14,18 @@
 
 package remotemetrics
 
-import "context"
+import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/labels"
+)
 
 // Scraper is the interface for a remote metrics scraper.
 type Scraper interface {
-	Scrape(ctx context.Context, path, clusterID string) (Metrics, error)
+	// Scrape scrapes metrics for the given cluster. When nodeSelector is not nil nor empty, only
+	// the matching nodes are scraped (e.g., the ones targeted by a virtual kubelet through its
+	// offloading patch); otherwise, the metrics of all nodes are scraped and aggregated.
+	Scrape(ctx context.Context, path, clusterID string, nodeSelector labels.Selector) (Metrics, error)
 }
 
 // MappedNamespace contains both the original and the mapped namespace names.
@@ -30,8 +37,10 @@ type MappedNamespace struct {
 // ResourceGetter is the interface for a local resource getter.
 type ResourceGetter interface {
 	GetNamespaces(ctx context.Context, clusterID string) []MappedNamespace
-	GetPodNames(ctx context.Context, clusterID, node string) []string
-	GetNodeNames(ctx context.Context) []string
+	GetPodsPerNode(ctx context.Context, clusterID string) map[string][]string
+	// GetNodes returns the names of the ready physical nodes matching the given selector.
+	// A nil or empty selector matches all nodes.
+	GetNodes(ctx context.Context, selector labels.Selector) []string
 }
 
 // Aggregator is the interface for a metrics aggregator.

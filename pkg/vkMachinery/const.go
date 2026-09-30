@@ -28,6 +28,9 @@ const ContainerName = "virtual-kubelet"
 // CRBPrefix -> the prefix used to create the virtual kubelet cluster role binding name.
 const CRBPrefix = "liqo-node-"
 
+// AuthDelegatorCRBPrefix -> the prefix used to create the virtual kubelet auth-delegator cluster role binding name.
+const AuthDelegatorCRBPrefix = "liqo-auth-delegator-"
+
 // KubeletBaseLabels are the static labels that are set on every VirtualKubelet.
 var KubeletBaseLabels = map[string]string{
 	consts.OffloadingComponentKey: consts.VirtualKubeletComponentValue,

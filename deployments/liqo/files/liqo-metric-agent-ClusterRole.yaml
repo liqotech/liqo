@@ -12,6 +12,8 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes/metrics
   - nodes/proxy
+  - nodes/stats
   verbs:
   - get

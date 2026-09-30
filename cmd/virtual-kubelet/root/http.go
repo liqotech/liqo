@@ -27,12 +27,16 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
+	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	certificates "k8s.io/api/certificates/v1"
+	"k8s.io/apiserver/pkg/apis/apiserver"
+	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/certificate"
@@ -46,7 +50,7 @@ import (
 type crtretriever func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 
 func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClient kubernetes.Interface,
-	remoteConfig *rest.Config, cfg *Opts) (err error) {
+	localConfig, remoteConfig *rest.Config, cfg *Opts, metricsNodeSelector string) (err error) {
 	var retriever crtretriever
 
 	parsedIP := net.ParseIP(cfg.NodeIP)
@@ -73,7 +77,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID())
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector)
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -85,15 +89,64 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 		GetPods:               handler.List,
 	}
 
-	api.AttachPodRoutes(podRoutes, mux, true)
+	api.AttachPodRoutes(podRoutes, mux, false)
+
+	// Secure all the pod routes with webhook-based authentication and authorization,
+	// delegating the requests to the Kubernetes API server (same mechanism used by the real kubelet).
+	// The API server connects to the kubelet via mTLS using its kubelet-client certificate, so we need
+	// to configure client cert authentication in addition to the token-based webhook auth.
+	authOpts := func(c *nodeutil.WebhookAuthConfig) error {
+		// Load the cluster CA PEM bytes to create a CA content provider for client cert verification.
+		var caData []byte
+		switch {
+		case len(localConfig.CAData) > 0:
+			caData = localConfig.CAData
+		case localConfig.CAFile != "":
+			var readErr error
+			caData, readErr = os.ReadFile(localConfig.CAFile)
+			if readErr != nil {
+				return fmt.Errorf("failed to read CA file %q: %w", localConfig.CAFile, readErr)
+			}
+		default:
+			return fmt.Errorf("no cluster CA available in the local rest config")
+		}
+
+		caProvider, err := dynamiccertificates.NewStaticCAContent("client-ca", caData)
+		if err != nil {
+			return fmt.Errorf("failed to create client CA provider: %w", err)
+		}
+
+		c.AuthnConfig.ClientCertificateCAContentProvider = caProvider
+		c.AuthnConfig.Anonymous = &apiserver.AnonymousAuthConfig{Enabled: true}
+		return nil
+	}
+
+	auth, err := nodeutil.WebhookAuth(localClient, cfg.NodeName, authOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize webhook auth: %w", err)
+	}
+
+	// Build the client CA pool for TLS verification (same PEM bytes as the authenticator).
+	clientCAs := x509.NewCertPool()
+	if len(localConfig.CAData) > 0 {
+		clientCAs.AppendCertsFromPEM(localConfig.CAData)
+	} else if localConfig.CAFile != "" {
+		caData, err := os.ReadFile(localConfig.CAFile)
+		if err != nil {
+			return fmt.Errorf("failed to read CA file %q: %w", localConfig.CAFile, err)
+		}
+		clientCAs.AppendCertsFromPEM(caData)
+	}
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", cfg.ListenPort),
-		Handler:           mux,
+		Handler:           nodeutil.WithAuth(auth, mux),
 		ReadHeaderTimeout: 10 * time.Second, // Required to limit the effects of the Slowloris attack.
 		TLSConfig: &tls.Config{
 			GetCertificate: retriever,
 			MinVersion:     tls.VersionTLS12,
+			ClientAuth:     tls.RequestClientCert,
+			ClientCAs:      clientCAs,
 		},
 	}
 
@@ -140,12 +193,35 @@ func setupHealthServer() {
 	}
 }
 
-func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID liqov1beta1.ClusterID) {
-	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		klog.Infof("Received request for %s", r.RequestURI)
+func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface,
+	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string) {
+	// Restrict the scraping to the remote nodes matching the given label selector (i.e., the ones
+	// targeted by this virtual kubelet through its offloading patch), so that node and pod metrics
+	// are not aggregated over the whole remote cluster. An empty selector preserves the aggregated
+	// behavior.
+	query := url.Values{}
+	if metricsNodeSelector != "" {
+		query.Add("nodeSelector", metricsNodeSelector)
+	}
 
-		res := cl.Get().RequestURI(path.Clean(fmt.Sprintf("/apis/metrics.liqo.io/v1beta1/scrape/%s/%s",
-			localClusterID, r.RequestURI))).Do(ctx)
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
+
+		// Only the request path is used to build the scrape URI: r.RequestURI also carries the raw
+		// query string, which would be merged with (and break) the node selector one. The incoming
+		// query parameters are still forwarded, and the node selector takes precedence over any
+		// homonymous parameter set by the client.
+		reqQuery := r.URL.Query()
+		for key, values := range query {
+			reqQuery[key] = values
+		}
+
+		uri := path.Clean(fmt.Sprintf("/apis/metrics.liqo.io/v1beta1/scrape/%s/%s", localClusterID, r.URL.Path))
+		if len(reqQuery) > 0 {
+			uri += "?" + reqQuery.Encode()
+		}
+
+		res := cl.Get().RequestURI(uri).Do(ctx)
 		err := res.Error()
 		if err != nil {
 			klog.Error(err)

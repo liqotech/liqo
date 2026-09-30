@@ -78,6 +78,7 @@
 | liqo-crds.crdUpgrade.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the CRD upgrade job. |
 | liqo-crds.crdUpgrade.image.version | string | `""` | Image version for the CRD upgrade job. Required when crdUpgrade.enabled is true. |
 | liqo-crds.crdUpgrade.keepResources | bool | `false` | Keep the CRD upgrade resources (Job, ConfigMap, ServiceAccount, ClusterRole, ClusterRoleBinding) after completion. If false, they are deleted on success. |
+| metricAgent.config.clientSideRateLimit | object | `{"burst":500,"qps":500}` | Client-side rate limiting (QPS/burst) of the metric agent towards the local API server. The metric agent issues one request per physical node for each incoming scrape request, hence the defaults need to be high enough to avoid artificial throttling in clusters with many nodes. Setting qps to 0 disables the rate limiter entirely (use with caution). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
 | metricAgent.enabled | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.image.name | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
@@ -247,7 +248,6 @@
 | webhook.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | webhook.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
 | webhook.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
-| webhook.patch.image | string | `"k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"` | Image used for the patch jobs to manage certificates. |
 | webhook.pod.annotations | object | `{}` | Annotations for the webhook pod. |
 | webhook.pod.extraArgs | list | `[]` | Extra arguments for the webhook pod. |
 | webhook.pod.labels | object | `{}` | Labels for the webhook pod. |

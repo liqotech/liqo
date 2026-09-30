@@ -71,6 +71,8 @@ spec:
           - --cert-path=/certs/cert.pem
           - --read-timeout={{ .Values.metricAgent.config.timeout.read }}
           - --write-timeout={{ .Values.metricAgent.config.timeout.write }}
+          - --client-qps={{ .Values.metricAgent.config.clientSideRateLimit.qps }}
+          - --client-max-burst={{ .Values.metricAgent.config.clientSideRateLimit.burst }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}
