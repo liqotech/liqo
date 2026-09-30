@@ -17,6 +17,8 @@
 package utils
 
 import (
+	"net"
+
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
@@ -511,7 +513,8 @@ var _ = Describe("FilterRuleWrapper", func() {
 			}
 			_, err := forgeFilterRule(fr, chain)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("value is required for setmetamark action"))
+			Expect(err.Error()).
+				To(ContainSubstring("value is required for setmetamark action"))
 		})
 
 		It("should error on invalid SetMetaMark value", func() {
@@ -522,7 +525,8 @@ var _ = Describe("FilterRuleWrapper", func() {
 			}
 			_, err := forgeFilterRule(fr, chain)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("cannot apply setmetamark action"))
+			Expect(err.Error()).
+				To(ContainSubstring("cannot apply setmetamark action"))
 		})
 
 		It("should error on out-of-range CtMark value", func() {
@@ -604,5 +608,386 @@ var _ = Describe("FilterRuleWrapper", func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 		})
+	})
+
+	Context("Set match", func() {
+		DescribeTable("should forge a rule with a set match",
+			func(op firewallv1beta1.MatchOperation,
+				pos firewallv1beta1.MatchDevPosition, values []string,
+				expectedKey expr.MetaKey, expectedSetName string, expectedInvert bool) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("set-rule"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op: op,
+							Set: &firewallv1beta1.MatchSet{
+								Values:   values,
+								Position: pos,
+							},
+						},
+					},
+					Action: firewallv1beta1.ActionAccept,
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(rule.Exprs).To(HaveLen(3))
+
+				meta, ok := rule.Exprs[0].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(meta.Key).To(Equal(expectedKey))
+				Expect(meta.Register).To(Equal(uint32(1)))
+
+				lookup, ok := rule.Exprs[1].(*expr.Lookup)
+				Expect(ok).To(BeTrue())
+				Expect(lookup.SourceRegister).To(Equal(uint32(1)))
+				Expect(lookup.SetName).To(Equal(expectedSetName))
+				Expect(lookup.Invert).To(Equal(expectedInvert))
+
+				verdict, ok := rule.Exprs[2].(*expr.Verdict)
+				Expect(ok).To(BeTrue())
+				Expect(verdict.Kind).To(Equal(expr.VerdictAccept))
+			},
+			Entry("In x In", firewallv1beta1.MatchOperationIn,
+				firewallv1beta1.MatchDevPositionIn,
+				[]string{"liqo-tunnel", "liqo-tunnel1"},
+				expr.MetaKeyIIFNAME, "tunnel-list-2", false),
+			Entry("In x Out", firewallv1beta1.MatchOperationIn,
+				firewallv1beta1.MatchDevPositionOut,
+				[]string{"liqo-tunnel", "liqo-tunnel1"},
+				expr.MetaKeyOIFNAME, "tunnel-list-2", false),
+			Entry("Nin x In", firewallv1beta1.MatchOperationNin,
+				firewallv1beta1.MatchDevPositionIn,
+				[]string{"liqo-tunnel", "liqo-tunnel1", "liqo-tunnel2"},
+				expr.MetaKeyIIFNAME, "tunnel-list-3", true),
+			Entry("Nin x Out", firewallv1beta1.MatchOperationNin,
+				firewallv1beta1.MatchDevPositionOut,
+				[]string{"liqo-tunnel", "liqo-tunnel1", "liqo-tunnel2"},
+				expr.MetaKeyOIFNAME, "tunnel-list-3", true),
+		)
+
+		It("should forge the mss-clamping rule (proto + set + counter + clamp)", func() {
+			fr := &firewallv1beta1.FilterRule{
+				Name: ptr.To("mss-clamping-out"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op:    firewallv1beta1.MatchOperationEq,
+						Proto: &firewallv1beta1.MatchProto{Value: firewallv1beta1.L4ProtoTCP},
+					},
+					{
+						Op: firewallv1beta1.MatchOperationIn,
+						Set: &firewallv1beta1.MatchSet{
+							Values: []string{"liqo-tunnel", "liqo-tunnel1",
+								"liqo-tunnel2", "liqo-tunnel3"},
+							Position: firewallv1beta1.MatchDevPositionOut,
+						},
+					},
+				},
+				Counter: true,
+				Action:  firewallv1beta1.ActionTCPMssClamp,
+			}
+			rule, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+
+			// proto (2) + set (2) + counter (1) + clamp (>= 1)
+			Expect(len(rule.Exprs)).To(BeNumerically(">", 5))
+
+			protoMeta, ok := rule.Exprs[0].(*expr.Meta)
+			Expect(ok).To(BeTrue())
+			Expect(protoMeta.Key).To(Equal(expr.MetaKeyL4PROTO))
+			_, ok = rule.Exprs[1].(*expr.Cmp)
+			Expect(ok).To(BeTrue())
+
+			setMeta, ok := rule.Exprs[2].(*expr.Meta)
+			Expect(ok).To(BeTrue())
+			Expect(setMeta.Key).To(Equal(expr.MetaKeyOIFNAME))
+			lookup, ok := rule.Exprs[3].(*expr.Lookup)
+			Expect(ok).To(BeTrue())
+			Expect(lookup.SetName).To(Equal("tunnel-list-4"))
+			Expect(lookup.Invert).To(BeFalse())
+
+			_, ok = rule.Exprs[4].(*expr.Counter)
+			Expect(ok).To(BeTrue())
+
+			// The last expression writes the MSS into the TCP option.
+			_, ok = rule.Exprs[len(rule.Exprs)-1].(*expr.Exthdr)
+			Expect(ok).To(BeTrue())
+		})
+
+		DescribeTable("should propagate set match errors",
+			func(op firewallv1beta1.MatchOperation, values []string) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("set-invalid"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op: op,
+							Set: &firewallv1beta1.MatchSet{
+								Values:   values,
+								Position: firewallv1beta1.MatchDevPositionOut,
+							},
+						},
+					},
+					Action: firewallv1beta1.ActionAccept,
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).To(HaveOccurred())
+				Expect(rule).To(BeNil())
+			},
+			Entry("invalid op (eq)", firewallv1beta1.MatchOperationEq,
+				[]string{"liqo-tunnel", "liqo-tunnel1"}),
+			Entry("invalid op (neq)", firewallv1beta1.MatchOperationNeq,
+				[]string{"liqo-tunnel", "liqo-tunnel1"}),
+			Entry("nil values", firewallv1beta1.MatchOperationIn, nil),
+			Entry("empty values", firewallv1beta1.MatchOperationIn, []string{}),
+		)
+
+		DescribeTable("Equal should distinguish set rules",
+			func(opA firewallv1beta1.MatchOperation, valuesA []string,
+				opB firewallv1beta1.MatchOperation, valuesB []string) {
+				forge := func(op firewallv1beta1.MatchOperation,
+					values []string) *firewallv1beta1.FilterRule {
+					return &firewallv1beta1.FilterRule{
+						Name: ptr.To("set-equal"),
+						Match: []firewallv1beta1.Match{
+							{
+								Op: op,
+								Set: &firewallv1beta1.MatchSet{
+									Values:   values,
+									Position: firewallv1beta1.MatchDevPositionOut,
+								},
+							},
+						},
+						Action: firewallv1beta1.ActionAccept,
+					}
+				}
+				frA := forge(opA, valuesA)
+				frB := forge(opB, valuesB)
+
+				ruleA, err := forgeFilterRule(frA, chain)
+				Expect(err).NotTo(HaveOccurred())
+				ruleA.Table = table
+
+				Expect((&FilterRuleWrapper{FilterRule: frA}).Equal(ruleA)).To(BeTrue())
+				Expect((&FilterRuleWrapper{FilterRule: frB}).Equal(ruleA)).To(BeFalse())
+			},
+			Entry("in vs nin", firewallv1beta1.MatchOperationIn,
+				[]string{"liqo-tunnel", "liqo-tunnel1"},
+				firewallv1beta1.MatchOperationNin,
+				[]string{"liqo-tunnel", "liqo-tunnel1"}),
+			Entry("different length", firewallv1beta1.MatchOperationIn,
+				[]string{"liqo-tunnel", "liqo-tunnel1"},
+				firewallv1beta1.MatchOperationIn,
+				[]string{"liqo-tunnel", "liqo-tunnel1", "liqo-tunnel2"}),
+		)
+	})
+
+	Context("Mark match", func() {
+		DescribeTable("should forge a rule with an IP match, a mark match and setmetamarkfromctmark",
+			func(ip string, ipPos firewallv1beta1.MatchPosition, expectedOffset uint32,
+				markValue string, expectedMark uint32) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("mark-to-meta-mark"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op: firewallv1beta1.MatchOperationEq,
+							IP: &firewallv1beta1.MatchIP{
+								Value:    ip,
+								Position: ipPos,
+							},
+						},
+						{
+							Op:   firewallv1beta1.MatchOperationEq,
+							Mark: &firewallv1beta1.MatchMark{Value: markValue},
+						},
+					},
+					Action: firewallv1beta1.ActionSetMetaMarkFromCtMark,
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(rule.Exprs).To(HaveLen(6))
+
+				// IP match
+				payload, ok := rule.Exprs[0].(*expr.Payload)
+				Expect(ok).To(BeTrue())
+				Expect(payload.Offset).To(Equal(expectedOffset))
+				ipCmp, ok := rule.Exprs[1].(*expr.Cmp)
+				Expect(ok).To(BeTrue())
+				Expect(net.IP(ipCmp.Data).Equal(net.ParseIP(ip))).To(BeTrue())
+
+				// Mark match
+				markMeta, ok := rule.Exprs[2].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(markMeta.Key).To(Equal(expr.MetaKeyMARK))
+				Expect(markMeta.SourceRegister).To(BeFalse())
+				markCmp, ok := rule.Exprs[3].(*expr.Cmp)
+				Expect(ok).To(BeTrue())
+				Expect(markCmp.Op).To(Equal(expr.CmpOpEq))
+				Expect(markCmp.Data).To(Equal(binaryutil.NativeEndian.PutUint32(expectedMark)))
+
+				// Action: meta mark set ct mark
+				ct, ok := rule.Exprs[4].(*expr.Ct)
+				Expect(ok).To(BeTrue())
+				Expect(ct.Key).To(Equal(expr.CtKeyMARK))
+				Expect(ct.SourceRegister).To(BeFalse())
+				setMeta, ok := rule.Exprs[5].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(setMeta.Key).To(Equal(expr.MetaKeyMARK))
+				Expect(setMeta.SourceRegister).To(BeTrue())
+			},
+			Entry("dst 10.71.0.0, mark 0xfe00 (decimal)",
+				"10.71.0.0", firewallv1beta1.MatchPositionDst,
+				uint32(16), "65024", uint32(0xFE00)),
+			Entry("dst 10.72.0.0, mark 0xff00 (decimal)",
+				"10.72.0.0", firewallv1beta1.MatchPositionDst,
+				uint32(16), "65280", uint32(0xFF00)),
+			Entry("src 10.71.0.0, mark 0xfe00 (hex)",
+				"10.71.0.0", firewallv1beta1.MatchPositionSrc,
+				uint32(12), "0xfe00", uint32(0xFE00)),
+			Entry("real nodeport rule: dst 10.70.0.0, GwNodeMark (decimal)",
+				"10.70.0.0", firewallv1beta1.MatchPositionDst,
+				uint32(16), "65024", uint32(0xFE00)),
+		)
+
+		DescribeTable("should forge a rule with a mark match (neq)",
+			func(markValue string, expectedMark uint32) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("mark-neq"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op:   firewallv1beta1.MatchOperationNeq,
+							Mark: &firewallv1beta1.MatchMark{Value: markValue},
+						},
+					},
+					Action: firewallv1beta1.ActionAccept,
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(rule.Exprs).To(HaveLen(3))
+
+				meta, ok := rule.Exprs[0].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(meta.Key).To(Equal(expr.MetaKeyMARK))
+				Expect(meta.Register).To(Equal(uint32(1)))
+				Expect(meta.SourceRegister).To(BeFalse())
+
+				cmp, ok := rule.Exprs[1].(*expr.Cmp)
+				Expect(ok).To(BeTrue())
+				Expect(cmp.Op).To(Equal(expr.CmpOpNeq))
+				Expect(cmp.Register).To(Equal(uint32(1)))
+				Expect(cmp.Data).To(Equal(binaryutil.NativeEndian.PutUint32(expectedMark)))
+
+				verdict, ok := rule.Exprs[2].(*expr.Verdict)
+				Expect(ok).To(BeTrue())
+				Expect(verdict.Kind).To(Equal(expr.VerdictAccept))
+			},
+			Entry("GwExtMark (decimal)", "65280", uint32(0xFF00)),
+			Entry("GwNodeMark (hex)", "0xfe00", uint32(0xFE00)),
+		)
+
+		DescribeTable("should propagate mark match errors",
+			func(markValue string) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("mark-invalid"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op: firewallv1beta1.MatchOperationEq,
+							IP: &firewallv1beta1.MatchIP{
+								Value:    "10.71.0.0",
+								Position: firewallv1beta1.MatchPositionDst,
+							},
+						},
+						{
+							Op:   firewallv1beta1.MatchOperationEq,
+							Mark: &firewallv1beta1.MatchMark{Value: markValue},
+						},
+					},
+					Action: firewallv1beta1.ActionAccept,
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("invalid mark value"))
+				Expect(rule).To(BeNil())
+			},
+			Entry("not a number", "abc"),
+			Entry("empty", ""),
+			Entry("negative", "-1"),
+			Entry("over 32 bit", "4294967296"),
+		)
+
+		DescribeTable("should forge the gw mark rules (wildcard dev + setmetamark)",
+			func(prefix string, markValue string, expectedMark uint32) {
+				fr := &firewallv1beta1.FilterRule{
+					Name: ptr.To("gw-mark"),
+					Match: []firewallv1beta1.Match{
+						{
+							Op: firewallv1beta1.MatchOperationEq,
+							Dev: &firewallv1beta1.MatchDev{
+								Value:    prefix,
+								Position: firewallv1beta1.MatchDevPositionIn,
+								Wildcard: true,
+							},
+						},
+					},
+					Action: firewallv1beta1.ActionSetMetaMark,
+					Value:  ptr.To(markValue),
+				}
+				rule, err := forgeFilterRule(fr, chain)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(rule.Exprs).To(HaveLen(4))
+
+				// Dev wildcard match: bare prefix, no padding
+				devMeta, ok := rule.Exprs[0].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(devMeta.Key).To(Equal(expr.MetaKeyIIFNAME))
+				Expect(devMeta.SourceRegister).To(BeFalse())
+				devCmp, ok := rule.Exprs[1].(*expr.Cmp)
+				Expect(ok).To(BeTrue())
+				Expect(devCmp.Op).To(Equal(expr.CmpOpEq))
+				Expect(devCmp.Data).To(Equal([]byte(prefix)))
+
+				// Action: meta mark set <value>
+				imm, ok := rule.Exprs[2].(*expr.Immediate)
+				Expect(ok).To(BeTrue())
+				Expect(imm.Data).To(Equal(binaryutil.NativeEndian.PutUint32(expectedMark)))
+				setMeta, ok := rule.Exprs[3].(*expr.Meta)
+				Expect(ok).To(BeTrue())
+				Expect(setMeta.Key).To(Equal(expr.MetaKeyMARK))
+				Expect(setMeta.SourceRegister).To(BeTrue())
+			},
+			Entry("gw-ext-mark: liqo. -> 0xff00", "liqo.", "65280", uint32(0xFF00)),
+			Entry("gw-node-mark: liqo-tunnel -> 0xfe00", "liqo-tunnel", "65024", uint32(0xFE00)),
+		)
+
+		DescribeTable("Equal should distinguish mark rules",
+			func(opA firewallv1beta1.MatchOperation, valueA string,
+				opB firewallv1beta1.MatchOperation, valueB string) {
+				forge := func(op firewallv1beta1.MatchOperation, value string) *firewallv1beta1.FilterRule {
+					return &firewallv1beta1.FilterRule{
+						Name: ptr.To("mark-equal"),
+						Match: []firewallv1beta1.Match{
+							{
+								Op:   op,
+								Mark: &firewallv1beta1.MatchMark{Value: value},
+							},
+						},
+						Action: firewallv1beta1.ActionAccept,
+					}
+				}
+				frA := forge(opA, valueA)
+				frB := forge(opB, valueB)
+
+				ruleA, err := forgeFilterRule(frA, chain)
+				Expect(err).NotTo(HaveOccurred())
+				ruleA.Table = table
+
+				Expect((&FilterRuleWrapper{FilterRule: frA}).Equal(ruleA)).To(BeTrue())
+				Expect((&FilterRuleWrapper{FilterRule: frB}).Equal(ruleA)).To(BeFalse())
+			},
+			Entry("different value",
+				firewallv1beta1.MatchOperationEq, "65280",
+				firewallv1beta1.MatchOperationEq, "65024"),
+			Entry("eq vs neq, same value",
+				firewallv1beta1.MatchOperationEq, "65280",
+				firewallv1beta1.MatchOperationNeq, "65280"),
+		)
 	})
 })
