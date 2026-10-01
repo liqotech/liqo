@@ -230,7 +230,14 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuratio
 					},
 				},
 			},
-		}, firewall.NatRule{
+		})
+		// Rule 2 (NodePort fix) needs a valid unknown source IP:
+		// without it the destination match would be empty and invalid.
+		if unknownSourceIP == "" {
+			continue
+		}
+
+		rules = append(rules, firewall.NatRule{
 			NatType: firewall.NatTypeSource,
 			To:      ptr.To(status[i].String()),
 			Match: []firewall.Match{
