@@ -59,6 +59,14 @@ func setupGatewayAPIReflection(cfg *InitConfig, localClient, remoteClient kubern
 		return fmt.Errorf("failed to detect the Gateway API resources in remote cluster %q: %w", forge.RemoteCluster, err)
 	}
 
+	// The routes reflected to the remote cluster report the addresses of the shared Gateway they are attached to.
+	var reflectedRoutes []schema.GroupResource
+	for _, gvr := range []schema.GroupVersionResource{gwutils.HTTPRoutesGVR, gwutils.GRPCRoutesGVR} {
+		if gatewayapi.SupportFor(gvr, local, remote) == gatewayapi.SupportFull {
+			reflectedRoutes = append(reflectedRoutes, gvr.GroupResource())
+		}
+	}
+
 	// The clients are configured only if at least one resource is available, and left as untyped nil otherwise.
 	var localGateway, remoteGateway gwclient.Interface
 	for _, res := range gatewayAPIResources {
@@ -85,6 +93,7 @@ func setupGatewayAPIReflection(cfg *InitConfig, localClient, remoteClient kubern
 			SharedGateway:       cfg.RemoteSharedGateway,
 			VirtualGatewayClass: cfg.VirtualGatewayClassName,
 			RemoteGatewayClass:  cfg.RemoteRealGatewayClassName,
+			ReflectedRoutes:     reflectedRoutes,
 		}))
 	}
 

@@ -16,6 +16,7 @@ package gatewayapistatusctrl
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -191,6 +192,29 @@ var _ = Describe("Route status aggregation", func() {
 			}
 			Expect(meta.IsStatusConditionTrue(result[i].Conditions, string(gwv1.RouteConditionResolvedRefs))).To(BeTrue())
 		}
+	})
+
+	When("a condition is no longer reported by any remote cluster", func() {
+		var accepted metav1.Condition
+
+		BeforeEach(func() {
+			accepted = condition(string(gwv1.RouteConditionAccepted), metav1.ConditionTrue, "Accepted", "")
+			accepted.LastTransitionTime = metav1.NewTime(metav1.Now().Add(-time.Hour))
+			current = append(current, gwv1.RouteParentStatus{ParentRef: web, ControllerName: consts.GatewayControllerName,
+				Conditions: []metav1.Condition{accepted,
+					condition("BackendsAvailable", metav1.ConditionFalse, "NoEndpoints", `cluster "cluster-a": no ready endpoints`)}})
+		})
+
+		It("should remove it, while preserving the last transition time of the others", func() {
+			for i := range result {
+				if result[i].ControllerName != gwv1.GatewayController(consts.GatewayControllerName) || result[i].ParentRef.Name != "web" {
+					continue
+				}
+				Expect(meta.FindStatusCondition(result[i].Conditions, "BackendsAvailable")).To(BeNil())
+				Expect(meta.FindStatusCondition(result[i].Conditions, string(gwv1.RouteConditionAccepted)).LastTransitionTime).
+					To(Equal(accepted.LastTransitionTime))
+			}
+		})
 	})
 })
 

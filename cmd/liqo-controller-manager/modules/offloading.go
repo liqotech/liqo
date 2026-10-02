@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,6 +43,7 @@ import (
 	shadowepsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowendpointslice-controller"
 	shadowingressctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowingressstatus-controller"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowpod-controller"
+	sharedgatewayctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/sharedgateway-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/storageprovisioner"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/virtualnode-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -68,6 +70,7 @@ type OffloadingOption struct {
 	DenyDirectConnections       bool
 	ShadowIngressStatusWorkers  int
 	GatewayAPIStatusWorkers     int
+	SharedGateways              []types.NamespacedName
 	ResyncPeriod                time.Duration
 }
 
@@ -82,6 +85,15 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 			return nil, fmt.Errorf("parsing the namespaced name of the virtual-kubelet options template %q: %w",
 				opts.VkOptionsDefaultTemplate, err)
 		}
+	}
+
+	sharedGateways := make([]types.NamespacedName, 0, len(opts.SharedGateways.Classes))
+	for i := range opts.SharedGateways.Classes {
+		splits, err := argsutils.SplitNamespacedName(opts.SharedGateways.Classes[i].Name)
+		if err != nil {
+			return nil, fmt.Errorf("parsing the namespaced name of the shared Gateway %q: %w", opts.SharedGateways.Classes[i].Name, err)
+		}
+		sharedGateways = append(sharedGateways, types.NamespacedName{Namespace: splits[0], Name: splits[1]})
 	}
 
 	return &OffloadingOption{
@@ -101,6 +113,7 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 		DenyDirectConnections:       opts.DenyDirectConnections,
 		ShadowIngressStatusWorkers:  opts.ShadowIngressStatusWorkers,
 		GatewayAPIStatusWorkers:     opts.GatewayAPIStatusWorkers,
+		SharedGateways:              sharedGateways,
 		ResyncPeriod:                opts.ResyncPeriod,
 	}, nil
 }
@@ -276,6 +289,16 @@ func setupGatewayAPIStatusControllers(ctx context.Context, mgr manager.Manager, 
 		if err := routeReconciler.SetupWithManager(mgr, opts.GatewayAPIStatusWorkers); err != nil {
 			klog.Errorf("Unable to setup the %s status reconciler: %v", kind, err)
 			return err
+		}
+
+		// The routes reflected from the consumer clusters and attached to the shared Gateways offered by the local cluster
+		// are annotated with the addresses of the latter, which the consumer clusters are not allowed to access.
+		if len(opts.SharedGateways) > 0 && available.Has(gwutils.GatewaysGVR) {
+			sharedGatewayReconciler := &sharedgatewayctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind, SharedGateways: opts.SharedGateways}
+			if err := sharedGatewayReconciler.SetupWithManager(mgr, opts.GatewayAPIStatusWorkers); err != nil {
+				klog.Errorf("Unable to setup the %s shared gateway reconciler: %v", kind, err)
+				return err
+			}
 		}
 	}
 

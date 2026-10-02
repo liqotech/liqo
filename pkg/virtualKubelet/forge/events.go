@@ -38,6 +38,9 @@ const (
 	// EventReflectionDisabled -> the reason for the event when reflection is disabled for the given namespace/object.
 	EventReflectionDisabled = "ReflectionDisabled"
 
+	// EventMappedToSharedGateway -> the reason for the event when a Gateway is mapped to the shared Gateway of the remote cluster.
+	EventMappedToSharedGateway = "MappedToSharedGateway"
+
 	// EventSuccessfulSATokensReflection -> the reason for the event when the reflection of service account tokens completes successfully.
 	EventSuccessfulSATokensReflection = "SuccessfulSATokensReflection"
 
@@ -126,6 +129,12 @@ func EventGatewayAPIForbiddenMsg(resource string) string {
 func EventPartialReflectionMsg(details []string) string {
 	return fmt.Sprintf("Object reflected to cluster %q (virtual node %q), but some references could not be translated: %s",
 		RemoteCluster, LiqoNodeName, strings.Join(details, "; "))
+}
+
+// EventMappedToSharedGatewayMsg returns the message for the event when a Gateway is mapped to the given shared Gateway of the remote cluster.
+func EventMappedToSharedGatewayMsg(shared string) string {
+	return fmt.Sprintf("Gateway mapped to shared Gateway %q of cluster %q (virtual node %q): the attached routes are reflected towards it",
+		shared, RemoteCluster, LiqoNodeName)
 }
 
 // EventReflectionNotPossibleMsg returns the message for the event when the object cannot be reflected, for the given reason.

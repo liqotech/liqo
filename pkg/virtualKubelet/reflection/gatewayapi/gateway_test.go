@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -38,6 +39,8 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
+	"github.com/liqotech/liqo/pkg/consts"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/gatewayapi"
@@ -327,6 +330,90 @@ var _ = Describe("Gateway reflection", func() {
 		})
 	})
 
+	When("the local Gateway is mapped to the shared Gateway", func() {
+		var remoteRoutes []runtime.Object
+
+		getShadow := func() (*offloadingv1beta1.ShadowGatewayStatus, error) {
+			return liqoClient.OffloadingV1beta1().ShadowGatewayStatuses(LocalNamespace).Get(ctx, gatewayapi.ShadowName("", GatewayName), metav1.GetOptions{})
+		}
+
+		// remoteRoute returns a route reflected in the remote namespace, attached to the shared Gateway, and annotated with its addresses.
+		remoteRoute := func(name, addresses string) *gwv1.HTTPRoute {
+			return &gwv1.HTTPRoute{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels(),
+					Annotations: map[string]string{consts.SharedGatewayAddressesAnnotation: addresses}},
+				Spec: gwv1.HTTPRouteSpec{CommonRouteSpec: gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
+					{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")},
+				}}},
+			}
+		}
+
+		BeforeEach(func() {
+			cfg.ReflectedRoutes = []schema.GroupResource{gwutils.HTTPRoutesGVR.GroupResource()}
+			remoteRoutes = []runtime.Object{remoteRoute("route", `[{"type":"IPAddress","value":"10.0.0.1"}]`)}
+		})
+
+		JustBeforeEach(func() {
+			local := gateway(LocalNamespace, "liqo", false)
+			local.SetAnnotations(map[string]string{consts.RemoteGatewayModeAnnotation: consts.RemoteGatewayModeShared})
+			// A remote Gateway previously reflected, before the local one was mapped to the shared Gateway.
+			create(append([]runtime.Object{local, gateway(RemoteNamespace, "envoy", true)}, remoteRoutes...)...)
+			setup(gatewayapi.NewNamespacedGatewayReflector)
+			handle(GatewayName)
+		})
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should delete the remote Gateway previously reflected", func() {
+			_, errGet := getRemoteGateway()
+			Expect(errGet).To(BeNotFound())
+		})
+		It("should report the addresses of the shared Gateway through the ShadowGatewayStatus", func() {
+			shadow, errShadow := getShadow()
+			Expect(errShadow).ToNot(HaveOccurred())
+			Expect(shadow.Spec.Addresses).To(ConsistOf(gwv1.GatewayStatusAddress{Type: ptr.To(gwv1.IPAddressType), Value: "10.0.0.1"}))
+			Expect(shadow.Spec.Conditions).To(ContainElement(And(
+				HaveField("Type", string(gwv1.GatewayConditionProgrammed)),
+				HaveField("Status", metav1.ConditionTrue),
+				HaveField("Message", ContainSubstring(`shared Gateway "infra/public"`)),
+			)))
+			Expect(shadow.Spec.Listeners).To(ConsistOf(HaveField("Name", BeEquivalentTo("http"))))
+		})
+		It("should generate the corresponding event", func() {
+			var event *corev1.Event
+			Eventually(events).Should(Receive(&event))
+			Expect(event.Reason).To(Equal(forge.EventMappedToSharedGateway))
+		})
+
+		When("no remote route reports the addresses of the shared Gateway", func() {
+			BeforeEach(func() { remoteRoutes = nil })
+
+			It("should report the Gateway as not yet programmed", func() {
+				shadow, errShadow := getShadow()
+				Expect(errShadow).ToNot(HaveOccurred())
+				Expect(shadow.Spec.Addresses).To(BeEmpty())
+				Expect(shadow.Spec.Conditions).To(ContainElement(And(
+					HaveField("Type", string(gwv1.GatewayConditionProgrammed)),
+					HaveField("Status", metav1.ConditionFalse),
+					HaveField("Reason", string(gwv1.GatewayReasonPending)),
+				)))
+			})
+		})
+
+		When("the remote routes report invalid addresses, or are not attached to the shared Gateway", func() {
+			BeforeEach(func() {
+				detached := remoteRoute("detached", `[{"value":"10.0.0.2"}]`)
+				detached.Spec.ParentRefs[0].Name = "other"
+				remoteRoutes = []runtime.Object{remoteRoute("invalid", "invalid"), detached, remoteRoute("valid", `[{"value":"10.0.0.3"}]`)}
+			})
+
+			It("should ignore them", func() {
+				shadow, errShadow := getShadow()
+				Expect(errShadow).ToNot(HaveOccurred())
+				Expect(shadow.Spec.Addresses).To(ConsistOf(HaveField("Value", "10.0.0.3")))
+			})
+		})
+	})
+
 	When("a local route is attached to a Gateway", func() {
 		var class string
 
@@ -351,6 +438,18 @@ var _ = Describe("Gateway reflection", func() {
 					HaveField("Name", BeEquivalentTo(GatewayName)),
 				))
 				Expect(getRemoteRoute().Spec.ParentRefs[0].SectionName).To(PointTo(BeEquivalentTo("http")))
+			})
+		})
+
+		When("the Gateway belongs to the virtual class, but the remote cluster does not offer any GatewayClass", func() {
+			BeforeEach(func() { class, cfg.RemoteGatewayClass = "liqo", "" })
+
+			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			It("should attach the remote route to the shared Gateway, as the Gateway is mapped to it", func() {
+				parents := getRemoteRoute().Spec.ParentRefs
+				Expect(parents).To(HaveLen(1))
+				Expect(parents[0].Name).To(BeEquivalentTo("public"))
+				Expect(parents[0].SectionName).To(BeNil())
 			})
 		})
 
