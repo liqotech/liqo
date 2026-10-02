@@ -146,8 +146,13 @@ func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadin
 
 		status := gwv1.RouteParentStatus{ParentRef: grouped[key].ref, ControllerName: controllerName, Conditions: []metav1.Condition{}}
 		if previous, found := existing[key]; found {
-			// Preserve the existing conditions, to keep the last transition times.
-			status.Conditions = previous.Conditions
+			// Preserve the existing conditions, to keep the last transition times, except for the ones no longer
+			// reported by any remote cluster (e.g., conditions removed by the remote controllers once satisfied).
+			for i := range previous.Conditions {
+				if _, reported := grouped[key].conditions[previous.Conditions[i].Type]; reported {
+					status.Conditions = append(status.Conditions, previous.Conditions[i])
+				}
+			}
 		}
 
 		conditionTypes := make([]string, 0, len(grouped[key].conditions))

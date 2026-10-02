@@ -429,6 +429,77 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 			})
 		})
 
+		When("a Gateway of the virtual class is mapped to the shared Gateway", func() {
+			const mappedGateway, routeName, host = "mapped", "mapped", "mapped.e2e.liqo.io"
+
+			BeforeAll(func() {
+				Expect(util.EnforceGateway(ctx, consumer.ControllerClient, namespaceName, mappedGateway, virtualClass,
+					util.WithGatewayAnnotations(map[string]string{consts.RemoteGatewayModeAnnotation: consts.RemoteGatewayModeShared}))).To(Succeed())
+				Expect(util.EnforceHTTPRoute(ctx, consumer.ControllerClient, namespaceName, routeName,
+					[]gwv1.ParentReference{{Name: mappedGateway, SectionName: ptr.To[gwv1.SectionName](util.GatewayListenerName)}},
+					host, backendName)).To(Succeed())
+			})
+
+			It("should attach the reflected route to the shared Gateway, annotated with its addresses", func() {
+				for i := range providers {
+					provider := &providers[i]
+					Eventually(func() (*gwv1.HTTPRoute, error) { return remoteRoute(provider, routeName) }, dataPlaneTimeout, interval).
+						Should(And(
+							HaveField("Spec.ParentRefs", ConsistOf(And(
+								HaveField("Name", BeEquivalentTo(sharedGatewayName)),
+								HaveField("Namespace", PointTo(BeEquivalentTo(sharedGatewayNamespace))),
+								HaveField("SectionName", BeNil()),
+							))),
+							HaveField("ObjectMeta.Annotations", HaveKey(consts.SharedGatewayAddressesAnnotation)),
+						), "provider %s", provider.Cluster)
+				}
+			})
+
+			It("should not reflect the Gateway to any provider", func() {
+				for i := range providers {
+					provider := &providers[i]
+					Expect(util.GetResource(ctx, provider.ControllerClient,
+						&gwv1.Gateway{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceName, Name: mappedGateway}})).
+						To(BeNotFound(), "provider %s", provider.Cluster)
+				}
+			})
+
+			It("should report the addresses of the shared Gateways of all providers", func() {
+				var addresses []string
+				for i := range providers {
+					provider := &providers[i]
+					var shared gwv1.Gateway
+					Expect(provider.ControllerClient.Get(ctx, types.NamespacedName{Namespace: sharedGatewayNamespace, Name: sharedGatewayName},
+						&shared)).To(Succeed())
+					for _, address := range shared.Status.Addresses {
+						addresses = append(addresses, address.Value)
+					}
+				}
+				Expect(addresses).ToNot(BeEmpty())
+
+				Eventually(func(g Gomega) {
+					var gateway gwv1.Gateway
+					g.Expect(consumer.ControllerClient.Get(ctx, types.NamespacedName{Namespace: namespaceName, Name: mappedGateway}, &gateway)).To(Succeed())
+					g.Expect(meta.IsStatusConditionTrue(gateway.Status.Conditions, string(gwv1.GatewayConditionProgrammed))).To(BeTrue())
+
+					local := make([]string, 0, len(gateway.Status.Addresses))
+					for _, address := range gateway.Status.Addresses {
+						local = append(local, address.Value)
+					}
+					g.Expect(local).To(ConsistOf(addresses))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("should serve the requests through the shared Gateway in all providers", func() {
+				for i := range providers {
+					provider := &providers[i]
+					Eventually(func() (int, error) {
+						return requestThroughGateway(provider, sharedGatewayNamespace, sharedGatewayName, host)
+					}, dataPlaneTimeout, interval).Should(Equal(http.StatusOK), "provider %s", provider.Cluster)
+				}
+			})
+		})
+
 		When("a route is rejected by a single provider", func() {
 			const routeName, host = "rejected", "rejected.e2e.liqo.io"
 
@@ -565,7 +636,9 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 				Eventually(func(g Gomega) {
 					var gatewayShadows offloadingv1beta1.ShadowGatewayStatusList
 					g.Expect(consumer.ControllerClient.List(ctx, &gatewayShadows, client.InNamespace(namespaceName))).To(Succeed())
-					g.Expect(gatewayShadows.Items).To(BeEmpty())
+					for i := range gatewayShadows.Items {
+						g.Expect(gatewayShadows.Items[i].Spec.GatewayName).ToNot(Equal(gatewayName))
+					}
 
 					var routeShadows offloadingv1beta1.ShadowRouteStatusList
 					g.Expect(consumer.ControllerClient.List(ctx, &routeShadows, client.InNamespace(namespaceName))).To(Succeed())

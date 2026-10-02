@@ -108,8 +108,15 @@ func conditionsApply(conditions []metav1.Condition) []*metav1apply.ConditionAppl
 // The last transition time of the previous condition of the same type is preserved, if the status is unchanged,
 // so that the shadow resource is not modified again when the reflection keeps failing for the same reason.
 func failedCondition(previous []metav1.Condition, conditionType, message string, generation int64) metav1.Condition {
+	return newCondition(previous, conditionType, metav1.ConditionFalse, forge.ConditionReasonReflectionFailed, message, generation)
+}
+
+// newCondition returns a condition with the given parameters, preserving the last transition time of the previous
+// condition of the same type, if the status is unchanged.
+func newCondition(previous []metav1.Condition, conditionType string, status metav1.ConditionStatus,
+	reason, message string, generation int64) metav1.Condition {
 	condition := metav1.Condition{
-		Type: conditionType, Status: metav1.ConditionFalse, Reason: forge.ConditionReasonReflectionFailed,
+		Type: conditionType, Status: status, Reason: reason,
 		Message: message, ObservedGeneration: generation, LastTransitionTime: metav1.Now(),
 	}
 	if p := meta.FindStatusCondition(previous, conditionType); p != nil && p.Status == condition.Status {
@@ -124,14 +131,20 @@ type gatewayStatusReflector struct {
 	kube      kubernetes.Interface
 	client    offloadingv1beta1clients.ShadowGatewayStatusInterface
 	lister    offloadingv1beta1listers.ShadowGatewayStatusNamespaceLister
+
+	// sharedGateway is the Gateway offered by the remote cluster, which the Gateways mapped to the shared one refer to.
+	sharedGateway *types.NamespacedName
+	// remoteRoutes list the reflected routes in the remote namespace, which report the addresses of the shared Gateway.
+	remoteRoutes []remoteRoutesLister
 }
 
-func newGatewayStatusReflector(opts *options.NamespacedOpts, _ *forge.GatewayAPIForgingOpts) statusReflector[*gwv1.Gateway] {
+func newGatewayStatusReflector(opts *options.NamespacedOpts, forgingOpts *forge.GatewayAPIForgingOpts) statusReflector[*gwv1.Gateway] {
 	return &gatewayStatusReflector{
-		namespace: opts.LocalNamespace,
-		kube:      opts.LocalClient,
-		client:    opts.LocalLiqoClient.OffloadingV1beta1().ShadowGatewayStatuses(opts.LocalNamespace),
-		lister:    opts.LocalLiqoFactory.Offloading().V1beta1().ShadowGatewayStatuses().Lister().ShadowGatewayStatuses(opts.LocalNamespace),
+		namespace:     opts.LocalNamespace,
+		kube:          opts.LocalClient,
+		client:        opts.LocalLiqoClient.OffloadingV1beta1().ShadowGatewayStatuses(opts.LocalNamespace),
+		lister:        opts.LocalLiqoFactory.Offloading().V1beta1().ShadowGatewayStatuses().Lister().ShadowGatewayStatuses(opts.LocalNamespace),
+		sharedGateway: forgingOpts.SharedGateway,
 	}
 }
 

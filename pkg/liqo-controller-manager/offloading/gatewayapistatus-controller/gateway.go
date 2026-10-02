@@ -103,10 +103,11 @@ func AggregateGatewayStatus(gateway *gwv1.Gateway, shadows []offloadingv1beta1.S
 	}
 
 	meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-		Type:               string(gwv1.GatewayConditionAccepted),
-		Status:             metav1.ConditionTrue,
-		Reason:             string(gwv1.GatewayReasonAccepted),
-		Message:            "The Gateway is reflected to the remote clusters where its namespace is offloaded",
+		Type:   string(gwv1.GatewayConditionAccepted),
+		Status: metav1.ConditionTrue,
+		Reason: string(gwv1.GatewayReasonAccepted),
+		Message: "The Gateway is handled by Liqo in the remote clusters where its namespace is offloaded " +
+			"(either reflected, or mapped to the shared Gateway offered by the remote cluster)",
 		ObservedGeneration: gateway.Generation,
 	})
 	meta.SetStatusCondition(&gateway.Status.Conditions, programmedCondition(shadows, gateway.Generation))
@@ -152,7 +153,7 @@ func aggregateListenerStatus(gateway *gwv1.Gateway, name gwv1.SectionName, shado
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type: string(gwv1.ListenerConditionAccepted), Status: metav1.ConditionTrue,
 		Reason: string(gwv1.ListenerReasonAccepted), ObservedGeneration: gateway.Generation,
-		Message: "The listener is reflected to the remote clusters where the Gateway namespace is offloaded",
+		Message: "The listener is handled by Liqo in the remote clusters where the Gateway namespace is offloaded",
 	})
 	meta.SetStatusCondition(&status.Conditions, programmedCondition(remote, gateway.Generation))
 	return status

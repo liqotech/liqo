@@ -73,6 +73,9 @@ type Config struct {
 	VirtualGatewayClass string
 	// RemoteGatewayClass is the name of the GatewayClass offered by the remote cluster, if any.
 	RemoteGatewayClass string
+	// ReflectedRoutes are the kinds of routes reflected to the remote cluster (i.e., available in both clusters),
+	// whose remote copies report the addresses of the shared Gateway they are attached to.
+	ReflectedRoutes []schema.GroupResource
 }
 
 // object is the constraint satisfied by the Gateway API types handled by the reflection.
@@ -109,6 +112,9 @@ type kind[O object, A any] struct {
 	ParentGateways func(obj O) []types.NamespacedName
 	// StatusReflector returns the reflector of the status of the remote objects. It is nil for resources without status.
 	StatusReflector func(opts *options.NamespacedOpts, forgingOpts *forge.GatewayAPIForgingOpts) statusReflector[O]
+	// WatchRemote configures the additional remote informers the reflection depends on, once the reflection towards the
+	// remote cluster is enabled. It is nil if no additional informers are required.
+	WatchRemote func(opts *options.NamespacedOpts, cfg *Config, reflector *NamespacedReflector[O, A])
 }
 
 // NamespacedReflector manages the reflection of a given type of Gateway API resource for a given pair of local and remote namespaces.
@@ -145,7 +151,7 @@ func newNamespacedReflector[O object, A any](k *kind[O, A], cfg *Config) func(*o
 			forgingOpts: forge.GatewayAPIForgingOpts{
 				Mapper:              forge.NamespaceMapper(opts.NamespaceMapper),
 				SharedGateway:       cfg.SharedGateway,
-				IsReflectedGateway:  isReflectedGateway(opts.LocalGatewayFactory, cfg),
+				MapGateway:          mapGateway(opts.LocalGatewayFactory, cfg),
 				VirtualGatewayClass: cfg.VirtualGatewayClass,
 				RemoteGatewayClass:  cfg.RemoteGatewayClass,
 			},
@@ -178,20 +184,29 @@ func newNamespacedReflector[O object, A any](k *kind[O, A], cfg *Config) func(*o
 		reflector.remoteObjects = k.Lister(opts.RemoteGatewayFactory, opts.RemoteNamespace)
 		reflector.remoteClient = k.Client(opts.RemoteGatewayClient, opts.RemoteNamespace)
 
+		if k.WatchRemote != nil {
+			k.WatchRemote(opts, cfg, reflector)
+		}
 		return reflector
 	}
 }
 
-// isReflectedGateway returns a function checking whether the given local Gateway belongs to the virtual GatewayClass.
-func isReflectedGateway(factory gwinformers.SharedInformerFactory, cfg *Config) func(namespace, name string) bool {
+// mapGateway returns a function returning how the given local Gateway is mapped to the remote cluster.
+func mapGateway(factory gwinformers.SharedInformerFactory, cfg *Config) func(namespace, name string) forge.GatewayMapping {
 	if !cfg.GatewaysAvailable {
-		return func(_, _ string) bool { return false }
+		return func(_, _ string) forge.GatewayMapping { return forge.GatewayNotReflected }
 	}
 
+	opts := &forge.GatewayAPIForgingOpts{
+		SharedGateway: cfg.SharedGateway, VirtualGatewayClass: cfg.VirtualGatewayClass, RemoteGatewayClass: cfg.RemoteGatewayClass,
+	}
 	gateways := factory.Gateway().V1().Gateways().Lister()
-	return func(namespace, name string) bool {
+	return func(namespace, name string) forge.GatewayMapping {
 		gateway, err := gateways.Gateways(namespace).Get(name)
-		return err == nil && string(gateway.Spec.GatewayClassName) == cfg.VirtualGatewayClass
+		if err != nil {
+			return forge.GatewayNotReflected
+		}
+		return forge.MapGateway(gateway, opts)
 	}
 }
 
@@ -221,6 +236,10 @@ func (nr *NamespacedReflector[O, A]) Handle(ctx context.Context, name string) er
 			// Let pretend the local object does not exist, so that the remote one (if previously reflected) gets deleted.
 			klog.V(4).Infof("Local %s %q is not managed by the reflection", nr.kind.Name, nr.LocalRef(name))
 			lerr = kerrors.NewNotFound(nr.kind.GroupResource, name)
+		}
+		if errors.Is(ferr, forge.ErrMappedToShared) {
+			// The local object is mapped to a shared object of the remote cluster, hence it is not reflected.
+			return nr.handleShared(ctx, local, remote, rerr)
 		}
 	}
 
@@ -347,6 +366,46 @@ func (nr *NamespacedReflector[O, A]) reportFailure(ctx context.Context, local O,
 		klog.Errorf("Failed to report the reflection failure of local %s %q: %v", nr.kind.Name, klog.KObj(local), err)
 		return err
 	}
+	return nil
+}
+
+// handleShared handles the local objects mapped to a shared object of the remote cluster (i.e., the Gateways mapped to the
+// shared Gateway), which are not reflected, while their status reports the one of the shared object.
+func (nr *NamespacedReflector[O, A]) handleShared(ctx context.Context, local, remote O, rerr error) error {
+	name := local.GetName()
+
+	// Delete the remote copy, if previously reflected (e.g., the Gateway was reflected before being mapped to the shared one).
+	// Remote objects with the same name not managed by Liqo are instead unrelated, hence they are preserved.
+	if rerr == nil && forge.IsReflected(remote) {
+		if err := nr.deleteRemote(ctx, name, remote, rerr); err != nil {
+			return err
+		}
+	}
+
+	skipReflection, err := nr.ShouldSkipReflection(local)
+	if err != nil {
+		klog.Errorf("Failed to check whether local %s %q should be reflected: %v", nr.kind.Name, nr.LocalRef(name), err)
+		return err
+	}
+	if skipReflection {
+		klog.Infof("Skipping reflection of local %s %q as not allowed by the %q reflection policy",
+			nr.kind.Name, nr.LocalRef(name), nr.GetReflectionType())
+		nr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(nr.GetReflectionType()))
+		return nr.deleteStatus(ctx, name)
+	}
+
+	shared, ok := nr.status.(sharedStatusReflector[O])
+	if !ok {
+		return fmt.Errorf("%s resources cannot be mapped to shared objects", nr.kind.Name)
+	}
+	if err := shared.Shared(ctx, local); err != nil {
+		klog.Errorf("Failed to reflect the status of the shared %s of local %q: %v", nr.kind.Name, nr.LocalRef(name), err)
+		nr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(err))
+		return err
+	}
+
+	klog.Infof("Local %s %q mapped to %s %q of the remote cluster", nr.kind.Name, nr.LocalRef(name), nr.kind.Name, nr.forgingOpts.SharedGateway)
+	nr.Event(local, corev1.EventTypeNormal, forge.EventMappedToSharedGateway, forge.EventMappedToSharedGatewayMsg(nr.forgingOpts.SharedGateway.String()))
 	return nil
 }
 

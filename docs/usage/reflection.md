@@ -189,10 +189,37 @@ The reflected *Gateways* are translated as follows:
 * Listeners allowing the attachment of routes from **all namespaces** are restricted to the remote namespaces hosting the workloads offloaded from the local cluster, while the ones leveraging **label selectors** are restricted to the same namespace, since selectors refer to the labels of the local namespaces.
 * Fields referring to the local cluster (i.e., `addresses` and `infrastructure.parametersRef`), or affecting other tenants of the remote cluster (i.e., `defaultScope` and `allowedListeners`), are dropped.
 
+Alternatively, a *Gateway* of the virtual class can be **mapped to the shared Gateway** offered by the remote cluster, rather than reflected as a new *Gateway*.
+In this case, no *Gateway* is created in the remote cluster, and the routes attached to the local *Gateway* are attached to the shared one.
+This happens if the *Gateway* is annotated with `liqo.io/remote-gateway-mode: shared`, or automatically if the remote cluster offers a shared *Gateway*, but no *GatewayClass*:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: web
+  annotations:
+    liqo.io/remote-gateway-mode: shared
+spec:
+  gatewayClassName: liqo
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+```
+
+The listeners of a *Gateway* mapped to the shared one are not applied in the remote cluster, where the hostnames, ports and certificates are the ones configured for the shared *Gateway* by the administrator of the remote cluster.
+Similarly, the `sectionName` and `port` fields of the parent references of the attached routes are dropped.
+The same *Gateway* may be mapped to the shared one in some remote clusters (e.g., the ones not offering any *GatewayClass*), and reflected in the others.
+
+The consumer cluster is not allowed to access the shared *Gateway*, hence its **addresses** are reported by the remote cluster through the `liqo.io/shared-gateway-addresses` annotation of the reflected routes attached to it, set by the Liqo controller manager of the remote cluster once the shared *Gateway* is programmed.
+The *Gateway* mapped to the shared one reports such addresses, and it is *Programmed* in the remote cluster, as soon as at least one route reflected in the same namespace is attached to the shared *Gateway*.
+Until then, or if the Liqo version installed in the remote cluster does not report the addresses, the *Gateway* is not *Programmed* in that cluster, while the attached routes are anyway served by the shared *Gateway*.
+
 **Routes** are reflected independently of the class of their *Gateways*, and they are translated as follows:
 
 * **Parent references** to *Gateways* of the virtual class are translated to the remote copies of the *Gateways*, preserving the listener they are attached to.
-  References to other *Gateways*, which are not reflected, are replaced by a single reference to the **shared Gateway** offered by the remote cluster.
+  References to other *Gateways*, which are not reflected, as well as to the *Gateways* mapped to the shared one, are replaced by a single reference to the **shared Gateway** offered by the remote cluster.
   The shared *Gateway* must allow the attachment of routes from the remote namespaces hosting the offloaded workloads (i.e., through the `allowedRoutes` field of its listeners).
   References to *Services* (i.e., mesh routes) are preserved, translating their namespace.
 * **Backend references** to *Services* in the same namespace are preserved as is, while the ones to *Services* in other namespaces are translated to the corresponding remote namespace, if offloaded to the same cluster.

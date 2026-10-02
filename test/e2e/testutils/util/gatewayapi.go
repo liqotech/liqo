@@ -34,12 +34,23 @@ const (
 	GatewayListenerName = "http"
 )
 
+// GatewayOption is a function that modifies a Gateway.
+type GatewayOption func(*gwv1.Gateway)
+
+// WithGatewayAnnotations sets the given annotations on the Gateway.
+func WithGatewayAnnotations(annotations map[string]string) GatewayOption {
+	return func(gateway *gwv1.Gateway) { gateway.SetAnnotations(annotations) }
+}
+
 // EnforceGateway creates or updates a Gateway of the given class, with a single HTTP listener on port 80.
-func EnforceGateway(ctx context.Context, cl client.Client, namespace, name, class string) error {
+func EnforceGateway(ctx context.Context, cl client.Client, namespace, name, class string, opts ...GatewayOption) error {
 	gateway := &gwv1.Gateway{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
 	return Second(resource.CreateOrUpdate(ctx, cl, gateway, func() error {
 		gateway.Spec.GatewayClassName = gwv1.ObjectName(class)
 		gateway.Spec.Listeners = []gwv1.Listener{{Name: GatewayListenerName, Protocol: gwv1.HTTPProtocolType, Port: 80}}
+		for _, opt := range opts {
+			opt(gateway)
+		}
 		return nil
 	}))
 }

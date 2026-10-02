@@ -43,13 +43,52 @@ type GatewayAPIForgingOpts struct {
 	Mapper NamespaceMapper
 	// SharedGateway is the Gateway offered by the remote cluster the routes are attached to, if any.
 	SharedGateway *types.NamespacedName
-	// IsReflectedGateway returns whether the given local Gateway is reflected to the remote cluster
-	// (i.e., it belongs to the virtual GatewayClass), hence routes can be attached to the remote copy.
-	IsReflectedGateway func(namespace, name string) bool
+	// MapGateway returns how the given local Gateway is mapped to the remote cluster, which determines
+	// whether routes can be attached to its remote copy, or to the shared Gateway.
+	MapGateway func(namespace, name string) GatewayMapping
 	// VirtualGatewayClass is the name of the local GatewayClass whose Gateways are reflected.
 	VirtualGatewayClass string
 	// RemoteGatewayClass is the name of the GatewayClass offered by the remote cluster, if any.
 	RemoteGatewayClass string
+}
+
+// GatewayMapping describes how a local Gateway is mapped to the remote cluster.
+type GatewayMapping int
+
+const (
+	// GatewayNotReflected means that the Gateway is not reflected to the remote cluster (e.g., it belongs to a class other than
+	// the virtual one), hence the routes attached to it are attached to the shared Gateway offered by the remote cluster, if any.
+	GatewayNotReflected GatewayMapping = iota
+	// GatewayReflected means that the Gateway is reflected to the remote cluster, hence routes are attached to its remote copy.
+	GatewayReflected
+	// GatewayShared means that the Gateway belongs to the virtual class, but it is mapped to the shared Gateway offered by the
+	// remote cluster rather than reflected, hence the routes attached to it are attached to the shared Gateway.
+	GatewayShared
+)
+
+// MapGateway returns how the given local Gateway is mapped to the remote cluster.
+func MapGateway(gateway *gwv1.Gateway, opts *GatewayAPIForgingOpts) GatewayMapping {
+	switch {
+	case string(gateway.Spec.GatewayClassName) != opts.VirtualGatewayClass:
+		return GatewayNotReflected
+	case GatewayMappedToShared(gateway, opts):
+		return GatewayShared
+	case opts.RemoteGatewayClass == "":
+		// The Gateway cannot be reflected, as the remote cluster does not offer any GatewayClass.
+		return GatewayNotReflected
+	default:
+		return GatewayReflected
+	}
+}
+
+// GatewayMappedToShared returns whether the given local Gateway of the virtual class is mapped to the shared Gateway
+// offered by the remote cluster, rather than reflected. This happens if requested through the RemoteGatewayModeAnnotation,
+// or if the remote cluster offers a shared Gateway, but no GatewayClass to reflect the Gateway.
+func GatewayMappedToShared(gateway *gwv1.Gateway, opts *GatewayAPIForgingOpts) bool {
+	if string(gateway.Spec.GatewayClassName) != opts.VirtualGatewayClass || opts.SharedGateway == nil {
+		return false
+	}
+	return gateway.GetAnnotations()[consts.RemoteGatewayModeAnnotation] == consts.RemoteGatewayModeShared || opts.RemoteGatewayClass == ""
 }
 
 // ErrNotReflectable is returned when an object cannot be reflected without altering its semantic
@@ -63,6 +102,18 @@ func (e *ErrNotReflectable) Error() string { return e.Reason }
 // ErrNotManaged is returned when an object is not managed by the reflection (e.g., a Gateway of a different class),
 // hence it shall not be reflected, and without generating any event.
 var ErrNotManaged = errors.New("object not managed by the reflection")
+
+// ErrMappedToShared is returned when a Gateway of the virtual class is mapped to the shared Gateway offered by the
+// remote cluster, hence it shall not be reflected, while its routes are attached to the shared Gateway.
+var ErrMappedToShared = errors.New("gateway mapped to the shared Gateway of the remote cluster")
+
+// routeAnnotations returns the annotations of the reflected route, given the ones of the local route. The annotation
+// reporting the addresses of the shared Gateway is excluded, as it is set in the remote cluster, and it shall not be overridden.
+func routeAnnotations(local metav1.Object, forgingOpts *ForgingOpts) map[string]string {
+	annotations := FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)
+	delete(annotations, consts.SharedGatewayAddressesAnnotation)
+	return annotations
+}
 
 // RemoteHTTPRoute forges the apply patch for the reflected HTTPRoute, given the local one.
 // It returns the list of references which have been dropped since they could not be translated, as warnings,
@@ -81,7 +132,7 @@ func RemoteHTTPRoute(local *gwv1.HTTPRoute, targetNamespace string, opts *Gatewa
 
 	return gwv1apply.HTTPRoute(local.GetName(), targetNamespace).
 		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
-		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
+		WithAnnotations(routeAnnotations(local, forgingOpts)).
 		WithSpec(&specApply), warnings, nil
 }
 
@@ -173,7 +224,7 @@ func RemoteGRPCRoute(local *gwv1.GRPCRoute, targetNamespace string, opts *Gatewa
 
 	return gwv1apply.GRPCRoute(local.GetName(), targetNamespace).
 		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
-		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
+		WithAnnotations(routeAnnotations(local, forgingOpts)).
 		WithSpec(&specApply), warnings, nil
 }
 
@@ -276,7 +327,8 @@ func RemoteRouteParentRefs(localNamespace string, spec *gwv1.CommonRouteSpec, op
 func RemoteParentRef(localNamespace string, parent gwv1.ParentReference, opts *GatewayAPIForgingOpts) (remote gwv1.ParentReference, warning string) {
 	switch {
 	case isGatewayReference(parent.Group, parent.Kind):
-		// Gateways of the virtual class are reflected, hence the route can be attached to the remote copy.
+		// Gateways of the virtual class are reflected, hence the route can be attached to the remote copy, unless they are
+		// mapped to the shared Gateway of the remote cluster (or they cannot be reflected), as for the Gateways of other classes.
 		if remoteParent, ok := remoteReflectedGateway(localNamespace, parent, opts); ok {
 			return remoteParent, ""
 		}
@@ -370,7 +422,7 @@ func remoteReflectedGateway(localNamespace string, parent gwv1.ParentReference, 
 		namespace = string(*parent.Namespace)
 	}
 
-	if opts.IsReflectedGateway == nil || !opts.IsReflectedGateway(namespace, string(parent.Name)) {
+	if opts.MapGateway == nil || opts.MapGateway(namespace, string(parent.Name)) != GatewayReflected {
 		return parent, false
 	}
 
@@ -387,12 +439,16 @@ func remoteReflectedGateway(localNamespace string, parent gwv1.ParentReference, 
 }
 
 // RemoteGateway forges the apply patch for the reflected Gateway, given the local one.
-// It returns ErrNotManaged if the Gateway does not belong to the virtual GatewayClass, and ErrNotReflectable
+// It returns ErrNotManaged if the Gateway does not belong to the virtual GatewayClass, ErrMappedToShared if it is
+// mapped to the shared Gateway offered by the remote cluster rather than reflected, and ErrNotReflectable
 // if it cannot be reflected without altering its semantic. The references which have been dropped are returned as warnings.
 func RemoteGateway(local *gwv1.Gateway, targetNamespace string, opts *GatewayAPIForgingOpts,
 	forgingOpts *ForgingOpts) (*gwv1apply.GatewayApplyConfiguration, []string, error) {
 	if string(local.Spec.GatewayClassName) != opts.VirtualGatewayClass {
 		return nil, nil, ErrNotManaged
+	}
+	if GatewayMappedToShared(local, opts) {
+		return nil, nil, ErrMappedToShared
 	}
 
 	spec, warnings, err := RemoteGatewaySpec(local.GetNamespace(), local.Spec.DeepCopy(), opts)
