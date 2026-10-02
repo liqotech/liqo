@@ -54,6 +54,7 @@ var gatewayKind = kind[*gwv1.Gateway, *gwv1apply.GatewayApplyConfiguration]{
 	},
 	Forge:           forge.RemoteGateway,
 	StatusReflector: newGatewayStatusReflector,
+	WatchRemote:     watchSharedGatewayRoutes,
 }
 
 var httpRouteKind = kind[*gwv1.HTTPRoute, *gwv1apply.HTTPRouteApplyConfiguration]{

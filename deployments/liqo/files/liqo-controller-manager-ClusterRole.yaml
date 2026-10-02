@@ -168,8 +168,6 @@ rules:
   resources:
   - gatewayclasses
   - gateways
-  - grpcroutes
-  - httproutes
   verbs:
   - get
   - list
@@ -185,6 +183,16 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - grpcroutes
+  - httproutes
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
 - apiGroups:
   - ipam.liqo.io
   resources:

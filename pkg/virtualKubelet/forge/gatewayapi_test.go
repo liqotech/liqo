@@ -105,7 +105,7 @@ var _ = Describe("Gateway API routes forging", func() {
 
 		When("the route refers to reflected Gateways", func() {
 			BeforeEach(func() {
-				opts.IsReflectedGateway = func(namespace, name string) bool { return name == "liqo" }
+				opts.MapGateway = func(_, name string) forge.GatewayMapping { return reflectedIfLiqo(name) }
 				spec = gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
 					{Name: "liqo", SectionName: ptr.To[gwv1.SectionName]("https")},
 					{Name: "liqo", Namespace: ptr.To[gwv1.Namespace]("offloaded"), Port: ptr.To[gwv1.PortNumber](443)},
@@ -127,6 +127,29 @@ var _ = Describe("Gateway API routes forging", func() {
 					// Namespace not offloaded, and Gateway of another class: replaced by the shared Gateway.
 					gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")},
 				))
+			})
+		})
+
+		When("the route refers to Gateways of the virtual class mapped to the shared one", func() {
+			BeforeEach(func() {
+				opts.MapGateway = func(_, name string) forge.GatewayMapping {
+					if name == "liqo" {
+						return forge.GatewayShared
+					}
+					return forge.GatewayNotReflected
+				}
+				spec = gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
+					{Name: "liqo", SectionName: ptr.To[gwv1.SectionName]("https")},
+					{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")},
+				}}
+			})
+
+			It("should succeed without warnings", func() {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(warnings).To(BeEmpty())
+			})
+			It("should attach the route to the shared Gateway only, dropping the section name", func() {
+				Expect(parents).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
 			})
 		})
 
@@ -180,7 +203,7 @@ var _ = Describe("Gateway API routes forging", func() {
 		}
 
 		BeforeEach(func() {
-			opts.IsReflectedGateway = func(_, name string) bool { return name == "liqo" }
+			opts.MapGateway = func(_, name string) forge.GatewayMapping { return reflectedIfLiqo(name) }
 			localParents = []gwv1.ParentReference{
 				{Name: "liqo", SectionName: ptr.To[gwv1.SectionName]("https")},
 				{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")},
@@ -291,7 +314,8 @@ var _ = Describe("Gateway API routes forging", func() {
 		JustBeforeEach(func() {
 			local = gwv1.HTTPRoute{
 				ObjectMeta: metav1.ObjectMeta{Name: "route", Namespace: localNamespace,
-					Labels: map[string]string{"foo": "bar"}, Annotations: map[string]string{"bar": "baz"}},
+					Labels:      map[string]string{"foo": "bar"},
+					Annotations: map[string]string{"bar": "baz", consts.SharedGatewayAddressesAnnotation: `[{"value":"1.2.3.4"}]`}},
 				Spec: gwv1.HTTPRouteSpec{
 					CommonRouteSpec: gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")}}},
 					Hostnames:       []gwv1.Hostname{"shop.example.com"},
@@ -318,6 +342,8 @@ var _ = Describe("Gateway API routes forging", func() {
 				Expect(remote.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(LocalClusterID)))
 				Expect(remote.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(RemoteClusterID)))
 				Expect(remote.Annotations).To(HaveKeyWithValue("bar", "baz"))
+				// The addresses of the shared Gateway are reported by the remote cluster, hence they shall not be overridden.
+				Expect(remote.Annotations).ToNot(HaveKey(consts.SharedGatewayAddressesAnnotation))
 			})
 			It("should correctly forge the spec", func() {
 				spec := remoteSpec()
@@ -480,8 +506,38 @@ var _ = Describe("Gateway API routes forging", func() {
 		When("the remote cluster does not offer any GatewayClass", func() {
 			BeforeEach(func() { opts.RemoteGatewayClass = "" })
 
-			It("should not be reflectable", func() {
-				Expect(err).To(MatchError(ContainSubstring("no GatewayClass offered by the remote cluster")))
+			It("should be mapped to the shared Gateway", func() {
+				Expect(err).To(MatchError(forge.ErrMappedToShared))
+				Expect(forge.MapGateway(&local, &opts)).To(Equal(forge.GatewayShared))
+			})
+
+			When("the remote cluster does not offer a shared Gateway either", func() {
+				BeforeEach(func() { opts.SharedGateway = nil })
+
+				It("should not be reflectable", func() {
+					Expect(err).To(MatchError(ContainSubstring("no GatewayClass offered by the remote cluster")))
+					Expect(forge.MapGateway(&local, &opts)).To(Equal(forge.GatewayNotReflected))
+				})
+			})
+		})
+
+		When("the Gateway is annotated to be mapped to the shared Gateway", func() {
+			BeforeEach(func() {
+				local.Annotations = map[string]string{consts.RemoteGatewayModeAnnotation: consts.RemoteGatewayModeShared}
+			})
+
+			It("should be mapped to the shared Gateway", func() {
+				Expect(err).To(MatchError(forge.ErrMappedToShared))
+				Expect(forge.MapGateway(&local, &opts)).To(Equal(forge.GatewayShared))
+			})
+
+			When("the remote cluster does not offer a shared Gateway", func() {
+				BeforeEach(func() { opts.SharedGateway = nil })
+
+				It("should be reflected", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(forge.MapGateway(&local, &opts)).To(Equal(forge.GatewayReflected))
+				})
 			})
 		})
 
@@ -623,3 +679,11 @@ var _ = Describe("Gateway API routes forging", func() {
 		})
 	})
 })
+
+// reflectedIfLiqo returns that the Gateways named liqo are reflected, while the other ones are not.
+func reflectedIfLiqo(name string) forge.GatewayMapping {
+	if name == "liqo" {
+		return forge.GatewayReflected
+	}
+	return forge.GatewayNotReflected
+}
