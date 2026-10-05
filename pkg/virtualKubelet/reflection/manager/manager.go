@@ -22,6 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -116,7 +117,11 @@ func (m *manager) Start(ctx context.Context) {
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()).
-			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
+			WithReadinessFunc(func() bool { return ready }).
+			WithEventBroadcaster(m.eventBroadcaster)
+		if mapper, ok := m.namespaceHandler.(NamespaceMapper); ok {
+			opts.WithNamespaceMappedFunc(mapper.IsNamespaceMapped)
+		}
 		reflector.Start(ctx, opts)
 	}
 
@@ -127,7 +132,9 @@ func (m *manager) Start(ctx context.Context) {
 	m.started = true
 
 	if m.namespaceHandler != nil {
-		m.namespaceHandler.Start(ctx, m)
+		// Abort the startup if the namespace handler fails to initialize, as continuing with
+		// partially started namespaces would leave the reflection in an undefined state.
+		utilruntime.Must(m.namespaceHandler.Start(ctx, m))
 	} else {
 		klog.Warningf("Starting reflection manager without namespace handler")
 	}

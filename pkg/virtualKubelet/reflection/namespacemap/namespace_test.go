@@ -19,25 +19,29 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap/fake"
 )
 
 var _ = Describe("NamespaceMapEventHandler tests", func() {
 	var (
-		nmh          *Handler
-		fakeManager  *fake.NamespaceStartStopper
-		namespaceMap *offloadingv1beta1.NamespaceMap
+		nmh            *Handler
+		fakeManager    *fake.NamespaceStartStopper
+		fakeLiqoClient *liqoclient.Clientset
+		namespaceMap   *offloadingv1beta1.NamespaceMap
 	)
 
 	BeforeEach(func() {
 		fakeManager = fake.NewNamespaceStartStopper()
-		fakeLiqoClient := liqoclient.NewSimpleClientset()
+		fakeLiqoClient = liqoclient.NewSimpleClientset() //nolint:staticcheck // NewClientset is not generated in this repo (requires --with-applyconfig).
 
 		nmh = NewHandler(fakeLiqoClient, "ns", 0)
-		nmh.Start(context.Background(), fakeManager)
+		Expect(nmh.Start(context.Background(), fakeManager)).ToNot(HaveOccurred())
 
 		namespaceMap = &offloadingv1beta1.NamespaceMap{
 			Status: offloadingv1beta1.NamespaceMapStatus{
@@ -76,6 +80,78 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 	Describe("Start", func() {
 		It("should set the reflection manager", func() {
 			Expect(nmh.namespaceStartStopper).ToNot(BeNil())
+		})
+	})
+
+	Describe("IsNamespaceMapped", func() {
+		createNamespaceMap := func(remoteClusterID string, mapping map[string]offloadingv1beta1.RemoteNamespaceStatus) {
+			nm := &offloadingv1beta1.NamespaceMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nsmap",
+					Namespace: "ns",
+					Labels: map[string]string{
+						liqoconst.RemoteClusterID:             remoteClusterID,
+						liqoconst.ReplicationDestinationLabel: remoteClusterID,
+					},
+				},
+				Status: offloadingv1beta1.NamespaceMapStatus{CurrentMapping: mapping},
+			}
+			_, err := fakeLiqoClient.OffloadingV1beta1().NamespaceMaps("ns").Create(context.Background(), nm, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+		}
+
+		When("no NamespaceMap is present", func() {
+			It("should return an error, as the state is uncertain", func() {
+				mapped, err := nmh.IsNamespaceMapped("localNs1")
+				Expect(err).To(HaveOccurred())
+				Expect(mapped).To(BeFalse())
+			})
+		})
+
+		When("the only NamespaceMap belongs to a different peering", func() {
+			BeforeEach(func() {
+				createNamespaceMap("other-cluster", map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					"localNs1": {RemoteNamespace: "remoteNs1", Phase: offloadingv1beta1.MappingAccepted},
+				})
+			})
+
+			It("should return an error, as the state is uncertain", func() {
+				Consistently(func() error {
+					_, err := nmh.IsNamespaceMapped("localNs1")
+					return err
+				}).Should(HaveOccurred())
+			})
+		})
+
+		When("a NamespaceMap is present", func() {
+			BeforeEach(func() {
+				createNamespaceMap(string(forge.RemoteCluster), map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					"localNs1": {RemoteNamespace: "remoteNs1", Phase: offloadingv1beta1.MappingAccepted},
+					"localNs2": {RemoteNamespace: "remoteNs2", Phase: offloadingv1beta1.MappingCreationLoopBackOff},
+				})
+				// Wait for the event to be propagated to the informer cache, so that assertions
+				// are deterministic.
+				Eventually(func() bool {
+					mapped, err := nmh.IsNamespaceMapped("localNs1")
+					return err == nil && mapped
+				}).Should(BeTrue())
+			})
+
+			It("should return true for accepted mappings", func() {
+				mapped, err := nmh.IsNamespaceMapped("localNs1")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapped).To(BeTrue())
+			})
+			It("should return false for non-accepted mappings", func() {
+				mapped, err := nmh.IsNamespaceMapped("localNs2")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapped).To(BeFalse())
+			})
+			It("should return false for not-present mappings", func() {
+				mapped, err := nmh.IsNamespaceMapped("localNs3")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapped).To(BeFalse())
+			})
 		})
 	})
 
