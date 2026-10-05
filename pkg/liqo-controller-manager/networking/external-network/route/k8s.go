@@ -92,9 +92,9 @@ func enforceRouteConfigurationPresence(ctx context.Context, cl client.Client, sc
 		return nil
 	}
 
-	remoteInterfaceIP, err := tunnel.GetRemoteInterfaceIP(mode)
-	if err != nil {
-		return err
+	remoteInterfaceIP := tunnel.GetRemoteInterfaceIP(mode, 0)
+	if remoteInterfaceIP == "" {
+		return fmt.Errorf("invalid gateway mode %q for remote interface IP calculation", mode)
 	}
 
 	// Ensure the FirewallConfiguration that marks traffic arriving on Geneve interfaces.
