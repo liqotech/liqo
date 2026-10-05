@@ -227,11 +227,11 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 		src = net.ParseIP(route.Src.String())
 	}
 
-	if route.Gw != nil {
+	if route.Gw != nil && len(route.NextHops) == 0 {
 		gw = net.ParseIP(route.Gw.String())
 	}
 
-	if route.Dev != nil {
+	if route.Dev != nil && len(route.NextHops) == 0 {
 		linkIndex, err = getLinkIDByName(*route.Dev)
 		if err != nil {
 			return nil, err
@@ -259,10 +259,6 @@ func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink
 	}
 	var multiPath []*netlink.NexthopInfo
 	if len(route.NextHops) > 0 {
-		// MultiPath (ECMP) routes must not have a main gateway or a main link index
-		// All next-hop specific information is contained within the MultiPath slice.
-		gw = nil
-		linkIndex = 0
 		multiPath = make([]*netlink.NexthopInfo, len(route.NextHops))
 		for i, nh := range route.NextHops {
 			nextHopGw := net.ParseIP(nh.Gw.String())
