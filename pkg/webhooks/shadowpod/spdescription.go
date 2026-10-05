@@ -33,7 +33,7 @@ type Description struct {
 	namespacedName    types.NamespacedName
 	uid               types.UID
 	quota             corev1.ResourceList
-	running           bool
+	active            bool
 	creationTimestamp time.Time
 }
 
@@ -42,7 +42,7 @@ func createShadowPodDescription(name, namespace string, uid types.UID, resources
 		namespacedName:    types.NamespacedName{Name: name, Namespace: namespace},
 		uid:               uid,
 		quota:             resources,
-		running:           true,
+		active:            true,
 		creationTimestamp: time.Now(),
 	}
 }
@@ -57,7 +57,7 @@ func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c cl
 	klog.V(4).Infof("ShadowPod %s quota %s", nsname.String(), quotaFormatter(*spQuota))
 	spd, found := pi.shadowPods[nsname.String()]
 	if found {
-		if spd.running {
+		if spd.active {
 			return nil, fmt.Errorf("ShadowPod %s is already running", sp.GetName())
 		}
 		err := checkShadowPodExistence(ctx, c, nsname)
@@ -86,7 +86,7 @@ func (pi *peeringInfo) getShadowPodDescription(sp *offloadingv1beta1.ShadowPod) 
 }
 
 func (spd *Description) terminate() {
-	spd.running = false
+	spd.active = false
 }
 
 func checkShadowPodExistence(ctx context.Context, spvclient client.Client, namespacedName types.NamespacedName) error {
