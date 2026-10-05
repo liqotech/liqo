@@ -135,6 +135,27 @@ var _ = Describe("NodeUtils", func() {
 				},
 			}),
 
+			Entry("preserve daemonset target node match field", mergeNodeSelectorTestcase{
+				nodeSelector1: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
+					MatchFields: []v1.NodeSelectorRequirement{{
+						Key:      "metadata.name",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"test-node"},
+					}},
+				}}},
+				nodeSelector2: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
+					MatchExpressions: []v1.NodeSelectorRequirement{getExpression(1)},
+				}}},
+				expectedSelector: v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
+					MatchExpressions: []v1.NodeSelectorRequirement{getExpression(1)},
+					MatchFields: []v1.NodeSelectorRequirement{{
+						Key:      "metadata.name",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"test-node"},
+					}},
+				}}},
+			}),
+
 			Entry("first selector with one term and one expression, the other with multiple", mergeNodeSelectorTestcase{
 				nodeSelector1: &v1.NodeSelector{
 					NodeSelectorTerms: []v1.NodeSelectorTerm{
