@@ -193,8 +193,8 @@ func enforceFirewallConfigurationMasqSpec(fwcfg *networkingv1beta1.FirewallConfi
 }
 
 func enforceFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
-	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 2 {
-		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 2)
+	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 1 {
+		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 1)
 	}
 	chainPre := &fwcfg.Spec.Table.Chains[0]
 	chainPre.Name = &PreroutingChainName
@@ -203,14 +203,6 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfigu
 	chainPre.Hook = &firewall.ChainHookPrerouting
 	chainPre.Priority = ptr.To(firewall.ChainPriorityNATDest)
 	ensureFirewallConfigurationDNATRules(&chainPre.Rules, ip)
-
-	chainPost := &fwcfg.Spec.Table.Chains[1]
-	chainPost.Name = &PostroutingChainName
-	chainPost.Policy = ptr.To(firewall.ChainPolicyAccept)
-	chainPost.Type = firewall.ChainTypeNAT
-	chainPost.Hook = &firewall.ChainHookPostrouting
-	chainPost.Priority = ptr.To(firewall.ChainPriorityNATSource)
-	ensureFirewallConfigurationSNATRules(&chainPost.Rules, ip)
 }
 
 func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
@@ -259,26 +251,6 @@ func ensureFirewallConfigurationDNATRules(rules *firewall.RulesSet, ip *ipamv1al
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Position: firewall.MatchPositionDst,
-						Value:    remappedIP.String(),
-					},
-				},
-			},
-		})
-	}
-}
-
-func ensureFirewallConfigurationSNATRules(rules *firewall.RulesSet, ip *ipamv1alpha1.IP) {
-	remappedIP := ipamutils.GetRemappedIP(ip)
-	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionSrc) {
-		rules.NatRules = append(rules.NatRules, firewall.NatRule{
-			NatType: firewall.NatTypeSource,
-			To:      ptr.To(ip.Spec.IP.String()),
-			Name:    &ip.Name,
-			Match: []firewall.Match{
-				{
-					Op: firewall.MatchOperationEq,
-					IP: &firewall.MatchIP{
-						Position: firewall.MatchPositionSrc,
 						Value:    remappedIP.String(),
 					},
 				},

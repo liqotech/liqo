@@ -259,18 +259,18 @@ func RunsCheckPodToNodePortServiceWithClient(ctx context.Context, cl ctrlclient.
 	}
 
 	var successCountTot, errorCountTot int32
-	for i := 0; i < int(totreplicas*2); i++ {
-		for i := range nodes.Items {
-			if nodes.Items[i].GetLabels()[consts.TypeLabel] == consts.TypeNode {
-				continue
-			}
-			if opts.NodePortNodes == flags.NodePortNodesWorkers && setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
-				continue
-			}
-			if opts.NodePortNodes == flags.NodePortNodesControlPlanes && !setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
-				continue
-			}
-			nodeip := GetNodeAddress(&nodes.Items[i])
+	for i := range nodes.Items {
+		if nodes.Items[i].GetLabels()[consts.TypeLabel] == consts.TypeNode {
+			continue
+		}
+		if opts.NodePortNodes == flags.NodePortNodesWorkers && setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
+			continue
+		}
+		if opts.NodePortNodes == flags.NodePortNodesControlPlanes && !setup.IsNodeControlPlane(nodes.Items[i].Spec.Taints) {
+			continue
+		}
+		nodeip := GetNodeAddress(&nodes.Items[i])
+		for j := 0; j < int(totreplicas*2); j++ {
 			successCount, errorCount, err = RunCheckToTargets(ctx, cl, cfg[name],
 				opts, name, []string{fmt.Sprintf("http://%s:%d", nodeip, nodeport)}, false, ExecCurl)
 			successCountTot += successCount

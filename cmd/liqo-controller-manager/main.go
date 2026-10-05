@@ -258,15 +258,6 @@ func run(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("unable to start the offloadedPod reconciler: %w", err)
 		}
 
-		configurationReconciler := ipmapping.NewConfigurationReconciler(
-			mgr.GetClient(),
-			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("configuration-controller"),
-		)
-		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("unable to start the configuration reconciler: %w", err)
-		}
-
 		if !opts.APIServerIPUseEndpointSlices {
 			if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
 				return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
