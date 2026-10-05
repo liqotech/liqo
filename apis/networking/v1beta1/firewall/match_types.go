@@ -85,7 +85,7 @@ type MatchDev struct {
 	// Wildcard enables prefix matching on the device name.
 	// When true, the match compares only the prefix bytes of Value against the interface name,
 	// allowing a single rule to match all interfaces sharing a common prefix (e.g. "liqo.").
-	// +kubebuilder:default=false
+	// +optional
 	Wildcard bool `json:"wildcard,omitempty"`
 }
 
