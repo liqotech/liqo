@@ -819,3 +819,8 @@ func (npr *NamespacedPodReflector) List() ([]interface{}, error) {
 
 	return append(append(listShPod, listLocalPods...), listRemotePods...), nil
 }
+
+// Cleanup is a no-op for this reflector.
+func (npr *NamespacedPodReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
