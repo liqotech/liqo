@@ -644,6 +644,16 @@ To prevent this, you should use the `devices` parameter in the Cilium Helm value
 
 For more details about the `devices` parameter, refer to the [Cilium Helm Reference](https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml#L854).
 
+To exclude all `liqo.*` interfaces while still retaining auto-discovery for the rest, you can use these Cilium Helm Values:
+
+```yaml
+# Exclude interfaces whose names begin with "liqo".
+devices: "!liqo.+"
+
+# Continue auto-detecting other eligible interfaces on each node.
+forceDeviceDetection: true
+```
+
 Here we list some of the reasons why the Cilium network interface autodiscovery conficts with Liqo.
 
 <!-- markdownlint-disable MD036 -->
