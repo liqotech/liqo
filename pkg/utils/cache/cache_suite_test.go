@@ -12,9 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package remoteclusterwide defines the ClusterRole containing the cluster-wide permissions required
-// by the virtual kubelet in the remote cluster (as opposed to the ones granted per remote namespace).
-package remoteclusterwide
+package cache_test
 
-// +kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch
-// +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape/metrics,verbs=get;list;watch
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+func TestCache(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Cache Suite")
+}

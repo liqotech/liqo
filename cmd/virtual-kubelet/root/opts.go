@@ -44,6 +44,11 @@ const (
 	DefaultListenPort           = 10250
 	DefaultNodePingTimeout      = 1 * time.Second
 	DefaultNodeCheckNetwork     = true
+
+	// DefaultMetricsProxyCacheTTL is the default time-to-live of the cached metrics proxy responses.
+	DefaultMetricsProxyCacheTTL = 10 * time.Second
+	// DefaultStatsSummaryCacheTTL is the default time-to-live of the cached node stats summary.
+	DefaultStatsSummaryCacheTTL = 20 * time.Second
 )
 
 // DefaultReflectorsWorkers contains the default number of workers for each reflected resource.
@@ -121,6 +126,11 @@ type Opts struct {
 	EnableMetrics                   bool
 	MetricsAddress                  string
 
+	// MetricsProxyCacheTTL is the time-to-live of the cached responses of the metrics proxy routes.
+	MetricsProxyCacheTTL time.Duration
+	// StatsSummaryCacheTTL is the time-to-live of the cached node stats summary.
+	StatsSummaryCacheTTL time.Duration
+
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
@@ -155,6 +165,9 @@ func NewOpts() *Opts {
 		NodePingInterval:  node.DefaultPingInterval,
 		NodePingTimeout:   DefaultNodePingTimeout,
 		NodeCheckNetwork:  DefaultNodeCheckNetwork,
+
+		MetricsProxyCacheTTL: DefaultMetricsProxyCacheTTL,
+		StatsSummaryCacheTTL: DefaultStatsSummaryCacheTTL,
 
 		VirtualKubeletLeaseEnabled:       true,
 		VirtualKubeletLeaseLeaseDuration: 15 * time.Second,
