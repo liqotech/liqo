@@ -25,6 +25,7 @@ import (
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	argutils "github.com/liqotech/liqo/pkg/utils/args"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 )
 
 // SliceStatusOptions contains the options to configure the status of a remote resource slice.
@@ -33,10 +34,12 @@ type SliceStatusOptions struct {
 	LocalRealStorageClassName string
 	IngressClasses            argutils.ClassNameList
 	GatewayClasses            argutils.ClassNameList
-	SharedGateways            argutils.NamespacedClassNameList
-	LoadBalancerClasses       argutils.ClassNameList
-	ClusterLabels             map[string]string
-	DefaultResourceQuantity   corev1.ResourceList
+	// GatewayAPIEnabled indicates whether the Gateway API resources are available in the local cluster,
+	// hence whether the shared Gateways (i.e., the ones labeled as such) are offered to the consumer clusters.
+	GatewayAPIEnabled       bool
+	LoadBalancerClasses     argutils.ClassNameList
+	ClusterLabels           map[string]string
+	DefaultResourceQuantity corev1.ResourceList
 	// DefaultResourceSliceClassEnabled enables the built-in default ResourceSlice class.
 	// When false, ResourceSlices of the default (or empty) class are denied instead of accepted.
 	DefaultResourceSliceClassEnabled bool
@@ -71,23 +74,12 @@ func getGatewayClasses(opts *SliceStatusOptions) []liqov1beta1.GatewayClassType 
 	return gatewayClasses
 }
 
-func getSharedGateways(opts *SliceStatusOptions) []liqov1beta1.SharedGatewayType {
-	if opts == nil {
-		return []liqov1beta1.SharedGatewayType{}
+// getSharedGateways returns the Gateways offered to the consumer clusters, that is, the ones labeled as shared.
+func getSharedGateways(ctx context.Context, cl client.Reader, opts *SliceStatusOptions) ([]liqov1beta1.SharedGatewayType, error) {
+	if opts == nil || !opts.GatewayAPIEnabled {
+		return []liqov1beta1.SharedGatewayType{}, nil
 	}
-
-	sharedGateways := make([]liqov1beta1.SharedGatewayType, 0, len(opts.SharedGateways.Classes))
-	for i := range opts.SharedGateways.Classes {
-		// The format is validated when parsing the flags.
-		splits, err := argutils.SplitNamespacedName(opts.SharedGateways.Classes[i].Name)
-		if err != nil {
-			continue
-		}
-		sharedGateways = append(sharedGateways, liqov1beta1.SharedGatewayType{
-			Namespace: splits[0], Name: splits[1], Default: opts.SharedGateways.Classes[i].IsDefault,
-		})
-	}
-	return sharedGateways
+	return gwutils.ListSharedGateways(ctx, cl)
 }
 
 func getLoadBalancerClasses(opts *SliceStatusOptions) []liqov1beta1.LoadBalancerType {

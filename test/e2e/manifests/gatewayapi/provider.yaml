@@ -1,5 +1,6 @@
 # The Gateway API configuration of the provider clusters, where the Gateways are served by Envoy Gateway.
-# The GatewayClass and the shared Gateway are announced to the consumer cluster (see the installer/liqo/setup.sh script).
+# The GatewayClass is announced to the consumer cluster (see the installer/liqo/setup.sh script), as well as the shared Gateway,
+# labeled as such. The private Gateway is not shared, hence the consumer cluster is not allowed to attach routes to it.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
@@ -34,6 +35,23 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: public
+  namespace: infra
+  labels:
+    liqo.io/shared-gateway: "default"
+spec:
+  gatewayClassName: eg
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: private
   namespace: infra
 spec:
   gatewayClassName: eg

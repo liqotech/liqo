@@ -53,6 +53,8 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --secret-name={{ include "liqo.prefixedName" $webhookConfig }}-certs
           - --liqo-runtime-class={{ .Values.offloading.runtimeClass.name }}
+          {{- $d := dict "commandName" "--gateway-classes" "list" .Values.offloading.reflection.gateway.gatewayClasses }}
+          {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}

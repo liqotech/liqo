@@ -52,7 +52,7 @@ var _ = Describe("Gateway API routes forging", func() {
 	}
 
 	BeforeEach(func() {
-		opts = forge.GatewayAPIForgingOpts{Mapper: mapper, SharedGateway: &types.NamespacedName{Namespace: "infra", Name: "public"}}
+		opts = forge.GatewayAPIForgingOpts{Mapper: mapper, SharedGatewayEnabled: true}
 	})
 
 	Describe("the RemoteRouteParentRefs function", func() {
@@ -76,11 +76,11 @@ var _ = Describe("Gateway API routes forging", func() {
 				Expect(warnings).To(BeEmpty())
 			})
 			It("should replace them with a single reference to the shared gateway", func() {
-				Expect(parents).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+				Expect(parents).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 			})
 
 			When("the remote cluster does not offer a shared gateway", func() {
-				BeforeEach(func() { opts.SharedGateway = nil })
+				BeforeEach(func() { opts.SharedGatewayEnabled = false })
 
 				It("should return a not reflectable error", func() {
 					var target *forge.ErrNotReflectable
@@ -125,7 +125,7 @@ var _ = Describe("Gateway API routes forging", func() {
 					// Offloaded namespace: the namespace is translated.
 					gwv1.ParentReference{Name: "liqo", Namespace: ptr.To[gwv1.Namespace]("offloaded-remote"), Port: ptr.To[gwv1.PortNumber](443)},
 					// Namespace not offloaded, and Gateway of another class: replaced by the shared Gateway.
-					gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")},
+					forge.SharedGatewayPlaceholderRef(),
 				))
 			})
 		})
@@ -149,7 +149,7 @@ var _ = Describe("Gateway API routes forging", func() {
 				Expect(warnings).To(BeEmpty())
 			})
 			It("should attach the route to the shared Gateway only, dropping the section name", func() {
-				Expect(parents).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+				Expect(parents).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 			})
 		})
 
@@ -185,7 +185,7 @@ var _ = Describe("Gateway API routes forging", func() {
 
 			It("should drop them", func() {
 				Expect(err).ToNot(HaveOccurred())
-				Expect(parents).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+				Expect(parents).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 				Expect(warnings).To(ConsistOf(ContainSubstring("unsupported parent kind")))
 			})
 		})
@@ -196,6 +196,7 @@ var _ = Describe("Gateway API routes forging", func() {
 			localParents []gwv1.ParentReference
 			remote       []gwv1.RouteParentStatus
 			local        []gwv1.RouteParentStatus
+			shared       *types.NamespacedName
 		)
 
 		accepted := func(status metav1.ConditionStatus) []metav1.Condition {
@@ -204,6 +205,7 @@ var _ = Describe("Gateway API routes forging", func() {
 
 		BeforeEach(func() {
 			opts.MapGateway = func(_, name string) forge.GatewayMapping { return reflectedIfLiqo(name) }
+			shared = &types.NamespacedName{Namespace: "infra", Name: "public"}
 			localParents = []gwv1.ParentReference{
 				{Name: "liqo", SectionName: ptr.To[gwv1.SectionName]("https")},
 				{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")},
@@ -224,7 +226,7 @@ var _ = Describe("Gateway API routes forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			local = forge.LocalRouteParentStatuses(localNamespace, "remote", localParents, remote, &opts)
+			local = forge.LocalRouteParentStatuses(localNamespace, "remote", localParents, remote, shared, &opts)
 		})
 
 		It("should translate the remote parents to the local ones", func() {
@@ -235,6 +237,29 @@ var _ = Describe("Gateway API routes forging", func() {
 				gwv1.RouteParentStatus{ParentRef: localParents[2], ControllerName: "example.com/controller", Conditions: accepted(metav1.ConditionFalse)},
 			))
 		})
+
+		When("the placeholder of the shared Gateway has not been replaced yet", func() {
+			BeforeEach(func() { shared = nil })
+
+			It("should not report any status for the parents replaced by the shared Gateway", func() {
+				Expect(local).To(ConsistOf(
+					gwv1.RouteParentStatus{ParentRef: localParents[0], ControllerName: "example.com/controller", Conditions: accepted(metav1.ConditionTrue)},
+				))
+			})
+		})
+	})
+
+	Describe("the ResolvedSharedGateway function", func() {
+		DescribeTable("should parse the annotation set by the remote cluster",
+			func(annotations map[string]string, expected *types.NamespacedName) {
+				Expect(forge.ResolvedSharedGateway(&metav1.ObjectMeta{Annotations: annotations})).To(Equal(expected))
+			},
+			Entry("no annotation", nil, nil),
+			Entry("valid annotation", map[string]string{consts.SharedGatewayAnnotation: "infra/public"},
+				&types.NamespacedName{Namespace: "infra", Name: "public"}),
+			Entry("malformed annotation", map[string]string{consts.SharedGatewayAnnotation: "public"}, nil),
+			Entry("empty namespace", map[string]string{consts.SharedGatewayAnnotation: "/public"}, nil),
+		)
 	})
 
 	Describe("the RemoteBackendObjectReference function", func() {
@@ -314,8 +339,9 @@ var _ = Describe("Gateway API routes forging", func() {
 		JustBeforeEach(func() {
 			local = gwv1.HTTPRoute{
 				ObjectMeta: metav1.ObjectMeta{Name: "route", Namespace: localNamespace,
-					Labels:      map[string]string{"foo": "bar"},
-					Annotations: map[string]string{"bar": "baz", consts.SharedGatewayAddressesAnnotation: `[{"value":"1.2.3.4"}]`}},
+					Labels: map[string]string{"foo": "bar"},
+					Annotations: map[string]string{"bar": "baz", consts.SharedGatewayAddressesAnnotation: `[{"value":"1.2.3.4"}]`,
+						consts.SharedGatewayAnnotation: "infra/public"}},
 				Spec: gwv1.HTTPRouteSpec{
 					CommonRouteSpec: gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")}}},
 					Hostnames:       []gwv1.Hostname{"shop.example.com"},
@@ -344,10 +370,11 @@ var _ = Describe("Gateway API routes forging", func() {
 				Expect(remote.Annotations).To(HaveKeyWithValue("bar", "baz"))
 				// The addresses of the shared Gateway are reported by the remote cluster, hence they shall not be overridden.
 				Expect(remote.Annotations).ToNot(HaveKey(consts.SharedGatewayAddressesAnnotation))
+				Expect(remote.Annotations).ToNot(HaveKey(consts.SharedGatewayAnnotation))
 			})
 			It("should correctly forge the spec", func() {
 				spec := remoteSpec()
-				Expect(spec.ParentRefs).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+				Expect(spec.ParentRefs).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 				Expect(spec.Hostnames).To(ConsistOf(gwv1.Hostname("shop.example.com")))
 				Expect(spec.Rules).To(HaveLen(1))
 				Expect(spec.Rules[0].Matches).To(Equal(local.Spec.Rules[0].Matches))
@@ -512,7 +539,7 @@ var _ = Describe("Gateway API routes forging", func() {
 			})
 
 			When("the remote cluster does not offer a shared Gateway either", func() {
-				BeforeEach(func() { opts.SharedGateway = nil })
+				BeforeEach(func() { opts.SharedGatewayEnabled = false })
 
 				It("should not be reflectable", func() {
 					Expect(err).To(MatchError(ContainSubstring("no GatewayClass offered by the remote cluster")))
@@ -532,7 +559,7 @@ var _ = Describe("Gateway API routes forging", func() {
 			})
 
 			When("the remote cluster does not offer a shared Gateway", func() {
-				BeforeEach(func() { opts.SharedGateway = nil })
+				BeforeEach(func() { opts.SharedGatewayEnabled = false })
 
 				It("should be reflected", func() {
 					Expect(err).ToNot(HaveOccurred())
@@ -674,7 +701,7 @@ var _ = Describe("Gateway API routes forging", func() {
 			Expect(errMarshal).ToNot(HaveOccurred())
 			Expect(json.Unmarshal(data, &spec)).To(Succeed())
 
-			Expect(spec.ParentRefs).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+			Expect(spec.ParentRefs).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 			Expect(spec.Rules[0].BackendRefs[0].Namespace).To(PointTo(BeEquivalentTo("offloaded-remote")))
 		})
 	})

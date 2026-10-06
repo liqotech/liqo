@@ -25,6 +25,24 @@ const (
 	// offered by the remote cluster: the Gateway is not reflected, and its routes are attached to the shared one.
 	RemoteGatewayModeShared = "shared"
 
+	// SharedGatewayLabel is the label marking the Gateways offered by the local cluster to the consumer clusters, which the
+	// routes they reflect can be attached to. The value is either SharedGatewayLabelValue or SharedGatewayLabelDefaultValue.
+	SharedGatewayLabel = "liqo.io/shared-gateway"
+	// SharedGatewayLabelValue is the value of the SharedGatewayLabel marking a Gateway as shared.
+	SharedGatewayLabelValue = "true"
+	// SharedGatewayLabelDefaultValue is the value of the SharedGatewayLabel marking a Gateway as the default shared one,
+	// which is selected when multiple Gateways are shared.
+	SharedGatewayLabelDefaultValue = "default"
+
+	// SharedGatewayPlaceholder is the name of the Gateway referenced by the routes reflected from the consumer clusters, as a
+	// placeholder for the shared Gateway offered by the provider cluster. The consumer clusters are not aware of the actual
+	// shared Gateway, and the placeholder is replaced by the provider cluster, at admission time.
+	SharedGatewayPlaceholder = "liqo-shared-gateway"
+	// SharedGatewayAnnotation is the annotation of the reflected routes attached to a shared Gateway, which reports the
+	// namespaced name (in the form <namespace>/<name>) of the shared Gateway the placeholder has been replaced with.
+	// It is set by the cluster offering the shared Gateway, and it is used by the consumer clusters to map the status back.
+	SharedGatewayAnnotation = "liqo.io/shared-gateway"
+
 	// SharedGatewayAddressesAnnotation is the annotation of the reflected routes attached to a shared Gateway, which reports
 	// the addresses of the shared Gateway (JSON-encoded, as in the Gateway status). It is set by the cluster offering the
 	// shared Gateway, since the consumer cluster is not allowed to access it, and it is used to report the addresses

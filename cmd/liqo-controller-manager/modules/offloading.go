@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -70,7 +69,6 @@ type OffloadingOption struct {
 	DenyDirectConnections       bool
 	ShadowIngressStatusWorkers  int
 	GatewayAPIStatusWorkers     int
-	SharedGateways              []types.NamespacedName
 	ResyncPeriod                time.Duration
 }
 
@@ -85,15 +83,6 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 			return nil, fmt.Errorf("parsing the namespaced name of the virtual-kubelet options template %q: %w",
 				opts.VkOptionsDefaultTemplate, err)
 		}
-	}
-
-	sharedGateways := make([]types.NamespacedName, 0, len(opts.SharedGateways.Classes))
-	for i := range opts.SharedGateways.Classes {
-		splits, err := argsutils.SplitNamespacedName(opts.SharedGateways.Classes[i].Name)
-		if err != nil {
-			return nil, fmt.Errorf("parsing the namespaced name of the shared Gateway %q: %w", opts.SharedGateways.Classes[i].Name, err)
-		}
-		sharedGateways = append(sharedGateways, types.NamespacedName{Namespace: splits[0], Name: splits[1]})
 	}
 
 	return &OffloadingOption{
@@ -113,7 +102,6 @@ func NewOffloadingOption(clientset *kubernetes.Clientset, localClusterID liqov1b
 		DenyDirectConnections:       opts.DenyDirectConnections,
 		ShadowIngressStatusWorkers:  opts.ShadowIngressStatusWorkers,
 		GatewayAPIStatusWorkers:     opts.GatewayAPIStatusWorkers,
-		SharedGateways:              sharedGateways,
 		ResyncPeriod:                opts.ResyncPeriod,
 	}, nil
 }
@@ -285,7 +273,8 @@ func setupGatewayAPIStatusControllers(ctx context.Context, mgr manager.Manager, 
 			indexed = true
 		}
 
-		routeReconciler := &gatewayapistatusctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind}
+		routeReconciler := &gatewayapistatusctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind,
+			Recorder: mgr.GetEventRecorder(fmt.Sprintf("%s-status-controller", strings.ToLower(string(kind))))}
 		if err := routeReconciler.SetupWithManager(mgr, opts.GatewayAPIStatusWorkers); err != nil {
 			klog.Errorf("Unable to setup the %s status reconciler: %v", kind, err)
 			return err
@@ -293,8 +282,8 @@ func setupGatewayAPIStatusControllers(ctx context.Context, mgr manager.Manager, 
 
 		// The routes reflected from the consumer clusters and attached to the shared Gateways offered by the local cluster
 		// are annotated with the addresses of the latter, which the consumer clusters are not allowed to access.
-		if len(opts.SharedGateways) > 0 && available.Has(gwutils.GatewaysGVR) {
-			sharedGatewayReconciler := &sharedgatewayctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind, SharedGateways: opts.SharedGateways}
+		if available.Has(gwutils.GatewaysGVR) {
+			sharedGatewayReconciler := &sharedgatewayctrl.RouteReconciler{Client: mgr.GetClient(), Kind: kind}
 			if err := sharedGatewayReconciler.SetupWithManager(mgr, opts.GatewayAPIStatusWorkers); err != nil {
 				klog.Errorf("Unable to setup the %s shared gateway reconciler: %v", kind, err)
 				return err

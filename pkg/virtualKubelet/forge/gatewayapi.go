@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,8 +42,9 @@ const ConditionReasonReflectionFailed = "ReflectionFailed"
 type GatewayAPIForgingOpts struct {
 	// Mapper maps the local namespaces to the remote ones, to translate cross-namespace references.
 	Mapper NamespaceMapper
-	// SharedGateway is the Gateway offered by the remote cluster the routes are attached to, if any.
-	SharedGateway *types.NamespacedName
+	// SharedGatewayEnabled is whether the remote cluster offers a shared Gateway the routes can be attached to. The routes
+	// refer to it through a placeholder, which is replaced by the remote cluster with the actual shared Gateway.
+	SharedGatewayEnabled bool
 	// MapGateway returns how the given local Gateway is mapped to the remote cluster, which determines
 	// whether routes can be attached to its remote copy, or to the shared Gateway.
 	MapGateway func(namespace, name string) GatewayMapping
@@ -85,7 +87,7 @@ func MapGateway(gateway *gwv1.Gateway, opts *GatewayAPIForgingOpts) GatewayMappi
 // offered by the remote cluster, rather than reflected. This happens if requested through the RemoteGatewayModeAnnotation,
 // or if the remote cluster offers a shared Gateway, but no GatewayClass to reflect the Gateway.
 func GatewayMappedToShared(gateway *gwv1.Gateway, opts *GatewayAPIForgingOpts) bool {
-	if string(gateway.Spec.GatewayClassName) != opts.VirtualGatewayClass || opts.SharedGateway == nil {
+	if string(gateway.Spec.GatewayClassName) != opts.VirtualGatewayClass || !opts.SharedGatewayEnabled {
 		return false
 	}
 	return gateway.GetAnnotations()[consts.RemoteGatewayModeAnnotation] == consts.RemoteGatewayModeShared || opts.RemoteGatewayClass == ""
@@ -107,12 +109,38 @@ var ErrNotManaged = errors.New("object not managed by the reflection")
 // remote cluster, hence it shall not be reflected, while its routes are attached to the shared Gateway.
 var ErrMappedToShared = errors.New("gateway mapped to the shared Gateway of the remote cluster")
 
-// routeAnnotations returns the annotations of the reflected route, given the ones of the local route. The annotation
-// reporting the addresses of the shared Gateway is excluded, as it is set in the remote cluster, and it shall not be overridden.
+// routeAnnotations returns the annotations of the reflected route, given the ones of the local route. The annotations
+// reporting the shared Gateway and its addresses are excluded, as they are set in the remote cluster, and they shall not be overridden.
 func routeAnnotations(local metav1.Object, forgingOpts *ForgingOpts) map[string]string {
 	annotations := FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)
 	delete(annotations, consts.SharedGatewayAddressesAnnotation)
+	delete(annotations, consts.SharedGatewayAnnotation)
 	return annotations
+}
+
+// SharedGatewayPlaceholderRef returns the parent reference to the placeholder of the shared Gateway offered by the remote
+// cluster, which is replaced by the remote cluster with the actual shared Gateway, when the route is created or updated.
+func SharedGatewayPlaceholderRef() gwv1.ParentReference {
+	return gwv1.ParentReference{Name: consts.SharedGatewayPlaceholder}
+}
+
+// IsSharedGatewayPlaceholder returns whether the given parent reference refers to the placeholder of the shared Gateway.
+func IsSharedGatewayPlaceholder(ref *gwv1.ParentReference) bool {
+	return isGatewayReference(ref.Group, ref.Kind) && ref.Namespace == nil && ref.Name == consts.SharedGatewayPlaceholder
+}
+
+// ResolvedSharedGateway returns the shared Gateway the placeholder of the given reflected route has been replaced with,
+// as reported by the remote cluster through the SharedGatewayAnnotation, or nil if not known.
+func ResolvedSharedGateway(remote metav1.Object) *types.NamespacedName {
+	value, found := remote.GetAnnotations()[consts.SharedGatewayAnnotation]
+	if !found {
+		return nil
+	}
+	namespace, name, found := strings.Cut(value, "/")
+	if !found || namespace == "" || name == "" {
+		return nil
+	}
+	return &types.NamespacedName{Namespace: namespace, Name: name}
 }
 
 // RemoteHTTPRoute forges the apply patch for the reflected HTTPRoute, given the local one.
@@ -333,14 +361,12 @@ func RemoteParentRef(localNamespace string, parent gwv1.ParentReference, opts *G
 			return remoteParent, ""
 		}
 
-		if opts.SharedGateway == nil {
+		if !opts.SharedGatewayEnabled {
 			warning = fmt.Sprintf("parentRef %s dropped: no shared Gateway offered by the remote cluster", parentRefString(localNamespace, &parent))
 			return parent, warning
 		}
-		return gwv1.ParentReference{
-			Name:      gwv1.ObjectName(opts.SharedGateway.Name),
-			Namespace: ptr.To(gwv1.Namespace(opts.SharedGateway.Namespace)),
-		}, ""
+		// The remote cluster replaces the placeholder with the actual shared Gateway, which is not known by the local cluster.
+		return SharedGatewayPlaceholderRef(), ""
 
 	case isServiceReference(parent.Group, parent.Kind):
 		if parent.Namespace != nil {
@@ -374,15 +400,23 @@ func ReflectedRouteParents(localNamespace string, localParents []gwv1.ParentRefe
 
 // LocalRouteParentStatuses translates the statuses of a reflected route with respect to its parents into the ones
 // of the local route, associating each remote parent with the local parents it has been translated from.
+// The placeholder of the shared Gateway is associated with the given shared Gateway it has been replaced with, if known.
 // Remote parents not derived from any local parent (e.g., added by other entities) are ignored.
 func LocalRouteParentStatuses(localNamespace, remoteNamespace string, localParents []gwv1.ParentReference,
-	remote []gwv1.RouteParentStatus, opts *GatewayAPIForgingOpts) []gwv1.RouteParentStatus {
+	remote []gwv1.RouteParentStatus, shared *types.NamespacedName, opts *GatewayAPIForgingOpts) []gwv1.RouteParentStatus {
 	// Multiple local parents may be translated to the same remote one (i.e., the shared gateway).
 	origins := make(map[string][]gwv1.ParentReference, len(localParents))
 	for i := range localParents {
 		parent, warning := RemoteParentRef(localNamespace, localParents[i], opts)
 		if warning != "" {
 			continue
+		}
+		if IsSharedGatewayPlaceholder(&parent) {
+			if shared == nil {
+				// The placeholder has not been replaced yet, hence no status can be associated with it.
+				continue
+			}
+			parent = gwv1.ParentReference{Name: gwv1.ObjectName(shared.Name), Namespace: ptr.To(gwv1.Namespace(shared.Namespace))}
 		}
 		key := ParentRefKey(&parent, remoteNamespace)
 		origins[key] = append(origins[key], localParents[i])

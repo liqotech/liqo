@@ -123,13 +123,15 @@ var _ = Describe("Gateway status aggregation", func() {
 
 var _ = Describe("Route status aggregation", func() {
 	var (
-		current []gwv1.RouteParentStatus
-		shadows []offloadingv1beta1.ShadowRouteStatus
-		result  []gwv1.RouteParentStatus
+		current  []gwv1.RouteParentStatus
+		shadows  []offloadingv1beta1.ShadowRouteStatus
+		result   []gwv1.RouteParentStatus
+		degraded []string
 	)
 
 	edge := gwv1.ParentReference{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")}
 	web := gwv1.ParentReference{Name: "web", SectionName: ptr.To[gwv1.SectionName]("http")}
+	api := gwv1.ParentReference{Name: "api"}
 
 	shadow := func(cluster string, parents ...gwv1.RouteParentStatus) offloadingv1beta1.ShadowRouteStatus {
 		return offloadingv1beta1.ShadowRouteStatus{
@@ -154,12 +156,13 @@ var _ = Describe("Route status aggregation", func() {
 			{ParentRef: gwv1.ParentReference{Name: "stale"}, ControllerName: consts.GatewayControllerName},
 		}
 		shadows = []offloadingv1beta1.ShadowRouteStatus{
-			shadow("cluster-a", parent(edge, metav1.ConditionTrue, ""), parent(web, metav1.ConditionTrue, "")),
-			shadow("cluster-b", parent(edge, metav1.ConditionFalse, "NotAllowedByListeners")),
+			shadow("cluster-a", parent(edge, metav1.ConditionTrue, ""), parent(web, metav1.ConditionTrue, ""),
+				parent(api, metav1.ConditionUnknown, "Pending")),
+			shadow("cluster-b", parent(edge, metav1.ConditionFalse, "NotAllowedByListeners"), parent(api, metav1.ConditionFalse, "NoMatchingParent")),
 		}
 	})
 
-	JustBeforeEach(func() { result = AggregateRouteParents(current, shadows, namespace, 7) })
+	JustBeforeEach(func() { result, degraded = AggregateRouteParents(current, shadows, namespace, 7) })
 
 	It("should preserve the entries of the other controllers", func() {
 		Expect(result).To(ContainElement(current[0]))
@@ -171,7 +174,7 @@ var _ = Describe("Route status aggregation", func() {
 				liqo = append(liqo, result[i].ParentRef)
 			}
 		}
-		Expect(liqo).To(ConsistOf(edge, web))
+		Expect(liqo).To(ConsistOf(edge, web, api))
 	})
 	It("should aggregate the conditions reported by the remote clusters", func() {
 		for i := range result {
@@ -183,15 +186,26 @@ var _ = Describe("Route status aggregation", func() {
 			Expect(accepted.LastTransitionTime.IsZero()).To(BeFalse())
 			switch result[i].ParentRef.Name {
 			case "edge":
-				Expect(accepted.Status).To(Equal(metav1.ConditionFalse))
-				Expect(accepted.Reason).To(Equal("ReasonFalse"))
-				Expect(accepted.Message).To(Equal(`cluster "cluster-b": NotAllowedByListeners`))
+				// Accepted in at least one cluster, reporting the clusters where it is not.
+				Expect(accepted.Status).To(Equal(metav1.ConditionTrue))
+				Expect(accepted.Reason).To(Equal("ReasonTrue"))
+				Expect(accepted.Message).To(Equal(
+					`Condition satisfied in cluster(s) cluster-a; not satisfied in cluster "cluster-b": NotAllowedByListeners`))
 			case "web":
 				Expect(accepted.Status).To(Equal(metav1.ConditionTrue))
 				Expect(accepted.Message).To(Equal("Condition satisfied in cluster(s) cluster-a"))
+			case "api":
+				// Not accepted in any cluster: False takes precedence over Unknown.
+				Expect(accepted.Status).To(Equal(metav1.ConditionFalse))
+				Expect(accepted.Reason).To(Equal("ReasonFalse"))
+				Expect(accepted.Message).To(Equal(`cluster "cluster-a": Pending; cluster "cluster-b": NoMatchingParent`))
 			}
 			Expect(meta.IsStatusConditionTrue(result[i].Conditions, string(gwv1.RouteConditionResolvedRefs))).To(BeTrue())
 		}
+	})
+
+	It("should return the parents accepted only by part of the remote clusters", func() {
+		Expect(degraded).To(ConsistOf(`parent "edge" not accepted in cluster "cluster-b": NotAllowedByListeners`))
 	})
 
 	When("a condition is no longer reported by any remote cluster", func() {

@@ -88,12 +88,12 @@ func setupGatewayAPIReflection(cfg *InitConfig, localClient, remoteClient kubern
 			localGateway = gwclient.NewForConfigOrDie(cfg.LocalConfig)
 		}
 		reflectionManager.With(res.reflector(ptr.To(cfg.ReflectorsConfigs[res.resource]), &gatewayapi.Config{
-			Support:             support,
-			GatewaysAvailable:   local.Has(gwutils.GatewaysGVR),
-			SharedGateway:       cfg.RemoteSharedGateway,
-			VirtualGatewayClass: cfg.VirtualGatewayClassName,
-			RemoteGatewayClass:  cfg.RemoteRealGatewayClassName,
-			ReflectedRoutes:     reflectedRoutes,
+			Support:              support,
+			GatewaysAvailable:    local.Has(gwutils.GatewaysGVR),
+			SharedGatewayEnabled: cfg.RemoteSharedGatewayEnabled,
+			VirtualGatewayClass:  cfg.VirtualGatewayClassName,
+			RemoteGatewayClass:   cfg.RemoteRealGatewayClassName,
+			ReflectedRoutes:      reflectedRoutes,
 		}))
 	}
 

@@ -109,9 +109,9 @@ do
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
   if [[ "${GATEWAY_API_ENABLED}" == "true" ]]; then
-    # The GatewayClass and the shared Gateway configured in the provider clusters (test/e2e/manifests/gatewayapi/provider.yaml).
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "offloading.reflection.gateway.gatewayClasses[0].name=eg"
-      --set "offloading.reflection.gateway.sharedGateways[0].name=infra/public")
+    # The GatewayClass configured in the provider clusters (test/e2e/manifests/gatewayapi/provider.yaml), where the shared
+    # Gateway is labeled as such.
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "offloading.reflection.gateway.gatewayClasses[0].name=eg")
   fi
   
   if [[ "${INFRA}" == "k3s" ]]; then

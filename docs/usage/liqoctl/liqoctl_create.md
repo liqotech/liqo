@@ -680,7 +680,7 @@ liqoctl create virtualnode [flags]
 
 `--shared-gateways` _strings_:
 
->The Gateway API Gateways (in the form <namespace>/<name>) offered by the remote cluster, which the reflected routes are attached to. The first one will be used as default
+>The Gateway API Gateways (in the form <namespace>/<name>) shared by the remote cluster, which the reflected routes can be attached to. The actual Gateway is selected by the remote cluster
 
 `--storage-classes` _strings_:
 
