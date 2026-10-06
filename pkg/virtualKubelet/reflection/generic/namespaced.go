@@ -17,6 +17,7 @@ package generic
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -112,7 +113,12 @@ func (gnr *NamespacedReflector) DeleteLocal(ctx context.Context, deleter Resourc
 }
 
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
+// The annotations selecting the remote clusters the object is (not) reflected into take precedence over the reflection policy.
 func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
+	if skip := forcedByClusters(obj); skip != nil {
+		return *skip, nil
+	}
+
 	switch gnr.reflectionType {
 	case offloadingv1beta1.AllowList:
 		value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
@@ -142,6 +148,10 @@ func (gnr *NamespacedReflector) GetReflectionType() offloadingv1beta1.Reflection
 // Otherwise, it return a nil bool as it is undeterminated, since we are not considering the reflection
 // policy at this stage.
 func (gnr *NamespacedReflector) ForcedAllowOrSkip(obj metav1.Object) (*bool, error) {
+	if skip := forcedByClusters(obj); skip != nil {
+		return skip, nil
+	}
+
 	allowAnnot, skipAnnot := false, false
 
 	value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
@@ -165,4 +175,34 @@ func (gnr *NamespacedReflector) ForcedAllowOrSkip(obj metav1.Object) (*bool, err
 	default:
 		return nil, nil
 	}
+}
+
+// forcedByClusters checks whether the given object is explicitly marked to be reflected (or not) into the remote cluster
+// of the reflector, through the annotations listing the remote cluster IDs, which take precedence over the reflection policy
+// and over the allow and skip annotations. If so, it returns whether the object should be skipped, and nil otherwise:
+//   - the object is skipped if the remote cluster is listed in the SkipReflectionClustersAnnotationKey annotation;
+//   - otherwise, if the AllowReflectionClustersAnnotationKey annotation is set, the object is reflected only if the remote
+//     cluster is listed (an empty list means that the object is not reflected into any remote cluster).
+func forcedByClusters(obj metav1.Object) *bool {
+	remote := string(forge.RemoteCluster)
+	annotations := obj.GetAnnotations()
+
+	if value, found := annotations[consts.SkipReflectionClustersAnnotationKey]; found && slices.Contains(clusterList(value), remote) {
+		return pointer.Bool(true)
+	}
+	if value, found := annotations[consts.AllowReflectionClustersAnnotationKey]; found {
+		return pointer.Bool(!slices.Contains(clusterList(value), remote))
+	}
+	return nil
+}
+
+// clusterList parses the given comma-separated list of cluster IDs, ignoring the spaces and the empty entries.
+func clusterList(value string) []string {
+	var clusters []string
+	for _, cluster := range strings.Split(value, ",") {
+		if cluster = strings.TrimSpace(cluster); cluster != "" {
+			clusters = append(clusters, cluster)
+		}
+	}
+	return clusters
 }
