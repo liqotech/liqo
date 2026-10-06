@@ -152,8 +152,8 @@ var _ = Describe("Gateway reflection", func() {
 		events = make(chan *corev1.Event, 10)
 		cfg = gatewayapi.Config{
 			Support: gatewayapi.SupportFull, GatewaysAvailable: true,
-			SharedGateway:       &types.NamespacedName{Namespace: "infra", Name: "public"},
-			VirtualGatewayClass: "liqo", RemoteGatewayClass: "envoy",
+			SharedGatewayEnabled: true,
+			VirtualGatewayClass:  "liqo", RemoteGatewayClass: "envoy",
 		}
 	})
 
@@ -337,11 +337,12 @@ var _ = Describe("Gateway reflection", func() {
 			return liqoClient.OffloadingV1beta1().ShadowGatewayStatuses(LocalNamespace).Get(ctx, gatewayapi.ShadowName("", GatewayName), metav1.GetOptions{})
 		}
 
-		// remoteRoute returns a route reflected in the remote namespace, attached to the shared Gateway, and annotated with its addresses.
+		// remoteRoute returns a route reflected in the remote namespace, attached to the shared Gateway (as resolved by the
+		// remote cluster, which replaced the placeholder), and annotated with its addresses.
 		remoteRoute := func(name, addresses string) *gwv1.HTTPRoute {
 			return &gwv1.HTTPRoute{
 				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels(),
-					Annotations: map[string]string{consts.SharedGatewayAddressesAnnotation: addresses}},
+					Annotations: map[string]string{consts.SharedGatewayAddressesAnnotation: addresses, consts.SharedGatewayAnnotation: "infra/public"}},
 				Spec: gwv1.HTTPRouteSpec{CommonRouteSpec: gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
 					{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")},
 				}}},
@@ -382,6 +383,25 @@ var _ = Describe("Gateway reflection", func() {
 			var event *corev1.Event
 			Eventually(events).Should(Receive(&event))
 			Expect(event.Reason).To(Equal(forge.EventMappedToSharedGateway))
+		})
+
+		When("the remote routes report the shared Gateway, but not its addresses", func() {
+			BeforeEach(func() {
+				pending := remoteRoute("route", "")
+				delete(pending.Annotations, consts.SharedGatewayAddressesAnnotation)
+				remoteRoutes = []runtime.Object{pending}
+			})
+
+			It("should report the shared Gateway as not yet programmed", func() {
+				shadow, errShadow := getShadow()
+				Expect(errShadow).ToNot(HaveOccurred())
+				Expect(shadow.Spec.Addresses).To(BeEmpty())
+				Expect(shadow.Spec.Conditions).To(ContainElement(And(
+					HaveField("Type", string(gwv1.GatewayConditionProgrammed)),
+					HaveField("Status", metav1.ConditionFalse),
+					HaveField("Message", ContainSubstring(`shared Gateway "infra/public"`)),
+				)))
+			})
 		})
 
 		When("no remote route reports the addresses of the shared Gateway", func() {
@@ -448,8 +468,7 @@ var _ = Describe("Gateway reflection", func() {
 			It("should attach the remote route to the shared Gateway, as the Gateway is mapped to it", func() {
 				parents := getRemoteRoute().Spec.ParentRefs
 				Expect(parents).To(HaveLen(1))
-				Expect(parents[0].Name).To(BeEquivalentTo("public"))
-				Expect(parents[0].SectionName).To(BeNil())
+				Expect(forge.IsSharedGatewayPlaceholder(&parents[0])).To(BeTrue())
 			})
 		})
 
@@ -460,8 +479,7 @@ var _ = Describe("Gateway reflection", func() {
 			It("should attach the remote route to the shared Gateway", func() {
 				parents := getRemoteRoute().Spec.ParentRefs
 				Expect(parents).To(HaveLen(1))
-				Expect(parents[0].Name).To(BeEquivalentTo("public"))
-				Expect(parents[0].Namespace).To(PointTo(BeEquivalentTo("infra")))
+				Expect(forge.IsSharedGatewayPlaceholder(&parents[0])).To(BeTrue())
 			})
 		})
 	})

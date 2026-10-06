@@ -132,19 +132,16 @@ type gatewayStatusReflector struct {
 	client    offloadingv1beta1clients.ShadowGatewayStatusInterface
 	lister    offloadingv1beta1listers.ShadowGatewayStatusNamespaceLister
 
-	// sharedGateway is the Gateway offered by the remote cluster, which the Gateways mapped to the shared one refer to.
-	sharedGateway *types.NamespacedName
 	// remoteRoutes list the reflected routes in the remote namespace, which report the addresses of the shared Gateway.
 	remoteRoutes []remoteRoutesLister
 }
 
-func newGatewayStatusReflector(opts *options.NamespacedOpts, forgingOpts *forge.GatewayAPIForgingOpts) statusReflector[*gwv1.Gateway] {
+func newGatewayStatusReflector(opts *options.NamespacedOpts, _ *forge.GatewayAPIForgingOpts) statusReflector[*gwv1.Gateway] {
 	return &gatewayStatusReflector{
-		namespace:     opts.LocalNamespace,
-		kube:          opts.LocalClient,
-		client:        opts.LocalLiqoClient.OffloadingV1beta1().ShadowGatewayStatuses(opts.LocalNamespace),
-		lister:        opts.LocalLiqoFactory.Offloading().V1beta1().ShadowGatewayStatuses().Lister().ShadowGatewayStatuses(opts.LocalNamespace),
-		sharedGateway: forgingOpts.SharedGateway,
+		namespace: opts.LocalNamespace,
+		kube:      opts.LocalClient,
+		client:    opts.LocalLiqoClient.OffloadingV1beta1().ShadowGatewayStatuses(opts.LocalNamespace),
+		lister:    opts.LocalLiqoFactory.Offloading().V1beta1().ShadowGatewayStatuses().Lister().ShadowGatewayStatuses(opts.LocalNamespace),
 	}
 }
 
@@ -244,7 +241,22 @@ func (rsr *routeStatusReflector[O]) shadowName(name string) string {
 
 func (rsr *routeStatusReflector[O]) Enforce(ctx context.Context, local, remote O) error {
 	// The references to the remote parents are translated to the ones of the local route.
-	parents := forge.LocalRouteParentStatuses(rsr.namespace, rsr.remoteNamespace, rsr.parents(local), rsr.statuses(remote), rsr.forgingOpts)
+	shared := forge.ResolvedSharedGateway(remote)
+	parents := forge.LocalRouteParentStatuses(rsr.namespace, rsr.remoteNamespace, rsr.parents(local), rsr.statuses(remote),
+		shared, rsr.forgingOpts)
+
+	// The placeholder of the shared Gateway is replaced by the remote cluster when the route is applied: if not replaced,
+	// the remote cluster does not offer any shared Gateway (anymore), and the corresponding parents are reported as failed.
+	if shared == nil {
+		var placeholders []gwv1.ParentReference
+		for _, parent := range forge.ReflectedRouteParents(rsr.namespace, rsr.parents(local), rsr.forgingOpts) {
+			if remoteParent, _ := forge.RemoteParentRef(rsr.namespace, parent, rsr.forgingOpts); forge.IsSharedGatewayPlaceholder(&remoteParent) {
+				placeholders = append(placeholders, parent)
+			}
+		}
+		parents = append(parents, rsr.failedParents(local, placeholders,
+			"No shared Gateway offered by the remote cluster, which the route can be attached to")...)
+	}
 	return rsr.apply(ctx, local.GetName(), parents)
 }
 
@@ -256,6 +268,11 @@ func (rsr *routeStatusReflector[O]) Fail(ctx context.Context, local O, message s
 		return rsr.Delete(ctx, local.GetName())
 	}
 
+	return rsr.apply(ctx, local.GetName(), rsr.failedParents(local, reflected, message))
+}
+
+// failedParents returns the statuses reporting the failure, with the given message, for the given parents of the local route.
+func (rsr *routeStatusReflector[O]) failedParents(local O, reflected []gwv1.ParentReference, message string) []gwv1.RouteParentStatus {
 	var previous []gwv1.RouteParentStatus
 	if shadow, err := rsr.lister.Get(rsr.shadowName(local.GetName())); err == nil {
 		previous = shadow.Spec.Parents
@@ -279,7 +296,7 @@ func (rsr *routeStatusReflector[O]) Fail(ctx context.Context, local O, message s
 			},
 		})
 	}
-	return rsr.apply(ctx, local.GetName(), parents)
+	return parents
 }
 
 // apply enforces the shadow resource associated with the given local route, reporting the given parent statuses.

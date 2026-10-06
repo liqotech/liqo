@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -35,20 +36,19 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // RouteReconciler annotates the routes of a given kind reflected from the consumer clusters, and attached to the shared
-// Gateways offered by the local cluster, with the addresses of the latter. The consumer clusters are not allowed to access
-// the shared Gateways, while they can read the routes reflected in their namespaces, and report the addresses in the status
-// of their Gateways mapped to the shared ones.
+// Gateways offered by the local cluster (i.e., the ones labeled as shared), with the addresses of the latter.
+// The consumer clusters are not allowed to access the shared Gateways, while they can read the routes reflected
+// in their namespaces, and report the addresses in the status of their Gateways mapped to the shared ones.
 type RouteReconciler struct {
 	client.Client
 
 	// Kind is the kind of routes managed by the reconciler.
 	Kind offloadingv1beta1.RouteKind
-	// SharedGateways are the Gateways offered by the local cluster to the consumer clusters.
-	SharedGateways []types.NamespacedName
 }
 
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways,verbs=get;list;watch
@@ -93,16 +93,17 @@ func (r *RouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 // sharedGatewayAddresses returns the JSON-encoded addresses of the first shared Gateway the route is attached to, which is
 // programmed, or an empty string if none. The addresses are reported only once programmed, as they might be otherwise not ready.
 func (r *RouteReconciler) sharedGatewayAddresses(ctx context.Context, namespace string, parents []gwv1.ParentReference) (string, error) {
-	for _, shared := range r.attachedSharedGateways(namespace, parents) {
+	for _, shared := range attachedGateways(namespace, parents) {
 		var gateway gwv1.Gateway
 		if err := r.Get(ctx, shared, &gateway); err != nil {
 			if kerrors.IsNotFound(err) {
 				continue
 			}
-			return "", fmt.Errorf("failed to retrieve shared Gateway %q: %w", shared, err)
+			return "", fmt.Errorf("failed to retrieve Gateway %q: %w", shared, err)
 		}
 
-		if !meta.IsStatusConditionTrue(gateway.Status.Conditions, string(gwv1.GatewayConditionProgrammed)) || len(gateway.Status.Addresses) == 0 {
+		programmed := meta.IsStatusConditionTrue(gateway.Status.Conditions, string(gwv1.GatewayConditionProgrammed))
+		if !gwutils.IsSharedGateway(&gateway) || !programmed || len(gateway.Status.Addresses) == 0 {
 			continue
 		}
 
@@ -115,8 +116,8 @@ func (r *RouteReconciler) sharedGatewayAddresses(ctx context.Context, namespace 
 	return "", nil
 }
 
-// attachedSharedGateways returns the shared Gateways the route with the given parents is attached to, in order.
-func (r *RouteReconciler) attachedSharedGateways(namespace string, parents []gwv1.ParentReference) []types.NamespacedName {
+// attachedGateways returns the Gateways the route with the given parents is attached to, in order.
+func attachedGateways(namespace string, parents []gwv1.ParentReference) []types.NamespacedName {
 	var attached []types.NamespacedName
 	for i := range parents {
 		parent := &parents[i]
@@ -128,21 +129,9 @@ func (r *RouteReconciler) attachedSharedGateways(namespace string, parents []gwv
 		if parent.Namespace != nil {
 			gateway.Namespace = string(*parent.Namespace)
 		}
-		if r.isShared(gateway) {
-			attached = append(attached, gateway)
-		}
+		attached = append(attached, gateway)
 	}
 	return attached
-}
-
-// isShared returns whether the given Gateway is offered as shared Gateway to the consumer clusters.
-func (r *RouteReconciler) isShared(gateway types.NamespacedName) bool {
-	for _, shared := range r.SharedGateways {
-		if shared == gateway {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *RouteReconciler) newRoute() (client.Object, *[]gwv1.ParentReference) {
@@ -178,9 +167,15 @@ func (r *RouteReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error 
 		_, found := obj.GetLabels()[forge.LiqoOriginClusterIDKey]
 		return found
 	})
-	shared := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		return r.isShared(types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()})
-	})
+	// The Gateways no longer labeled as shared are considered as well, to remove the addresses from the routes.
+	shared := predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		GenericFunc: func(e event.GenericEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return gwutils.IsSharedGateway(e.ObjectOld) || gwutils.IsSharedGateway(e.ObjectNew)
+		},
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).Named(name).
 		For(route, builder.WithPredicates(reflected)).
@@ -211,7 +206,7 @@ func (r *RouteReconciler) attachedRoutes(ctx context.Context, gateway client.Obj
 		case *gwv1.GRPCRoute:
 			parents = typed.Spec.ParentRefs
 		}
-		for _, attached := range r.attachedSharedGateways(route.GetNamespace(), parents) {
+		for _, attached := range attachedGateways(route.GetNamespace(), parents) {
 			if attached == key {
 				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: route.GetNamespace(), Name: route.GetName()}})
 				break

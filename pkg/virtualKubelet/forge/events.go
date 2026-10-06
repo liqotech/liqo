@@ -131,10 +131,10 @@ func EventPartialReflectionMsg(details []string) string {
 		RemoteCluster, LiqoNodeName, strings.Join(details, "; "))
 }
 
-// EventMappedToSharedGatewayMsg returns the message for the event when a Gateway is mapped to the given shared Gateway of the remote cluster.
-func EventMappedToSharedGatewayMsg(shared string) string {
-	return fmt.Sprintf("Gateway mapped to shared Gateway %q of cluster %q (virtual node %q): the attached routes are reflected towards it",
-		shared, RemoteCluster, LiqoNodeName)
+// EventMappedToSharedGatewayMsg returns the message for the event when a Gateway is mapped to the shared Gateway of the remote cluster.
+func EventMappedToSharedGatewayMsg() string {
+	return fmt.Sprintf("Gateway mapped to the shared Gateway of cluster %q (virtual node %q): the attached routes are reflected towards it",
+		RemoteCluster, LiqoNodeName)
 }
 
 // EventReflectionNotPossibleMsg returns the message for the event when the object cannot be reflected, for the given reason.

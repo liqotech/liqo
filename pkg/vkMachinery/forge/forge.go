@@ -69,16 +69,9 @@ func getDefaultGatewayClass(gatewayClasses []liqov1beta1.GatewayClassType) liqov
 	return gatewayClasses[0]
 }
 
-func getDefaultSharedGateway(sharedGateways []liqov1beta1.SharedGatewayType) liqov1beta1.SharedGatewayType {
-	for _, sharedGateway := range sharedGateways {
-		if sharedGateway.Default {
-			return sharedGateway
-		}
-	}
-	return sharedGateways[0]
-}
-
 // appendArgsGatewayAPI enables the Gateway API reflection if the remote cluster offers any GatewayClass or shared Gateway.
+// The shared Gateways are not passed to the virtual kubelet, as the routes refer to them through a placeholder, which is
+// replaced by the remote cluster: hence, the virtual kubelet is not restarted when the offered shared Gateways change.
 func appendArgsGatewayAPI(args []string, gatewayClasses []liqov1beta1.GatewayClassType, sharedGateways []liqov1beta1.SharedGatewayType) []string {
 	if len(gatewayClasses) == 0 && len(sharedGateways) == 0 {
 		return args
@@ -89,8 +82,7 @@ func appendArgsGatewayAPI(args []string, gatewayClasses []liqov1beta1.GatewayCla
 		args = append(args, StringifyArgument(string(RemoteRealGatewayClassName), getDefaultGatewayClass(gatewayClasses).GatewayClassName))
 	}
 	if len(sharedGateways) > 0 {
-		gateway := getDefaultSharedGateway(sharedGateways)
-		args = append(args, StringifyArgument(string(RemoteSharedGateway), fmt.Sprintf("%s/%s", gateway.Namespace, gateway.Name)))
+		args = append(args, string(EnableRemoteSharedGateway))
 	}
 	return args
 }

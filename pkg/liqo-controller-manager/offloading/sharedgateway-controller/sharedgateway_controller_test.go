@@ -49,7 +49,8 @@ var _ = Describe("Shared Gateway route annotation", func() {
 
 	newGateway := func(programmed metav1.ConditionStatus, addresses ...string) *gwv1.Gateway {
 		gw := &gwv1.Gateway{
-			ObjectMeta: metav1.ObjectMeta{Name: shared.Name, Namespace: shared.Namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: shared.Name, Namespace: shared.Namespace,
+				Labels: map[string]string{consts.SharedGatewayLabel: consts.SharedGatewayLabelValue}},
 			Status: gwv1.GatewayStatus{Conditions: []metav1.Condition{{
 				Type: string(gwv1.GatewayConditionProgrammed), Status: programmed, Reason: "Reason", LastTransitionTime: metav1.Now(),
 			}}},
@@ -87,7 +88,7 @@ var _ = Describe("Shared Gateway route annotation", func() {
 		Expect(gwv1.Install(scheme)).To(Succeed())
 		cl = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gateway, route).
 			WithStatusSubresource(&gwv1.Gateway{}).Build()
-		reconciler = &RouteReconciler{Client: cl, Kind: offloadingv1beta1.HTTPRouteKind, SharedGateways: []types.NamespacedName{shared}}
+		reconciler = &RouteReconciler{Client: cl, Kind: offloadingv1beta1.HTTPRouteKind}
 
 		_, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: key})
 		Expect(err).ToNot(HaveOccurred())
@@ -108,6 +109,17 @@ var _ = Describe("Shared Gateway route annotation", func() {
 	When("the shared Gateway is not programmed", func() {
 		BeforeEach(func() {
 			gateway = newGateway(metav1.ConditionFalse, "10.0.0.1")
+			route = newRoute(map[string]string{consts.SharedGatewayAddressesAnnotation: "stale"}, sharedParent)
+		})
+
+		It("should remove the stale annotation", func() {
+			Expect(annotations()).ToNot(HaveKey(consts.SharedGatewayAddressesAnnotation))
+		})
+	})
+
+	When("the Gateway is no longer labeled as shared", func() {
+		BeforeEach(func() {
+			gateway.Labels = nil
 			route = newRoute(map[string]string{consts.SharedGatewayAddressesAnnotation: "stale"}, sharedParent)
 		})
 

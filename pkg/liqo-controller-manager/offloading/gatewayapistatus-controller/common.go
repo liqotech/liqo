@@ -82,30 +82,42 @@ type clusterCondition struct {
 }
 
 // aggregateConditions aggregates the conditions of the given type reported by multiple clusters: the resulting
-// condition is True only if it is True in all clusters, False if it is False in any cluster, and Unknown otherwise.
-func aggregateConditions(conditionType string, reported []clusterCondition, generation int64) metav1.Condition {
+// condition is True if it is True in at least one cluster, consistently with the Programmed condition of the Gateways.
+// Otherwise, it is False if it is False in any cluster, and Unknown otherwise. The clusters where the condition is not
+// satisfied are reported in the message, and returned as degraded if the resulting condition is nonetheless True.
+func aggregateConditions(conditionType string, reported []clusterCondition, generation int64) (result metav1.Condition, degraded []string) {
 	sort.Slice(reported, func(i, j int) bool { return reported[i].cluster < reported[j].cluster })
 
-	result := metav1.Condition{Type: conditionType, Status: metav1.ConditionTrue, ObservedGeneration: generation}
+	result = metav1.Condition{Type: conditionType, ObservedGeneration: generation}
 	var healthy, unhealthy []string
 	for _, r := range reported {
 		if r.condition.Status == metav1.ConditionTrue {
+			if len(healthy) == 0 {
+				// The first True condition determines the reason.
+				result.Reason = r.condition.Reason
+			}
 			healthy = append(healthy, r.cluster)
 			continue
 		}
-
 		unhealthy = append(unhealthy, fmt.Sprintf("cluster %q: %s", r.cluster, r.condition.Message))
-		// The first False condition determines the reason, otherwise the first Unknown one.
-		if result.Status == metav1.ConditionTrue || (result.Status == metav1.ConditionUnknown && r.condition.Status == metav1.ConditionFalse) {
+	}
+
+	if len(healthy) > 0 {
+		result.Status = metav1.ConditionTrue
+		result.Message = fmt.Sprintf("Condition satisfied in cluster(s) %s", strings.Join(healthy, ", "))
+		if len(unhealthy) > 0 {
+			result.Message += fmt.Sprintf("; not satisfied in %s", strings.Join(unhealthy, "; "))
+		}
+		return result, unhealthy
+	}
+
+	// No cluster satisfies the condition: the first False condition determines the reason, otherwise the first Unknown one.
+	result.Status = metav1.ConditionUnknown
+	for _, r := range reported {
+		if result.Reason == "" || (result.Status == metav1.ConditionUnknown && r.condition.Status == metav1.ConditionFalse) {
 			result.Status, result.Reason = r.condition.Status, r.condition.Reason
 		}
 	}
-
-	if len(unhealthy) == 0 {
-		result.Reason = reported[0].condition.Reason
-		result.Message = fmt.Sprintf("Condition satisfied in cluster(s) %s", strings.Join(healthy, ", "))
-		return result
-	}
 	result.Message = strings.Join(unhealthy, "; ")
-	return result
+	return result, nil
 }

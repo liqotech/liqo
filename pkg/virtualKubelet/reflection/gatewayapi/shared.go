@@ -62,7 +62,7 @@ type remoteRoutesLister func() ([]remoteRoute, error)
 func watchSharedGatewayRoutes(opts *options.NamespacedOpts, cfg *Config,
 	reflector *NamespacedReflector[*gwv1.Gateway, *gwv1apply.GatewayApplyConfiguration]) {
 	status, ok := reflector.status.(*gatewayStatusReflector)
-	if !ok || cfg.SharedGateway == nil {
+	if !ok || !cfg.SharedGatewayEnabled {
 		return
 	}
 
@@ -136,20 +136,24 @@ func (gsr *gatewayStatusReflector) Shared(ctx context.Context, local *gwv1.Gatew
 		previous, previousListeners = shadow.Spec.Conditions, shadow.Spec.Listeners
 	}
 
-	addresses := gsr.sharedGatewayAddresses()
-	shared := gsr.sharedGateway.String()
+	// The shared Gateway is known only once a route attached to it has been reflected, as resolved by the remote cluster.
+	resolved, addresses := gsr.sharedGatewayAddresses()
+	shared := "the shared Gateway of the remote cluster"
+	if resolved != nil {
+		shared = fmt.Sprintf("shared Gateway %q", resolved)
+	}
 
 	programmed, reason := metav1.ConditionTrue, string(gwv1.GatewayReasonProgrammed)
-	message := fmt.Sprintf("Mapped to shared Gateway %q", shared)
+	message := fmt.Sprintf("Mapped to %s", shared)
 	if len(addresses) == 0 {
 		programmed, reason = metav1.ConditionFalse, string(gwv1.GatewayReasonPending)
-		message = fmt.Sprintf("Mapped to shared Gateway %q, whose addresses are not yet known (no route attached to it in the namespace, "+
+		message = fmt.Sprintf("Mapped to %s, whose addresses are not yet known (no route attached to it in the namespace, "+
 			"or the Liqo version installed in the remote cluster does not report them)", shared)
 	}
 
 	conditions := []metav1.Condition{
 		newCondition(previous, string(gwv1.GatewayConditionAccepted), metav1.ConditionTrue, string(gwv1.GatewayReasonAccepted),
-			fmt.Sprintf("Mapped to shared Gateway %q", shared), local.GetGeneration()),
+			fmt.Sprintf("Mapped to %s", shared), local.GetGeneration()),
 		newCondition(previous, string(gwv1.GatewayConditionProgrammed), programmed, reason, message, local.GetGeneration()),
 	}
 
@@ -164,7 +168,7 @@ func (gsr *gatewayStatusReflector) Shared(ctx context.Context, local *gwv1.Gatew
 			}
 		}
 
-		listenerMessage := fmt.Sprintf("Listener not applied: the attached routes are attached to shared Gateway %q", shared)
+		listenerMessage := fmt.Sprintf("Listener not applied: the attached routes are attached to %s", shared)
 		listeners = append(listeners, gwv1.ListenerStatus{
 			Name: name,
 			SupportedKinds: []gwv1.RouteGroupKind{
@@ -185,9 +189,9 @@ func (gsr *gatewayStatusReflector) Shared(ctx context.Context, local *gwv1.Gatew
 		WithListeners(listeners...))
 }
 
-// sharedGatewayAddresses returns the addresses of the shared Gateway, as reported by the reflected routes attached to it
+// sharedGatewayAddresses returns the shared Gateway and its addresses, as reported by the reflected routes attached to it
 // in the remote namespace, or nil if not known. The routes are considered in a deterministic order.
-func (gsr *gatewayStatusReflector) sharedGatewayAddresses() []gwv1.GatewayStatusAddress {
+func (gsr *gatewayStatusReflector) sharedGatewayAddresses() (*types.NamespacedName, []gwv1.GatewayStatusAddress) {
 	var routes []remoteRoute
 	for _, lister := range gsr.remoteRoutes {
 		objects, err := lister()
@@ -203,9 +207,15 @@ func (gsr *gatewayStatusReflector) sharedGatewayAddresses() []gwv1.GatewayStatus
 
 	for i := range routes {
 		route := &routes[i]
-		value, found := route.GetAnnotations()[consts.SharedGatewayAddressesAnnotation]
-		if !found || !forge.IsReflected(route) || !gsr.attachedToSharedGateway(route) {
+		shared := forge.ResolvedSharedGateway(route)
+		if shared == nil || !forge.IsReflected(route) || !attachedTo(route, *shared) {
 			continue
+		}
+
+		value, found := route.GetAnnotations()[consts.SharedGatewayAddressesAnnotation]
+		if !found {
+			// The shared Gateway is known, although its addresses are not (e.g., it is not yet programmed).
+			return shared, nil
 		}
 
 		var addresses []gwv1.GatewayStatusAddress
@@ -213,15 +223,15 @@ func (gsr *gatewayStatusReflector) sharedGatewayAddresses() []gwv1.GatewayStatus
 			klog.Warningf("Failed to parse the addresses of the shared Gateway reported by remote %s %q: %v", route.kind, klog.KObj(route), err)
 			continue
 		}
-		return addresses
+		return shared, addresses
 	}
-	return nil
+	return nil, nil
 }
 
-// attachedToSharedGateway returns whether the given remote route is attached to the shared Gateway.
-func (gsr *gatewayStatusReflector) attachedToSharedGateway(route *remoteRoute) bool {
-	for _, gateway := range routeParentGateways(route.GetNamespace(), &gwv1.CommonRouteSpec{ParentRefs: route.parents}) {
-		if gateway == *gsr.sharedGateway {
+// attachedTo returns whether the given remote route is attached to the given Gateway.
+func attachedTo(route *remoteRoute, gateway types.NamespacedName) bool {
+	for _, parent := range routeParentGateways(route.GetNamespace(), &gwv1.CommonRouteSpec{ParentRefs: route.parents}) {
+		if parent == gateway {
 			return true
 		}
 	}

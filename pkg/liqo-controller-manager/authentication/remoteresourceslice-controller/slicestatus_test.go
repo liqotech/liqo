@@ -15,20 +15,48 @@
 package remoteresourceslicecontroller
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
-	argutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var _ = Describe("Gateway API offers", func() {
-	var opts *SliceStatusOptions
+	var (
+		ctx  context.Context
+		opts *SliceStatusOptions
+		cl   client.Client
+	)
+
+	gateway := func(namespace, name, label string) *gwv1.Gateway {
+		gw := &gwv1.Gateway{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+		if label != "" {
+			gw.Labels = map[string]string{consts.SharedGatewayLabel: label}
+		}
+		return gw
+	}
 
 	BeforeEach(func() {
-		opts = &SliceStatusOptions{}
+		ctx = context.Background()
+		opts = &SliceStatusOptions{GatewayAPIEnabled: true}
 		Expect(opts.GatewayClasses.Set("envoy;default,istio")).To(Succeed())
-		Expect(opts.SharedGateways.Set("infra/public;default,infra/internal")).To(Succeed())
+
+		scheme := runtime.NewScheme()
+		Expect(gwv1.Install(scheme)).To(Succeed())
+		cl = fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+			gateway("infra", "public", consts.SharedGatewayLabelDefaultValue),
+			gateway("infra", "internal", consts.SharedGatewayLabelValue),
+			gateway("infra", "invalid", "foo"),
+			gateway("apps", "private", ""),
+		).Build()
 	})
 
 	It("should return the offered GatewayClasses", func() {
@@ -37,15 +65,15 @@ var _ = Describe("Gateway API offers", func() {
 		}))
 	})
 
-	It("should return the offered shared Gateways", func() {
-		Expect(getSharedGateways(opts)).To(Equal([]liqov1beta1.SharedGatewayType{
-			{Namespace: "infra", Name: "public", Default: true}, {Namespace: "infra", Name: "internal"},
+	It("should return the Gateways labeled as shared, sorted by namespaced name", func() {
+		Expect(getSharedGateways(ctx, cl, opts)).To(Equal([]liqov1beta1.SharedGatewayType{
+			{Namespace: "infra", Name: "internal"}, {Namespace: "infra", Name: "public", Default: true},
 		}))
 	})
 
-	It("should return empty lists if no options are provided", func() {
+	It("should return empty lists if no options are provided, or the Gateway API is not enabled", func() {
 		Expect(getGatewayClasses(nil)).To(BeEmpty())
-		Expect(getSharedGateways(nil)).To(BeEmpty())
-		Expect(getSharedGateways(&SliceStatusOptions{SharedGateways: argutils.NamespacedClassNameList{}})).To(BeEmpty())
+		Expect(getSharedGateways(ctx, cl, nil)).To(BeEmpty())
+		Expect(getSharedGateways(ctx, cl, &SliceStatusOptions{})).To(BeEmpty())
 	})
 })

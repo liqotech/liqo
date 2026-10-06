@@ -214,7 +214,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		EnableLoadBalancer:              c.EnableLoadBalancer,
 		RemoteRealLoadBalancerClassName: c.RemoteRealLoadBalancerClassName,
 		EnableGatewayAPI:                c.EnableGatewayAPI,
-		RemoteSharedGateway:             c.RemoteSharedGateway.NamespacedName,
+		RemoteSharedGatewayEnabled:      c.EnableRemoteSharedGateway,
 		VirtualGatewayClassName:         c.VirtualGatewayClassName,
 		RemoteRealGatewayClassName:      c.RemoteRealGatewayClassName,
 		EnableMetrics:                   c.EnableMetrics,

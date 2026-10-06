@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -77,7 +76,7 @@ type InitConfig struct {
 	EnableLoadBalancer              bool
 	RemoteRealLoadBalancerClassName string
 	EnableGatewayAPI                bool
-	RemoteSharedGateway             *types.NamespacedName
+	RemoteSharedGatewayEnabled      bool
 	VirtualGatewayClassName         string
 	RemoteRealGatewayClassName      string
 	EnableMetrics                   bool

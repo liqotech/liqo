@@ -68,7 +68,6 @@ type Options struct {
 	ClusterLabels                    args.StringMap
 	IngressClasses                   args.ClassNameList
 	GatewayClasses                   args.ClassNameList
-	SharedGateways                   args.NamespacedClassNameList
 	LoadBalancerClasses              args.ClassNameList
 	DefaultNodeResources             args.ResourceMap
 	GlobalLabels                     args.StringMap

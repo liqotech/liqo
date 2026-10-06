@@ -419,19 +419,16 @@ offloading:
       # Gateways of this class are reflected to the remote clusters, using the GatewayClass they offer.
       virtualGatewayClassName: liqo
       # -- List of Gateway API GatewayClasses offered to remote clusters, used for the Gateways they reflect.
+      # The reflected Gateways are not allowed to use other GatewayClasses (enforced by the Liqo webhook).
+      # To offer a Gateway to remote clusters, which the routes they reflect are attached to (i.e., a shared Gateway),
+      # label it with "liqo.io/shared-gateway=true" (or "liqo.io/shared-gateway=default", to select it among multiple ones).
+      # The shared Gateways must allow the attachment of routes from the namespaces hosting offloaded workloads.
       # Example:
       # gatewayClasses:
       # - name: envoy
       #   default: true
       # - name: istio
       gatewayClasses: []
-      # -- List of Gateway API Gateways (in the form <namespace>/<name>) offered to remote clusters, which the routes they
-      # reflect are attached to. The Gateways must allow the attachment of routes from the namespaces hosting offloaded workloads.
-      # Example:
-      # sharedGateways:
-      # - name: infra/public
-      #   default: true
-      sharedGateways: []
     httproute:
       # -- The number of workers used for the Gateway API HTTPRoutes reflector. Set 0 to disable the reflection of HTTPRoutes.
       workers: 3

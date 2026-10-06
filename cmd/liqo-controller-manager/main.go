@@ -59,6 +59,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
@@ -211,6 +212,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 
 		authOpts := modules.NewAuthOption(idProvider, namespaceManager, clusterID, opts)
+
+		// The shared Gateways are offered to the consumer clusters only if the Gateway API resources are available.
+		gatewayAPI, err := gwutils.Detect(clientset.Discovery())
+		if err != nil {
+			return fmt.Errorf("unable to detect the Gateway API resources: %w", err)
+		}
+		authOpts.SliceStatusOptions.GatewayAPIEnabled = gatewayAPI.Has(gwutils.GatewaysGVR)
 
 		if err := modules.SetupAuthenticationModule(cmd.Context(), mgr, uncachedClient, authOpts); err != nil {
 			return fmt.Errorf("unable to setup the authentication module: %w", err)

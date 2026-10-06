@@ -67,8 +67,8 @@ type Config struct {
 	// which is required to attach the reflected routes to the reflected Gateways.
 	GatewaysAvailable bool
 
-	// SharedGateway is the Gateway offered by the remote cluster the reflected routes are attached to, if any.
-	SharedGateway *types.NamespacedName
+	// SharedGatewayEnabled is whether the remote cluster offers a shared Gateway the reflected routes can be attached to.
+	SharedGatewayEnabled bool
 	// VirtualGatewayClass is the name of the local GatewayClass whose Gateways are reflected.
 	VirtualGatewayClass string
 	// RemoteGatewayClass is the name of the GatewayClass offered by the remote cluster, if any.
@@ -149,11 +149,11 @@ func newNamespacedReflector[O object, A any](k *kind[O, A], cfg *Config) func(*o
 			localObjects:        k.Lister(opts.LocalGatewayFactory, opts.LocalNamespace),
 			degradedMessage:     forge.EventGatewayAPIUnavailableMsg(k.GroupResource.String(), "remote"),
 			forgingOpts: forge.GatewayAPIForgingOpts{
-				Mapper:              forge.NamespaceMapper(opts.NamespaceMapper),
-				SharedGateway:       cfg.SharedGateway,
-				MapGateway:          mapGateway(opts.LocalGatewayFactory, cfg),
-				VirtualGatewayClass: cfg.VirtualGatewayClass,
-				RemoteGatewayClass:  cfg.RemoteGatewayClass,
+				Mapper:               forge.NamespaceMapper(opts.NamespaceMapper),
+				SharedGatewayEnabled: cfg.SharedGatewayEnabled,
+				MapGateway:           mapGateway(opts.LocalGatewayFactory, cfg),
+				VirtualGatewayClass:  cfg.VirtualGatewayClass,
+				RemoteGatewayClass:   cfg.RemoteGatewayClass,
 			},
 		}
 
@@ -198,7 +198,7 @@ func mapGateway(factory gwinformers.SharedInformerFactory, cfg *Config) func(nam
 	}
 
 	opts := &forge.GatewayAPIForgingOpts{
-		SharedGateway: cfg.SharedGateway, VirtualGatewayClass: cfg.VirtualGatewayClass, RemoteGatewayClass: cfg.RemoteGatewayClass,
+		SharedGatewayEnabled: cfg.SharedGatewayEnabled, VirtualGatewayClass: cfg.VirtualGatewayClass, RemoteGatewayClass: cfg.RemoteGatewayClass,
 	}
 	gateways := factory.Gateway().V1().Gateways().Lister()
 	return func(namespace, name string) forge.GatewayMapping {
@@ -404,8 +404,8 @@ func (nr *NamespacedReflector[O, A]) handleShared(ctx context.Context, local, re
 		return err
 	}
 
-	klog.Infof("Local %s %q mapped to %s %q of the remote cluster", nr.kind.Name, nr.LocalRef(name), nr.kind.Name, nr.forgingOpts.SharedGateway)
-	nr.Event(local, corev1.EventTypeNormal, forge.EventMappedToSharedGateway, forge.EventMappedToSharedGatewayMsg(nr.forgingOpts.SharedGateway.String()))
+	klog.Infof("Local %s %q mapped to the shared %s of the remote cluster", nr.kind.Name, nr.LocalRef(name), nr.kind.Name)
+	nr.Event(local, corev1.EventTypeNormal, forge.EventMappedToSharedGateway, forge.EventMappedToSharedGatewayMsg())
 	return nil
 }
 

@@ -134,8 +134,8 @@ var _ = Describe("Route reflection", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		cfg = gatewayapi.Config{
-			SharedGateway: &types.NamespacedName{Namespace: "infra", Name: "public"},
-			Support:       gatewayapi.SupportFull,
+			SharedGatewayEnabled: true,
+			Support:              gatewayapi.SupportFull,
 		}
 		events = make(chan *corev1.Event, 10)
 		remoteAllowed = true
@@ -230,7 +230,7 @@ var _ = Describe("Route reflection", func() {
 			remote, errGet := getRemote()
 			Expect(errGet).ToNot(HaveOccurred())
 			Expect(forge.IsReflected(remote)).To(BeTrue())
-			Expect(remote.Spec.ParentRefs).To(ConsistOf(gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}))
+			Expect(remote.Spec.ParentRefs).To(ConsistOf(forge.SharedGatewayPlaceholderRef()))
 			Expect(remote.Spec.Rules[0].BackendRefs).To(HaveLen(1))
 		})
 		It("should generate a successful event", func() {
@@ -240,6 +240,40 @@ var _ = Describe("Route reflection", func() {
 			Expect(event.Reason).To(Equal(forge.EventSuccessfulReflection))
 			Expect(event.InvolvedObject.Kind).To(Equal("HTTPRoute"))
 			Expect(event.Source.Host).To(Equal(LiqoNodeName))
+		})
+	})
+
+	When("the remote route has been previously reflected, and the placeholder replaced by the remote cluster", func() {
+		JustBeforeEach(func() {
+			remote := remoteRoute(true)
+			remote.SetAnnotations(map[string]string{consts.SharedGatewayAnnotation: "infra/public"})
+			remote.Status.Parents = []gwv1.RouteParentStatus{{
+				ParentRef: gwv1.ParentReference{Name: "public", Namespace: ptr.To[gwv1.Namespace]("infra")}, ControllerName: "example.com/remote",
+				Conditions: []metav1.Condition{{Type: string(gwv1.RouteConditionAccepted), Status: metav1.ConditionTrue, Reason: "Accepted",
+					LastTransitionTime: metav1.Now()}},
+			}}
+			setup([]runtime.Object{localRoute("", nil)}, []runtime.Object{remote})
+			handle()
+		})
+
+		It("should report the status of the shared Gateway for the local parent", func() {
+			shadow, errShadow := getShadow()
+			Expect(errShadow).ToNot(HaveOccurred())
+			Expect(shadow.Spec.Parents).To(ConsistOf(And(
+				HaveField("ParentRef.Name", BeEquivalentTo("edge")),
+				HaveField("Conditions", ConsistOf(HaveField("Status", metav1.ConditionTrue))),
+			)))
+		})
+	})
+
+	When("the remote route has been previously reflected, but the placeholder has not been replaced", func() {
+		JustBeforeEach(func() {
+			setup([]runtime.Object{localRoute("", nil)}, []runtime.Object{remoteRoute(true)})
+			handle()
+		})
+
+		It("should report the local parent as not accepted, as no shared Gateway is offered", func() {
+			expectFailureReported("No shared Gateway offered by the remote cluster")
 		})
 	})
 
@@ -267,7 +301,7 @@ var _ = Describe("Route reflection", func() {
 	})
 
 	When("the local route cannot be reflected, and a previously reflected remote route exists", func() {
-		BeforeEach(func() { cfg.SharedGateway = nil })
+		BeforeEach(func() { cfg.SharedGatewayEnabled = false })
 		JustBeforeEach(func() {
 			setup([]runtime.Object{localRoute("", nil)}, []runtime.Object{remoteRoute(true)})
 			handle()
