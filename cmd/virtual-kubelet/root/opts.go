@@ -127,7 +127,7 @@ type Opts struct {
 	EnableLoadBalancer              bool
 	RemoteRealLoadBalancerClassName string
 	EnableGatewayAPI                bool
-	RemoteSharedGateway             argsutils.NamespacedName
+	EnableRemoteSharedGateway       bool
 	VirtualGatewayClassName         string
 	RemoteRealGatewayClassName      string
 	EnableMetrics                   bool

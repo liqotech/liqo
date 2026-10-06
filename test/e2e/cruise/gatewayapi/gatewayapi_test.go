@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	gatewayapistatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/gatewayapistatus-controller"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
@@ -126,13 +128,18 @@ func remoteRoute(provider *tester.ClusterContext, name string) (*gwv1.HTTPRoute,
 
 // failedReflectionEvents returns the messages of the FailedReflection events concerning the given local object.
 func failedReflectionEvents(kind, name string) []string {
+	return objectEvents(kind, name, forge.EventFailedReflection)
+}
+
+// objectEvents returns the messages of the events with the given reason concerning the given local object.
+func objectEvents(kind, name, reason string) []string {
 	var events corev1.EventList
 	Expect(consumer.ControllerClient.List(ctx, &events, client.InNamespace(namespaceName))).To(Succeed())
 
 	var messages []string
 	for i := range events.Items {
 		event := &events.Items[i]
-		if event.InvolvedObject.Kind == kind && event.InvolvedObject.Name == name && event.Reason == forge.EventFailedReflection {
+		if event.InvolvedObject.Kind == kind && event.InvolvedObject.Name == name && event.Reason == reason {
 			messages = append(messages, event.Message)
 		}
 	}
@@ -408,15 +415,24 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 					[]gwv1.ParentReference{{Name: "edge", Namespace: ptr.To(gwv1.Namespace(localNamespaceName))}}, host, backendName)).To(Succeed())
 			})
 
-			It("should be reflected to all providers, attached to the shared Gateway", func() {
+			It("should be reflected to all providers, attached to the shared Gateway resolved by the provider", func() {
 				for i := range providers {
 					provider := &providers[i]
 					Eventually(func() (*gwv1.HTTPRoute, error) { return remoteRoute(provider, routeName) }, timeout, interval).
-						Should(HaveField("Spec.ParentRefs", ConsistOf(And(
-							HaveField("Name", BeEquivalentTo(sharedGatewayName)),
-							HaveField("Namespace", PointTo(BeEquivalentTo(sharedGatewayNamespace))),
-						))), "provider %s", provider.Cluster)
+						Should(And(
+							HaveField("Spec.ParentRefs", ConsistOf(And(
+								HaveField("Name", BeEquivalentTo(sharedGatewayName)),
+								HaveField("Namespace", PointTo(BeEquivalentTo(sharedGatewayNamespace))),
+							))),
+							HaveField("ObjectMeta.Annotations", HaveKeyWithValue(consts.SharedGatewayAnnotation,
+								fmt.Sprintf("%s/%s", sharedGatewayNamespace, sharedGatewayName))),
+						), "provider %s", provider.Cluster)
 				}
+			})
+
+			It("should be reported as accepted", func() {
+				Eventually(func() (*metav1.Condition, error) { return acceptedCondition(routeName) }, dataPlaneTimeout, interval).
+					Should(PointTo(HaveField("Status", metav1.ConditionTrue)))
 			})
 
 			It("should serve the requests through the shared Gateway in all providers", func() {
@@ -510,24 +526,43 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 			})
 
 			It("should report the failure in the status, identifying the provider rejecting it", func() {
+				// The route is accepted if accepted by at least one provider, reporting the ones rejecting it.
+				expected := And(
+					HaveField("Status", metav1.ConditionFalse),
+					HaveField("Reason", forge.ConditionReasonReflectionFailed),
+				)
+				if len(providers) > 1 {
+					expected = HaveField("Status", metav1.ConditionTrue)
+				}
 				Eventually(func() (*metav1.Condition, error) { return acceptedCondition(routeName) }, timeout, interval).
 					Should(PointTo(And(
-						HaveField("Status", metav1.ConditionFalse),
-						HaveField("Reason", forge.ConditionReasonReflectionFailed),
+						expected,
 						HaveField("Message", ContainSubstring(fmt.Sprintf("cluster %q: reflection failed", providers[0].Cluster))),
 						HaveField("Message", ContainSubstring("route rejected by the e2e admission policy")),
 					)))
 
+				// The other providers accept the route, hence they are not reported among the ones where it is not accepted.
 				condition, err := acceptedCondition(routeName)
 				Expect(err).ToNot(HaveOccurred())
 				for i := range providers[1:] {
 					provider := &providers[1:][i]
-					Expect(condition.Message).ToNot(ContainSubstring(string(provider.Cluster)))
+					Expect(condition.Message).ToNot(ContainSubstring(fmt.Sprintf("cluster %q:", provider.Cluster)))
+					Expect(condition.Message).To(MatchRegexp(`Condition satisfied in cluster\(s\) [^;]*%s`, regexp.QuoteMeta(string(provider.Cluster))))
 				}
 			})
 
 			It("should generate a warning event identifying the provider rejecting it", func() {
 				Eventually(func() []string { return failedReflectionEvents("HTTPRoute", routeName) }, timeout, interval).
+					Should(ContainElement(ContainSubstring(string(providers[0].Cluster))))
+			})
+
+			It("should generate a warning event on the route, if accepted only by part of the providers", func() {
+				if len(providers) < 2 {
+					Skip("at least two providers are required")
+				}
+				Eventually(func() []string {
+					return objectEvents("HTTPRoute", routeName, gatewayapistatusctrl.EventPartiallyAccepted)
+				}, timeout, interval).
 					Should(ContainElement(ContainSubstring(string(providers[0].Cluster))))
 			})
 
@@ -547,6 +582,20 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 						dataPlaneTimeout, interval).Should(Equal(http.StatusOK), "provider %s", provider.Cluster)
 				}
 				Expect(requestThroughGateway(&providers[0], namespaceName, gatewayName, host)).To(Equal(http.StatusNotFound))
+			})
+		})
+
+		When("a route attached to a Gateway not shared is created in a provider, in the namespace of the consumer", func() {
+			It("should be rejected by the Liqo webhook", func() {
+				for i := range providers {
+					provider := &providers[i]
+					// The consumer cluster is not allowed to attach routes to the Gateways not shared by the provider.
+					err := util.EnforceHTTPRoute(ctx, provider.ControllerClient, namespaceName, "forbidden",
+						[]gwv1.ParentReference{{Name: "private", Namespace: ptr.To(gwv1.Namespace(sharedGatewayNamespace))}},
+						"forbidden.e2e.liqo.io", backendName)
+					Expect(err).To(HaveOccurred(), "provider %s", provider.Cluster)
+					Expect(err.Error()).To(ContainSubstring("not allowed"), "provider %s", provider.Cluster)
+				}
 			})
 		})
 

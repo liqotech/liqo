@@ -47,8 +47,8 @@ const (
 	EnableGatewayAPI VirtualKubeletOptsFlag = "--enable-gateway-api"
 	// RemoteRealGatewayClassName is the flag used to specify the remote real GatewayClass name.
 	RemoteRealGatewayClassName VirtualKubeletOptsFlag = "--remote-real-gateway-class-name"
-	// RemoteSharedGateway is the flag used to specify the remote shared Gateway.
-	RemoteSharedGateway VirtualKubeletOptsFlag = "--remote-shared-gateway"
+	// EnableRemoteSharedGateway is the flag used to specify that the remote cluster offers a shared Gateway.
+	EnableRemoteSharedGateway VirtualKubeletOptsFlag = "--enable-remote-shared-gateway"
 	// EnableLoadBalancer is the flag used to enable the load balancer.
 	EnableLoadBalancer VirtualKubeletOptsFlag = "--enable-load-balancer"
 	// RemoteRealLoadBalancerClassName is the flag used to specify the remote real load balancer class name.

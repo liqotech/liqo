@@ -29,7 +29,6 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	opts.ClusterLabels = args.StringMap{}
 	opts.IngressClasses = args.ClassNameList{}
 	opts.GatewayClasses = args.ClassNameList{}
-	opts.SharedGateways = args.NamespacedClassNameList{}
 	opts.LoadBalancerClasses = args.ClassNameList{}
 	opts.DefaultNodeResources = args.ResourceMap{}
 	opts.GatewayServerResources = args.StringList{}
@@ -107,8 +106,6 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.Var(&opts.IngressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
 	flagset.Var(&opts.GatewayClasses, "gateway-classes",
 		"List of Gateway API GatewayClasses offered by the cluster, used for the reflected Gateways. Example: \"envoy;default,istio\"")
-	flagset.Var(&opts.SharedGateways, "shared-gateways",
-		"List of Gateway API Gateways offered by the cluster, which the reflected routes are attached to. Example: \"infra/public;default\"")
 	flagset.Var(&opts.LoadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
 	flagset.Var(&opts.DefaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 	flagset.Var(&opts.GlobalLabels, "global-labels", "The set of labels that will be added to all resources created by Liqo controllers")

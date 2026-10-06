@@ -18,11 +18,14 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +41,9 @@ import (
 // maxRouteParents is the maximum number of parents in the status of a route, as enforced by the Gateway API validation.
 const maxRouteParents = 32
 
+// EventPartiallyAccepted is the reason of the event recorded on the routes accepted only by part of the remote clusters.
+const EventPartiallyAccepted = "PartiallyAccepted"
+
 // RouteReconciler aggregates the status of the routes of a given kind reflected to the remote clusters (reported
 // through the ShadowRouteStatus resources) into the local routes, adding one entry for each local parent reflected.
 type RouteReconciler struct {
@@ -45,11 +51,14 @@ type RouteReconciler struct {
 
 	// Kind is the kind of routes managed by the reconciler.
 	Kind offloadingv1beta1.RouteKind
+	// Recorder records the events on the routes accepted only by part of the remote clusters.
+	Recorder events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;grpcroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes/status;grpcroutes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowroutestatuses,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
 
 // Reconcile aggregates the status of the given route.
 func (r *RouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -73,9 +82,16 @@ func (r *RouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		(*parents)[i].DeepCopyInto(&original[i])
 	}
 
-	*parents = AggregateRouteParents(*parents, shadows.Items, route.GetNamespace(), route.GetGeneration())
+	var degraded []string
+	*parents, degraded = AggregateRouteParents(*parents, shadows.Items, route.GetNamespace(), route.GetGeneration())
 	if equality.Semantic.DeepEqual(original, *parents) {
 		return ctrl.Result{}, nil
+	}
+
+	// The event is recorded only when the status changes, hence when the set of clusters not accepting the route changes.
+	if len(degraded) > 0 && r.Recorder != nil {
+		r.Recorder.Eventf(route, nil, corev1.EventTypeWarning, EventPartiallyAccepted, "AggregateStatus",
+			"%s accepted only by part of the remote clusters: %s", r.Kind, strings.Join(degraded, "; "))
 	}
 
 	if err := r.Status().Update(ctx, route); err != nil {
@@ -98,10 +114,11 @@ func (r *RouteReconciler) newRoute() (client.Object, *[]gwv1.RouteParentStatus) 
 }
 
 // AggregateRouteParents aggregates the statuses reported by the remote clusters into the parents of the status of a route.
-// The entries managed by other controllers are preserved, while the ones managed by Liqo are replaced.
+// The entries managed by other controllers are preserved, while the ones managed by Liqo are replaced. It also returns
+// the description of the parents accepted only by part of the remote clusters, along with the clusters not accepting them.
 func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadingv1beta1.ShadowRouteStatus,
-	namespace string, generation int64) []gwv1.RouteParentStatus {
-	parents := make([]gwv1.RouteParentStatus, 0, len(current))
+	namespace string, generation int64) (parents []gwv1.RouteParentStatus, degraded []string) {
+	parents = make([]gwv1.RouteParentStatus, 0, len(current))
 	existing := make(map[string]*gwv1.RouteParentStatus)
 	for i := range current {
 		if current[i].ControllerName == controllerName {
@@ -161,13 +178,16 @@ func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadin
 		}
 		sort.Strings(conditionTypes)
 		for _, conditionType := range conditionTypes {
-			aggregated := aggregateConditions(conditionType, grouped[key].conditions[conditionType], generation)
+			aggregated, notAccepted := aggregateConditions(conditionType, grouped[key].conditions[conditionType], generation)
 			setCondition(&status.Conditions, &aggregated)
+			if conditionType == string(gwv1.RouteConditionAccepted) && len(notAccepted) > 0 {
+				degraded = append(degraded, fmt.Sprintf("parent %q not accepted in %s", grouped[key].ref.Name, strings.Join(notAccepted, ", ")))
+			}
 		}
 		parents = append(parents, status)
 	}
 
-	return parents
+	return parents, degraded
 }
 
 // setCondition sets the given condition, preserving the last transition time if the status is unchanged.

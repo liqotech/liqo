@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -34,9 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
@@ -45,6 +48,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/certificate"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -102,6 +106,7 @@ type RemoteResourceSliceReconciler struct {
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=storage,resources=storageclasses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways,verbs=get;list;watch
 
 // Reconcile replicated ResourceSlice resources.
 func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -322,7 +327,12 @@ func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Contex
 
 		resourceSlice.Status.IngressClasses = getIngressClasses(r.sliceStatusOptions)
 		resourceSlice.Status.GatewayClasses = getGatewayClasses(r.sliceStatusOptions)
-		resourceSlice.Status.SharedGateways = getSharedGateways(r.sliceStatusOptions)
+		resourceSlice.Status.SharedGateways, err = getSharedGateways(ctx, r.Client, r.sliceStatusOptions)
+		if err != nil {
+			klog.Errorf("Unable to get the shared Gateways for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
+			r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "SharedGatewaysFailed", err.Error())
+			return err
+		}
 		resourceSlice.Status.LoadBalancerClasses = getLoadBalancerClasses(r.sliceStatusOptions)
 		resourceSlice.Status.NodeLabels = getNodeLabels(r.sliceStatusOptions)
 
@@ -349,14 +359,57 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceRemote).
+	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceRemote).
 		For(
 			&authv1beta1.ResourceSlice{},
 			// With GenerationChangedPredicate we prevent to reconcile multiple times when the status of the resource changes
 			builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR(), predicate.GenerationChangedPredicate{})),
 		).
-		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
-		Complete(r)
+		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer()))
+
+	// The shared Gateways are offered to the consumer clusters through the status of the ResourceSlices,
+	// which are hence updated whenever a Gateway is labeled (or no longer labeled) as shared.
+	if r.sliceStatusOptions != nil && r.sliceStatusOptions.GatewayAPIEnabled {
+		ctrlBuilder = ctrlBuilder.Watches(&gwv1.Gateway{}, handler.EnqueueRequestsFromMapFunc(r.allResourceSlicesEnquer),
+			builder.WithPredicates(sharedGatewayChanged()))
+	}
+
+	return ctrlBuilder.Complete(r)
+}
+
+// allResourceSlicesEnquer enqueues all the ResourceSlices created by the remote clusters.
+func (r *RemoteResourceSliceReconciler) allResourceSlicesEnquer(ctx context.Context, _ client.Object) []reconcile.Request {
+	selector := reflection.ReplicatedResourcesLabelSelector()
+	labelSelector, err := metav1.LabelSelectorAsSelector(&selector)
+	if err != nil {
+		klog.Errorf("Failed to build the selector of the replicated ResourceSlices: %v", err)
+		return nil
+	}
+
+	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll, labelSelector)
+	if err != nil {
+		klog.Errorf("Failed to retrieve the ResourceSlices: %v", err)
+		return nil
+	}
+
+	reqs := make([]reconcile.Request, len(resSlices))
+	for i := range resSlices {
+		reqs[i] = reconcile.Request{NamespacedName: types.NamespacedName{Name: resSlices[i].Name, Namespace: resSlices[i].Namespace}}
+	}
+	return reqs
+}
+
+// sharedGatewayChanged returns a predicate selecting the events of the Gateways which are (or were) labeled as shared,
+// and whose label changed, as the other changes do not affect the shared Gateways offered to the consumer clusters.
+func sharedGatewayChanged() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		GenericFunc: func(e event.GenericEvent) bool { return gwutils.IsSharedGateway(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return e.ObjectOld.GetLabels()[consts.SharedGatewayLabel] != e.ObjectNew.GetLabels()[consts.SharedGatewayLabel]
+		},
+	}
 }
 
 func (r *RemoteResourceSliceReconciler) resourceSlicesEnquer() func(ctx context.Context, obj client.Object) []reconcile.Request {

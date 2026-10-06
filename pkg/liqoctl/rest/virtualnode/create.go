@@ -103,8 +103,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringSliceVar(&o.gatewayClasses, "gateway-classes",
 		[]string{}, "The Gateway API GatewayClasses offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringSliceVar(&o.sharedGateways, "shared-gateways",
-		[]string{}, "The Gateway API Gateways (in the form <namespace>/<name>) offered by the remote cluster, "+
-			"which the reflected routes are attached to. The first one will be used as default")
+		[]string{}, "The Gateway API Gateways (in the form <namespace>/<name>) shared by the remote cluster, "+
+			"which the reflected routes can be attached to. The actual Gateway is selected by the remote cluster")
 	cmd.Flags().StringSliceVar(&o.loadBalancerClasses, "load-balancer-classes",
 		[]string{}, "The load balancer classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
