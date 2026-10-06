@@ -161,11 +161,13 @@ This allows the origin cluster to present a unified view of the ingress endpoint
 Liqo supports the reflection of the [Gateway API](https://gateway-api.sigs.k8s.io/) **Gateway**, **HTTPRoute**, **GRPCRoute** and **ReferenceGrant** resources.
 Other routes (i.e., *TCPRoutes*, *TLSRoutes* and *UDPRoutes*) are not reflected, and a *FailedReflection* warning event is generated for each of them in the offloaded namespaces.
 Similarly to the ingress classes, the reflection is enabled when the provider cluster offers any *GatewayClass*, used for the reflected *Gateways*, or any **shared Gateway**, which the reflected routes are attached to.
-The *GatewayClasses* are configured at install time in the **provider cluster** through the following Helm value:
+The *GatewayClasses* are configured in the **provider cluster** through the following Helm value, either at install time or later, upgrading the installation:
 
 ```bash
 liqoctl install ... --set "offloading.reflection.gateway.gatewayClasses[0].name=envoy"
 ```
+
+A change of the offered *GatewayClasses* applies to the existing peerings as well, not only to the new ones: the *ResourceSlices* of the consumer clusters are updated when the Liqo controller manager of the provider cluster restarts with the new configuration, and the virtual kubelets of the consumer clusters are restarted accordingly.
 
 The shared *Gateways* are instead declared at runtime by the administrator of the **provider cluster**, labeling them with `liqo.io/shared-gateway=true`.
 When multiple *Gateways* are shared, the one labeled with `liqo.io/shared-gateway=default` (or the first one, by namespace and name, otherwise) is used:
@@ -174,7 +176,7 @@ When multiple *Gateways* are shared, the one labeled with `liqo.io/shared-gatewa
 kubectl label gateway -n infra public liqo.io/shared-gateway=default
 ```
 
-The offered *GatewayClasses* and shared *Gateways* are propagated to the consumer clusters during the peering process (i.e., through the *ResourceSlice* and *VirtualNode* resources), and they are kept up to date when the shared *Gateways* change.
+The offered *GatewayClasses* and shared *Gateways* are propagated to the consumer clusters through the *ResourceSlice* and *VirtualNode* resources, and they are kept up to date when they change.
 When multiple *GatewayClasses* are offered, the one marked as `default: true` (or the first one otherwise) is used.
 The same information can be specified when manually creating a virtual node, through the `--gateway-classes` and `--shared-gateways` flags of `liqoctl create virtualnode`.
 Alternatively, the reflection can be configured through the following virtual kubelet flags (e.g., through the `virtualKubelet.extra.args` Helm value in the consumer cluster):
@@ -222,7 +224,7 @@ Similarly, the `sectionName` and `port` fields of the parent references of the a
 The same *Gateway* may be mapped to the shared one in some remote clusters (e.g., the ones not offering any *GatewayClass*), and reflected in the others.
 
 The consumer cluster is not allowed to access the shared *Gateway*, hence the remote cluster reports it through the `liqo.io/shared-gateway` annotation of the reflected routes attached to it (set by the Liqo webhook, when replacing the placeholder), and its **addresses** through the `liqo.io/shared-gateway-addresses` annotation (set by the Liqo controller manager, once the shared *Gateway* is programmed).
-The *Gateway* mapped to the shared one reports such addresses, and it is *Programmed* in the remote cluster, as soon as at least one route reflected in the same namespace is attached to the shared *Gateway*.
+The *Gateway* mapped to the shared one reports such addresses, and it is *Programmed* in the remote cluster, as soon as at least _one_ route reflected in the same namespace is attached to the shared *Gateway*.
 Until then, or if the Liqo version installed in the remote cluster does not report the addresses, the *Gateway* is not *Programmed* in that cluster, while the attached routes are anyway served by the shared *Gateway*.
 
 **Routes** are reflected independently of the class of their *Gateways*, since they can be attached to the shared *Gateway* offered by the remote cluster even if their *Gateways* are not reflected (e.g., to expose an offloaded application through the *Gateway* preconfigured by the infrastructure team of the remote cluster, as envisioned by the Gateway API role-oriented design).
@@ -254,8 +256,10 @@ Since the same resource may be reflected to multiple remote clusters, each virtu
 
 * The virtual *GatewayClass* is marked as *Accepted*, as Liqo acts as its controller.
 * The *Gateways* of the virtual class report the union of the **addresses** assigned in all remote clusters (e.g., to configure a DNS record pointing to all of them), and they are *Programmed* if programmed in at least one remote cluster.
+  Warning: a *Programmed* *Gateway* guarantees that it is correctly reflected in _at least_ one remote cluster, not that it has been correctly reflected in _all_ remote clusters.
   The listeners report the total number of routes attached in all remote clusters.
 * Routes report one entry for each parent reflected, managed by the `liqo.io/gateway-controller` controller, whose conditions are satisfied if satisfied in **at least one** remote cluster, and whose messages identify the clusters where they are not.
+  Similarly, an *Accepted* route guarantees that it is accepted in _at least_ one remote cluster, not in _all_ of them: check the condition message (or the *PartiallyAccepted* events) to identify the clusters where it is not.
   The entries managed by other controllers (e.g., the local one serving the *Gateways* of other classes) are preserved.
 
 Both *Gateways* and routes are hence considered working as soon as they serve traffic in at least one remote cluster, consistently with the addresses of the *Gateways*, which are the union of those assigned in all clusters (each of them can be used to reach the offloaded workloads).
