@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/nftables"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
@@ -45,6 +46,12 @@ type OptionsRoute struct {
 	Delete bool
 }
 
+// OptionsRule defines the options for the IP rules monitoring.
+type OptionsRule struct {
+	Create bool
+	Delete bool
+}
+
 // OptionsNftables defines the options for the nftables monitoring.
 type OptionsNftables struct {
 	Create bool
@@ -56,6 +63,7 @@ type Options struct {
 	Link     *OptionsLink
 	Addr     *OptionsAddr
 	Route    *OptionsRoute
+	Rule     *OptionsRule
 	Nftables *OptionsNftables
 }
 
@@ -63,10 +71,11 @@ type Options struct {
 // If there is a change in the network interfaces, it will send a message to the channel.
 // With the options, you can choose to monitor only the link, address, or route changes (default: all options are true).
 func InterfacesMonitoring(ctx context.Context, eventChannel chan event.GenericEvent, options *Options) error {
-	// Create channels to receive notifications for link, address, and route changes
+	// Create channels to receive notifications for link, address, route, and rule changes
 	chLink := make(chan netlink.LinkUpdate)
 	chAddr := make(chan netlink.AddrUpdate)
 	chRoute := make(chan netlink.RouteUpdate)
+	chRule := make(chan netlink.RuleUpdate)
 	chNft := make(chan *nftables.MonitorEvent)
 
 	// Create maps to keep track of interfaces
@@ -111,6 +120,14 @@ func InterfacesMonitoring(ctx context.Context, eventChannel chan event.GenericEv
 		}
 	}
 
+	if options.Rule != nil {
+		// Subscribe to the IP rule updates
+		if err := netlink.RuleSubscribe(chRule, ctx.Done()); err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
 	if options.Nftables != nil {
 		// Subscribe to the nftables updates
 		conn, err := nftables.New()
@@ -144,6 +161,11 @@ func InterfacesMonitoring(ctx context.Context, eventChannel chan event.GenericEv
 			klog.V(4).Info("Route update received")
 			if options.Route != nil {
 				handleRouteUpdate(&updateRoute, options.Route, eventChannel)
+			}
+		case updateRule := <-chRule:
+			klog.V(4).Info("Rule update received")
+			if options.Rule != nil {
+				handleRuleUpdate(&updateRule, options.Rule, eventChannel)
 			}
 		case updateNft := <-chNft:
 			klog.V(4).Info("Nft update received")
@@ -226,13 +248,34 @@ func handleRouteUpdate(updateRoute *netlink.RouteUpdate, optionsRoute *OptionsRo
 		if optionsRoute.Create {
 			canSend = true
 			// New route has been added
-			klog.Infof("New route added: %s", updateRoute.Route.Dst)
+			klog.Infof("New route added: %s", updateRoute.Dst)
 		}
 	} else if updateRoute.Type == syscall.RTM_DELROUTE {
 		if optionsRoute.Delete {
 			canSend = true
 			// Route has been removed
-			klog.Infof("Route removed: %s", updateRoute.Route.Dst)
+			klog.Infof("Route removed: %s", updateRoute.Dst)
+		}
+	}
+	if canSend {
+		send(eventChannel)
+	}
+}
+
+func handleRuleUpdate(updateRule *netlink.RuleUpdate, optionsRule *OptionsRule, eventChannel chan<- event.GenericEvent) {
+	canSend := false
+	switch updateRule.Type {
+	case unix.RTM_NEWRULE:
+		if optionsRule.Create {
+			canSend = true
+			// New IP rule has been added
+			klog.Infof("New IP rule added: %v", updateRule.Rule)
+		}
+	case unix.RTM_DELRULE:
+		if optionsRule.Delete {
+			canSend = true
+			// IP rule has been removed
+			klog.Infof("IP rule removed: %v", updateRule.Rule)
 		}
 	}
 	if canSend {

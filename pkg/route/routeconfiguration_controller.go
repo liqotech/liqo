@@ -221,7 +221,10 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 	src := make(chan event.GenericEvent)
 	if enableRouteMonitor {
 		go func() {
-			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Route: &netmonitor.OptionsRoute{Delete: true}}))
+			utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{
+				Route: &netmonitor.OptionsRoute{Delete: true},
+				Rule:  &netmonitor.OptionsRule{Delete: true},
+			}))
 		}()
 	}
 
