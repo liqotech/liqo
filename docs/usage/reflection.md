@@ -42,6 +42,34 @@ liqoctl install ... --set "offloading.reflection.secret.workers=0"
 ```
 ````
 
+### Selecting the remote clusters
+
+The annotations above apply to all the remote clusters the namespace is offloaded to.
+To reflect a resource only towards a subset of them (e.g., a *Secret* required by a single provider, or a route to be exposed only by the providers supporting it), the following annotations can be used, listing the IDs of the remote clusters (comma-separated):
+
+* `liqo.io/allow-reflection-clusters`: the resource is reflected **only** towards the listed clusters (an empty list means that it is not reflected towards any cluster).
+* `liqo.io/skip-reflection-clusters`: the resource is **never** reflected towards the listed clusters.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: credentials
+  annotations:
+    # Reflected towards cluster-a and cluster-b only, independently of the reflection policy.
+    liqo.io/allow-reflection-clusters: cluster-a,cluster-b
+```
+
+They take precedence over the reflection policy and over the `liqo.io/allow-reflection` and `liqo.io/skip-reflection` annotations, according to the following order:
+
+1. if the remote cluster is listed in `liqo.io/skip-reflection-clusters`, the resource is not reflected towards it (i.e., the skip annotation prevails in case of conflicts);
+2. otherwise, if `liqo.io/allow-reflection-clusters` is set, the resource is reflected towards the remote cluster only if listed;
+3. otherwise, the reflection policy and the `liqo.io/allow-reflection` and `liqo.io/skip-reflection` annotations apply.
+
+The remote clusters are identified by their cluster ID (i.e., the name of the corresponding *ForeignCluster* resource).
+The same constraints of the reflection policies apply: the annotations are not supported by the *Pods*, *PVCs* and *ServiceAccounts* reflectors, while the *EndpointSlices* inherit them from the corresponding *Service*, unless annotated themselves.
+The resources not reflected towards a remote cluster are also not considered when aggregating the status of the Gateway API resources (e.g., a route reflected towards a single cluster is *Accepted* if accepted by that cluster).
+
 (UsageReflectionLabelsAnnots)=
 
 ## Disabling the reflection of specific labels and annotations
