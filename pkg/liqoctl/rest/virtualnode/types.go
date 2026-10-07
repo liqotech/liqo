@@ -40,6 +40,8 @@ type Options struct {
 
 	storageClasses      []string
 	ingressClasses      []string
+	gatewayClasses      []string
+	sharedGateways      []string
 	loadBalancerClasses []string
 	labels              map[string]string
 	nodeSelector        map[string]string

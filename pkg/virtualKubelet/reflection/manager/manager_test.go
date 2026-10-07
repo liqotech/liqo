@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	gwclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gwclientfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
@@ -83,6 +85,10 @@ var _ = Describe("Manager tests", func() {
 
 			Expect(mgr.(*manager).started).To(BeFalse())
 			Expect(mgr.(*manager).stop).ToNot(BeNil())
+			Expect(mgr.(*manager).namespaces).ToNot(BeNil())
+
+			Expect(mgr.(*manager).localGateway).To(BeNil())
+			Expect(mgr.(*manager).remoteGateway).To(BeNil())
 
 			Expect(mgr.(*manager).forgingOpts).ToNot(BeNil())
 		})
@@ -161,9 +167,29 @@ var _ = Describe("Manager tests", func() {
 						Expect(opts.Ready).ToNot(BeNil())
 						Expect(opts.HandlerFactory).To(BeNil())
 						Expect(opts.ForgingOpts).ToNot(BeNil())
+						Expect(opts.NamespaceMapper).ToNot(BeNil())
+					})
+					It("should not configure the Gateway API parameters", func() {
+						opts := reflector.NamespaceStarted[localNamespace]
+						Expect(opts.LocalGatewayClient).To(BeNil())
+						Expect(opts.LocalGatewayFactory).To(BeNil())
+						Expect(opts.RemoteGatewayClient).To(BeNil())
+						Expect(opts.RemoteGatewayFactory).To(BeNil())
 					})
 					It("should eventually mark the namespace as ready", func() {
 						Eventually(reflector.NamespaceStarted[localNamespace].Ready).Should(BeTrue())
+					})
+					It("should map the local namespace to the remote one", func() {
+						remote, found := mgr.RemoteNamespaceFor(localNamespace)
+						Expect(found).To(BeTrue())
+						Expect(remote).To(Equal(remoteNamespace))
+
+						remote, found = reflector.NamespaceStarted[localNamespace].NamespaceMapper(localNamespace)
+						Expect(found).To(BeTrue())
+						Expect(remote).To(Equal(remoteNamespace))
+
+						_, found = mgr.RemoteNamespaceFor("not-reflected")
+						Expect(found).To(BeFalse())
 					})
 
 					Context("the same namespace is stopped", func() {
@@ -173,6 +199,74 @@ var _ = Describe("Manager tests", func() {
 						It("should stop the registered reflector", func() {
 							Expect(reflector.NamespaceStopped).To(HaveKeyWithValue(localNamespace, remoteNamespace))
 						})
+						It("should remove the namespace mapping", func() {
+							_, found := mgr.RemoteNamespaceFor(localNamespace)
+							Expect(found).To(BeFalse())
+						})
+					})
+				})
+			})
+		})
+
+		Context("the Gateway API clients are configured", func() {
+			var (
+				returned  Manager
+				reflector *reflectionfake.Reflector
+
+				localGatewayClient  gwclient.Interface
+				remoteGatewayClient gwclient.Interface
+			)
+
+			BeforeEach(func() {
+				reflector = reflectionfake.NewReflector(false)
+				localGatewayClient = gwclientfake.NewClientset()
+				remoteGatewayClient = gwclientfake.NewClientset()
+			})
+			JustBeforeEach(func() { returned = mgr.WithGatewayAPI(localGatewayClient, remoteGatewayClient).With(reflector) })
+
+			It("should return the receiver manager", func() { Expect(mgr).To(BeIdenticalTo(returned)) })
+			It("should correctly set the Gateway API clients", func() {
+				Expect(mgr.(*manager).localGateway).To(BeIdenticalTo(localGatewayClient))
+				Expect(mgr.(*manager).remoteGateway).To(BeIdenticalTo(remoteGatewayClient))
+			})
+			It("should create the cluster-wide local informer factory", func() {
+				Expect(mgr.(*manager).localGatewayFactory).ToNot(BeNil())
+			})
+
+			Context("a namespace is started", func() {
+				JustBeforeEach(func() {
+					mgr.WithNamespaceHandler(&fakeNamespaceHandler{})
+					mgr.Start(ctx)
+					mgr.StartNamespace(localNamespace, remoteNamespace)
+				})
+
+				It("should panic if configured after start", func() {
+					Expect(func() { mgr.WithGatewayAPI(localGatewayClient, remoteGatewayClient) }).To(Panic())
+				})
+				It("should correctly populate the reflector options", func() {
+					Expect(reflector.Opts.LocalGatewayFactory).To(BeIdenticalTo(mgr.(*manager).localGatewayFactory))
+					Expect(reflector.Opts.NamespaceMapper).ToNot(BeNil())
+				})
+				It("should correctly populate the Gateway API parameters", func() {
+					opts := reflector.NamespaceStarted[localNamespace]
+					Expect(opts.LocalGatewayClient).To(BeIdenticalTo(localGatewayClient))
+					Expect(opts.LocalGatewayFactory).To(BeIdenticalTo(mgr.(*manager).localGatewayFactory))
+					Expect(opts.RemoteGatewayClient).To(BeIdenticalTo(remoteGatewayClient))
+					Expect(opts.RemoteGatewayFactory).ToNot(BeNil())
+				})
+				It("should eventually mark the namespace as ready", func() {
+					Eventually(reflector.NamespaceStarted[localNamespace].Ready).Should(BeTrue())
+				})
+
+				When("the remote client is not configured", func() {
+					BeforeEach(func() { remoteGatewayClient = nil })
+
+					It("should configure the local Gateway API parameters only", func() {
+						opts := reflector.NamespaceStarted[localNamespace]
+						Expect(opts.LocalGatewayClient).To(BeIdenticalTo(localGatewayClient))
+						Expect(opts.LocalGatewayFactory).ToNot(BeNil())
+						Expect(opts.RemoteGatewayClient).To(BeNil())
+						Expect(opts.RemoteGatewayFactory).To(BeNil())
 					})
 				})
 			})

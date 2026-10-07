@@ -213,6 +213,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		RemoteRealIngressClassName:      c.RemoteRealIngressClassName,
 		EnableLoadBalancer:              c.EnableLoadBalancer,
 		RemoteRealLoadBalancerClassName: c.RemoteRealLoadBalancerClassName,
+		EnableGatewayAPI:                c.EnableGatewayAPI,
+		RemoteSharedGatewayEnabled:      c.EnableRemoteSharedGateway,
+		VirtualGatewayClassName:         c.VirtualGatewayClassName,
+		RemoteRealGatewayClassName:      c.RemoteRealGatewayClassName,
 		EnableMetrics:                   c.EnableMetrics,
 
 		HomeAPIServerHost: c.HomeAPIServerHost,
@@ -374,7 +378,8 @@ func getVersion(config *rest.Config) string {
 }
 
 func isReflectionTypeNotCustomizable(resource resources.ResourceReflected) bool {
-	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim
+	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim ||
+		resource == resources.ReferenceGrant
 }
 
 func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig, error) {

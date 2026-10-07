@@ -92,6 +92,20 @@ rules:
   - list
   - watch
 - apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  - grpcroutes
+  - httproutes
+  - referencegrants
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ipam.liqo.io
   resources:
   - ips
@@ -123,6 +137,20 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowgatewaystatuses
+  - shadowingressstatuses
+  - shadowroutestatuses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - storage.k8s.io

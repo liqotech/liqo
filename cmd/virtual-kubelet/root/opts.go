@@ -57,6 +57,10 @@ var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
 	resources.ServiceAccount:        3,
 	resources.PersistentVolumeClaim: 3,
 	resources.Event:                 3,
+	resources.Gateway:               3,
+	resources.HTTPRoute:             3,
+	resources.GRPCRoute:             3,
+	resources.ReferenceGrant:        3,
 }
 
 // DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
@@ -69,6 +73,10 @@ var DefaultReflectorsTypes = map[resources.ResourceReflected]offloadingv1beta1.R
 	resources.ServiceAccount:        offloadingv1beta1.CustomLiqo,
 	resources.PersistentVolumeClaim: offloadingv1beta1.CustomLiqo,
 	resources.Event:                 offloadingv1beta1.DenyList,
+	resources.Gateway:               offloadingv1beta1.DenyList,
+	resources.HTTPRoute:             offloadingv1beta1.DenyList,
+	resources.GRPCRoute:             offloadingv1beta1.DenyList,
+	resources.ReferenceGrant:        offloadingv1beta1.DenyList,
 }
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -118,6 +126,10 @@ type Opts struct {
 	RemoteRealIngressClassName      string
 	EnableLoadBalancer              bool
 	RemoteRealLoadBalancerClassName string
+	EnableGatewayAPI                bool
+	EnableRemoteSharedGateway       bool
+	VirtualGatewayClassName         string
+	RemoteRealGatewayClassName      string
 	EnableMetrics                   bool
 	MetricsAddress                  string
 

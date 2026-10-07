@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -42,12 +44,15 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/leaderelection"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	fwcfgwh "github.com/liqotech/liqo/pkg/webhooks/firewallconfiguration"
 	fcwh "github.com/liqotech/liqo/pkg/webhooks/foreigncluster"
+	gatewayapiwh "github.com/liqotech/liqo/pkg/webhooks/gatewayapi"
 	nsoffwh "github.com/liqotech/liqo/pkg/webhooks/namespaceoffloading"
 	podwh "github.com/liqotech/liqo/pkg/webhooks/pod"
 	resourceslicewh "github.com/liqotech/liqo/pkg/webhooks/resourceslice"
@@ -70,6 +75,7 @@ func init() {
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = networkingv1beta1.AddToScheme(scheme)
 	_ = authv1beta1.AddToScheme(scheme)
+	_ = gwv1.Install(scheme)
 }
 
 func main() {
@@ -89,6 +95,9 @@ func main() {
 		5*time.Minute, "The interval at which the resource validator cache is refreshed")
 	liqoRuntimeClassName := pflag.String("liqo-runtime-class", consts.LiqoRuntimeClassName,
 		"Define the Liqo runtime class forcing the pods to be scheduled on virtual nodes")
+	var gatewayClasses argsutils.ClassNameList
+	pflag.Var(&gatewayClasses, "gateway-classes",
+		"List of Gateway API GatewayClasses offered to the consumer clusters, which the reflected Gateways are allowed to use")
 
 	flagsutils.InitKlogFlags(pflag.CommandLine)
 	restcfg.InitFlags(pflag.CommandLine)
@@ -188,6 +197,30 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/tenants", tenantwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/tenants", tenantwh.NewMutator(mgr.GetClient()))
+
+	// The Gateway API webhooks are registered only if the Gateway API resources are available, consistently with the
+	// controllers of the controller manager (the webhook shall be restarted if the Gateway API CRDs are installed later).
+	// The webhook configurations referring to missing resources are harmless, as they are never invoked.
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		klog.Errorf("Unable to create the discovery client: %v", err)
+		os.Exit(1)
+	}
+	gatewayAPI, err := gwutils.Detect(discoveryClient)
+	if err != nil {
+		klog.Errorf("Unable to detect the Gateway API resources: %v", err)
+		os.Exit(1)
+	}
+	if gatewayAPI.Has(gwutils.GatewaysGVR) {
+		offeredClasses := make([]string, 0, len(gatewayClasses.Classes))
+		for i := range gatewayClasses.Classes {
+			offeredClasses = append(offeredClasses, gatewayClasses.Classes[i].Name)
+		}
+		mgr.GetWebhookServer().Register("/mutate/gatewayapi-routes", gatewayapiwh.NewRouteMutator(mgr.GetClient()))
+		mgr.GetWebhookServer().Register("/validate/gatewayapi", gatewayapiwh.NewValidator(mgr.GetClient(), offeredClasses))
+	} else {
+		klog.Info("Gateway API resources not available: the Gateway API webhooks are not registered")
+	}
 
 	// Register the secret controller
 	secretReconciler := secretcontroller.NewSecretReconciler(mgr.GetClient(), mgr.GetScheme(),

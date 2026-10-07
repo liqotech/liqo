@@ -164,6 +164,43 @@ rules:
   - update
   - watch
 - apiGroups:
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  - gateways
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses/status
+  - gateways/status
+  - grpcroutes/status
+  - httproutes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - grpcroutes
+  - httproutes
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
   - ipam.liqo.io
   resources:
   - ips
@@ -192,6 +229,24 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - networking.liqo.io
   resources:
@@ -310,6 +365,25 @@ rules:
 - apiGroups:
   - offloading.liqo.io
   resources:
+  - shadowgatewaystatuses
+  - shadowroutestatuses
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowingressstatuses
+  - vkoptionstemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
   - shadowpods
   verbs:
   - delete
@@ -317,14 +391,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
-  - vkoptionstemplates
-  verbs:
-  - get
-  - list
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io

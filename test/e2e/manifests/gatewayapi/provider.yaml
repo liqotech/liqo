@@ -1,0 +1,64 @@
+# The Gateway API configuration of the provider clusters, where the Gateways are served by Envoy Gateway.
+# The GatewayClass is announced to the consumer cluster (see the installer/liqo/setup.sh script), as well as the shared Gateway,
+# labeled as such. The private Gateway is not shared, hence the consumer cluster is not allowed to attach routes to it.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: clusterip
+  namespace: envoy-gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      # No load balancer is available in the testing clusters, while an address is required for the Gateways to be programmed.
+      envoyService:
+        type: ClusterIP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: clusterip
+    namespace: envoy-gateway-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infra
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: infra
+  labels:
+    liqo.io/shared-gateway: "default"
+spec:
+  gatewayClassName: eg
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: private
+  namespace: infra
+spec:
+  gatewayClassName: eg
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All

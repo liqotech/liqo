@@ -13,4 +13,6 @@
 // limitations under the License.
 
 // Package v1beta1 contains API Schema definitions for the networking v1beta1 API group
+//
+// +groupName=networking.liqo.io
 package v1beta1

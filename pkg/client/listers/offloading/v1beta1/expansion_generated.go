@@ -32,6 +32,22 @@ type ShadowEndpointSliceListerExpansion interface{}
 // ShadowEndpointSliceNamespaceLister.
 type ShadowEndpointSliceNamespaceListerExpansion interface{}
 
+// ShadowGatewayStatusListerExpansion allows custom methods to be added to
+// ShadowGatewayStatusLister.
+type ShadowGatewayStatusListerExpansion interface{}
+
+// ShadowGatewayStatusNamespaceListerExpansion allows custom methods to be added to
+// ShadowGatewayStatusNamespaceLister.
+type ShadowGatewayStatusNamespaceListerExpansion interface{}
+
+// ShadowIngressStatusListerExpansion allows custom methods to be added to
+// ShadowIngressStatusLister.
+type ShadowIngressStatusListerExpansion interface{}
+
+// ShadowIngressStatusNamespaceListerExpansion allows custom methods to be added to
+// ShadowIngressStatusNamespaceLister.
+type ShadowIngressStatusNamespaceListerExpansion interface{}
+
 // ShadowPodListerExpansion allows custom methods to be added to
 // ShadowPodLister.
 type ShadowPodListerExpansion interface{}
@@ -39,6 +55,14 @@ type ShadowPodListerExpansion interface{}
 // ShadowPodNamespaceListerExpansion allows custom methods to be added to
 // ShadowPodNamespaceLister.
 type ShadowPodNamespaceListerExpansion interface{}
+
+// ShadowRouteStatusListerExpansion allows custom methods to be added to
+// ShadowRouteStatusLister.
+type ShadowRouteStatusListerExpansion interface{}
+
+// ShadowRouteStatusNamespaceListerExpansion allows custom methods to be added to
+// ShadowRouteStatusNamespaceLister.
+type ShadowRouteStatusNamespaceListerExpansion interface{}
 
 // VirtualNodeListerExpansion allows custom methods to be added to
 // VirtualNodeLister.

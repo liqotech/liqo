@@ -68,6 +68,7 @@ func NewAuthOption(identityProvider identitymanager.IdentityProvider, namespaceM
 			EnableStorage:                    opts.EnableStorage,
 			LocalRealStorageClassName:        opts.RealStorageClassName,
 			IngressClasses:                   opts.IngressClasses,
+			GatewayClasses:                   opts.GatewayClasses,
 			LoadBalancerClasses:              opts.LoadBalancerClasses,
 			ClusterLabels:                    opts.ClusterLabels.StringMap,
 			DefaultResourceQuantity:          opts.DefaultNodeResources.ToResourceList(),

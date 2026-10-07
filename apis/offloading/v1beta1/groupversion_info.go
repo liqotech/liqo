@@ -92,6 +92,33 @@ var (
 	// VkOptionsTemplateGroupVersionResource is groupResourceVersion used to register these objects.
 	VkOptionsTemplateGroupVersionResource = SchemeGroupVersion.WithResource(VkOptionsTemplateResource)
 
+	// ShadowIngressStatusResource is the resource name used to register the ShadowIngressStatus CRD.
+	ShadowIngressStatusResource = "shadowingressstatuses"
+
+	// ShadowIngressStatusGroupResource is group resource used to register these objects.
+	ShadowIngressStatusGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowIngressStatusResource}
+
+	// ShadowIngressStatusGroupVersionResource is the groupResourceVersion used to register these objects.
+	ShadowIngressStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowIngressStatusResource)
+
+	// ShadowGatewayStatusResource is the resource name used to register the ShadowGatewayStatus CRD.
+	ShadowGatewayStatusResource = "shadowgatewaystatuses"
+
+	// ShadowGatewayStatusGroupResource is group resource used to register these objects.
+	ShadowGatewayStatusGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowGatewayStatusResource}
+
+	// ShadowGatewayStatusGroupVersionResource is the groupResourceVersion used to register these objects.
+	ShadowGatewayStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowGatewayStatusResource)
+
+	// ShadowRouteStatusResource is the resource name used to register the ShadowRouteStatus CRD.
+	ShadowRouteStatusResource = "shadowroutestatuses"
+
+	// ShadowRouteStatusGroupResource is group resource used to register these objects.
+	ShadowRouteStatusGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowRouteStatusResource}
+
+	// ShadowRouteStatusGroupVersionResource is the groupResourceVersion used to register these objects.
+	ShadowRouteStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowRouteStatusResource)
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 

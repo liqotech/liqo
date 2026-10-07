@@ -17,6 +17,9 @@
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 # AZ_SUBSCRIPTION_ID    -> the ID of the Azure subscription to use (only for AKS)
+# GATEWAY_API_ENABLED   -> whether to install the Gateway API CRDs and Envoy Gateway (default: true)
+# GATEWAY_API_VERSION   -> the Gateway API version to install in the consumer cluster (default: the one in go.mod)
+# ENVOY_GATEWAY_VERSION -> the Envoy Gateway version to install in the provider clusters (default: 1.8.3)
 
 set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
@@ -65,6 +68,30 @@ export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 export HA_REPLICAS=2
 
+# The Gateway API resources are installed before Liqo, since their availability is detected when the components start.
+# The consumer cluster (i.e., the first one) requires the CRDs only, while the provider clusters also run Envoy Gateway,
+# whose version is selected to match the Gateway API version supported by Liqo.
+GATEWAY_API_ENABLED="${GATEWAY_API_ENABLED:-true}"
+if [[ "${GATEWAY_API_ENABLED}" == "true" ]]; then
+  GATEWAY_API_VERSION="${GATEWAY_API_VERSION:-$(awk '$1 == "sigs.k8s.io/gateway-api" {print $2}' go.mod)}"
+  ENVOY_GATEWAY_VERSION="${ENVOY_GATEWAY_VERSION:-1.8.3}"
+
+  install_gateway_api_crds "${TMPDIR}/kubeconfigs/liqo_kubeconf_1" "${GATEWAY_API_VERSION}"
+
+  PIDS=()
+  for i in $(seq 2 "${CLUSTER_NUMBER}"); do
+    install_envoy_gateway "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" "${ENVOY_GATEWAY_VERSION}" &
+    PIDS+=($!)
+  done
+  for PID in "${PIDS[@]}"; do
+    wait "${PID}"
+  done
+
+  for i in $(seq 2 "${CLUSTER_NUMBER}"); do
+    "${KUBECTL}" apply -f "${SCRIPT_DIR}/../../../manifests/gatewayapi/provider.yaml" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  done
+fi
+
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
@@ -80,6 +107,11 @@ do
     --version "${LIQO_VERSION}" --set metrics.enabled=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
+  fi
+  if [[ "${GATEWAY_API_ENABLED}" == "true" ]]; then
+    # The GatewayClass configured in the provider clusters (test/e2e/manifests/gatewayapi/provider.yaml), where the shared
+    # Gateway is labeled as such.
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "offloading.reflection.gateway.gatewayClasses[0].name=eg")
   fi
   
   if [[ "${INFRA}" == "k3s" ]]; then

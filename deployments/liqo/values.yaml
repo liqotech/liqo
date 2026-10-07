@@ -410,6 +410,38 @@ offloading:
       workers: 3
       # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
       type: DenyList
+    gateway:
+      # -- The number of workers used for the Gateway API Gateways reflector. Set 0 to disable the reflection of Gateways.
+      workers: 3
+      # -- The type of reflection used for the Gateway API Gateways reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+      # -- Name of the virtual GatewayClass, created if the Gateway API CRDs are installed in the local cluster.
+      # Gateways of this class are reflected to the remote clusters, using the GatewayClass they offer.
+      virtualGatewayClassName: liqo
+      # -- List of Gateway API GatewayClasses offered to remote clusters, used for the Gateways they reflect.
+      # The reflected Gateways are not allowed to use other GatewayClasses (enforced by the Liqo webhook).
+      # To offer a Gateway to remote clusters, which the routes they reflect are attached to (i.e., a shared Gateway),
+      # label it with "liqo.io/shared-gateway=true" (or "liqo.io/shared-gateway=default", to select it among multiple ones).
+      # The shared Gateways must allow the attachment of routes from the namespaces hosting offloaded workloads.
+      # Example:
+      # gatewayClasses:
+      # - name: envoy
+      #   default: true
+      # - name: istio
+      gatewayClasses: []
+    httproute:
+      # -- The number of workers used for the Gateway API HTTPRoutes reflector. Set 0 to disable the reflection of HTTPRoutes.
+      workers: 3
+      # -- The type of reflection used for the Gateway API HTTPRoutes reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+    grpcroute:
+      # -- The number of workers used for the Gateway API GRPCRoutes reflector. Set 0 to disable the reflection of GRPCRoutes.
+      workers: 3
+      # -- The type of reflection used for the Gateway API GRPCRoutes reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+    referencegrant:
+      # -- The number of workers used for the Gateway API ReferenceGrants reflector. Set 0 to disable the reflection of ReferenceGrants.
+      workers: 3
 
 storage:
   # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to

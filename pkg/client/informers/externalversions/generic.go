@@ -52,17 +52,23 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=ipam, Version=v1alpha1
+	// Group=ipam.liqo.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("ips"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ipam().V1alpha1().IPs().Informer()}, nil
 
-		// Group=offloading, Version=v1beta1
+		// Group=offloading.liqo.io, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithResource("namespacemaps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().NamespaceMaps().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("shadowendpointslices"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowEndpointSlices().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("shadowgatewaystatuses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowGatewayStatuses().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("shadowingressstatuses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowIngressStatuses().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("shadowpods"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowPods().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("shadowroutestatuses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowRouteStatuses().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("virtualnodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().VirtualNodes().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("vkoptionstemplates"):
