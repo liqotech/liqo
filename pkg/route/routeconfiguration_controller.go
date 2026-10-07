@@ -160,6 +160,13 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("listing existing rules: %w", err)
 	}
+
+	// Assign in-memory priorities to rules that do not specify one. Priorities
+	// are recomputed on every reconcile and are not persisted to the CRD;
+	// existing kernel priorities are reused when possible to keep routing stable
+	// and deterministic.
+	AssignRulePriorities(routeconfiguration.Spec.Table.Rules, existingRules)
+
 	if err = CleanRules(routeconfiguration.Spec.Table.Rules, existingRules); err != nil {
 		return ctrl.Result{}, fmt.Errorf("cleaning rules: %w", err)
 	}
