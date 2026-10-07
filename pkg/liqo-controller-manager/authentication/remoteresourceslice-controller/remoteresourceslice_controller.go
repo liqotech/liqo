@@ -15,8 +15,10 @@
 package remoteresourceslicecontroller
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -242,9 +244,33 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 	return requeueIn, nil
 }
 
+// resolveClass reports in the status the class the ResourceSlice is handled with, so that it can be read from a
+// single place. The class is resolved once: it is the one requested by the consumer, if any, or the default one
+// configured on the provider otherwise. ResourceSlices whose resources have already been handled keep the
+// built-in default class, so that configuring the default on the provider does not change their controller.
+func (r *RemoteResourceSliceReconciler) resolveClass(resourceSlice *authv1beta1.ResourceSlice) {
+	if resourceSlice.Status.Class != authv1beta1.ResourceSliceClassUnknown {
+		return
+	}
+
+	defaultClass := r.sliceStatusOptions.DefaultResourceSliceClass
+	if cond := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeResources); cond != nil && cond.Status != "" {
+		// Resources already handled before any class was resolved: keep the built-in default class.
+		defaultClass = authv1beta1.ResourceSliceClassDefault
+	}
+	resourceSlice.Status.Class = cmp.Or(resourceSlice.Spec.Class, defaultClass, authv1beta1.ResourceSliceClassDefault)
+
+	klog.Infof("ResourceSlice %q class resolved to %q", client.ObjectKeyFromObject(resourceSlice), resourceSlice.Status.Class)
+	r.eventRecorder.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceClassResolved",
+		fmt.Sprintf("ResourceSlice class resolved to %q", resourceSlice.Status.Class))
+}
+
 func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Context,
 	resourceSlice *authv1beta1.ResourceSlice, tenant *authv1beta1.Tenant) error {
 	var err error
+
+	// Report in the status the class the ResourceSlice is handled with.
+	r.resolveClass(resourceSlice)
 
 	switch tenant.Spec.TenantCondition {
 	case authv1beta1.TenantConditionActive:
@@ -455,12 +481,7 @@ func denyResourcesWithReason(resourceSlice *authv1beta1.ResourceSlice, er record
 }
 
 func isInResourceClasses(resourceSlice *authv1beta1.ResourceSlice, classes ...authv1beta1.ResourceSliceClass) bool {
-	for _, class := range classes {
-		if resourceSlice.Spec.Class == class {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(classes, resourceSlice.Status.Class)
 }
 
 // validateRSNamespace makes sure that the ResourceSlice has been created in the tenant namespace dedicated to the consumer cluster.
