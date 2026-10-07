@@ -102,6 +102,10 @@ type Opts struct {
 	// Type of reflection to use for each reflected resource
 	ReflectorsType map[string]*string
 
+	// CustomResources configures reflection of arbitrary namespaced GVRs (spec local→remote, status remote→local).
+	// Each entry has the format: group/version/resource[,workers[,type]]
+	CustomResources []string
+
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
 	NodePingTimeout   time.Duration

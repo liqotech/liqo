@@ -20,6 +20,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
@@ -43,6 +46,8 @@ var _ = Describe("Manager tests", func() {
 		remoteClient     kubernetes.Interface
 		localLiqoClient  liqoclient.Interface
 		remoteLiqoClient liqoclient.Interface
+		localDynamic     dynamic.Interface
+		remoteDynamic    dynamic.Interface
 		broadcaster      record.EventBroadcaster
 		offloadingPatch  offloadingv1beta1.OffloadingPatch
 		forgingOpts      forge.ForgingOpts
@@ -57,13 +62,16 @@ var _ = Describe("Manager tests", func() {
 		remoteClient = fake.NewSimpleClientset()
 		localLiqoClient = liqoclientfake.NewSimpleClientset()
 		remoteLiqoClient = liqoclientfake.NewSimpleClientset()
+		scheme := runtime.NewScheme()
+		localDynamic = dynamicfake.NewSimpleDynamicClient(scheme)
+		remoteDynamic = dynamicfake.NewSimpleDynamicClient(scheme)
 		broadcaster = record.NewBroadcaster()
 		forgingOpts = forge.NewForgingOpts(&offloadingPatch)
 	})
 	AfterEach(func() { cancel() })
 
 	JustBeforeEach(func() {
-		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster, &forgingOpts)
+		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, localDynamic, remoteDynamic, 1*time.Hour, broadcaster, &forgingOpts)
 	})
 
 	Context("a new manager is created", func() {
@@ -73,6 +81,8 @@ var _ = Describe("Manager tests", func() {
 			Expect(mgr.(*manager).remote).To(Equal(remoteClient))
 			Expect(mgr.(*manager).localLiqo).To(Equal(localLiqoClient))
 			Expect(mgr.(*manager).remoteLiqo).To(Equal(remoteLiqoClient))
+			Expect(mgr.(*manager).localDynamic).To(Equal(localDynamic))
+			Expect(mgr.(*manager).remoteDynamic).To(Equal(remoteDynamic))
 			Expect(mgr.(*manager).resync).To(Equal(1 * time.Hour))
 			Expect(mgr.(*manager).eventBroadcaster).To(Equal(broadcaster))
 

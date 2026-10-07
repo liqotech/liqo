@@ -69,6 +69,16 @@ spec:
     event:
       workers: {{ .Values.offloading.reflection.event.workers }}
       type: {{ .Values.offloading.reflection.event.type }}
+  {{- if .Values.offloading.reflection.customResources }}
+  customResources:
+    {{- range .Values.offloading.reflection.customResources }}
+    - group: {{ .group | quote }}
+      version: {{ .version | quote }}
+      resource: {{ .resource | quote }}
+      workers: {{ .workers | default 2 }}
+      type: {{ .type | default "AllowList" | quote }}
+    {{- end }}
+  {{- end }}
   {{- if .Values.virtualKubelet.extra.resources }}
   resources:
     {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}
