@@ -43,6 +43,8 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
+const serverTemplateServiceSpecPath = "spec.template.spec.service.spec"
+
 // Cluster contains the information about a cluster.
 type Cluster struct {
 	local  *factory.Factory
@@ -305,6 +307,29 @@ func (c *Cluster) checkTemplateServerServiceNodePort(template *unstructured.Unst
 		return nil
 	}
 
+	// With the multi-port template the Service ports are expanded from "+ports":
+	// check that it defines "nodePorts", otherwise the forced NodePort would be ignored.
+	svcSpec, err := maps.GetNestedField(template.Object, serverTemplateServiceSpecPath)
+	if err != nil {
+		return fmt.Errorf("unable to get %s of the server template", serverTemplateServiceSpecPath)
+	}
+	svcSpecMap, ok := svcSpec.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unable to cast %s to map[string]interface{}", serverTemplateServiceSpecPath)
+	}
+	if expanded, found := svcSpecMap["+ports"]; found {
+		m, isMap := expanded.(map[string]interface{})
+		if !isMap {
+			return fmt.Errorf("unable to cast %s.+ports to map[string]interface{}", serverTemplateServiceSpecPath)
+		}
+		if _, hasNodePorts := m["nodePorts"]; !hasNodePorts {
+			return fmt.Errorf("unable to get %s.+ports.nodePorts in the server template, "+
+				"since you specified the flag \"--gw-server-service-nodeport\" "+
+				"you need to add the \"nodePorts\" field in the template", serverTemplateServiceSpecPath)
+		}
+		return nil
+	}
+
 	path := "spec.template.spec.service.spec.ports"
 	templateServicePorts, err := maps.GetNestedField(template.Object, path)
 	if err != nil {
@@ -337,7 +362,7 @@ func (c *Cluster) checkTemplateServerServiceLoadBalancer(template *unstructured.
 		return nil
 	}
 
-	servicePath := "spec.template.spec.service.spec"
+	servicePath := serverTemplateServiceSpecPath
 	_, err := maps.GetNestedField(template.Object, fmt.Sprintf("%s.loadBalancerIP", servicePath))
 	if err != nil {
 		// If the field is missing, it might be optional (represented by leading ?). If not, raise an error
