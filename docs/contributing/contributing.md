@@ -114,13 +114,13 @@ The only requirement is the [controller-runtime envtest environment](https://pkg
 
 ```bash
 go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-setup-envtest use 1.25.x!
+setup-envtest use 1.35.x!
 ```
 
 To enable the downloaded envtest, you can append the following line to your `~/.bashrc` or `~/.zshrc` file:
 
 ```bash
-source <(setup-envtest use --installed-only --print env 1.25.x)
+source <(setup-envtest use --installed-only --print env 1.35.x)
 ```
 
 Some networking tests, however, require an isolated environment.

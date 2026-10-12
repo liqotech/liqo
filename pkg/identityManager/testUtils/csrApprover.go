@@ -19,6 +19,7 @@ import (
 	"os"
 
 	certv1 "k8s.io/api/certificates/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -56,24 +57,47 @@ func StartTestApprover(client kubernetes.Interface, stopChan <-chan struct{}) {
 		},
 	}, &certv1.CertificateSigningRequest{}, 0, cache.Indexers{})
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			csr, ok := newObj.(*certv1.CertificateSigningRequest)
-			if !ok {
-				klog.Info("not a csr")
-				os.Exit(1)
-			}
+	handler := func(obj interface{}) {
+		csr, ok := obj.(*certv1.CertificateSigningRequest)
+		if !ok {
+			klog.Info("not a csr")
+			os.Exit(1)
+		}
 
-			if csr.Status.Certificate == nil {
-				csr.Status.Certificate = []byte(FakeCRT)
-				_, err := client.CertificatesV1().CertificateSigningRequests().UpdateStatus(
-					context.TODO(), csr, metav1.UpdateOptions{})
-				if err != nil {
-					klog.Error(err)
-				}
-			}
-		},
-	})
+		// Inject the fake certificate only once the CSR has been approved and no
+		// certificate has been issued yet. Injecting it earlier (e.g. as soon as the
+		// CSR is created) would bump its resourceVersion and make the approval update
+		// performed by the caller fail with a conflict.
+		if !isApproved(csr) || csr.Status.Certificate != nil {
+			return
+		}
+
+		csr.Status.Certificate = []byte(FakeCRT)
+		if _, err := client.CertificatesV1().CertificateSigningRequests().UpdateStatus(
+			context.TODO(), csr, metav1.UpdateOptions{}); err != nil {
+			klog.Error(err)
+		}
+	}
+
+	// The Add handler is required to cover the case in which the CSR is already
+	// approved (and without certificate) when the informer performs its initial
+	// list: in that case no Update event is ever delivered for the approval.
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    handler,
+		UpdateFunc: func(_, newObj interface{}) { handler(newObj) },
+	}); err != nil {
+		klog.Error(err)
+	}
 
 	go informer.Run(stopChan)
+}
+
+// isApproved returns whether the provided CSR contains an approved condition.
+func isApproved(csr *certv1.CertificateSigningRequest) bool {
+	for _, condition := range csr.Status.Conditions {
+		if condition.Type == certv1.CertificateApproved && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
