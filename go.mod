@@ -1,6 +1,6 @@
 module github.com/liqotech/liqo
 
-go 1.25.5
+go 1.27.2
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
