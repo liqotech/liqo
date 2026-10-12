@@ -36,7 +36,7 @@ var _ = Describe("Namespace controller", func() {
 			Expect(cl.Get(ctx, client.ObjectKeyFromObject(nsoff), nsoff)).To(Succeed())
 
 			if nsoff.Status.ObservedGeneration != nsoff.Generation {
-				return fmt.Errorf("ObservedGeneration and generation do not match, actual: %v, observed: %q",
+				return fmt.Errorf("ObservedGeneration and generation do not match, actual: %d, observed: %d",
 					nsoff.Generation, nsoff.Status.ObservedGeneration)
 			}
 
