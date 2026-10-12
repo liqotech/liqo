@@ -1,7 +1,7 @@
 FROM golang:1.27.2
 
-ARG ENVTEST_VERSION=release-0.21
-ARG ENVTEST_K8S_VERSION=1.30.x
+ARG ENVTEST_VERSION=release-0.23
+ARG ENVTEST_K8S_VERSION=1.35.x
 
 WORKDIR /go/src/github.com/liqotech/liqo
 COPY go.mod ./go.mod
