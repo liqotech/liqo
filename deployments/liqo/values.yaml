@@ -235,10 +235,10 @@ networking:
       routeMonitor: true
       # -- Set the port where the fabric pod will expose the health probe.
       # To disable the health probe, set the port to 0.
-      healthProbeBindAddressPort: "8081"
+      healthProbeBindAddressPort: "9091"
       # -- Set the port where the fabric pod will expose the metrics.
       # To disable the metrics, set the port to 0.
-      metricsAddressPort: "8082"
+      metricsAddressPort: "9092"
       # -- Set the options to configure the fabric ping used to check connection with the gateway through geneve
       ping:
         # -- Set the number of consecutive pings that must fail to consider the connection as lost

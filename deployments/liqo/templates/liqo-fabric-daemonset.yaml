@@ -10,6 +10,12 @@ metadata:
     {{- include "liqo.labels" $fabricConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $fabricConfig }}
 spec:
+  # The fabric pod runs with hostNetwork and binds the metrics port directly on the node.
+  # RollingUpdate can leave the old and new pod racing for the same host port during the
+  # transition, so OnDelete is used instead: pods are only replaced once explicitly deleted,
+  # avoiding the port-binding conflict.
+  updateStrategy:
+    type: OnDelete
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $fabricConfig | nindent 6 }}
