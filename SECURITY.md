@@ -8,7 +8,7 @@ If you discover a security vulnerability, please follow the following guidelines
 ### How to Report
 
 **Do not** disclose vulnerabilities through public GitHub issues, pull requests, or discussions.
-Instead, please report them privately using the **Private Vulnerability Reporting** function in GitHub: go to the **Security** tab of our repository, click on **Advisories**, and select **Report a vulnerability**.
+Instead, please report them privately using the **Private Vulnerability Reporting** function in GitHub: go to the **Security** tab of our repository, click on **Advisories**, and select **Report a vulnerability** (direct link: https://github.com/liqotech/liqo/security/).
 
 ### What to Include in Your Report
 
