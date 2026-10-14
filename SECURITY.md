@@ -13,6 +13,7 @@ Instead, please report them privately using the **Private Vulnerability Reportin
 ### What to Include in Your Report
 
 Please provide as much of the following information as possible to help us reproduce and fix the issue quickly, such as:
+
 * **Type of Issue**: E.g., SQL injection, cross-site scripting (XSS), buffer overflow, remote code execution.
 * **Affected Source Code**: Full file paths, branch, commit, or tag.
 * **Step-by-Step Instructions**: A clear proof-of-concept (PoC) or script to reproduce the vulnerability.
