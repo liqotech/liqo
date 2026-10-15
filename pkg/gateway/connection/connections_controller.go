@@ -144,10 +144,7 @@ func (r *ConnectionsReconciler) ensureSender(ctx context.Context, key types.Name
 		return nil
 	}
 
-	remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
-	if err != nil {
-		return fmt.Errorf("unable to get the remote interface IP: %w", err)
-	}
+	remoteIP := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode, 0)
 
 	observer := onTransition(ObserveLatency(clusterID), r.enqueueTransition(key))
 	if err := r.ConnChecker.AddSender(ctx, clusterID, remoteIP, observer); err != nil {
