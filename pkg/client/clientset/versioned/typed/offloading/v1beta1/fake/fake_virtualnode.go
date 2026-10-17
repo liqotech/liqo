@@ -20,18 +20,19 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
+	typedoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 )
 
 // fakeVirtualNodes implements VirtualNodeInterface
 type fakeVirtualNodes struct {
-	*gentype.FakeClientWithList[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList]
+	*gentype.FakeClientWithListAndApply[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList, *offloadingv1beta1.VirtualNodeApplyConfiguration]
 	Fake *FakeOffloadingV1beta1
 }
 
-func newFakeVirtualNodes(fake *FakeOffloadingV1beta1, namespace string) offloadingv1beta1.VirtualNodeInterface {
+func newFakeVirtualNodes(fake *FakeOffloadingV1beta1, namespace string) typedoffloadingv1beta1.VirtualNodeInterface {
 	return &fakeVirtualNodes{
-		gentype.NewFakeClientWithList[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList](
+		gentype.NewFakeClientWithListAndApply[*v1beta1.VirtualNode, *v1beta1.VirtualNodeList, *offloadingv1beta1.VirtualNodeApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1beta1.SchemeGroupVersion.WithResource("virtualnodes"),

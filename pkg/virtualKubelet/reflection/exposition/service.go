@@ -175,3 +175,8 @@ func (nsr *NamespacedServiceReflector) List() ([]interface{}, error) {
 		nsr.remoteServices,
 	)
 }
+
+// Cleanup is a no-op for this reflector.
+func (nsr *NamespacedServiceReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}

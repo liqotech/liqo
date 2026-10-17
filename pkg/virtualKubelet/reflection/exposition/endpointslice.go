@@ -534,3 +534,8 @@ func shouldIncludeDataFromNode(node *corev1.Node, nodeClusterID, remoteClusterID
 
 	return true
 }
+
+// Cleanup is a no-op for this reflector.
+func (ner *NamespacedEndpointSliceReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
