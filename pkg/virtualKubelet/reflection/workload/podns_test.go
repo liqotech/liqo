@@ -58,13 +58,15 @@ import (
 type fakePodMetrics struct {
 	metricsv1beta1.PodMetricsInterface
 
-	items    []metricsapi.PodMetrics
-	selector string
+	items     []metricsapi.PodMetrics
+	selector  string
+	listCalls int
 }
 
 //nolint:gocritic // hugeParam: signature imposed by the metricsv1beta1.PodMetricsInterface interface.
 func (f *fakePodMetrics) List(_ context.Context, opts metav1.ListOptions) (*metricsapi.PodMetricsList, error) {
 	f.selector = opts.LabelSelector
+	f.listCalls++
 	return &metricsapi.PodMetricsList{Items: f.items}, nil
 }
 
@@ -123,7 +125,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			rfl := workload.NewPodReflector(nil, metricsFactory,
-				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping([]string{""}), netConfig}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping([]string{""}), netConfig,
+					time.Minute}, &reflectorConfig)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
@@ -463,27 +466,26 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					},
 				}}
 				podMetrics.items = []metricsapi.PodMetrics{
-					{ObjectMeta: metav1.ObjectMeta{Name: PodName}, Containers: containerMetrics},
+					{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace}, Containers: containerMetrics},
 					// Metrics associated with a pod no longer existing locally (e.g., deleted
 					// after having been offloaded, or managed by another virtual node of the
 					// same peering): it must be skipped, rather than failing the whole summary.
-					{ObjectMeta: metav1.ObjectMeta{Name: StalePodName}, Containers: containerMetrics},
+					{ObjectMeta: metav1.ObjectMeta{Name: StalePodName, Namespace: RemoteNamespace}, Containers: containerMetrics},
+					// Metrics associated with a pod of another remote namespace: they must be ignored
+					// by this reflector. The name matches the local pod, so that a missing filtering
+					// would wrongly produce an additional entry.
+					{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: "another-remote-namespace"}, Containers: containerMetrics},
 				}
 			})
 
 			JustBeforeEach(func() {
-				output, err = reflector.(workload.NamespacedPodHandler).Stats(ctx)
+				output, err = reflector.(workload.NamespacedPodHandler).Stats(podMetrics.items)
 			})
 
 			It("should succeed, skipping the metrics of pods no longer existing locally", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(output).To(HaveLen(1))
 				Expect(output[0].PodRef.Name).To(BeIdenticalTo(PodName))
-			})
-
-			It("should request the metrics of the pods offloaded by this virtual node only", func() {
-				Expect(podMetrics.selector).To(BeIdenticalTo(
-					forge.ReflectionLabelsWithNodeName(LiqoNodeName).AsSelectorPreValidated().String()))
 			})
 		})
 
