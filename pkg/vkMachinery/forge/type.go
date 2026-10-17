@@ -59,4 +59,6 @@ const (
 	CreateNode VirtualKubeletOptsFlag = "--create-node"
 	// NodeCheckNetwork is the flag used to specify if the network must be checked.
 	NodeCheckNetwork VirtualKubeletOptsFlag = "--node-check-network"
+	// CustomResourceReflection is the flag used to configure reflection of a custom resource GVR.
+	CustomResourceReflection VirtualKubeletOptsFlag = "--custom-resource-reflection"
 )
