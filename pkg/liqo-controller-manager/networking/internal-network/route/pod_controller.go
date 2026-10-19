@@ -96,6 +96,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, nil
 	}
 
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		// Terminated pods released their IP, which may have been reassigned to another pod on the same node.
+		// Do not claim the route of that IP, otherwise it would be removed when the terminated pod is deleted.
+		return ctrl.Result{}, nil
+	}
+
 	PopulatePodKeyToNodeMap(pod)
 
 	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
