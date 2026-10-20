@@ -165,10 +165,18 @@ var _ = Describe("Pod route reconciliation", func() {
 
 		// Deleting the terminated pod must not remove the route even if the deletion
 		// had been triggered with the full pod object (which still holds the old IP).
-		deleted := forgePod("completed-job", "old-uid")
-		PopulatePodKeyToNodeMap(deleted)
-		Expect(enforceRoutePodAbsence(ctx, cl, reconciler.Options, deleted)).To(Succeed())
+		Expect(enforceRoutePodAbsence(ctx, cl, reconciler.Options, forgePod("completed-job", "old-uid"))).To(Succeed())
 		expectRouteOwner("new-pod", "new-uid")
-		DeletePodKeyFromMap(client.ObjectKeyFromObject(deleted))
+	})
+
+	It("should remove the route when the pod terminates", func() {
+		setPhase("new-pod", corev1.PodSucceeded)
+		reconcile("new-pod")
+
+		routecfg := &networkingv1beta1.RouteConfiguration{}
+		Expect(cl.Get(ctx, types.NamespacedName{
+			Name: generatePodRouteConfigurationName(nodeName), Namespace: liqoNamespace,
+		}, routecfg)).To(Succeed())
+		Expect(routecfg.Spec.Table.Rules[1].Routes).To(BeEmpty())
 	})
 })

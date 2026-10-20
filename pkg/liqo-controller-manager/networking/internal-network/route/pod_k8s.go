@@ -60,13 +60,19 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 }
 
 func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options, pod *corev1.Pod) error {
-	nodeName, err := GetPodNodeFromMap(client.ObjectKeyFromObject(pod))
-	if err != nil {
-		return err
-	}
+	// When the pod object is available (e.g., it terminated), its node name is taken from the spec.
+	// Otherwise (pod deleted), it is retrieved from the map populated when the route was enforced.
+	nodeName := pod.Spec.NodeName
 	if nodeName == "" {
-		// Entry not present or empty value, skip deletion as already done in previous reconciliation.
-		return nil
+		var err error
+		nodeName, err = GetPodNodeFromMap(client.ObjectKeyFromObject(pod))
+		if err != nil {
+			return err
+		}
+		if nodeName == "" {
+			// Entry not present or empty value, skip deletion as already done in previous reconciliation.
+			return nil
+		}
 	}
 
 	routecfg := networkingv1beta1.RouteConfiguration{
