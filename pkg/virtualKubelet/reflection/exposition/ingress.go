@@ -47,7 +47,6 @@ var _ manager.NamespacedReflector = (*NamespacedIngressReflector)(nil)
 const (
 	// IngressReflectorName -> The name associated with the Ingress reflector.
 	IngressReflectorName = "Ingress"
-	liqoIngressClassName = "liqo"
 )
 
 // NamespacedIngressReflector manages the Ingress reflection for a given pair of local and remote namespaces.
@@ -193,13 +192,9 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 // reconcileShadowIngressStatus creates, updates or deletes the ShadowIngressStatus for the given ingress.
 func (nir *NamespacedIngressReflector) reconcileShadowIngressStatus(ctx context.Context,
 	local, remote *netv1.Ingress, name string) error {
-	// Check if the local ingress has the Liqo ingress class.
-	hasLiqoClass := (local.Spec.IngressClassName != nil && *local.Spec.IngressClassName == liqoIngressClassName) ||
-		local.Annotations["kubernetes.io/ingress.class"] == liqoIngressClassName
-
 	shadowName := fmt.Sprintf("%s-%s", name, forge.RemoteCluster)
 
-	if !hasLiqoClass {
+	if !forge.IsLiqoIngress(local) {
 		// If a ShadowIngressStatus exists, delete it (user may have changed class).
 		if err := nir.localShadowIngressStatusClient.Delete(ctx, shadowName, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete ShadowIngressStatus %q: %w", shadowName, err)

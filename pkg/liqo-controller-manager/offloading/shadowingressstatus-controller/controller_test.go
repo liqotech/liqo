@@ -24,12 +24,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	shadowingressstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowingressstatus-controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 const (
@@ -52,6 +54,7 @@ func TestReconcile(t *testing.T) {
 			Name:      testIngressName,
 			Namespace: testNamespace,
 		},
+		Spec: netv1.IngressSpec{IngressClassName: ptr.To(forge.LiqoIngressClassName)},
 	}
 
 	shadow1 := &offloadingv1beta1.ShadowIngressStatus{
@@ -98,6 +101,42 @@ func TestReconcile(t *testing.T) {
 	require.Len(t, updated.Status.LoadBalancer.Ingress, 2)
 	assert.Equal(t, "1.2.3.4", updated.Status.LoadBalancer.Ingress[0].IP)
 	assert.Equal(t, "5.6.7.8", updated.Status.LoadBalancer.Ingress[1].IP)
+}
+
+func TestReconcileIgnoresOtherIngressClasses(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, offloadingv1beta1.AddToScheme(scheme))
+	require.NoError(t, netv1.AddToScheme(scheme))
+
+	ctx := context.Background()
+
+	// An ingress served by a real ingress controller (e.g., reflected in the provider cluster), whose status is set by it.
+	ingress := &netv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testIngressName,
+			Namespace: testNamespace,
+		},
+		Spec: netv1.IngressSpec{IngressClassName: ptr.To("nginx")},
+		Status: netv1.IngressStatus{
+			LoadBalancer: netv1.IngressLoadBalancerStatus{
+				Ingress: []netv1.IngressLoadBalancerIngress{{IP: "9.9.9.9"}},
+			},
+		},
+	}
+
+	cl := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(ingress).
+		WithStatusSubresource(&netv1.Ingress{}).
+		Build()
+
+	rec := &shadowingressstatusctrl.Reconciler{Client: cl, Scheme: scheme}
+	_, err := rec.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: testIngressName, Namespace: testNamespace}})
+	require.NoError(t, err)
+
+	var updated netv1.Ingress
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: testIngressName, Namespace: testNamespace}, &updated))
+	require.Len(t, updated.Status.LoadBalancer.Ingress, 1)
+	assert.Equal(t, "9.9.9.9", updated.Status.LoadBalancer.Ingress[0].IP)
 }
 
 func TestCleanupOrphanShadows(t *testing.T) {
