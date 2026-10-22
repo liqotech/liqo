@@ -35,6 +35,7 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 const (
@@ -62,6 +63,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return r.cleanupOrphanShadows(ctx, req.NamespacedName)
 		}
 		return ctrl.Result{}, err
+	}
+
+	// The status of the ingresses of other classes is managed by their own ingress controller, hence it must not be
+	// overwritten (e.g., by the provider cluster, for the reflected ingresses served by its ingress controller).
+	if !forge.IsLiqoIngress(&ingress) {
+		klog.V(4).Infof("skipping ingress %q, as it does not belong to the %q ingress class", req.NamespacedName, forge.LiqoIngressClassName)
+		return ctrl.Result{}, nil
 	}
 
 	// List all ShadowIngressStatuses associated with this ingress.
@@ -110,7 +118,10 @@ func (r *Reconciler) cleanupOrphanShadows(ctx context.Context, ingressName types
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowIngressStatus).
-		For(&netv1.Ingress{}).
+		For(&netv1.Ingress{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+			ingress, ok := obj.(*netv1.Ingress)
+			return ok && forge.IsLiqoIngress(ingress)
+		}))).
 		Watches(&offloadingv1beta1.ShadowIngressStatus{},
 			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
 				shadow, ok := obj.(*offloadingv1beta1.ShadowIngressStatus)
