@@ -175,10 +175,48 @@ var _ = Describe("Gateway API routes forging", func() {
 			})
 		})
 
+		When("the route refers to ListenerSets", func() {
+			BeforeEach(func() {
+				opts.ListenerSetReflected = func(namespace, name string) bool { return name != "local-only" && namespace != "unreflected" }
+				spec = gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
+					{Name: "tls", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind), SectionName: ptr.To[gwv1.SectionName]("https")},
+					{Name: "tls", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind), Group: ptr.To[gwv1.Group](gwv1.GroupName),
+						Namespace: ptr.To[gwv1.Namespace]("offloaded"), Port: ptr.To[gwv1.PortNumber](443)},
+					{Name: "tls", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind), Namespace: ptr.To[gwv1.Namespace]("other")},
+					{Name: "local-only", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind)},
+				}}
+			})
+
+			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			It("should attach the route to the remote copies of the reflected ListenerSets, preserving the listener", func() {
+				Expect(parents).To(ConsistOf(
+					gwv1.ParentReference{Name: "tls", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind), SectionName: ptr.To[gwv1.SectionName]("https")},
+					gwv1.ParentReference{Name: "tls", Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind), Group: ptr.To[gwv1.Group](gwv1.GroupName),
+						Namespace: ptr.To[gwv1.Namespace]("offloaded-remote"), Port: ptr.To[gwv1.PortNumber](443)},
+				))
+			})
+			It("should report the references to ListenerSets not reflected, or in namespaces not offloaded", func() {
+				Expect(warnings).To(ConsistOf(
+					ContainSubstring(`ListenerSet.gateway.networking.k8s.io other/tls dropped: namespace "other" not offloaded`),
+					ContainSubstring("ListenerSet.gateway.networking.k8s.io local/local-only dropped: the ListenerSet is not reflected"),
+				))
+			})
+
+			When("the ListenerSets are not reflected", func() {
+				BeforeEach(func() { opts.ListenerSetReflected = nil })
+
+				It("should return a not reflectable error, as no parent is left", func() {
+					var target *forge.ErrNotReflectable
+					Expect(err).To(BeAssignableToTypeOf(target))
+					Expect(warnings).To(HaveLen(4))
+				})
+			})
+		})
+
 		When("the route refers to unsupported kinds", func() {
 			BeforeEach(func() {
 				spec = gwv1.CommonRouteSpec{ParentRefs: []gwv1.ParentReference{
-					{Name: "set", Kind: ptr.To[gwv1.Kind]("ListenerSet")},
+					{Name: "mesh", Kind: ptr.To[gwv1.Kind]("Mesh"), Group: ptr.To[gwv1.Group]("example.com")},
 					{Name: "edge"},
 				}}
 			})
@@ -598,6 +636,42 @@ var _ = Describe("Gateway API routes forging", func() {
 			It("should report the dropped fields", func() {
 				Expect(warnings).To(ContainElements(ContainSubstring("addresses dropped"),
 					ContainSubstring("parametersRef dropped"), ContainSubstring("defaultScope dropped")))
+			})
+		})
+
+		When("the Gateway allows the attachment of ListenerSets", func() {
+			BeforeEach(func() {
+				local.Spec.AllowedListeners = &gwv1.AllowedListeners{Namespaces: &gwv1.ListenerNamespaces{From: ptr.To(gwv1.NamespacesFromAll)}}
+			})
+
+			It("should restrict the ListenerSets attached from all namespaces to the remote namespaces of the local cluster", func() {
+				namespaces := remoteSpec().AllowedListeners.Namespaces
+				Expect(namespaces.From).To(PointTo(Equal(gwv1.NamespacesFromSelector)))
+				Expect(namespaces.Selector.MatchLabels).To(Equal(map[string]string{consts.RemoteClusterID: string(LocalClusterID)}))
+			})
+
+			When("through label selectors", func() {
+				BeforeEach(func() {
+					local.Spec.AllowedListeners.Namespaces = &gwv1.ListenerNamespaces{From: ptr.To(gwv1.NamespacesFromSelector),
+						Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"team": "shop"}}}
+				})
+
+				It("should restrict them to the same namespace", func() {
+					namespaces := remoteSpec().AllowedListeners.Namespaces
+					Expect(namespaces.From).To(PointTo(Equal(gwv1.NamespacesFromSame)))
+					Expect(namespaces.Selector).To(BeNil())
+					Expect(warnings).To(ContainElement(ContainSubstring("allowedListeners restricted to ListenerSets in the same namespace")))
+				})
+			})
+
+			When("from the same namespace", func() {
+				BeforeEach(func() {
+					local.Spec.AllowedListeners.Namespaces = &gwv1.ListenerNamespaces{From: ptr.To(gwv1.NamespacesFromSame)}
+				})
+
+				It("should preserve them", func() {
+					Expect(remoteSpec().AllowedListeners.Namespaces.From).To(PointTo(Equal(gwv1.NamespacesFromSame)))
+				})
 			})
 		})
 

@@ -16,7 +16,16 @@ package util
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"math/big"
+	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +49,13 @@ type GatewayOption func(*gwv1.Gateway)
 // WithGatewayAnnotations sets the given annotations on the Gateway.
 func WithGatewayAnnotations(annotations map[string]string) GatewayOption {
 	return func(gateway *gwv1.Gateway) { gateway.SetAnnotations(annotations) }
+}
+
+// WithAllowedListeners allows the attachment of the ListenerSets from the given namespaces to the Gateway.
+func WithAllowedListeners(from gwv1.FromNamespaces) GatewayOption {
+	return func(gateway *gwv1.Gateway) {
+		gateway.Spec.AllowedListeners = &gwv1.AllowedListeners{Namespaces: &gwv1.ListenerNamespaces{From: ptr.To(from)}}
+	}
 }
 
 // EnforceGateway creates or updates a Gateway of the given class, with a single HTTP listener on port 80.
@@ -102,6 +118,79 @@ func EnforceTLSRoute(ctx context.Context, cl client.Client, namespace, name stri
 		}}}}
 		return nil
 	}))
+}
+
+// EnforceListenerSet creates or updates a ListenerSet attached to the given Gateway (in the same namespace), with a single
+// HTTPS listener named "https" for the given hostname and port, terminating TLS with the certificate in the given Secret.
+func EnforceListenerSet(ctx context.Context, cl client.Client, namespace, name, gateway, hostname string, port int32, secret string) error {
+	listenerSet := &gwv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	return Second(resource.CreateOrUpdate(ctx, cl, listenerSet, func() error {
+		listenerSet.Spec.ParentRef = gwv1.ParentGatewayReference{Name: gwv1.ObjectName(gateway)}
+		listenerSet.Spec.Listeners = []gwv1.ListenerEntry{{
+			Name: "https", Hostname: ptr.To(gwv1.Hostname(hostname)), Port: port, Protocol: gwv1.HTTPSProtocolType,
+			TLS: &gwv1.ListenerTLSConfig{Mode: ptr.To(gwv1.TLSModeTerminate),
+				CertificateRefs: []gwv1.SecretObjectReference{{Name: gwv1.ObjectName(secret)}}},
+		}}
+		return nil
+	}))
+}
+
+// EnforceSelfSignedTLSSecret creates or updates a TLS Secret with a self-signed certificate for the given hostnames.
+func EnforceSelfSignedTLSSecret(ctx context.Context, cl client.Client, namespace, name string, hostnames ...string) error {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate the private key: %w", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		Subject:      pkix.Name{CommonName: hostnames[0]},
+		DNSNames:     hostnames,
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return fmt.Errorf("failed to generate the certificate: %w", err)
+	}
+	keyDer, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return fmt.Errorf("failed to marshal the private key: %w", err)
+	}
+
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	return Second(resource.CreateOrUpdate(ctx, cl, secret, func() error {
+		// The certificate is generated only once, so that it does not change at every invocation.
+		if len(secret.Data[corev1.TLSCertKey]) > 0 {
+			return nil
+		}
+		secret.Type = corev1.SecretTypeTLS
+		secret.Data = map[string][]byte{
+			corev1.TLSCertKey:       pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+			corev1.TLSPrivateKeyKey: pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDer}),
+		}
+		return nil
+	}))
+}
+
+// LiqoAggregatedConditions returns the messages of the given conditions which have been set by the Liqo status aggregation,
+// to verify that Liqo does not modify the status of the objects managed by other controllers.
+func LiqoAggregatedConditions(conditions []metav1.Condition) []string {
+	markers := []string{"Condition satisfied in cluster(s)", "Not yet reflected to any remote cluster", "Not yet reported by any remote cluster",
+		"handled by Liqo", "allowedListeners", "Programmed in cluster(s)"}
+
+	var messages []string
+	for i := range conditions {
+		for _, marker := range markers {
+			if strings.Contains(conditions[i].Message, marker) {
+				messages = append(messages, fmt.Sprintf("%s: %s", conditions[i].Type, conditions[i].Message))
+				break
+			}
+		}
+	}
+	return messages
 }
 
 // EnvoyProxyTarget returns the name of a running Envoy pod serving the given Gateway, and the container port

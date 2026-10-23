@@ -24,6 +24,8 @@ type ShadowGatewayStatusExpansion interface{}
 
 type ShadowIngressStatusExpansion interface{}
 
+type ShadowListenerSetStatusExpansion interface{}
+
 type ShadowPodExpansion interface{}
 
 type ShadowRouteStatusExpansion interface{}

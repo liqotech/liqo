@@ -84,6 +84,9 @@ spec:
       type: {{ .Values.offloading.reflection.grpcroute.type }}
     referencegrant:
       workers: {{ .Values.offloading.reflection.referencegrant.workers }}
+    listenerset:
+      workers: {{ .Values.offloading.reflection.listenerset.workers }}
+      type: {{ .Values.offloading.reflection.listenerset.type }}
   {{- if .Values.virtualKubelet.extra.resources }}
   resources:
     {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}

@@ -61,6 +61,7 @@ var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
 	resources.HTTPRoute:             3,
 	resources.GRPCRoute:             3,
 	resources.ReferenceGrant:        3,
+	resources.ListenerSet:           3,
 }
 
 // DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
@@ -77,6 +78,7 @@ var DefaultReflectorsTypes = map[resources.ResourceReflected]offloadingv1beta1.R
 	resources.HTTPRoute:             offloadingv1beta1.DenyList,
 	resources.GRPCRoute:             offloadingv1beta1.DenyList,
 	resources.ReferenceGrant:        offloadingv1beta1.DenyList,
+	resources.ListenerSet:           offloadingv1beta1.DenyList,
 }
 
 // Opts stores all the options for configuring the root virtual-kubelet command.

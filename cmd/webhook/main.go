@@ -217,6 +217,7 @@ func main() {
 			offeredClasses = append(offeredClasses, gatewayClasses.Classes[i].Name)
 		}
 		mgr.GetWebhookServer().Register("/mutate/gatewayapi-routes", gatewayapiwh.NewRouteMutator(mgr.GetClient()))
+		mgr.GetWebhookServer().Register("/mutate/gatewayapi-listenersets", gatewayapiwh.NewListenerSetMutator(mgr.GetClient()))
 		mgr.GetWebhookServer().Register("/validate/gatewayapi", gatewayapiwh.NewValidator(mgr.GetClient(), offeredClasses))
 	} else {
 		klog.Info("Gateway API resources not available: the Gateway API webhooks are not registered")

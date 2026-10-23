@@ -44,6 +44,7 @@ var gatewayAPIResources = []gatewayAPIResource{
 	{resource: resources.HTTPRoute, gvr: gwutils.HTTPRoutesGVR, reflector: gatewayapi.NewHTTPRouteReflector},
 	{resource: resources.GRPCRoute, gvr: gwutils.GRPCRoutesGVR, reflector: gatewayapi.NewGRPCRouteReflector},
 	{resource: resources.ReferenceGrant, gvr: gwutils.ReferenceGrantsGVR, reflector: gatewayapi.NewReferenceGrantReflector},
+	{resource: resources.ListenerSet, gvr: gwutils.ListenerSetsGVR, reflector: gatewayapi.NewListenerSetReflector},
 }
 
 // setupGatewayAPIReflection registers the Gateway API reflectors, depending on the resources available in both clusters.
@@ -88,12 +89,13 @@ func setupGatewayAPIReflection(cfg *InitConfig, localClient, remoteClient kubern
 			localGateway = gwclient.NewForConfigOrDie(cfg.LocalConfig)
 		}
 		reflectionManager.With(res.reflector(ptr.To(cfg.ReflectorsConfigs[res.resource]), &gatewayapi.Config{
-			Support:              support,
-			GatewaysAvailable:    local.Has(gwutils.GatewaysGVR),
-			SharedGatewayEnabled: cfg.RemoteSharedGatewayEnabled,
-			VirtualGatewayClass:  cfg.VirtualGatewayClassName,
-			RemoteGatewayClass:   cfg.RemoteRealGatewayClassName,
-			ReflectedRoutes:      reflectedRoutes,
+			Support:               support,
+			GatewaysAvailable:     local.Has(gwutils.GatewaysGVR),
+			ListenerSetsReflected: gatewayapi.SupportFor(gwutils.ListenerSetsGVR, local, remote) == gatewayapi.SupportFull,
+			SharedGatewayEnabled:  cfg.RemoteSharedGatewayEnabled,
+			VirtualGatewayClass:   cfg.VirtualGatewayClassName,
+			RemoteGatewayClass:    cfg.RemoteRealGatewayClassName,
+			ReflectedRoutes:       reflectedRoutes,
 		}))
 	}
 

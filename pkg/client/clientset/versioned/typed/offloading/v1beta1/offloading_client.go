@@ -31,6 +31,7 @@ type OffloadingV1beta1Interface interface {
 	ShadowEndpointSlicesGetter
 	ShadowGatewayStatusesGetter
 	ShadowIngressStatusesGetter
+	ShadowListenerSetStatusesGetter
 	ShadowPodsGetter
 	ShadowRouteStatusesGetter
 	VirtualNodesGetter
@@ -56,6 +57,10 @@ func (c *OffloadingV1beta1Client) ShadowGatewayStatuses(namespace string) Shadow
 
 func (c *OffloadingV1beta1Client) ShadowIngressStatuses(namespace string) ShadowIngressStatusInterface {
 	return newShadowIngressStatuses(c, namespace)
+}
+
+func (c *OffloadingV1beta1Client) ShadowListenerSetStatuses(namespace string) ShadowListenerSetStatusInterface {
+	return newShadowListenerSetStatuses(c, namespace)
 }
 
 func (c *OffloadingV1beta1Client) ShadowPods(namespace string) ShadowPodInterface {

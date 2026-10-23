@@ -35,6 +35,9 @@ type NamespaceMapper func(local string) (remote string, found bool)
 // coreGroupAlias is an alias of the core API group, which is accepted by the Gateway API in object references.
 const coreGroupAlias = "core"
 
+// ListenerSetKind is the kind of the ListenerSet resource, which routes can be attached to.
+const ListenerSetKind = "ListenerSet"
+
 // ConditionReasonReflectionFailed is the reason of the conditions reporting that an object could not be reflected to the remote cluster.
 const ConditionReasonReflectionFailed = "ReflectionFailed"
 
@@ -48,6 +51,12 @@ type GatewayAPIForgingOpts struct {
 	// MapGateway returns how the given local Gateway is mapped to the remote cluster, which determines
 	// whether routes can be attached to its remote copy, or to the shared Gateway.
 	MapGateway func(namespace, name string) GatewayMapping
+	// LocalGateway returns the given local Gateway, or nil if it does not exist, which determines whether
+	// the ListenerSets attached to it are reflected, and how.
+	LocalGateway func(namespace, name string) *gwv1.Gateway
+	// ListenerSetReflected returns whether the given local ListenerSet is reflected to the remote cluster,
+	// which determines whether routes can be attached to its remote copy.
+	ListenerSetReflected func(namespace, name string) bool
 	// VirtualGatewayClass is the name of the local GatewayClass whose Gateways are reflected.
 	VirtualGatewayClass string
 	// RemoteGatewayClass is the name of the GatewayClass offered by the remote cluster, if any.
@@ -109,7 +118,7 @@ var ErrNotManaged = errors.New("object not managed by the reflection")
 // remote cluster, hence it shall not be reflected, while its routes are attached to the shared Gateway.
 var ErrMappedToShared = errors.New("gateway mapped to the shared Gateway of the remote cluster")
 
-// routeAnnotations returns the annotations of the reflected route, given the ones of the local route. The annotations
+// routeAnnotations returns the annotations of the reflected route (or ListenerSet), given the ones of the local object. The annotations
 // reporting the shared Gateway and its addresses are excluded, as they are set in the remote cluster, and they shall not be overridden.
 func routeAnnotations(local metav1.Object, forgingOpts *ForgingOpts) map[string]string {
 	annotations := FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)
@@ -368,22 +377,42 @@ func RemoteParentRef(localNamespace string, parent gwv1.ParentReference, opts *G
 		// The remote cluster replaces the placeholder with the actual shared Gateway, which is not known by the local cluster.
 		return SharedGatewayPlaceholderRef(), ""
 
-	case isServiceReference(parent.Group, parent.Kind):
+	case isListenerSetReference(parent.Group, parent.Kind):
+		// ListenerSets are reflected with the same name, hence the route is attached to the remote copy, preserving the
+		// listener it is attached to. Differently from Gateways, they are never mapped to shared objects of the remote cluster.
+		namespace := localNamespace
 		if parent.Namespace != nil {
-			remoteNamespace, found := opts.Mapper(string(*parent.Namespace))
-			if !found {
-				warning = fmt.Sprintf("parentRef %s dropped: namespace %q not offloaded to the remote cluster",
-					parentRefString(localNamespace, &parent), *parent.Namespace)
-				return parent, warning
-			}
-			parent.Namespace = ptr.To(gwv1.Namespace(remoteNamespace))
+			namespace = string(*parent.Namespace)
 		}
-		return parent, ""
+		if opts.ListenerSetReflected == nil || !opts.ListenerSetReflected(namespace, string(parent.Name)) {
+			warning = fmt.Sprintf("parentRef %s dropped: the ListenerSet is not reflected to the remote cluster", parentRefString(localNamespace, &parent))
+			return parent, warning
+		}
+		return remoteNamespacedParentRef(localNamespace, parent, opts.Mapper)
+
+	case isServiceReference(parent.Group, parent.Kind):
+		return remoteNamespacedParentRef(localNamespace, parent, opts.Mapper)
 
 	default:
 		warning = fmt.Sprintf("parentRef %s dropped: unsupported parent kind", parentRefString(localNamespace, &parent))
 		return parent, warning
 	}
+}
+
+// remoteNamespacedParentRef translates the namespace of the given parent reference, if specified, to the corresponding remote one.
+// It returns a non-empty string, describing the reason, if the namespace is not offloaded to the remote cluster.
+func remoteNamespacedParentRef(localNamespace string, parent gwv1.ParentReference, mapper NamespaceMapper) (gwv1.ParentReference, string) {
+	if parent.Namespace == nil {
+		return parent, ""
+	}
+
+	remoteNamespace, found := mapper(string(*parent.Namespace))
+	if !found {
+		return parent, fmt.Sprintf("parentRef %s dropped: namespace %q not offloaded to the remote cluster",
+			parentRefString(localNamespace, &parent), *parent.Namespace)
+	}
+	parent.Namespace = ptr.To(gwv1.Namespace(remoteNamespace))
+	return parent, ""
 }
 
 // ReflectedRouteParents returns the parent references of the local route which are translated for the remote cluster,
@@ -525,8 +554,7 @@ func RemoteGatewaySpec(localNamespace string, spec *gwv1.GatewaySpec, opts *Gate
 		spec.Infrastructure.ParametersRef = nil
 	}
 	if spec.AllowedListeners != nil {
-		warnings = append(warnings, "allowedListeners dropped: ListenerSets are not reflected")
-		spec.AllowedListeners = nil
+		warnings = append(warnings, remoteAllowedListeners(spec.AllowedListeners)...)
 	}
 	if spec.DefaultScope != "" {
 		warnings = append(warnings, "defaultScope dropped: the Gateway would be the default one for the routes of the whole remote cluster")
@@ -540,7 +568,7 @@ func RemoteGatewaySpec(localNamespace string, spec *gwv1.GatewaySpec, opts *Gate
 			warnings = append(warnings, fmt.Sprintf("listener %q dropped: %s", listener.Name, warning))
 			continue
 		}
-		warnings = append(warnings, remoteListenerAllowedRoutes(listener)...)
+		warnings = append(warnings, remoteAllowedRoutes(listener.Name, listener.AllowedRoutes)...)
 		listeners = append(listeners, *listener)
 	}
 
@@ -578,28 +606,49 @@ func remoteListenerTLS(localNamespace string, tls *gwv1.ListenerTLSConfig, mappe
 	return ""
 }
 
-// remoteListenerAllowedRoutes translates the namespaces the routes can be attached from (modified in place).
+// remoteAllowedRoutes translates the namespaces the routes can be attached from to the given listener (modified in place).
 // Label selectors refer to the local namespaces, hence they are replaced with the restriction to the same namespace.
-func remoteListenerAllowedRoutes(listener *gwv1.Listener) []string {
-	if listener.AllowedRoutes == nil || listener.AllowedRoutes.Namespaces == nil || listener.AllowedRoutes.Namespaces.From == nil {
+func remoteAllowedRoutes(listener gwv1.SectionName, allowed *gwv1.AllowedRoutes) []string {
+	if allowed == nil || allowed.Namespaces == nil || allowed.Namespaces.From == nil {
 		return nil
 	}
 
-	namespaces := listener.AllowedRoutes.Namespaces
-	switch *namespaces.From {
+	if translated := remoteFromNamespaces(&allowed.Namespaces.From, &allowed.Namespaces.Selector); !translated {
+		return []string{fmt.Sprintf("listener %q restricted to routes in the same namespace: label selectors cannot be translated", listener)}
+	}
+	return nil
+}
+
+// remoteAllowedListeners translates the namespaces the ListenerSets can be attached from to a Gateway (modified in place),
+// as for the namespaces the routes can be attached from to its listeners.
+func remoteAllowedListeners(allowed *gwv1.AllowedListeners) []string {
+	if allowed.Namespaces == nil || allowed.Namespaces.From == nil {
+		return nil
+	}
+
+	if translated := remoteFromNamespaces(&allowed.Namespaces.From, &allowed.Namespaces.Selector); !translated {
+		return []string{"allowedListeners restricted to ListenerSets in the same namespace: label selectors cannot be translated"}
+	}
+	return nil
+}
+
+// remoteFromNamespaces translates the given namespaces selection (modified in place), returning false if a label selector
+// had to be replaced with the restriction to the same namespace, since it refers to the labels of the local namespaces.
+func remoteFromNamespaces(from **gwv1.FromNamespaces, selector **metav1.LabelSelector) (translated bool) {
+	switch **from {
 	case gwv1.NamespacesFromAll:
 		// Restrict the attachment to the remote namespaces associated with the local cluster, which are equivalent to
 		// all the local namespaces, since the ones not offloaded do not have a remote counterpart.
-		namespaces.From = ptr.To(gwv1.NamespacesFromSelector)
-		namespaces.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{consts.RemoteClusterID: string(LocalCluster)}}
+		*from = ptr.To(gwv1.NamespacesFromSelector)
+		*selector = &metav1.LabelSelector{MatchLabels: map[string]string{consts.RemoteClusterID: string(LocalCluster)}}
 	case gwv1.NamespacesFromSelector:
-		namespaces.From = ptr.To(gwv1.NamespacesFromSame)
-		namespaces.Selector = nil
-		return []string{fmt.Sprintf("listener %q restricted to routes in the same namespace: label selectors cannot be translated", listener.Name)}
+		*from = ptr.To(gwv1.NamespacesFromSame)
+		*selector = nil
+		return false
 	case gwv1.NamespacesFromSame, gwv1.NamespacesFromNone:
 		// The attachment does not depend on other namespaces, hence it is reflected as is.
 	}
-	return nil
+	return true
 }
 
 // RemoteReferenceGrant forges the apply patch for the reflected ReferenceGrant, given the local one.
@@ -651,6 +700,11 @@ func RemoteBackendObjectReference(localNamespace string, ref *gwv1.BackendObject
 	}
 	ref.Namespace = ptr.To(gwv1.Namespace(remoteNamespace))
 	return ""
+}
+
+func isListenerSetReference(group *gwv1.Group, kind *gwv1.Kind) bool {
+	// The kind of parentRefs defaults to Gateway, hence it shall be explicitly specified.
+	return (group == nil || *group == gwv1.GroupName) && kind != nil && *kind == ListenerSetKind
 }
 
 func isGatewayReference(group *gwv1.Group, kind *gwv1.Kind) bool {

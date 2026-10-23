@@ -23,6 +23,7 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,7 +53,9 @@ type validator struct {
 // the namespaces hosting offloaded workloads), which shall not refer to resources not belonging to the consumer cluster:
 //   - the Gateways shall belong to one of the given GatewayClasses, offered to the consumer clusters;
 //   - the routes shall be attached only to Gateways in the same namespace (i.e., reflected), or to shared Gateways, and to
-//     Services in namespaces offloaded by the same consumer cluster, and shall not refer to extension filters.
+//     Services and ListenerSets in namespaces offloaded by the same consumer cluster, and shall not refer to extension filters;
+//   - the ListenerSets shall be attached only to Gateways in the same namespace, or to shared Gateways, using only the ports
+//     of the listeners of the shared Gateways, and they shall refer only to certificates of the same consumer cluster.
 //
 // The parents of the routes are validated only when added, so that the routes already attached to a Gateway no longer
 // shared can still be updated (e.g., by the controllers of the local cluster), while they cannot be attached to new ones.
@@ -75,6 +78,8 @@ func (v *validator) Handle(ctx context.Context, req admission.Request) admission
 		return v.handleGateway(&req)
 	case httpRouteKind, grpcRouteKind:
 		return v.handleRoute(ctx, &req)
+	case listenerSetKind:
+		return v.handleListenerSet(ctx, &req)
 	default:
 		return admission.Allowed("")
 	}
@@ -172,21 +177,142 @@ func (v *validator) validateParent(ctx context.Context, namespace string, parent
 		}
 		return "", nil
 
-	case isKind(parent.Group, parent.Kind, corev1.GroupName, "Service"):
+	case isKind(parent.Group, parent.Kind, corev1.GroupName, "Service"), isKind(parent.Group, parent.Kind, gwv1.GroupName, listenerSetKind):
 		if parentNs == namespace {
 			return "", nil
 		}
-		// The Services shall belong to a namespace offloaded by the same consumer cluster.
+		// The Services and ListenerSets shall belong to a namespace offloaded by the same consumer cluster.
 		same, err := v.sameConsumer(ctx, namespace, parentNs)
 		if err != nil || same {
 			return "", err
 		}
-		return fmt.Sprintf("parentRef to Service %s/%s not allowed: the namespace is not offloaded by the same cluster",
-			parentNs, parent.Name), nil
+		return fmt.Sprintf("parentRef to %s %s/%s not allowed: the namespace is not offloaded by the same cluster",
+			ptrOr(parent.Kind, gatewayKind), parentNs, parent.Name), nil
 
 	default:
 		return fmt.Sprintf("parentRef to %s %s/%s not allowed: unsupported kind", ptrOr(parent.Kind, gatewayKind), parentNs, parent.Name), nil
 	}
+}
+
+func (v *validator) handleListenerSet(ctx context.Context, req *admission.Request) admission.Response {
+	var listenerSet gwv1.ListenerSet
+	if err := v.decoder.DecodeRaw(req.Object, &listenerSet); err != nil {
+		klog.Errorf("Failed decoding ListenerSet object: %v", err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	// The parent and the ports are validated only when changed, so that the ListenerSets already attached to a Gateway
+	// can still be updated if the Gateway is no longer shared (or its listeners change), as for the parents of the routes.
+	var old *gwv1.ListenerSet
+	if req.Operation == admissionv1.Update {
+		old = &gwv1.ListenerSet{}
+		if err := v.decoder.DecodeRaw(req.OldObject, old); err != nil {
+			klog.Errorf("Failed decoding ListenerSet object: %v", err)
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+	}
+
+	reason, err := v.validateListenerSet(ctx, req.Namespace, &listenerSet, old)
+	if err != nil {
+		klog.Errorf("Failed validating ListenerSet %s/%s: %v", req.Namespace, req.Name, err)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	if reason != "" {
+		return admission.Denied(reason)
+	}
+	return admission.Allowed("")
+}
+
+// validateListenerSet returns a non-empty reason if the given ListenerSet (whose previous version is given, if updated) is not allowed.
+func (v *validator) validateListenerSet(ctx context.Context, namespace string, listenerSet, old *gwv1.ListenerSet) (string, error) {
+	parent := &listenerSet.Spec.ParentRef
+	if !isKind(parent.Group, parent.Kind, gwv1.GroupName, gatewayKind) {
+		return fmt.Sprintf("parentRef to %s %s not allowed: unsupported kind", ptrOr(parent.Kind, gatewayKind), parent.Name), nil
+	}
+	gateway := types.NamespacedName{Namespace: namespace, Name: string(parent.Name)}
+	if parent.Namespace != nil {
+		gateway.Namespace = string(*parent.Namespace)
+	}
+
+	parentChanged := old == nil || !equality.Semantic.DeepEqual(old.Spec.ParentRef, listenerSet.Spec.ParentRef)
+	if parentChanged {
+		reason, err := v.validateParent(ctx, namespace, &gwv1.ParentReference{
+			Group: parent.Group, Kind: parent.Kind, Namespace: parent.Namespace, Name: parent.Name})
+		if err != nil || reason != "" {
+			return reason, err
+		}
+	}
+
+	// The certificates shall belong to a namespace offloaded by the same consumer cluster.
+	for i := range listenerSet.Spec.Listeners {
+		listener := &listenerSet.Spec.Listeners[i]
+		if listener.TLS == nil {
+			continue
+		}
+		for j := range listener.TLS.CertificateRefs {
+			ref := &listener.TLS.CertificateRefs[j]
+			if ref.Namespace == nil || string(*ref.Namespace) == namespace {
+				continue
+			}
+			same, err := v.sameConsumer(ctx, namespace, string(*ref.Namespace))
+			if err != nil {
+				return "", err
+			}
+			if !same {
+				return fmt.Sprintf("certificateRef %s/%s of listener %q not allowed: the namespace is not offloaded by the same cluster",
+					*ref.Namespace, ref.Name, listener.Name), nil
+			}
+		}
+	}
+
+	// The ListenerSets attached to the Gateways in the same namespace (i.e., reflected) do not affect the other tenants.
+	if gateway.Namespace == namespace {
+		return "", nil
+	}
+	return v.validateListenerSetPorts(ctx, gateway, listenerSet, old, parentChanged)
+}
+
+// validateListenerSetPorts returns a non-empty reason if any listener of the given ListenerSet, attached to the given shared Gateway,
+// uses a port not used by the listeners of the shared Gateway, which would be otherwise exposed on behalf of a consumer cluster.
+// Only the listeners added or whose port changed are validated, unless the parent changed.
+func (v *validator) validateListenerSetPorts(ctx context.Context, gateway types.NamespacedName, listenerSet, old *gwv1.ListenerSet,
+	parentChanged bool) (string, error) {
+	existing := make(map[gwv1.SectionName]gwv1.PortNumber)
+	if old != nil && !parentChanged {
+		for i := range old.Spec.Listeners {
+			existing[old.Spec.Listeners[i].Name] = old.Spec.Listeners[i].Port
+		}
+	}
+
+	var shared *gwv1.Gateway
+	for i := range listenerSet.Spec.Listeners {
+		listener := &listenerSet.Spec.Listeners[i]
+		if port, found := existing[listener.Name]; found && port == listener.Port {
+			continue
+		}
+
+		if shared == nil {
+			shared = &gwv1.Gateway{}
+			if err := v.client.Get(ctx, gateway, shared); err != nil {
+				if kerrors.IsNotFound(err) {
+					return fmt.Sprintf("parentRef to Gateway %q not allowed: the Gateway does not exist", gateway), nil
+				}
+				return "", fmt.Errorf("failed to retrieve Gateway %q: %w", gateway, err)
+			}
+		}
+
+		if !slices.ContainsFunc(shared.Spec.Listeners, func(l gwv1.Listener) bool { return l.Port == listener.Port }) {
+			ports := make([]string, 0, len(shared.Spec.Listeners))
+			for j := range shared.Spec.Listeners {
+				if port := fmt.Sprint(shared.Spec.Listeners[j].Port); !slices.Contains(ports, port) {
+					ports = append(ports, port)
+				}
+			}
+			return fmt.Sprintf("port %d of listener %q not allowed: only the ports of the listeners of shared Gateway %q can be used "+
+				"(allowed: [%s])", listener.Port, listener.Name, gateway, strings.Join(ports, ", ")), nil
+		}
+	}
+	return "", nil
 }
 
 // sameConsumer returns whether the given namespaces host the workloads offloaded by the same consumer cluster.

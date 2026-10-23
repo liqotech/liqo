@@ -38,6 +38,8 @@ const (
 	GRPCRouteReflectorName = "GRPCRoute"
 	// ReferenceGrantReflectorName -> The name associated with the ReferenceGrant reflector.
 	ReferenceGrantReflectorName = "ReferenceGrant"
+	// ListenerSetReflectorName -> The name associated with the ListenerSet reflector.
+	ListenerSetReflectorName = "ListenerSet"
 )
 
 var gatewayKind = kind[*gwv1.Gateway, *gwv1apply.GatewayApplyConfiguration]{
@@ -73,6 +75,9 @@ var httpRouteKind = kind[*gwv1.HTTPRoute, *gwv1apply.HTTPRouteApplyConfiguration
 	ParentGateways: func(route *gwv1.HTTPRoute) []types.NamespacedName {
 		return routeParentGateways(route.GetNamespace(), &route.Spec.CommonRouteSpec)
 	},
+	ParentListenerSets: func(route *gwv1.HTTPRoute) []types.NamespacedName {
+		return routeParentListenerSets(route.GetNamespace(), &route.Spec.CommonRouteSpec)
+	},
 	StatusReflector: newRouteStatusReflector(offloadingv1beta1.HTTPRouteKind,
 		func(route *gwv1.HTTPRoute) []gwv1.ParentReference { return route.Spec.ParentRefs },
 		func(route *gwv1.HTTPRoute) []gwv1.RouteParentStatus { return route.Status.Parents }),
@@ -94,6 +99,9 @@ var grpcRouteKind = kind[*gwv1.GRPCRoute, *gwv1apply.GRPCRouteApplyConfiguration
 	ParentGateways: func(route *gwv1.GRPCRoute) []types.NamespacedName {
 		return routeParentGateways(route.GetNamespace(), &route.Spec.CommonRouteSpec)
 	},
+	ParentListenerSets: func(route *gwv1.GRPCRoute) []types.NamespacedName {
+		return routeParentListenerSets(route.GetNamespace(), &route.Spec.CommonRouteSpec)
+	},
 	StatusReflector: newRouteStatusReflector(offloadingv1beta1.GRPCRouteKind,
 		func(route *gwv1.GRPCRoute) []gwv1.ParentReference { return route.Spec.ParentRefs },
 		func(route *gwv1.GRPCRoute) []gwv1.RouteParentStatus { return route.Status.Parents }),
@@ -112,6 +120,29 @@ var referenceGrantKind = kind[*gwv1.ReferenceGrant, *gwv1apply.ReferenceGrantApp
 		return client.GatewayV1().ReferenceGrants(namespace)
 	},
 	Forge: forge.RemoteReferenceGrant,
+}
+
+var listenerSetKind = kind[*gwv1.ListenerSet, *gwv1apply.ListenerSetApplyConfiguration]{
+	Name:          ListenerSetReflectorName,
+	GroupResource: gwutils.ListenerSetsGVR.GroupResource(),
+	Informer: func(factory gwinformers.SharedInformerFactory) cache.SharedIndexInformer {
+		return factory.Gateway().V1().ListenerSets().Informer()
+	},
+	Lister: func(factory gwinformers.SharedInformerFactory, namespace string) namespaceLister[*gwv1.ListenerSet] {
+		return factory.Gateway().V1().ListenerSets().Lister().ListenerSets(namespace)
+	},
+	Client: func(client gwclient.Interface, namespace string) namespaceClient[*gwv1apply.ListenerSetApplyConfiguration, *gwv1.ListenerSet] {
+		return client.GatewayV1().ListenerSets(namespace)
+	},
+	Forge: forge.RemoteListenerSet,
+	// The ListenerSets are enqueued whenever their Gateway changes, since it determines whether (and how) they are reflected.
+	ParentGateways: func(listenerSet *gwv1.ListenerSet) []types.NamespacedName {
+		if parent, ok := forge.ListenerSetParent(listenerSet); ok {
+			return []types.NamespacedName{parent}
+		}
+		return nil
+	},
+	StatusReflector: newListenerSetStatusReflector,
 }
 
 // NewGatewayReflector returns a new Gateway reflector.
@@ -134,6 +165,11 @@ func NewReferenceGrantReflector(reflectorConfig *offloadingv1beta1.ReflectorConf
 	return newReflector(&referenceGrantKind, reflectorConfig, cfg)
 }
 
+// NewListenerSetReflector returns a new ListenerSet reflector.
+func NewListenerSetReflector(reflectorConfig *offloadingv1beta1.ReflectorConfig, cfg *Config) manager.Reflector {
+	return newReflector(&listenerSetKind, reflectorConfig, cfg)
+}
+
 // NewNamespacedGatewayReflector returns a function generating NamespacedReflector instances for Gateways.
 func NewNamespacedGatewayReflector(cfg *Config) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return newNamespacedReflector(&gatewayKind, cfg)
@@ -154,6 +190,11 @@ func NewNamespacedReferenceGrantReflector(cfg *Config) func(*options.NamespacedO
 	return newNamespacedReflector(&referenceGrantKind, cfg)
 }
 
+// NewNamespacedListenerSetReflector returns a function generating NamespacedReflector instances for ListenerSets.
+func NewNamespacedListenerSetReflector(cfg *Config) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	return newNamespacedReflector(&listenerSetKind, cfg)
+}
+
 // NewClusterFallback returns the function registering the event handlers on the cluster-wide local informers for the
 // given type of reflector, which are then used by the namespaced reflectors. It is exposed for testing purposes.
 func NewClusterFallback(reflectorName string, cfg *Config) func(*options.ReflectorOpts) manager.FallbackReflector {
@@ -166,6 +207,8 @@ func NewClusterFallback(reflectorName string, cfg *Config) func(*options.Reflect
 		return newClusterFallback(&grpcRouteKind, cfg)
 	case ReferenceGrantReflectorName:
 		return newClusterFallback(&referenceGrantKind, cfg)
+	case ListenerSetReflectorName:
+		return newClusterFallback(&listenerSetKind, cfg)
 	default:
 		return nil
 	}

@@ -92,7 +92,13 @@ var _ = Describe("Validation", func() {
 		Entry("attached to a Service offloaded by the same cluster", true, service("sibling", "svc")),
 		Entry("attached to a Service offloaded by another cluster", false, service("stranger", "svc")),
 		Entry("attached to a Service in a namespace not offloaded", false, service("kube-system", "svc")),
-		Entry("attached to an unsupported kind", false, gwv1.ParentReference{Name: "set", Kind: ptr.To[gwv1.Kind]("ListenerSet")}),
+		Entry("attached to a ListenerSet in the same namespace", true, gwv1.ParentReference{Name: "set", Kind: ptr.To[gwv1.Kind]("ListenerSet")}),
+		Entry("attached to a ListenerSet offloaded by the same cluster", true, gwv1.ParentReference{Name: "set",
+			Kind: ptr.To[gwv1.Kind]("ListenerSet"), Namespace: ptr.To[gwv1.Namespace]("sibling")}),
+		Entry("attached to a ListenerSet offloaded by another cluster", false, gwv1.ParentReference{Name: "set",
+			Kind: ptr.To[gwv1.Kind]("ListenerSet"), Namespace: ptr.To[gwv1.Namespace]("stranger")}),
+		Entry("attached to an unsupported kind", false, gwv1.ParentReference{Name: "mesh", Kind: ptr.To[gwv1.Kind]("Mesh"),
+			Group: ptr.To[gwv1.Group]("example.com")}),
 	)
 
 	It("should deny the routes referring to extension filters", func() {

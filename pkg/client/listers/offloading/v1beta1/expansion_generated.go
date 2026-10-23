@@ -48,6 +48,14 @@ type ShadowIngressStatusListerExpansion interface{}
 // ShadowIngressStatusNamespaceLister.
 type ShadowIngressStatusNamespaceListerExpansion interface{}
 
+// ShadowListenerSetStatusListerExpansion allows custom methods to be added to
+// ShadowListenerSetStatusLister.
+type ShadowListenerSetStatusListerExpansion interface{}
+
+// ShadowListenerSetStatusNamespaceListerExpansion allows custom methods to be added to
+// ShadowListenerSetStatusNamespaceLister.
+type ShadowListenerSetStatusNamespaceListerExpansion interface{}
+
 // ShadowPodListerExpansion allows custom methods to be added to
 // ShadowPodLister.
 type ShadowPodListerExpansion interface{}

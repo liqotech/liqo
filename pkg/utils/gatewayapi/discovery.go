@@ -37,9 +37,11 @@ var (
 	GRPCRoutesGVR = groupVersion.WithResource("grpcroutes")
 	// ReferenceGrantsGVR is the GroupVersionResource of the ReferenceGrant resource.
 	ReferenceGrantsGVR = groupVersion.WithResource("referencegrants")
+	// ListenerSetsGVR is the GroupVersionResource of the ListenerSet resource (served as v1 starting from Gateway API v1.5).
+	ListenerSetsGVR = groupVersion.WithResource("listenersets")
 
 	// Resources lists the Gateway API resources handled by Liqo.
-	Resources = []schema.GroupVersionResource{GatewayClassesGVR, GatewaysGVR, HTTPRoutesGVR, GRPCRoutesGVR, ReferenceGrantsGVR}
+	Resources = []schema.GroupVersionResource{GatewayClassesGVR, GatewaysGVR, HTTPRoutesGVR, GRPCRoutesGVR, ReferenceGrantsGVR, ListenerSetsGVR}
 )
 
 // Availability describes which of the Gateway API resources handled by Liqo are served by a cluster.

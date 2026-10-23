@@ -16,10 +16,12 @@ package gatewayapi
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"testing"
 	"time"
 
@@ -30,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,6 +66,9 @@ const (
 
 	gatewayName = "web"
 	backendName = "backend"
+
+	// wildcardSecretName is the Secret, in the namespace of the shared Gateway, storing the certificate of its HTTPS listener.
+	wildcardSecretName = "wildcard-tls"
 
 	// rejectLabel marks the routes rejected by the admission policy configured in the first provider cluster.
 	rejectLabel = "e2e.liqo.io/reject"
@@ -149,14 +155,29 @@ func objectEvents(kind, name, reason string) []string {
 // requestThroughGateway sends an HTTP request for the given host to the Envoy proxy serving the given Gateway
 // in the given provider cluster, through a port-forward, and returns the resulting status code.
 func requestThroughGateway(provider *tester.ClusterContext, gatewayNamespace, gateway, host string) (int, error) {
-	pod, targetPort, err := util.EnvoyProxyTarget(ctx, provider.ControllerClient, gatewayNamespace, gateway, 80)
+	code, _, err := requestThroughGatewayPort(provider, gatewayNamespace, gateway, host, 80, false)
+	return code, err
+}
+
+// requestThroughGatewayTLS sends an HTTPS request for the given host to port 443 of the Envoy proxy serving the given Gateway
+// in the given provider cluster, and returns the resulting status code, along with the DNS names of the certificate served.
+func requestThroughGatewayTLS(provider *tester.ClusterContext, gatewayNamespace, gateway, host string) (int, []string, error) {
+	return requestThroughGatewayPort(provider, gatewayNamespace, gateway, host, 443, true)
+}
+
+// requestThroughGatewayPort sends a request for the given host to the given port of the Envoy proxy serving the given Gateway
+// in the given provider cluster, through a port-forward, and returns the resulting status code, as well as the DNS names
+// of the certificate served, if the request is sent through HTTPS (whose certificates are self-signed, hence not verified).
+func requestThroughGatewayPort(provider *tester.ClusterContext, gatewayNamespace, gateway, host string,
+	port int32, secure bool) (int, []string, error) {
+	pod, targetPort, err := util.EnvoyProxyTarget(ctx, provider.ControllerClient, gatewayNamespace, gateway, port)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	localPort := listener.Addr().(*net.TCPAddr).Port
 	Expect(listener.Close()).To(Succeed())
@@ -171,23 +192,76 @@ func requestThroughGateway(provider *tester.ClusterContext, gatewayNamespace, ga
 	select {
 	case <-pf.ReadyCh:
 	case err := <-errCh:
-		return 0, fmt.Errorf("port-forward to pod %q failed: %w", pod, err)
+		return 0, nil, fmt.Errorf("port-forward to pod %q failed: %w", pod, err)
 	case <-time.After(30 * time.Second):
-		return 0, fmt.Errorf("port-forward to pod %q not ready", pod)
+		return 0, nil, fmt.Errorf("port-forward to pod %q not ready", pod)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/", localPort), http.NoBody)
+	scheme := "http"
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	if secure {
+		scheme = "https"
+		// The server name is set to the requested host, to select the certificate (i.e., the listener) through SNI.
+		//nolint:gosec // The certificates are self-signed, and they are only checked to identify the listener serving the request.
+		httpClient.Transport = &http.Transport{TLSClientConfig: &tls.Config{ServerName: host, InsecureSkipVerify: true}}
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s://127.0.0.1:%d/", scheme, localPort), http.NoBody)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	request.Host = host
 
-	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	Expect(response.Body.Close()).To(Succeed())
-	return response.StatusCode, nil
+
+	var names []string
+	if response.TLS != nil && len(response.TLS.PeerCertificates) > 0 {
+		names = response.TLS.PeerCertificates[0].DNSNames
+	}
+	return response.StatusCode, names, nil
+}
+
+// listenerSetCondition returns the given condition of the given local ListenerSet, or of the given listener if not empty.
+func listenerSetCondition(name, listener, conditionType string) (*metav1.Condition, error) {
+	var listenerSet gwv1.ListenerSet
+	if err := consumer.ControllerClient.Get(ctx, types.NamespacedName{Namespace: namespaceName, Name: name}, &listenerSet); err != nil {
+		return nil, err
+	}
+
+	conditions := listenerSet.Status.Conditions
+	if listener != "" {
+		conditions = nil
+		for i := range listenerSet.Status.Listeners {
+			if string(listenerSet.Status.Listeners[i].Name) == listener {
+				conditions = listenerSet.Status.Listeners[i].Conditions
+			}
+		}
+	}
+
+	condition := meta.FindStatusCondition(conditions, conditionType)
+	if condition == nil {
+		return nil, fmt.Errorf("no %s condition reported for ListenerSet %q (listener %q)", conditionType, name, listener)
+	}
+	return condition, nil
+}
+
+// statusVersions returns the resource versions of the given objects in the given cluster, keyed by namespaced name,
+// to verify that their status is not continuously updated (e.g., by competing controllers).
+func statusVersions(cluster *tester.ClusterContext, list client.ObjectList, namespaces ...string) map[string]string {
+	versions := make(map[string]string)
+	for _, namespace := range namespaces {
+		Expect(cluster.ControllerClient.List(ctx, list, client.InNamespace(namespace))).To(Succeed())
+		Expect(meta.EachListItem(list, func(obj runtime.Object) error {
+			object := obj.(client.Object)
+			versions[client.ObjectKeyFromObject(object).String()] = object.GetResourceVersion()
+			return nil
+		})).To(Succeed())
+	}
+	return versions
 }
 
 // createRejectionPolicy creates an admission policy, in the given provider cluster, rejecting the routes with the reject label
@@ -265,6 +339,12 @@ var _ = BeforeSuite(func() {
 		}, timeout, interval).Should(Succeed())
 	}
 	createRejectionPolicy(&providers[0])
+
+	// The certificate of the HTTPS listener of the shared Gateway, whose port can be used by the reflected ListenerSets.
+	for i := range providers {
+		Expect(util.EnforceSelfSignedTLSSecret(ctx, providers[i].ControllerClient, sharedGatewayNamespace, wildcardSecretName,
+			"*.provider.e2e.liqo.io")).To(Succeed())
+	}
 
 	// One backend pod for each provider cluster, so that each Envoy proxy has a local endpoint.
 	Expect(util.EnforceService(ctx, consumer.ControllerClient, namespaceName, backendName)).To(Succeed())
@@ -654,6 +734,238 @@ var _ = Describe("Liqo E2E", Ordered, func() {
 							ContainSubstring("TLSRoute resources are not supported by the Liqo reflection"),
 						)), "provider %s", provider.Cluster)
 				}
+			})
+		})
+
+		When("a ListenerSet is attached to a Gateway mapped to the shared Gateway", func() {
+			const (
+				listenersGateway, listenerSetName, routeName = "listeners", "tls", "tls"
+				duplicateName, portName, closedName          = "tls-duplicate", "tls-port", "tls-closed"
+				host, secretName                             = "tls.e2e.liqo.io", "tls-cert"
+			)
+
+			BeforeAll(func() {
+				// The Gateway allows the attachment of the ListenerSets in the same namespace, while the mapped one does not.
+				Expect(util.EnforceGateway(ctx, consumer.ControllerClient, namespaceName, listenersGateway, virtualClass,
+					util.WithGatewayAnnotations(map[string]string{consts.RemoteGatewayModeAnnotation: consts.RemoteGatewayModeShared}),
+					util.WithAllowedListeners(gwv1.NamespacesFromSame))).To(Succeed())
+				Expect(util.EnforceSelfSignedTLSSecret(ctx, consumer.ControllerClient, namespaceName, secretName, host)).To(Succeed())
+				Expect(util.EnforceListenerSet(ctx, consumer.ControllerClient, namespaceName, listenerSetName,
+					listenersGateway, host, 443, secretName)).To(Succeed())
+				Expect(util.EnforceHTTPRoute(ctx, consumer.ControllerClient, namespaceName, routeName,
+					[]gwv1.ParentReference{{Name: listenerSetName, Kind: ptr.To[gwv1.Kind](forge.ListenerSetKind),
+						SectionName: ptr.To[gwv1.SectionName]("https")}}, host, backendName)).To(Succeed())
+			})
+
+			It("should be reflected to all providers, attached to the shared Gateway resolved by the provider", func() {
+				for i := range providers {
+					provider := &providers[i]
+					Eventually(func() (*gwv1.ListenerSet, error) {
+						var listenerSet gwv1.ListenerSet
+						err := provider.ControllerClient.Get(ctx, types.NamespacedName{Namespace: namespaceName, Name: listenerSetName}, &listenerSet)
+						return &listenerSet, err
+					}, timeout, interval).Should(And(
+						HaveField("Spec.ParentRef.Name", BeEquivalentTo(sharedGatewayName)),
+						HaveField("Spec.ParentRef.Namespace", PointTo(BeEquivalentTo(sharedGatewayNamespace))),
+						HaveField("ObjectMeta.Annotations", HaveKeyWithValue(consts.SharedGatewayAnnotation,
+							sharedGatewayNamespace+"/"+sharedGatewayName)),
+					), "provider %s", provider.Cluster)
+				}
+			})
+
+			It("should report the aggregated status, and be counted among the ListenerSets attached to the Gateway", func() {
+				for _, conditionType := range []gwv1.ListenerSetConditionType{gwv1.ListenerSetConditionAccepted, gwv1.ListenerSetConditionProgrammed} {
+					Eventually(func() (*metav1.Condition, error) {
+						return listenerSetCondition(listenerSetName, "", string(conditionType))
+					},
+						dataPlaneTimeout, interval).Should(PointTo(And(
+						HaveField("Status", metav1.ConditionTrue),
+						HaveField("Message", ContainSubstring("Condition satisfied in cluster(s)")),
+					)))
+				}
+				Eventually(func() (*int32, error) {
+					var gateway gwv1.Gateway
+					err := consumer.ControllerClient.Get(ctx, types.NamespacedName{Namespace: namespaceName, Name: listenersGateway}, &gateway)
+					return gateway.Status.AttachedListenerSets, err
+				}, timeout, interval).Should(PointTo(BeEquivalentTo(1)))
+			})
+
+			It("should serve the requests through HTTPS in all providers, with the certificate of the ListenerSet", func() {
+				Eventually(func() (*metav1.Condition, error) { return acceptedCondition(routeName) }, timeout, interval).
+					Should(PointTo(HaveField("Status", metav1.ConditionTrue)))
+				for i := range providers {
+					provider := &providers[i]
+					Eventually(func(g Gomega) {
+						code, names, err := requestThroughGatewayTLS(provider, sharedGatewayNamespace, sharedGatewayName, host)
+						g.Expect(err).ToNot(HaveOccurred())
+						g.Expect(code).To(Equal(http.StatusOK))
+						g.Expect(names).To(ConsistOf(host))
+					}, dataPlaneTimeout, interval).Should(Succeed(), "provider %s", provider.Cluster)
+				}
+			})
+
+			When("another ListenerSet requests the same hostname", func() {
+				BeforeAll(func() {
+					Expect(util.EnforceListenerSet(ctx, consumer.ControllerClient, namespaceName, duplicateName,
+						listenersGateway, host, 443, secretName)).To(Succeed())
+				})
+
+				It("should report the listener of the newer ListenerSet as conflicted", func() {
+					Eventually(func() (*metav1.Condition, error) {
+						return listenerSetCondition(duplicateName, "https", string(gwv1.ListenerEntryConditionConflicted))
+					}, dataPlaneTimeout, interval).Should(PointTo(And(
+						HaveField("Status", metav1.ConditionTrue),
+						HaveField("Reason", string(gwv1.ListenerEntryReasonHostnameConflict)),
+					)))
+				})
+
+				It("should keep the listener of the older ListenerSet not conflicted, still serving the requests", func() {
+					// The Conflicted condition is either not reported, or False.
+					Consistently(func() metav1.ConditionStatus {
+						condition, err := listenerSetCondition(listenerSetName, "https", string(gwv1.ListenerEntryConditionConflicted))
+						if err != nil {
+							return metav1.ConditionFalse
+						}
+						return condition.Status
+					}, 20*time.Second, interval).Should(Equal(metav1.ConditionFalse))
+					code, _, err := requestThroughGatewayTLS(&providers[0], sharedGatewayNamespace, sharedGatewayName, host)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(code).To(Equal(http.StatusOK))
+				})
+			})
+
+			When("a ListenerSet uses a port not offered by the shared Gateway", func() {
+				BeforeAll(func() {
+					Expect(util.EnforceListenerSet(ctx, consumer.ControllerClient, namespaceName, portName,
+						listenersGateway, "port.e2e.liqo.io", 8443, secretName)).To(Succeed())
+				})
+
+				It("should be rejected by the Liqo webhook of all providers, and reported as not accepted", func() {
+					Eventually(func() (*metav1.Condition, error) {
+						return listenerSetCondition(portName, "", string(gwv1.ListenerSetConditionAccepted))
+					}, timeout, interval).Should(PointTo(And(
+						HaveField("Status", metav1.ConditionFalse),
+						HaveField("Message", ContainSubstring(`port 8443 of listener "https" not allowed`)),
+					)))
+					for i := range providers {
+						Expect(util.GetResource(ctx, providers[i].ControllerClient,
+							&gwv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceName, Name: portName}})).
+							To(BeNotFound(), "provider %s", providers[i].Cluster)
+					}
+				})
+			})
+
+			When("the Gateway does not allow the attachment of the ListenerSet", func() {
+				BeforeAll(func() {
+					// The mapped Gateway does not specify allowedListeners, which defaults to none.
+					Expect(util.EnforceListenerSet(ctx, consumer.ControllerClient, namespaceName, closedName,
+						"mapped", "closed.e2e.liqo.io", 443, secretName)).To(Succeed())
+				})
+
+				It("should be reported as not allowed, and not be reflected to any provider", func() {
+					Eventually(func() (*metav1.Condition, error) {
+						return listenerSetCondition(closedName, "", string(gwv1.ListenerSetConditionAccepted))
+					}, timeout, interval).Should(PointTo(And(
+						HaveField("Status", metav1.ConditionFalse),
+						HaveField("Reason", string(gwv1.ListenerSetReasonNotAllowed)),
+					)))
+					for i := range providers {
+						Consistently(func() error {
+							return util.GetResource(ctx, providers[i].ControllerClient,
+								&gwv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceName, Name: closedName}})
+						}, 10*time.Second, interval).Should(BeNotFound(), "provider %s", providers[i].Cluster)
+					}
+				})
+			})
+
+			When("a ListenerSet is attached to a Gateway of another class, served by the consumer cluster", func() {
+				BeforeAll(func() {
+					Expect(util.EnforceGateway(ctx, consumer.ControllerClient, localNamespaceName, "edge", "e2e-local",
+						util.WithAllowedListeners(gwv1.NamespacesFromSame))).To(Succeed())
+					Expect(util.EnforceListenerSet(ctx, consumer.ControllerClient, localNamespaceName, listenerSetName,
+						"edge", "edge.e2e.liqo.io", 443, secretName)).To(Succeed())
+				})
+
+				It("should not modify its status", func() {
+					Consistently(func(g Gomega) {
+						var listenerSet gwv1.ListenerSet
+						g.Expect(consumer.ControllerClient.Get(ctx, types.NamespacedName{Namespace: localNamespaceName, Name: listenerSetName},
+							&listenerSet)).To(Succeed())
+						g.Expect(util.LiqoAggregatedConditions(listenerSet.Status.Conditions)).To(BeEmpty())
+						g.Expect(listenerSet.Status.Listeners).To(BeEmpty())
+					}, 20*time.Second, interval).Should(Succeed())
+				})
+			})
+
+			It("should not modify the status of the Gateway API resources served by the providers", func() {
+				// The status of the reflected resources (and of the shared Gateway) is managed by Envoy Gateway only: it shall not
+				// include the conditions set by the Liqo status aggregation, nor be continuously updated by competing controllers.
+				for i := range providers {
+					provider := &providers[i]
+					checkStatus := func(g Gomega) {
+						var listenerSets gwv1.ListenerSetList
+						g.Expect(provider.ControllerClient.List(ctx, &listenerSets, client.InNamespace(namespaceName))).To(Succeed())
+						g.Expect(listenerSets.Items).ToNot(BeEmpty())
+						for j := range listenerSets.Items {
+							g.Expect(util.LiqoAggregatedConditions(listenerSets.Items[j].Status.Conditions)).To(BeEmpty())
+						}
+
+						var routes gwv1.HTTPRouteList
+						g.Expect(provider.ControllerClient.List(ctx, &routes, client.InNamespace(namespaceName))).To(Succeed())
+						for j := range routes.Items {
+							g.Expect(slices.ContainsFunc(routes.Items[j].Status.Parents, func(p gwv1.RouteParentStatus) bool {
+								return p.ControllerName == consts.GatewayControllerName
+							})).To(BeFalse(), "route %s", routes.Items[j].Name)
+						}
+
+						var gateways gwv1.GatewayList
+						g.Expect(provider.ControllerClient.List(ctx, &gateways, client.InNamespace(namespaceName))).To(Succeed())
+						var shared gwv1.Gateway
+						g.Expect(provider.ControllerClient.Get(ctx, types.NamespacedName{Namespace: sharedGatewayNamespace, Name: sharedGatewayName},
+							&shared)).To(Succeed())
+						for _, gateway := range append(gateways.Items, shared) {
+							g.Expect(util.LiqoAggregatedConditions(gateway.Status.Conditions)).To(BeEmpty(), "gateway %s", gateway.Name)
+						}
+					}
+					Eventually(checkStatus, timeout, interval).Should(Succeed(), "provider %s", provider.Cluster)
+
+					// Once converged, the resources are not updated anymore (e.g., by Liqo and Envoy Gateway overwriting each other).
+					lists := []client.ObjectList{&gwv1.ListenerSetList{}, &gwv1.HTTPRouteList{}, &gwv1.GatewayList{}}
+					before := make([]map[string]string, len(lists))
+					for j := range lists {
+						before[j] = statusVersions(provider, lists[j], namespaceName, sharedGatewayNamespace)
+					}
+					Consistently(func(g Gomega) {
+						checkStatus(g)
+						for j := range lists {
+							g.Expect(statusVersions(provider, lists[j], namespaceName, sharedGatewayNamespace)).To(Equal(before[j]))
+						}
+					}, 30*time.Second, 5*time.Second).Should(Succeed(), "provider %s", provider.Cluster)
+				}
+			})
+
+			When("the ListenerSets are deleted", func() {
+				BeforeAll(func() {
+					for _, name := range []string{listenerSetName, duplicateName, portName, closedName} {
+						Expect(util.DeleteResource(ctx, consumer.ControllerClient,
+							&gwv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceName, Name: name}})).To(Succeed())
+					}
+				})
+
+				It("should delete the reflected ListenerSets and the shadow resources reporting their status", func() {
+					for i := range providers {
+						Eventually(func() (int, error) {
+							var listenerSets gwv1.ListenerSetList
+							err := providers[i].ControllerClient.List(ctx, &listenerSets, client.InNamespace(namespaceName))
+							return len(listenerSets.Items), err
+						}, timeout, interval).Should(BeZero(), "provider %s", providers[i].Cluster)
+					}
+					Eventually(func() (int, error) {
+						var shadows offloadingv1beta1.ShadowListenerSetStatusList
+						err := consumer.ControllerClient.List(ctx, &shadows, client.InNamespace(namespaceName))
+						return len(shadows.Items), err
+					}, timeout, interval).Should(BeZero())
+				})
 			})
 		})
 

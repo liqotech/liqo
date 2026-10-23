@@ -119,6 +119,15 @@ var (
 	// ShadowRouteStatusGroupVersionResource is the groupResourceVersion used to register these objects.
 	ShadowRouteStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowRouteStatusResource)
 
+	// ShadowListenerSetStatusResource is the resource name used to register the ShadowListenerSetStatus CRD.
+	ShadowListenerSetStatusResource = "shadowlistenersetstatuses"
+
+	// ShadowListenerSetStatusGroupResource is group resource used to register these objects.
+	ShadowListenerSetStatusGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowListenerSetStatusResource}
+
+	// ShadowListenerSetStatusGroupVersionResource is the groupResourceVersion used to register these objects.
+	ShadowListenerSetStatusGroupVersionResource = SchemeGroupVersion.WithResource(ShadowListenerSetStatusResource)
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 

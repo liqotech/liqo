@@ -73,6 +73,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &offloadingv1beta1.ShadowIngressStatusApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowIngressStatusSpec"):
 		return &offloadingv1beta1.ShadowIngressStatusSpecApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowListenerSetStatus"):
+		return &offloadingv1beta1.ShadowListenerSetStatusApplyConfiguration{}
+	case v1beta1.SchemeGroupVersion.WithKind("ShadowListenerSetStatusSpec"):
+		return &offloadingv1beta1.ShadowListenerSetStatusSpecApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowPod"):
 		return &offloadingv1beta1.ShadowPodApplyConfiguration{}
 	case v1beta1.SchemeGroupVersion.WithKind("ShadowPodSpec"):
