@@ -442,6 +442,11 @@ offloading:
     referencegrant:
       # -- The number of workers used for the Gateway API ReferenceGrants reflector. Set 0 to disable the reflection of ReferenceGrants.
       workers: 3
+    listenerset:
+      # -- The number of workers used for the Gateway API ListenerSets reflector. Set 0 to disable the reflection of ListenerSets.
+      workers: 3
+      # -- The type of reflection used for the Gateway API ListenerSets reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
 
 storage:
   # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to

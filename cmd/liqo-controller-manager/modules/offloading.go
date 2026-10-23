@@ -246,8 +246,23 @@ func setupGatewayAPIStatusControllers(ctx context.Context, mgr manager.Manager, 
 		}
 	}
 
+	// The ListenerSets are attached to the Gateways, hence their status is aggregated only if both are available.
+	listenerSets := available.Has(gwutils.GatewayClassesGVR) && available.Has(gwutils.GatewaysGVR) && available.Has(gwutils.ListenerSetsGVR)
+	if listenerSets {
+		if err := gatewayapistatusctrl.SetupListenerSetParentIndexer(ctx, mgr); err != nil {
+			klog.Errorf("Unable to setup the listenerset indexer: %v", err)
+			return err
+		}
+
+		listenerSetReconciler := &gatewayapistatusctrl.ListenerSetReconciler{Client: mgr.GetClient()}
+		if err := listenerSetReconciler.SetupWithManager(ctx, mgr, opts.GatewayAPIStatusWorkers); err != nil {
+			klog.Errorf("Unable to setup the shadowlistenersetstatus reconciler: %v", err)
+			return err
+		}
+	}
+
 	if available.Has(gwutils.GatewayClassesGVR) && available.Has(gwutils.GatewaysGVR) {
-		gatewayReconciler := &gatewayapistatusctrl.GatewayReconciler{Client: mgr.GetClient()}
+		gatewayReconciler := &gatewayapistatusctrl.GatewayReconciler{Client: mgr.GetClient(), ListenerSetsAvailable: listenerSets}
 		if err := gatewayReconciler.SetupWithManager(ctx, mgr, opts.GatewayAPIStatusWorkers); err != nil {
 			klog.Errorf("Unable to setup the shadowgatewaystatus reconciler: %v", err)
 			return err

@@ -19,7 +19,7 @@
 # AZ_SUBSCRIPTION_ID    -> the ID of the Azure subscription to use (only for AKS)
 # GATEWAY_API_ENABLED   -> whether to install the Gateway API CRDs and Envoy Gateway (default: true)
 # GATEWAY_API_VERSION   -> the Gateway API version to install in the consumer cluster (default: the one in go.mod)
-# ENVOY_GATEWAY_VERSION -> the Envoy Gateway version to install in the provider clusters (default: 1.8.3)
+# ENVOY_GATEWAY_VERSION -> the Envoy Gateway version to install in the provider clusters (default: 1.9.2)
 
 set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
@@ -70,11 +70,12 @@ export HA_REPLICAS=2
 
 # The Gateway API resources are installed before Liqo, since their availability is detected when the components start.
 # The consumer cluster (i.e., the first one) requires the CRDs only, while the provider clusters also run Envoy Gateway,
-# whose version is selected to match the Gateway API version supported by Liqo.
+# whose version is selected to match the Gateway API version supported by Liqo, and to resolve the conflicts among the
+# ListenerSets by creation time (as mandated by the Gateway API, and supported starting from Envoy Gateway v1.9).
 GATEWAY_API_ENABLED="${GATEWAY_API_ENABLED:-true}"
 if [[ "${GATEWAY_API_ENABLED}" == "true" ]]; then
   GATEWAY_API_VERSION="${GATEWAY_API_VERSION:-$(awk '$1 == "sigs.k8s.io/gateway-api" {print $2}' go.mod)}"
-  ENVOY_GATEWAY_VERSION="${ENVOY_GATEWAY_VERSION:-1.8.3}"
+  ENVOY_GATEWAY_VERSION="${ENVOY_GATEWAY_VERSION:-1.9.2}"
 
   install_gateway_api_crds "${TMPDIR}/kubeconfigs/liqo_kubeconf_1" "${GATEWAY_API_VERSION}"
 

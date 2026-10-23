@@ -5,7 +5,7 @@ This section characterizes the [**resource reflection**](FeatureResourceReflecti
 Briefly, the set of supported resources includes (by category):
 
 * [**Workload**](UsageReflectionPods): *Pods*
-* [**Exposition**](UsageReflectionExposition): *Services*, *EndpointSlices*, *Ingresses*
+* [**Exposition**](UsageReflectionExposition): *Services*, *EndpointSlices*, *Ingresses*, and the [Gateway API](UsageReflectionGatewayAPI) *Gateways*, *HTTPRoutes*, *GRPCRoutes*, *ReferenceGrants* and *ListenerSets*
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PersistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
@@ -184,9 +184,11 @@ When the local *Ingress* specifies an *IngressClass* managed by Liqo (e.g., `liq
 Each remote cluster reports the status of its own reflected *Ingress* (e.g., the assigned load-balancer IPs), and the Liqo controller manager aggregates these statuses back into the local *Ingress* status.
 This allows the origin cluster to present a unified view of the ingress endpoints, combining the load-balancer information from all peered clusters where the *Ingress* has been offloaded.
 
+(UsageReflectionGatewayAPI)=
+
 ### Gateway API
 
-Liqo supports the reflection of the [Gateway API](https://gateway-api.sigs.k8s.io/) **Gateway**, **HTTPRoute**, **GRPCRoute** and **ReferenceGrant** resources.
+Liqo supports the reflection of the [Gateway API](https://gateway-api.sigs.k8s.io/) **Gateway**, **HTTPRoute**, **GRPCRoute**, **ReferenceGrant** and **ListenerSet** resources.
 Other routes (i.e., *TCPRoutes*, *TLSRoutes* and *UDPRoutes*) are not reflected, and a *FailedReflection* warning event is generated for each of them in the offloaded namespaces.
 Similarly to the ingress classes, the reflection is enabled when the provider cluster offers any *GatewayClass*, used for the reflected *Gateways*, or any **shared Gateway**, which the reflected routes are attached to.
 The *GatewayClasses* are configured in the **provider cluster** through the following Helm value, either at install time or later, upgrading the installation:
@@ -226,7 +228,8 @@ The reflected *Gateways* are translated as follows:
 * The namespaces of the **certificate references** are translated to the corresponding remote namespaces.
   Listeners referring to certificates in namespaces not offloaded to the remote cluster are dropped.
 * Listeners allowing the attachment of routes from **all namespaces** are restricted to the remote namespaces hosting the workloads offloaded from the local cluster, while the ones leveraging **label selectors** are restricted to the same namespace, since selectors refer to the labels of the local namespaces.
-* Fields referring to the local cluster (i.e., `addresses` and `infrastructure.parametersRef`), or affecting other tenants of the remote cluster (i.e., `defaultScope` and `allowedListeners`), are dropped.
+* Fields referring to the local cluster (i.e., `addresses` and `infrastructure.parametersRef`), or affecting other tenants of the remote cluster (i.e., `defaultScope`), are dropped.
+* The namespaces the **ListenerSets** can be attached from (i.e., `allowedListeners`) are translated as the ones of the routes: all namespaces are restricted to the remote namespaces hosting the workloads offloaded from the local cluster, while label selectors are restricted to the same namespace.
 
 Alternatively, a *Gateway* of the virtual class can be **mapped to the shared Gateway** offered by the remote cluster, rather than reflected as a new *Gateway*.
 In this case, no *Gateway* is created in the remote cluster, and the routes attached to the local *Gateway* are attached to the shared one.
@@ -266,13 +269,149 @@ They are translated as follows:
   References to namespaces not offloaded to the remote cluster, as well as to other kinds of backends, are dropped.
 * **Filters** not referring to other objects are preserved as is, while *RequestMirror* filters are dropped if their backend cannot be translated.
 
+#### ListenerSets
+
+**ListenerSets** (served as `gateway.networking.k8s.io/v1` starting from Gateway API v1.5) allow the developers to define additional listeners (i.e., hostnames, ports and TLS configurations) for a *Gateway* managed by someone else.
+Combined with the shared *Gateway* offered by the provider cluster, they allow to expose the offloaded applications through HTTPS, with **hostnames and certificates managed from the consumer cluster**, without requiring any action by the administrator of the provider cluster for each domain (e.g., to add a listener to the shared *Gateway*).
+
+A *ListenerSet* is reflected if it is attached to a *Gateway* of the virtual class (either reflected, or mapped to the shared *Gateway*), and the *Gateway* allows its attachment through the `allowedListeners` field (which defaults to none, as mandated by the Gateway API).
+Label selectors are conservatively restricted to the namespace of the *Gateway*, as for the reflected *Gateways*.
+*ListenerSets* attached to *Gateways* of other classes are served by the local cluster, and they are not reflected.
+They are translated as follows:
+
+* The **parent** is translated to the remote copy of the *Gateway*, if reflected, or to the shared *Gateway* offered by the remote cluster (i.e., to the placeholder, replaced by the Liqo webhook of the remote cluster), if the *Gateway* is mapped to it.
+* The **certificate references** and the namespaces the **routes** can be attached from are translated as the ones of the listeners of the reflected *Gateways*.
+  Certificate references without namespace refer to the namespace of the *ListenerSet* (not the one of the *Gateway*), hence to the reflected *Secrets* in the remote namespace.
+* **Annotations** are reflected as is, including the ones of [cert-manager](https://cert-manager.io/docs/usage/gateway/) (e.g., `cert-manager.io/cluster-issuer`), so that the certificates can be issued in the remote cluster, as for the *Ingresses*.
+
+Routes are attached to the reflected *ListenerSets* referencing them as parents (i.e., `kind: ListenerSet`), preserving the listener they are attached to (i.e., the `sectionName` and `port` fields).
+Differently from the parent references to *Gateways*, references to *ListenerSets* not reflected are dropped, rather than replaced with the shared *Gateway*.
+
+For instance, the following resources expose an offloaded application through HTTPS, with a certificate issued by cert-manager in the provider cluster:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: web
+  annotations:
+    liqo.io/remote-gateway-mode: shared
+spec:
+  gatewayClassName: liqo
+  allowedListeners:
+    namespaces:
+      from: Same
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  parentRef:
+    name: web
+  listeners:
+  - name: https
+    hostname: app.example.com
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: app-tls
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app
+spec:
+  parentRefs:
+  - kind: ListenerSet
+    name: app
+    sectionName: https
+  rules:
+  - backendRefs:
+    - name: app
+      port: 8080
+```
+
+The administrator of the **provider cluster** shall allow the attachment of the *ListenerSets* to the shared *Gateway*, from the namespaces hosting the offloaded workloads, and offer the ports the consumer clusters are allowed to use through its listeners (the Liqo webhook rejects the *ListenerSets* attached to a shared *Gateway* through other ports, since they would be exposed on its addresses on behalf of a consumer cluster):
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: infra
+  labels:
+    liqo.io/shared-gateway: default
+spec:
+  gatewayClassName: envoy
+  allowedListeners:
+    namespaces:
+      from: Selector
+      selector:
+        matchExpressions:
+        - key: liqo.io/remote-cluster-id
+          operator: Exists
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https
+    port: 443
+    protocol: HTTPS
+    hostname: "*.provider.example.com"
+    tls:
+      certificateRefs:
+      - name: wildcard-tls
+```
+
+To issue the certificates in the provider cluster, cert-manager v1.20 or later shall be installed there, with the support for the *ListenerSets* enabled, for instance through the following Helm values (supported by cert-manager v1.20, and deprecated in favor of `config.gatewayAPI.enabled` and `config.gatewayAPI.enableListenerSet` starting from v1.21):
+
+```bash
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager --namespace cert-manager --create-namespace \
+  --set crds.enabled=true \
+  --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration \
+  --set config.enableGatewayAPI=true --set config.enableGatewayAPIListenerSet=true --set config.featureGates.ListenerSets=true
+```
+
+When using the HTTP-01 challenge, the `acme.cert-manager.io/http01-parentreffallback: "true"` annotation allows cert-manager to attach the challenge route to the shared *Gateway*, if the *ListenerSet* does not include an HTTP listener for the hostname.
+cert-manager shall not be configured to handle the *ListenerSets* also in the consumer cluster, as the same certificate would be otherwise managed by both clusters.
+
+Conflicts among the listeners attached to the same *Gateway* (e.g., two *ListenerSets*, possibly reflected from different consumer clusters, using the same hostname) are resolved by the *Gateway* controller of the provider cluster, as mandated by the Gateway API: the listeners of the *Gateway* take precedence, followed by the ones of the *ListenerSets*, ordered by creation time (oldest first), and then by namespace and name.
+The listeners losing the conflict are reported with the `Conflicted` condition, which is reflected to the consumer cluster.
+Hence, the hostnames are assigned to the first consumer requesting them, and the following ones are notified that they are already in use.
+The implementation shall support this ordering (e.g., Envoy Gateway v1.9 or later).
+
+```{warning}
+* The Gateway API does not verify the ownership of the hostnames: any consumer cluster can request any hostname, and obtain it if not already used.
+  Moreover, a more specific hostname (e.g., `app.provider.example.com`) does not conflict with a wildcard listener of the shared *Gateway* (e.g., `*.provider.example.com`), and it takes precedence in the matching of the requests.
+  If the consumer clusters are not trusted, the hostnames they can use shall be restricted by an additional admission policy in the provider cluster (e.g., enforcing the domains verified for each consumer).
+* The creation time of a reflected *ListenerSet* is the one of its remote copy: if the remote copy is recreated (e.g., since the *ListenerSet* is no longer allowed by its *Gateway*, and then allowed again), it loses its precedence.
+```
+
+The **status** of the reflected *ListenerSets* is reported back through *ShadowListenerSetStatus* resources, and aggregated by the Liqo controller manager as for the *Gateways*: the conditions are satisfied if satisfied in at least one remote cluster (hence, a listener is `Conflicted` if it conflicts in at least one cluster), and the listeners report the total number of routes attached in all clusters.
+The *ListenerSets* not allowed by their *Gateway* are reported as not *Accepted*, with the `NotAllowed` reason, while the *Gateways* of the virtual class report the number of the *ListenerSets* attached to them.
+The status of the *ListenerSets* attached to *Gateways* of other classes (e.g., the ones reflected in the provider cluster) is never modified by Liqo.
+
 **ReferenceGrants** are reflected to allow cross-namespace references between namespaces offloaded to the same remote cluster.
 The namespaces the references are granted from are translated to the corresponding remote namespaces, while the ones not offloaded to the remote cluster are dropped.
 
 The provider cluster does not rely on the consumer clusters to translate the resources correctly, and the **Liqo webhook enforces** the following constraints on the Gateway API resources in the namespaces hosting offloaded workloads:
 
 * *Gateways* shall belong to one of the *GatewayClasses* offered to the consumer clusters.
-* Routes shall be attached only to *Gateways* in the same namespace (i.e., reflected), to the shared *Gateways*, or to *Services* in namespaces offloaded by the same consumer cluster, and they shall not include *ExtensionRef* filters.
+* Routes shall be attached only to *Gateways* in the same namespace (i.e., reflected), to the shared *Gateways*, or to *Services* and *ListenerSets* in namespaces offloaded by the same consumer cluster, and they shall not include *ExtensionRef* filters.
+* *ListenerSets* shall be attached only to *Gateways* in the same namespace, or to the shared *Gateways* (using only the ports of their listeners), and they shall refer only to certificates in namespaces offloaded by the same consumer cluster.
+  If no *Gateway* is shared, the *ListenerSets* referring to the placeholder are rejected, and the consumer cluster reports them as not *Accepted*.
   The parent references are validated only when added: the routes attached to a *Gateway* which is no longer shared are not detached, while new routes cannot be attached to it.
   If no *Gateway* is shared anymore, the placeholder is removed (i.e., the route is detached), and the consumer cluster reports the route as not *Accepted*.
 
@@ -289,6 +428,7 @@ Since the same resource may be reflected to multiple remote clusters, each virtu
 * Routes report one entry for each parent reflected, managed by the `liqo.io/gateway-controller` controller, whose conditions are satisfied if satisfied in **at least one** remote cluster, and whose messages identify the clusters where they are not.
   Similarly, an *Accepted* route guarantees that it is accepted in _at least_ one remote cluster, not in _all_ of them: check the condition message (or the *PartiallyAccepted* events) to identify the clusters where it is not.
   The entries managed by other controllers (e.g., the local one serving the *Gateways* of other classes) are preserved.
+  If another controller reports the status of a parent which the route is attached to also in the remote clusters (e.g., a *Gateway* served by the local cluster, which is replaced by the shared *Gateway* in the remote clusters), Liqo does not report any entry for that parent, as some implementations merge the entries by parent reference only, regardless of the controller (e.g., Envoy Gateway), and they would otherwise overwrite each other.
 
 Both *Gateways* and routes are hence considered working as soon as they serve traffic in at least one remote cluster, consistently with the addresses of the *Gateways*, which are the union of those assigned in all clusters (each of them can be used to reach the offloaded workloads).
 A failure in a single remote cluster (e.g., a broken peering, or a cluster not supporting the route) does not mark the whole route as not *Accepted*: the condition message lists the clusters where it is not accepted, together with the reason reported by each of them, and a *PartiallyAccepted* warning event is generated on the route whenever such clusters change.

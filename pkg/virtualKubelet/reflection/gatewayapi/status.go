@@ -207,6 +207,85 @@ func (gsr *gatewayStatusReflector) Cleanup(ctx context.Context) error {
 	return nil
 }
 
+// listenerSetStatusReflector reflects the status of the remote ListenerSets through ShadowListenerSetStatus resources.
+type listenerSetStatusReflector struct {
+	namespace string
+	kube      kubernetes.Interface
+	client    offloadingv1beta1clients.ShadowListenerSetStatusInterface
+	lister    offloadingv1beta1listers.ShadowListenerSetStatusNamespaceLister
+}
+
+func newListenerSetStatusReflector(opts *options.NamespacedOpts, _ *forge.GatewayAPIForgingOpts) statusReflector[*gwv1.ListenerSet] {
+	return &listenerSetStatusReflector{
+		namespace: opts.LocalNamespace,
+		kube:      opts.LocalClient,
+		client:    opts.LocalLiqoClient.OffloadingV1beta1().ShadowListenerSetStatuses(opts.LocalNamespace),
+		lister: opts.LocalLiqoFactory.Offloading().V1beta1().ShadowListenerSetStatuses().Lister().
+			ShadowListenerSetStatuses(opts.LocalNamespace),
+	}
+}
+
+func (lsr *listenerSetStatusReflector) Enforce(ctx context.Context, local, remote *gwv1.ListenerSet) error {
+	return lsr.apply(ctx, local.GetName(), offloadingv1beta1apply.ShadowListenerSetStatusSpec().
+		WithConditions(conditionsApply(remote.Status.Conditions)...).
+		WithListeners(remote.Status.Listeners...))
+}
+
+func (lsr *listenerSetStatusReflector) Fail(ctx context.Context, local *gwv1.ListenerSet, message string) error {
+	var previous []metav1.Condition
+	if shadow, err := lsr.lister.Get(ShadowName("", local.GetName())); err == nil {
+		previous = shadow.Spec.Conditions
+	}
+
+	conditions := []metav1.Condition{
+		failedCondition(previous, string(gwv1.ListenerSetConditionAccepted), message, local.GetGeneration()),
+		failedCondition(previous, string(gwv1.ListenerSetConditionProgrammed), message, local.GetGeneration()),
+	}
+	return lsr.apply(ctx, local.GetName(), offloadingv1beta1apply.ShadowListenerSetStatusSpec().WithConditions(conditionsApply(conditions)...))
+}
+
+// apply enforces the shadow resource associated with the given local ListenerSet, completing the given spec.
+func (lsr *listenerSetStatusReflector) apply(ctx context.Context, name string,
+	spec *offloadingv1beta1apply.ShadowListenerSetStatusSpecApplyConfiguration) error {
+	owner, err := virtualNodeOwnerReference(ctx, lsr.kube)
+	if err != nil {
+		return err
+	}
+
+	shadow := offloadingv1beta1apply.ShadowListenerSetStatus(ShadowName("", name), lsr.namespace).
+		WithLabels(shadowLabels()).WithOwnerReferences(owner).
+		WithSpec(spec.WithListenerSetName(name).WithClusterID(string(forge.RemoteCluster)))
+
+	if _, err := lsr.client.Apply(ctx, shadow, forge.ApplyOptions()); err != nil {
+		return fmt.Errorf("failed to enforce ShadowListenerSetStatus %q: %w", klog.KRef(lsr.namespace, *shadow.Name), err)
+	}
+	return nil
+}
+
+func (lsr *listenerSetStatusReflector) Delete(ctx context.Context, name string) error {
+	shadow := ShadowName("", name)
+	if _, err := lsr.lister.Get(shadow); kerrors.IsNotFound(err) {
+		return nil
+	}
+	if err := lsr.client.Delete(ctx, shadow, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete ShadowListenerSetStatus %q: %w", klog.KRef(lsr.namespace, shadow), err)
+	}
+	return nil
+}
+
+func (lsr *listenerSetStatusReflector) Cleanup(ctx context.Context) error {
+	shadows, err := lsr.lister.List(shadowSelector())
+	if err != nil {
+		return fmt.Errorf("failed to list ShadowListenerSetStatuses for cleanup: %w", err)
+	}
+	for _, shadow := range shadows {
+		if err := lsr.client.Delete(ctx, shadow.GetName(), metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete ShadowListenerSetStatus %q: %w", klog.KObj(shadow), err)
+		}
+	}
+	return nil
+}
+
 // routeStatusReflector reflects the status of the remote routes through ShadowRouteStatus resources.
 type routeStatusReflector[O object] struct {
 	kind     offloadingv1beta1.RouteKind

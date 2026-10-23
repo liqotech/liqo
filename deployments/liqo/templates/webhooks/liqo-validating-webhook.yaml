@@ -166,7 +166,7 @@ webhooks:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["gateway.networking.k8s.io"]
         apiVersions: ["v1"]
-        resources: ["gateways", "httproutes", "grpcroutes"]
+        resources: ["gateways", "httproutes", "grpcroutes", "listenersets"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
     # Only the Gateway API resources reflected from the consumer clusters, in the namespaces hosting offloaded workloads.

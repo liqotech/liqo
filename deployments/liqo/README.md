@@ -179,6 +179,8 @@
 | offloading.reflection.ingress.ingressClasses | list | `[]` | List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is. Example: ingressClasses: - name: nginx   default: true - name: traefik |
 | offloading.reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList". |
 | offloading.reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
+| offloading.reflection.listenerset.type | string | `"DenyList"` | The type of reflection used for the Gateway API ListenerSets reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.listenerset.workers | int | `3` | The number of workers used for the Gateway API ListenerSets reflector. Set 0 to disable the reflection of ListenerSets. |
 | offloading.reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
 | offloading.reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
 | offloading.reflection.referencegrant.workers | int | `3` | The number of workers used for the Gateway API ReferenceGrants reflector. Set 0 to disable the reflection of ReferenceGrants. |

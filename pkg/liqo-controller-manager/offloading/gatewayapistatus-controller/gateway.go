@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -35,17 +36,23 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // GatewayReconciler aggregates the status of the Gateways of the virtual class reflected to the remote clusters
 // (reported through the ShadowGatewayStatus resources) into the local Gateways, as Liqo acts as their controller.
 type GatewayReconciler struct {
 	client.Client
+
+	// ListenerSetsAvailable is whether the ListenerSet resource is available, hence whether the Gateways report
+	// the number of ListenerSets attached to them (which requires the indexer registered by SetupListenerSetParentIndexer).
+	ListenerSetsAvailable bool
 }
 
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowgatewaystatuses,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=listenersets,verbs=get;list;watch
 
 // Reconcile aggregates the status of the given Gateway.
 func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -74,6 +81,13 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	original := gateway.Status.DeepCopy()
 	AggregateGatewayStatus(&gateway, shadows.Items)
+	if r.ListenerSetsAvailable {
+		attached, err := attachedListenerSets(ctx, r.Client, &gateway)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		gateway.Status.AttachedListenerSets = ptr.To(attached)
+	}
 	if equality.Semantic.DeepEqual(original, &gateway.Status) {
 		return ctrl.Result{}, nil
 	}
@@ -94,7 +108,7 @@ func AggregateGatewayStatus(gateway *gwv1.Gateway, shadows []offloadingv1beta1.S
 	seen := make(map[string]bool)
 	for i := range shadows {
 		for _, address := range shadows[i].Spec.Addresses {
-			key := fmt.Sprintf("%v/%s", address.Type, address.Value)
+			key := fmt.Sprintf("%s/%s", ptr.Deref(address.Type, gwv1.IPAddressType), address.Value)
 			if !seen[key] {
 				gateway.Status.Addresses = append(gateway.Status.Addresses, address)
 				seen[key] = true
@@ -140,7 +154,7 @@ func aggregateListenerStatus(gateway *gwv1.Gateway, name gwv1.SectionName, shado
 
 			status.AttachedRoutes += listener.AttachedRoutes
 			for _, kind := range listener.SupportedKinds {
-				if key := fmt.Sprintf("%v/%s", kind.Group, kind.Kind); !kinds[key] {
+				if key := fmt.Sprintf("%s/%s", ptr.Deref(kind.Group, gwv1.GroupName), kind.Kind); !kinds[key] {
 					status.SupportedKinds = append(status.SupportedKinds, kind)
 					kinds[key] = true
 				}
@@ -217,7 +231,7 @@ func (r *GatewayReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manag
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowGatewayStatus).
+	builder := ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowGatewayStatus).
 		For(&gwv1.Gateway{}).
 		Watches(&offloadingv1beta1.ShadowGatewayStatus{}, handler.EnqueueRequestsFromMapFunc(
 			func(_ context.Context, obj client.Object) []reconcile.Request {
@@ -226,7 +240,22 @@ func (r *GatewayReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manag
 					return nil
 				}
 				return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: shadow.Namespace, Name: shadow.Spec.GatewayName}}}
-			})).
-		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
-		Complete(r)
+			}))
+
+	if r.ListenerSetsAvailable {
+		// The number of attached ListenerSets changes when they are created, deleted, or accepted.
+		builder = builder.Watches(&gwv1.ListenerSet{}, handler.EnqueueRequestsFromMapFunc(
+			func(_ context.Context, obj client.Object) []reconcile.Request {
+				listenerSet, ok := obj.(*gwv1.ListenerSet)
+				if !ok {
+					return nil
+				}
+				if parent, ok := forge.ListenerSetParent(listenerSet); ok {
+					return []reconcile.Request{{NamespacedName: parent}}
+				}
+				return nil
+			}))
+	}
+
+	return builder.WithOptions(controller.Options{MaxConcurrentReconciles: workers}).Complete(r)
 }

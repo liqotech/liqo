@@ -32,11 +32,12 @@ const (
 	HTTPRoute             ResourceReflected = "httproute"
 	GRPCRoute             ResourceReflected = "grpcroute"
 	ReferenceGrant        ResourceReflected = "referencegrant"
+	ListenerSet           ResourceReflected = "listenerset"
 )
 
 // Reflectors is the list of all resources that can be reflected.
 var Reflectors = []ResourceReflected{Pod, Service, EndpointSlice, Ingress, ConfigMap, Secret, ServiceAccount, PersistentVolumeClaim, Event,
-	Gateway, HTTPRoute, GRPCRoute, ReferenceGrant}
+	Gateway, HTTPRoute, GRPCRoute, ReferenceGrant, ListenerSet}
 
 // ReflectorsCustomizableType is the list of resources for which the reflection type can be customized.
-var ReflectorsCustomizableType = []ResourceReflected{Service, Ingress, ConfigMap, Secret, Event, Gateway, HTTPRoute, GRPCRoute}
+var ReflectorsCustomizableType = []ResourceReflected{Service, Ingress, ConfigMap, Secret, Event, Gateway, HTTPRoute, GRPCRoute, ListenerSet}

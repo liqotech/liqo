@@ -46,9 +46,11 @@ func newClient(objects ...client.Object) client.Client {
 	Expect(gwv1.Install(scheme)).To(Succeed())
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).
-		WithStatusSubresource(&gwv1.GatewayClass{}, &gwv1.Gateway{}, &gwv1.HTTPRoute{}, &gwv1.GRPCRoute{}).
+		WithStatusSubresource(&gwv1.GatewayClass{}, &gwv1.Gateway{}, &gwv1.HTTPRoute{}, &gwv1.GRPCRoute{}, &gwv1.ListenerSet{}).
 		WithIndex(&offloadingv1beta1.ShadowGatewayStatus{}, gatewayNameField, gatewayNameIndexer).
 		WithIndex(&offloadingv1beta1.ShadowRouteStatus{}, routeNameField, routeNameIndexer).
+		WithIndex(&offloadingv1beta1.ShadowListenerSetStatus{}, listenerSetNameField, listenerSetNameIndexer).
+		WithIndex(&gwv1.ListenerSet{}, listenerSetParentField, listenerSetParentIndexer).
 		Build()
 }
 
@@ -118,6 +120,22 @@ var _ = Describe("Gateway status aggregation", func() {
 			Expect(gateway.Status.Listeners[0].SupportedKinds).To(ConsistOf(gwv1.RouteGroupKind{Kind: "HTTPRoute"}))
 			Expect(meta.IsStatusConditionTrue(gateway.Status.Listeners[0].Conditions, string(gwv1.ListenerConditionProgrammed))).To(BeTrue())
 		})
+
+		When("the clusters report the same addresses and kinds, through distinct objects", func() {
+			BeforeEach(func() {
+				// The decoded objects never share the pointers of the optional fields (e.g., the group of the kinds).
+				for i := range shadows {
+					shadows[i].Spec.Addresses[0] = gwv1.GatewayStatusAddress{Type: ptr.To(gwv1.IPAddressType), Value: "10.0.0.1"}
+					shadows[i].Spec.Listeners[0].SupportedKinds = []gwv1.RouteGroupKind{
+						{Group: ptr.To[gwv1.Group](gwv1.GroupName), Kind: "HTTPRoute"}}
+				}
+			})
+
+			It("should report them only once", func() {
+				Expect(gateway.Status.Addresses).To(HaveLen(1))
+				Expect(gateway.Status.Listeners[0].SupportedKinds).To(HaveLen(1))
+			})
+		})
 	})
 })
 
@@ -130,6 +148,7 @@ var _ = Describe("Route status aggregation", func() {
 	)
 
 	edge := gwv1.ParentReference{Name: "edge", Namespace: ptr.To[gwv1.Namespace]("infra")}
+	local := gwv1.ParentReference{Name: "local", Namespace: ptr.To[gwv1.Namespace]("infra")}
 	web := gwv1.ParentReference{Name: "web", SectionName: ptr.To[gwv1.SectionName]("http")}
 	api := gwv1.ParentReference{Name: "api"}
 
@@ -151,7 +170,7 @@ var _ = Describe("Route status aggregation", func() {
 	BeforeEach(func() {
 		// The entry of the local controller is preserved, while the stale one of Liqo is replaced.
 		current = []gwv1.RouteParentStatus{
-			{ParentRef: edge, ControllerName: "example.com/local", Conditions: []metav1.Condition{
+			{ParentRef: local, ControllerName: "example.com/local", Conditions: []metav1.Condition{
 				condition(string(gwv1.RouteConditionAccepted), metav1.ConditionTrue, "Accepted", "")}},
 			{ParentRef: gwv1.ParentReference{Name: "stale"}, ControllerName: consts.GatewayControllerName},
 		}
@@ -206,6 +225,34 @@ var _ = Describe("Route status aggregation", func() {
 
 	It("should return the parents accepted only by part of the remote clusters", func() {
 		Expect(degraded).To(ConsistOf(`parent "edge" not accepted in cluster "cluster-b": NotAllowedByListeners`))
+	})
+
+	When("another controller reports the status of a parent reported also by the remote clusters", func() {
+		BeforeEach(func() {
+			// E.g., the route is attached to a Gateway served by the local cluster, and to the shared Gateway of the remote ones.
+			current = append(current,
+				gwv1.RouteParentStatus{ParentRef: edge, ControllerName: consts.GatewayControllerName},
+				gwv1.RouteParentStatus{ParentRef: edge, ControllerName: "example.com/local", Conditions: []metav1.Condition{
+					condition(string(gwv1.RouteConditionAccepted), metav1.ConditionFalse, "NotAllowedByListeners", "")}},
+			)
+		})
+
+		It("should not manage any entry for that parent, preserving only the one of the other controller", func() {
+			var entries []gwv1.GatewayController
+			for i := range result {
+				if result[i].ParentRef.Name == edge.Name {
+					entries = append(entries, result[i].ControllerName)
+				}
+			}
+			Expect(entries).To(ConsistOf(gwv1.GatewayController("example.com/local")))
+		})
+		It("should not report the parent as accepted only by part of the remote clusters", func() {
+			Expect(degraded).To(BeEmpty())
+		})
+		It("should be stable, once the status is updated", func() {
+			again, _ := AggregateRouteParents(result, shadows, namespace, 7)
+			Expect(again).To(Equal(result))
+		})
 	})
 
 	When("a condition is no longer reported by any remote cluster", func() {

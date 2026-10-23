@@ -153,3 +153,86 @@ func attachedTo(routeNamespace string, parents []gwv1.ParentReference, gateway s
 	}
 	return false
 }
+
+// listenerSetMutator replaces the placeholder of the shared Gateway in the ListenerSets reflected from the consumer clusters.
+type listenerSetMutator struct {
+	client  client.Reader
+	decoder admission.Decoder
+}
+
+// NewListenerSetMutator returns a new webhook replacing, in the ListenerSets reflected from the consumer clusters, the placeholder
+// of the shared Gateway with the actual shared Gateway offered by the local cluster (i.e., the default one among the Gateways
+// labeled as shared), as for the routes. Differently from the routes, the parent of a ListenerSet cannot be removed, hence the
+// ListenerSets referring to the placeholder are rejected if no Gateway is shared.
+func NewListenerSetMutator(cl client.Reader) *webhook.Admission {
+	return &webhook.Admission{Handler: &listenerSetMutator{client: cl, decoder: admission.NewDecoder(runtime.NewScheme())}}
+}
+
+// Handle implements the ListenerSet mutating webhook logic.
+//
+//nolint:gocritic // The signature of this method is imposed by controller runtime.
+func (m *listenerSetMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	if req.Operation != admissionv1.Create && req.Operation != admissionv1.Update {
+		return admission.Allowed("")
+	}
+
+	var listenerSet gwv1.ListenerSet
+	if err := m.decoder.DecodeRaw(req.Object, &listenerSet); err != nil {
+		klog.Errorf("Failed decoding ListenerSet object: %v", err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	var shared *types.NamespacedName
+	if forge.IsSharedGatewayPlaceholderParent(&listenerSet.Spec.ParentRef) {
+		offered, err := gwutils.ListSharedGateways(ctx, m.client)
+		if err != nil {
+			klog.Errorf("Failed retrieving the shared Gateways: %v", err)
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		if shared = gwutils.DefaultSharedGateway(offered); shared == nil {
+			return admission.Denied("no shared Gateway is offered by the cluster, which the ListenerSet can be attached to")
+		}
+	}
+
+	if !MutateListenerSet(&listenerSet, shared) {
+		return admission.Allowed("")
+	}
+
+	marshaled, err := json.Marshal(&listenerSet)
+	if err != nil {
+		klog.Errorf("Failed encoding ListenerSet in admission response: %v", err)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
+}
+
+// MutateListenerSet replaces the reference to the placeholder of the shared Gateway with the given shared Gateway (which shall not
+// be nil if the ListenerSet refers to the placeholder), and annotates the ListenerSet accordingly. The annotation is removed if the
+// ListenerSet is no longer attached to the shared Gateway it reports. It returns whether the ListenerSet has been modified.
+func MutateListenerSet(listenerSet *gwv1.ListenerSet, shared *types.NamespacedName) (modified bool) {
+	replaced := false
+	if forge.IsSharedGatewayPlaceholderParent(&listenerSet.Spec.ParentRef) && shared != nil {
+		listenerSet.Spec.ParentRef = gwv1.ParentGatewayReference{
+			Name: gwv1.ObjectName(shared.Name), Namespace: ptr.To(gwv1.Namespace(shared.Namespace))}
+		replaced, modified = true, true
+	}
+
+	annotations := listenerSet.GetAnnotations()
+	current, found := annotations[consts.SharedGatewayAnnotation]
+	switch {
+	case replaced && current != shared.String():
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[consts.SharedGatewayAnnotation] = shared.String()
+		listenerSet.SetAnnotations(annotations)
+		modified = true
+	case !replaced && found:
+		if parent, ok := forge.ListenerSetParent(listenerSet); !ok || parent.String() != current {
+			delete(annotations, consts.SharedGatewayAnnotation)
+			listenerSet.SetAnnotations(annotations)
+			modified = true
+		}
+	}
+	return modified
+}

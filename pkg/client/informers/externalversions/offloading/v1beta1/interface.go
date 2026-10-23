@@ -30,6 +30,8 @@ type Interface interface {
 	ShadowGatewayStatuses() ShadowGatewayStatusInformer
 	// ShadowIngressStatuses returns a ShadowIngressStatusInformer.
 	ShadowIngressStatuses() ShadowIngressStatusInformer
+	// ShadowListenerSetStatuses returns a ShadowListenerSetStatusInformer.
+	ShadowListenerSetStatuses() ShadowListenerSetStatusInformer
 	// ShadowPods returns a ShadowPodInformer.
 	ShadowPods() ShadowPodInformer
 	// ShadowRouteStatuses returns a ShadowRouteStatusInformer.
@@ -69,6 +71,11 @@ func (v *version) ShadowGatewayStatuses() ShadowGatewayStatusInformer {
 // ShadowIngressStatuses returns a ShadowIngressStatusInformer.
 func (v *version) ShadowIngressStatuses() ShadowIngressStatusInformer {
 	return &shadowIngressStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ShadowListenerSetStatuses returns a ShadowListenerSetStatusInformer.
+func (v *version) ShadowListenerSetStatuses() ShadowListenerSetStatusInformer {
+	return &shadowListenerSetStatusInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ShadowPods returns a ShadowPodInformer.

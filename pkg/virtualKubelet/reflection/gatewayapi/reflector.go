@@ -56,8 +56,12 @@ func init() {
 	utilruntime.Must(gwv1.Install(Scheme))
 }
 
-// parentGatewaysIndex is the name of the index of the local routes, keyed by the Gateways they are attached to.
-const parentGatewaysIndex = "liqo.io/parent-gateways"
+const (
+	// parentGatewaysIndex is the name of the index of the local routes (and ListenerSets), keyed by the Gateways they are attached to.
+	parentGatewaysIndex = "liqo.io/parent-gateways"
+	// parentListenerSetsIndex is the name of the index of the local routes, keyed by the ListenerSets they are attached to.
+	parentListenerSetsIndex = "liqo.io/parent-listenersets"
+)
 
 // Config groups the parameters of the Gateway API reflectors.
 type Config struct {
@@ -66,6 +70,9 @@ type Config struct {
 	// GatewaysAvailable is whether the Gateway resource is available in the local cluster,
 	// which is required to attach the reflected routes to the reflected Gateways.
 	GatewaysAvailable bool
+	// ListenerSetsReflected is whether the ListenerSet resource is available in both clusters,
+	// which is required to attach the reflected routes to the reflected ListenerSets.
+	ListenerSetsReflected bool
 
 	// SharedGatewayEnabled is whether the remote cluster offers a shared Gateway the reflected routes can be attached to.
 	SharedGatewayEnabled bool
@@ -108,8 +115,10 @@ type kind[O object, A any] struct {
 	Client   func(client gwclient.Interface, namespace string) namespaceClient[A, O]
 	Forge    func(local O, targetNamespace string, opts *forge.GatewayAPIForgingOpts, forgingOpts *forge.ForgingOpts) (A, []string, error)
 
-	// ParentGateways returns the Gateways the given object is attached to. It is nil for resources other than routes.
+	// ParentGateways returns the Gateways the given object is attached to. It is nil for resources other than routes and ListenerSets.
 	ParentGateways func(obj O) []types.NamespacedName
+	// ParentListenerSets returns the ListenerSets the given object is attached to. It is nil for resources other than routes.
+	ParentListenerSets func(obj O) []types.NamespacedName
 	// StatusReflector returns the reflector of the status of the remote objects. It is nil for resources without status.
 	StatusReflector func(opts *options.NamespacedOpts, forgingOpts *forge.GatewayAPIForgingOpts) statusReflector[O]
 	// WatchRemote configures the additional remote informers the reflection depends on, once the reflection towards the
@@ -152,10 +161,12 @@ func newNamespacedReflector[O object, A any](k *kind[O, A], cfg *Config) func(*o
 				Mapper:               forge.NamespaceMapper(opts.NamespaceMapper),
 				SharedGatewayEnabled: cfg.SharedGatewayEnabled,
 				MapGateway:           mapGateway(opts.LocalGatewayFactory, cfg),
+				LocalGateway:         localGateway(opts.LocalGatewayFactory, cfg),
 				VirtualGatewayClass:  cfg.VirtualGatewayClass,
 				RemoteGatewayClass:   cfg.RemoteGatewayClass,
 			},
 		}
+		reflector.forgingOpts.ListenerSetReflected = listenerSetReflected(opts.LocalGatewayFactory, cfg, &reflector.forgingOpts)
 
 		if k.StatusReflector != nil {
 			reflector.status = k.StatusReflector(opts, &reflector.forgingOpts)
@@ -207,6 +218,40 @@ func mapGateway(factory gwinformers.SharedInformerFactory, cfg *Config) func(nam
 			return forge.GatewayNotReflected
 		}
 		return forge.MapGateway(gateway, opts)
+	}
+}
+
+// localGateway returns a function retrieving the given local Gateway from the informer cache, or nil if it does not exist.
+func localGateway(factory gwinformers.SharedInformerFactory, cfg *Config) func(namespace, name string) *gwv1.Gateway {
+	if !cfg.GatewaysAvailable {
+		return func(_, _ string) *gwv1.Gateway { return nil }
+	}
+
+	gateways := factory.Gateway().V1().Gateways().Lister()
+	return func(namespace, name string) *gwv1.Gateway {
+		gateway, err := gateways.Gateways(namespace).Get(name)
+		if err != nil {
+			return nil
+		}
+		return gateway
+	}
+}
+
+// listenerSetReflected returns a function returning whether the given local ListenerSet is reflected to the remote cluster.
+// The informer is not started if the ListenerSets are not reflected, since the resource might not be available.
+func listenerSetReflected(factory gwinformers.SharedInformerFactory, cfg *Config,
+	opts *forge.GatewayAPIForgingOpts) func(namespace, name string) bool {
+	if !cfg.ListenerSetsReflected {
+		return func(_, _ string) bool { return false }
+	}
+
+	listenerSets := factory.Gateway().V1().ListenerSets().Lister()
+	return func(namespace, name string) bool {
+		listenerSet, err := listenerSets.ListenerSets(namespace).Get(name)
+		if err != nil {
+			return false
+		}
+		return forge.MapListenerSet(listenerSet, opts) != forge.GatewayNotReflected
 	}
 }
 
@@ -495,15 +540,35 @@ func newClusterFallback[O object, A any](k *kind[O, A], cfg *Config) generic.Fal
 		_, err := k.Informer(opts.LocalGatewayFactory).AddEventHandler(opts.HandlerFactory(mappedKeyer(opts.NamespaceMapper)))
 		utilruntime.Must(err)
 
-		// Enqueue the local routes attached to a Gateway whenever it changes (e.g., its class is modified),
-		// since that determines whether the routes are attached to the reflected Gateway or to the shared one.
+		// Enqueue the local routes (and ListenerSets) attached to a Gateway whenever it changes (e.g., its class is modified),
+		// since that determines whether they are attached to the reflected Gateway or to the shared one.
 		if k.ParentGateways != nil && cfg.GatewaysAvailable {
 			routes := k.Informer(opts.LocalGatewayFactory)
-			utilruntime.Must(routes.AddIndexers(cache.Indexers{parentGatewaysIndex: parentGatewaysIndexFunc(k.ParentGateways)}))
+			ensureIndexer(routes, parentGatewaysIndex, parentGatewaysIndexFunc(k.ParentGateways))
 
 			gateways := opts.LocalGatewayFactory.Gateway().V1().Gateways().Informer()
 			_, err = gateways.AddEventHandler(opts.HandlerFactory(parentGatewaysKeyer(routes.GetIndexer(), opts.NamespaceMapper)))
 			utilruntime.Must(err)
+		}
+
+		// Enqueue the local routes attached to a ListenerSet whenever it changes, or its Gateway changes,
+		// since that determines whether the ListenerSet is reflected, hence whether the routes can be attached to it.
+		if k.ParentListenerSets != nil && cfg.ListenerSetsReflected {
+			routes := k.Informer(opts.LocalGatewayFactory)
+			ensureIndexer(routes, parentListenerSetsIndex, parentGatewaysIndexFunc(k.ParentListenerSets))
+
+			listenerSets := opts.LocalGatewayFactory.Gateway().V1().ListenerSets().Informer()
+			_, err = listenerSets.AddEventHandler(opts.HandlerFactory(
+				indexedKeyer(routes.GetIndexer(), parentListenerSetsIndex, opts.NamespaceMapper)))
+			utilruntime.Must(err)
+
+			if cfg.GatewaysAvailable {
+				ensureIndexer(listenerSets, parentGatewaysIndex, parentGatewaysIndexFunc(listenerSetKind.ParentGateways))
+				gateways := opts.LocalGatewayFactory.Gateway().V1().Gateways().Informer()
+				_, err = gateways.AddEventHandler(opts.HandlerFactory(
+					listenerSetRoutesKeyer(listenerSets.GetIndexer(), routes.GetIndexer(), opts.NamespaceMapper)))
+				utilruntime.Must(err)
+			}
 		}
 
 		return &clusterFallback[O, A]{kind: k, factory: opts.LocalGatewayFactory}
@@ -544,28 +609,70 @@ func mappedKeyer(mapper options.NamespaceMapper) options.Keyer {
 
 // parentGatewaysKeyer returns a keyer enqueuing the routes attached to a given Gateway, in the namespaces currently reflected.
 func parentGatewaysKeyer(routes cache.Indexer, mapper options.NamespaceMapper) options.Keyer {
+	return indexedKeyer(routes, parentGatewaysIndex, mapper)
+}
+
+// indexedKeyer returns a keyer enqueuing the objects associated with a given parent through the given index
+// (e.g., the routes attached to a given Gateway), in the namespaces currently reflected.
+func indexedKeyer(objects cache.Indexer, index string, mapper options.NamespaceMapper) options.Keyer {
 	return func(metadata metav1.Object) []types.NamespacedName {
-		objects, err := routes.ByIndex(parentGatewaysIndex, types.NamespacedName{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}.String())
+		return indexedKeys(objects, index, types.NamespacedName{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}, mapper)
+	}
+}
+
+// listenerSetRoutesKeyer returns a keyer enqueuing the routes attached to the ListenerSets of a given Gateway,
+// in the namespaces currently reflected, since the Gateway determines whether the ListenerSets are reflected.
+func listenerSetRoutesKeyer(listenerSets, routes cache.Indexer, mapper options.NamespaceMapper) options.Keyer {
+	return func(metadata metav1.Object) []types.NamespacedName {
+		gateway := types.NamespacedName{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}
+		objects, err := listenerSets.ByIndex(parentGatewaysIndex, gateway.String())
 		if err != nil {
-			klog.Errorf("Failed to retrieve the routes attached to Gateway %q: %v", klog.KObj(metadata), err)
+			klog.Errorf("Failed to retrieve the ListenerSets attached to Gateway %q: %v", gateway, err)
 			return nil
 		}
 
 		var keys []types.NamespacedName
 		for _, obj := range objects {
-			route, ok := obj.(metav1.Object)
-			if !ok {
-				continue
-			}
-			if _, found := mapper(route.GetNamespace()); found {
-				keys = append(keys, types.NamespacedName{Namespace: route.GetNamespace(), Name: route.GetName()})
+			if listenerSet, ok := obj.(metav1.Object); ok {
+				parent := types.NamespacedName{Namespace: listenerSet.GetNamespace(), Name: listenerSet.GetName()}
+				keys = append(keys, indexedKeys(routes, parentListenerSetsIndex, parent, mapper)...)
 			}
 		}
 		return keys
 	}
 }
 
-// parentGatewaysIndexFunc returns the index function keying the routes by the Gateways they are attached to.
+// indexedKeys returns the keys of the objects associated with the given parent through the given index, in the namespaces currently reflected.
+func indexedKeys(objects cache.Indexer, index string, parent types.NamespacedName, mapper options.NamespaceMapper) []types.NamespacedName {
+	indexed, err := objects.ByIndex(index, parent.String())
+	if err != nil {
+		klog.Errorf("Failed to retrieve the objects associated with %q (index %q): %v", parent, index, err)
+		return nil
+	}
+
+	var keys []types.NamespacedName
+	for _, obj := range indexed {
+		object, ok := obj.(metav1.Object)
+		if !ok {
+			continue
+		}
+		if _, found := mapper(object.GetNamespace()); found {
+			keys = append(keys, types.NamespacedName{Namespace: object.GetNamespace(), Name: object.GetName()})
+		}
+	}
+	return keys
+}
+
+// ensureIndexer adds the given indexer to the given informer, unless already present, since the same informer
+// is shared by multiple reflectors (e.g., the ListenerSets one is indexed by both the ListenerSet and route reflectors).
+func ensureIndexer(informer cache.SharedIndexInformer, name string, indexFunc cache.IndexFunc) {
+	if _, found := informer.GetIndexer().GetIndexers()[name]; found {
+		return
+	}
+	utilruntime.Must(informer.AddIndexers(cache.Indexers{name: indexFunc}))
+}
+
+// parentGatewaysIndexFunc returns the index function keying the objects by the parents they are attached to.
 func parentGatewaysIndexFunc[O object](parents func(obj O) []types.NamespacedName) cache.IndexFunc {
 	return func(obj interface{}) ([]string, error) {
 		route, ok := obj.(O)
@@ -579,6 +686,24 @@ func parentGatewaysIndexFunc[O object](parents func(obj O) []types.NamespacedNam
 		}
 		return keys, nil
 	}
+}
+
+// routeParentListenerSets returns the ListenerSets the given route is attached to.
+func routeParentListenerSets(namespace string, spec *gwv1.CommonRouteSpec) []types.NamespacedName {
+	var listenerSets []types.NamespacedName
+	for i := range spec.ParentRefs {
+		parent := &spec.ParentRefs[i]
+		if (parent.Group != nil && *parent.Group != gwv1.GroupName) || parent.Kind == nil || *parent.Kind != forge.ListenerSetKind {
+			continue
+		}
+
+		listenerSet := types.NamespacedName{Namespace: namespace, Name: string(parent.Name)}
+		if parent.Namespace != nil {
+			listenerSet.Namespace = string(*parent.Namespace)
+		}
+		listenerSets = append(listenerSets, listenerSet)
+	}
+	return listenerSets
 }
 
 // routeParentGateways returns the Gateways the given route is attached to.

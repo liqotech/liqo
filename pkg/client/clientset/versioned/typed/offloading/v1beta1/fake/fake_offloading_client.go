@@ -43,6 +43,10 @@ func (c *FakeOffloadingV1beta1) ShadowIngressStatuses(namespace string) v1beta1.
 	return newFakeShadowIngressStatuses(c, namespace)
 }
 
+func (c *FakeOffloadingV1beta1) ShadowListenerSetStatuses(namespace string) v1beta1.ShadowListenerSetStatusInterface {
+	return newFakeShadowListenerSetStatuses(c, namespace)
+}
+
 func (c *FakeOffloadingV1beta1) ShadowPods(namespace string) v1beta1.ShadowPodInterface {
 	return newFakeShadowPods(c, namespace)
 }

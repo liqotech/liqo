@@ -77,6 +77,12 @@ func (r *RouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	// The routes not reflected by Liqo (e.g., the ones reflected from the consumer clusters, and served by the local
+	// Gateway controller) are left untouched, as their status is managed by other controllers only.
+	if len(shadows.Items) == 0 && !hasLiqoParents(*parents) {
+		return ctrl.Result{}, nil
+	}
+
 	original := make([]gwv1.RouteParentStatus, len(*parents))
 	for i := range *parents {
 		(*parents)[i].DeepCopyInto(&original[i])
@@ -114,18 +120,26 @@ func (r *RouteReconciler) newRoute() (client.Object, *[]gwv1.RouteParentStatus) 
 }
 
 // AggregateRouteParents aggregates the statuses reported by the remote clusters into the parents of the status of a route.
-// The entries managed by other controllers are preserved, while the ones managed by Liqo are replaced. It also returns
-// the description of the parents accepted only by part of the remote clusters, along with the clusters not accepting them.
+// The entries managed by other controllers are preserved, while the ones managed by Liqo are replaced. The order of the
+// existing entries is preserved, and the new ones are appended, so that the status is not modified (and the route is not
+// updated) only to reorder the entries, possibly competing with the other controllers. It also returns the description
+// of the parents accepted only by part of the remote clusters, along with the clusters not accepting them.
+//
+// No entry is managed by Liqo for the parents whose status is reported by other controllers (e.g., the local one serving a
+// Gateway of another class, which the route is attached to also through the shared Gateway of the remote clusters): some
+// implementations merge the entries by parent reference only, regardless of the controller (e.g., Envoy Gateway), hence they
+// would replace the one of Liqo with a duplicate of their own one, which Liqo would add again at every reconciliation.
 func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadingv1beta1.ShadowRouteStatus,
 	namespace string, generation int64) (parents []gwv1.RouteParentStatus, degraded []string) {
-	parents = make([]gwv1.RouteParentStatus, 0, len(current))
 	existing := make(map[string]*gwv1.RouteParentStatus)
+	others := make(map[string]bool)
 	for i := range current {
+		key := parentRefKey(&current[i].ParentRef, namespace)
 		if current[i].ControllerName == controllerName {
-			existing[parentRefKey(&current[i].ParentRef, namespace)] = &current[i]
+			existing[key] = &current[i]
 			continue
 		}
-		parents = append(parents, current[i])
+		others[key] = true
 	}
 
 	// Group the conditions reported by the remote clusters by local parent and type.
@@ -138,6 +152,10 @@ func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadin
 		for j := range shadows[i].Spec.Parents {
 			parent := &shadows[i].Spec.Parents[j]
 			key := parentRefKey(&parent.ParentRef, namespace)
+			if others[key] {
+				// The status of the parent is reported by another controller, which takes precedence.
+				continue
+			}
 			if grouped[key] == nil {
 				grouped[key] = &reported{ref: parent.ParentRef, conditions: make(map[string][]clusterCondition)}
 			}
@@ -155,16 +173,14 @@ func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadin
 	}
 	sort.Strings(keys)
 
+	aggregated := make(map[string]gwv1.RouteParentStatus, len(keys))
 	for _, key := range keys {
-		if len(parents) >= maxRouteParents {
-			klog.Warningf("Too many parents in the status of the route: %d entries managed by Liqo dropped", len(keys))
-			break
-		}
-
 		status := gwv1.RouteParentStatus{ParentRef: grouped[key].ref, ControllerName: controllerName, Conditions: []metav1.Condition{}}
 		if previous, found := existing[key]; found {
-			// Preserve the existing conditions, to keep the last transition times, except for the ones no longer
-			// reported by any remote cluster (e.g., conditions removed by the remote controllers once satisfied).
+			// Preserve the existing parent reference (which might differ only in the defaulted fields), and the existing
+			// conditions, to keep the last transition times, except for the ones no longer reported by any remote cluster
+			// (e.g., conditions removed by the remote controllers once satisfied).
+			status.ParentRef = previous.ParentRef
 			for i := range previous.Conditions {
 				if _, reported := grouped[key].conditions[previous.Conditions[i].Type]; reported {
 					status.Conditions = append(status.Conditions, previous.Conditions[i])
@@ -178,16 +194,54 @@ func AggregateRouteParents(current []gwv1.RouteParentStatus, shadows []offloadin
 		}
 		sort.Strings(conditionTypes)
 		for _, conditionType := range conditionTypes {
-			aggregated, notAccepted := aggregateConditions(conditionType, grouped[key].conditions[conditionType], generation)
-			setCondition(&status.Conditions, &aggregated)
+			result, notAccepted := aggregateConditions(conditionType, grouped[key].conditions[conditionType], generation)
+			setCondition(&status.Conditions, &result)
 			if conditionType == string(gwv1.RouteConditionAccepted) && len(notAccepted) > 0 {
 				degraded = append(degraded, fmt.Sprintf("parent %q not accepted in %s", grouped[key].ref.Name, strings.Join(notAccepted, ", ")))
 			}
 		}
-		parents = append(parents, status)
+		aggregated[key] = status
+	}
+
+	// The existing entries are kept in place: the ones of the other controllers as is, the ones of Liqo replaced
+	// by the aggregated status, or removed if no longer reported by any remote cluster.
+	parents = make([]gwv1.RouteParentStatus, 0, len(current)+len(keys))
+	placed := make(map[string]bool, len(keys))
+	for i := range current {
+		if current[i].ControllerName != controllerName {
+			parents = append(parents, current[i])
+			continue
+		}
+		key := parentRefKey(&current[i].ParentRef, namespace)
+		if status, found := aggregated[key]; found && !placed[key] {
+			parents = append(parents, status)
+			placed[key] = true
+		}
+	}
+
+	for _, key := range keys {
+		if placed[key] {
+			continue
+		}
+		if len(parents) >= maxRouteParents {
+			klog.Warningf("Too many parents in the status of the route: %d entries managed by Liqo dropped", len(keys)-len(placed))
+			break
+		}
+		parents = append(parents, aggregated[key])
+		placed[key] = true
 	}
 
 	return parents, degraded
+}
+
+// hasLiqoParents returns whether any of the given parent statuses is managed by Liqo.
+func hasLiqoParents(parents []gwv1.RouteParentStatus) bool {
+	for i := range parents {
+		if parents[i].ControllerName == controllerName {
+			return true
+		}
+	}
+	return false
 }
 
 // setCondition sets the given condition, preserving the last transition time if the status is unchanged.

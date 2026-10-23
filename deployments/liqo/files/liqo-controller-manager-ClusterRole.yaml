@@ -175,6 +175,7 @@ rules:
   resources:
   - gatewayclasses
   - gateways
+  - listenersets
   verbs:
   - get
   - list
@@ -186,6 +187,7 @@ rules:
   - gateways/status
   - grpcroutes/status
   - httproutes/status
+  - listenersets/status
   verbs:
   - get
   - patch
@@ -366,6 +368,7 @@ rules:
   - offloading.liqo.io
   resources:
   - shadowgatewaystatuses
+  - shadowlistenersetstatuses
   - shadowroutestatuses
   verbs:
   - delete

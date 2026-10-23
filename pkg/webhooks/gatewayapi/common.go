@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	httpRouteKind = "HTTPRoute"
-	grpcRouteKind = "GRPCRoute"
-	gatewayKind   = "Gateway"
+	httpRouteKind   = "HTTPRoute"
+	grpcRouteKind   = "GRPCRoute"
+	gatewayKind     = "Gateway"
+	listenerSetKind = "ListenerSet"
 )
 
 // route groups the fields of a route (either HTTPRoute or GRPCRoute) handled by the webhooks.

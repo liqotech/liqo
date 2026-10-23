@@ -97,6 +97,7 @@ rules:
   - gateways
   - grpcroutes
   - httproutes
+  - listenersets
   - referencegrants
   - tcproutes
   - tlsroutes
@@ -143,6 +144,7 @@ rules:
   resources:
   - shadowgatewaystatuses
   - shadowingressstatuses
+  - shadowlistenersetstatuses
   - shadowroutestatuses
   verbs:
   - create

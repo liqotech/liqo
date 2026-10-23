@@ -33,6 +33,10 @@ const (
 	gatewayNameField = "spec.gatewayName"
 	// routeNameField is the field used to index the ShadowRouteStatuses by the kind and name of the corresponding route.
 	routeNameField = "spec.routeName"
+	// listenerSetNameField is the field used to index the ShadowListenerSetStatuses by the name of the corresponding ListenerSet.
+	listenerSetNameField = "spec.listenerSetName"
+	// listenerSetParentField is the field used to index the ListenerSets by the Gateway they are attached to.
+	listenerSetParentField = "spec.parentRef"
 )
 
 // controllerName is the name of the controller managing the virtual GatewayClass.
@@ -45,6 +49,15 @@ func gatewayNameIndexer(obj client.Object) []string {
 		return nil
 	}
 	return []string{shadow.Spec.GatewayName}
+}
+
+// listenerSetNameIndexer indexes the ShadowListenerSetStatuses by the name of the corresponding ListenerSet.
+func listenerSetNameIndexer(obj client.Object) []string {
+	shadow, ok := obj.(*offloadingv1beta1.ShadowListenerSetStatus)
+	if !ok {
+		return nil
+	}
+	return []string{shadow.Spec.ListenerSetName}
 }
 
 // routeNameIndexer indexes the ShadowRouteStatuses by the kind and name of the corresponding route.

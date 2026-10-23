@@ -70,10 +70,12 @@ var _ = BeforeSuite(func() {
 		filepath.Join(crds, "gateway.networking.k8s.io_httproutes.yaml"),
 		filepath.Join(crds, "gateway.networking.k8s.io_grpcroutes.yaml"),
 		filepath.Join(crds, "gateway.networking.k8s.io_referencegrants.yaml"),
+		filepath.Join(crds, "gateway.networking.k8s.io_listenersets.yaml"),
 		// TCPRoutes are not reflected, and they are used to test the generation of the corresponding events.
 		filepath.Join(crds, "..", "experimental", "gateway.networking.k8s.io_tcproutes.yaml"),
 		filepath.Join("..", "..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds", "offloading.liqo.io_shadowgatewaystatuses.yaml"),
 		filepath.Join("..", "..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds", "offloading.liqo.io_shadowroutestatuses.yaml"),
+		filepath.Join("..", "..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds", "offloading.liqo.io_shadowlistenersetstatuses.yaml"),
 	}, ErrorIfPathMissing: true}}
 	restConfig, err = testEnv.Start()
 	Expect(err).ToNot(HaveOccurred())
