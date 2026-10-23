@@ -60,13 +60,19 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 }
 
 func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options, pod *corev1.Pod) error {
-	nodeName, err := GetPodNodeFromMap(client.ObjectKeyFromObject(pod))
-	if err != nil {
-		return err
-	}
+	// When the pod object is available (e.g., it terminated), its node name is taken from the spec.
+	// Otherwise (pod deleted), it is retrieved from the map populated when the route was enforced.
+	nodeName := pod.Spec.NodeName
 	if nodeName == "" {
-		// Entry not present or empty value, skip deletion as already done in previous reconciliation.
-		return nil
+		var err error
+		nodeName, err = GetPodNodeFromMap(client.ObjectKeyFromObject(pod))
+		if err != nil {
+			return err
+		}
+		if nodeName == "" {
+			// Entry not present or empty value, skip deletion as already done in previous reconciliation.
+			return nil
+		}
 	}
 
 	routecfg := networkingv1beta1.RouteConfiguration{
@@ -126,7 +132,10 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1beta1.InternalNode, r
 			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
-		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
+		// Match by IP only: this is what allows a pod to adopt the route of a previous
+		// pod that was using the same IP. Routes of pods with the same name but a previous
+		// IP are removed by the deletion path instead (see routeOwnedByPod).
+		if existingroute, exists := routeByPodIP(pod, &routecfg.Spec.Table.Rules[1]); exists {
 			updatePodToRoute(pod, internalnode, existingroute)
 		} else {
 			addPodToRoute(pod, internalnode, &routecfg.Spec.Table.Rules[1])
@@ -145,7 +154,7 @@ func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1beta1.Ro
 
 		// We allocate this array statically with length 2.
 		// The rule we are managing is the second one.
-		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
+		if existingroute, exists := routeOwnedByPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
 			routecfg.Spec.Table.Rules[1].Routes = slices.DeleteFunc(routecfg.Spec.Table.Rules[1].Routes, func(r networkingv1beta1.Route) bool {
 				return r.Dst == existingroute.Dst
 			})
@@ -155,12 +164,22 @@ func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1beta1.Ro
 	}
 }
 
-func routeContainsPod(pod *corev1.Pod, rule *networkingv1beta1.Rule) (*networkingv1beta1.Route, bool) {
+// routeByPodIP returns the route towards the pod IP, if any. Matching by IP is what allows
+// a pod to adopt the route of a previous pod that was using the same IP.
+func routeByPodIP(pod *corev1.Pod, rule *networkingv1beta1.Rule) (*networkingv1beta1.Route, bool) {
 	for i := range rule.Routes {
 		if string(*rule.Routes[i].Dst) == fmt.Sprintf("%s/32", pod.Status.PodIP) {
 			return &rule.Routes[i], true
 		}
-		// This is necessary to detect pods that are not present anymore in etcd but still have a route.
+	}
+	return nil, false
+}
+
+// routeOwnedByPod returns the route referencing the given pod as TargetRef, if any.
+// It is the only match allowed when removing routes, where matching by destination IP is
+// dangerous: the IP might have been reassigned to a different pod.
+func routeOwnedByPod(pod *corev1.Pod, rule *networkingv1beta1.Rule) (*networkingv1beta1.Route, bool) {
+	for i := range rule.Routes {
 		if rule.Routes[i].TargetRef != nil &&
 			rule.Routes[i].TargetRef.Name == pod.GetName() &&
 			rule.Routes[i].TargetRef.Namespace == pod.GetNamespace() {
@@ -205,4 +224,13 @@ func addNodeToRoute(internalnode *networkingv1beta1.InternalNode, rule *networki
 func updatePodToRoute(pod *corev1.Pod, internalnode *networkingv1beta1.InternalNode, route *networkingv1beta1.Route) {
 	route.Dst = ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP)))
 	route.Gw = ptr.To(internalnode.Spec.Interface.Node.IP)
+	// The route may have been matched by IP while still referencing a previous pod that owned the same IP
+	// (e.g., a completed pod whose IP has been reassigned). Update the reference to the current owner,
+	// otherwise the deletion of the previous pod would remove the route of the current one.
+	route.TargetRef = &corev1.ObjectReference{
+		Kind:      pod.GetObjectKind().GroupVersionKind().Kind,
+		Name:      pod.GetName(),
+		Namespace: pod.GetNamespace(),
+		UID:       pod.GetUID(),
+	}
 }

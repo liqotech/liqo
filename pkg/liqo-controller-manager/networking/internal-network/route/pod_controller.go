@@ -96,6 +96,14 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, nil
 	}
 
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		// Terminated pods released their IP, which may be reassigned to another pod on the same node.
+		// Remove their route (if any) now instead of waiting for the pod to be deleted, so the route
+		// cannot remain stale in the meanwhile. The removal matches the route TargetRef only, so it
+		// cannot touch a route adopted in the meantime by another pod with the same IP.
+		return ctrl.Result{}, enforceRoutePodAbsence(ctx, r.Client, r.Options, pod)
+	}
+
 	PopulatePodKeyToNodeMap(pod)
 
 	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
