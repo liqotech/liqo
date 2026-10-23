@@ -57,7 +57,7 @@ func RunCheckToTargets(ctx context.Context, cl ctrlclient.Client, cfg *rest.Conf
 			})
 			if !ok || err != nil {
 				logger.Error(fmt.Sprintf("Curl command failed after %d retries", MaxRetries), logger.Args(
-					"pod", pods.Items[i].Name, "target", targets[j], "error", err,
+					"pod", pods.Items[i].Name, "node", pods.Items[i].Spec.NodeName, "target", targets[j], "error", err,
 				))
 			}
 			successCount, errorCount, err = testutils.ManageResults(opts.Topts.FailFast, err, ok, successCount, errorCount)
@@ -84,14 +84,14 @@ func ExecCurl(ctx context.Context, pod *corev1.Pod, clset *kubernetes.Clientset,
 		strings.Contains(stdout, "301 Moved Permanently") {
 		if !quiet {
 			logger.Info("Curl command successful", logger.Args(
-				"pod", pod.Name, "target", endpoint,
+				"pod", pod.Name, "node", pod.Spec.NodeName, "target", endpoint,
 			))
 		}
 		return true, nil
 	}
 
 	logger.Warn("Curl command failed", logger.Args(
-		"pod", pod.Name, "target", endpoint, "stderr", stderr, "error", err,
+		"pod", pod.Name, "node", pod.Spec.NodeName, "target", endpoint, "stderr", stderr, "error", err,
 	))
 
 	return false, nil
