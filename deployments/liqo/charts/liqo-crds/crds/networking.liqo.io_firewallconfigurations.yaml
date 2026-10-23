@@ -139,7 +139,6 @@ spec:
                                                 device to be matched.
                                               type: string
                                             wildcard:
-                                              default: false
                                               description: |-
                                                 Wildcard enables prefix matching on the device name.
                                                 When true, the match compares only the prefix bytes of Value against the interface name,
@@ -256,7 +255,6 @@ spec:
                                                 device to be matched.
                                               type: string
                                             wildcard:
-                                              default: false
                                               description: |-
                                                 Wildcard enables prefix matching on the device name.
                                                 When true, the match compares only the prefix bytes of Value against the interface name,
