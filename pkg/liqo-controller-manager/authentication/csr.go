@@ -122,15 +122,16 @@ func CheckCSRForControlPlane(csr, publicKeyDER []byte, remoteClusterID liqov1bet
 			return nil
 		},
 		func(x509Csr *x509.CertificateRequest) error {
-			if x509Csr.Subject.Organization[0] != OrganizationControlPlaneCSR() {
-				return fmt.Errorf("invalid organization")
-			}
-			return nil
+			return checkSingleOrganization(x509Csr, OrganizationControlPlaneCSR())
 		})
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
 func CheckCSRForResourceSlice(tenantPublicKey []byte, resourceSlice *authv1beta1.ResourceSlice, checkPublicKey bool) error {
+	if resourceSlice.Spec.ConsumerClusterID == nil {
+		return fmt.Errorf("resource slice without consumer cluster ID")
+	}
+
 	var parsedPublicKey []byte
 	if checkPublicKey {
 		_, parsedPublicKeyDER, err := ParseTenantPublicKey(tenantPublicKey)
@@ -148,11 +149,25 @@ func CheckCSRForResourceSlice(tenantPublicKey []byte, resourceSlice *authv1beta1
 			return nil
 		},
 		func(x509Csr *x509.CertificateRequest) error {
-			if x509Csr.Subject.Organization[0] != OrganizationResourceSliceCSR(resourceSlice) {
-				return fmt.Errorf("invalid organization")
-			}
-			return nil
+			return checkSingleOrganization(x509Csr, OrganizationResourceSliceCSR(resourceSlice))
 		})
+}
+
+// checkSingleOrganization ensures the CSR subject carries exactly one organization,
+// and that it matches the expected value.
+func checkSingleOrganization(csr *x509.CertificateRequest, expected string) error {
+	if len(csr.Subject.Organization) != 1 || csr.Subject.Organization[0] != expected {
+		return fmt.Errorf("invalid organization: expected exactly [%q], got %v", expected, csr.Subject.Organization)
+	}
+	return nil
+}
+
+// checkNoSubjectAltNames rejects CSRs carrying Subject Alternative Names.
+func checkNoSubjectAltNames(csr *x509.CertificateRequest) error {
+	if len(csr.DNSNames) > 0 || len(csr.EmailAddresses) > 0 || len(csr.IPAddresses) > 0 || len(csr.URIs) > 0 {
+		return fmt.Errorf("invalid CSR: subject alternative names are not allowed")
+	}
+	return nil
 }
 
 func checkCSR(csr, publicKeyDER []byte, checkPublicKey bool, commonName, organization CSRChecker) error {
@@ -166,11 +181,21 @@ func checkCSR(csr, publicKeyDER []byte, checkPublicKey bool, commonName, organiz
 		return err
 	}
 
+	// Verify the self-signature to reject malformed or forged CSRs early. The peer key
+	// is also pinned against the tenant key below.
+	if err := x509Csr.CheckSignature(); err != nil {
+		return fmt.Errorf("invalid CSR signature: %w", err)
+	}
+
 	if err := commonName(x509Csr); err != nil {
 		return err
 	}
 
 	if err := organization(x509Csr); err != nil {
+		return err
+	}
+
+	if err := checkNoSubjectAltNames(x509Csr); err != nil {
 		return err
 	}
 
