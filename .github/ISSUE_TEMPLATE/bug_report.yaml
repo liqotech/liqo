@@ -6,7 +6,7 @@ body:
   attributes:
     value: |
       Thanks for taking the time to fill out this bug report!
-      **Important**: For security related issues we strongly encourage you to report security vulnerabilities on [Slack](https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ) writing a DM to [maintainers](https://github.com/liqotech/liqo/blob/master/COMMUNITY.md#maintainers-and-owners).
+      **Important**: For security related issues we strongly encourage you to report security vulnerabilities using the dedicated function on the GitHub [Security and quality section](https://github.com/liqotech/liqo/security).
 - type: checkboxes
   attributes:
     label: Is there an existing issue for this?
