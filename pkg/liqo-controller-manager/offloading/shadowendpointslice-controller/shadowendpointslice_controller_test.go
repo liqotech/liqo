@@ -22,10 +22,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,6 +45,32 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
+// cidrsConfiguredConditions marks a Configuration of generation 1 as fully remapped, as the
+// configuration controller does once the remapped CIDRs are in its status: a peer Configuration
+// is used to translate direct-connection addresses only from then on.
+func cidrsConfiguredConditions() []metav1.Condition {
+	return []metav1.Condition{{
+		Type:               networkingv1beta1.ConfigurationConditionNetworkCIDRsConfigured,
+		Status:             metav1.ConditionTrue,
+		Reason:             "NetworkCIDRsConfigured",
+		ObservedGeneration: 1,
+		LastTransitionTime: metav1.Now(),
+	}}
+}
+
+// capturingRecorder wraps a FakeRecorder to additionally expose the object each event was
+// recorded against, which FakeRecorder's own string-based Events channel cannot reliably convey
+// (the fake client does not populate TypeMeta on Get, so Kind/APIVersion always come back empty).
+type capturingRecorder struct {
+	*record.FakeRecorder
+	lastObject client.Object
+}
+
+func (r *capturingRecorder) Event(object runtime.Object, eventtype, reason, message string) {
+	r.lastObject, _ = object.(client.Object)
+	r.FakeRecorder.Event(object, eventtype, reason, message)
+}
+
 var _ = Describe("ShadowEndpointSlice Controller", func() {
 	const (
 		shadowEpsNamespace string = "default"
@@ -56,11 +85,13 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Namespace: shadowEpsNamespace,
 			},
 		}
-		ctx        context.Context
-		res        ctrl.Result
-		err        error
-		buffer     *bytes.Buffer
-		fakeClient client.WithWatch
+		ctx                   context.Context
+		res                   ctrl.Result
+		err                   error
+		buffer                *bytes.Buffer
+		fakeClient            client.WithWatch
+		denyDirectConnections bool
+		recorder              *capturingRecorder
 
 		testShadowEps *offloadingv1beta1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
@@ -219,13 +250,17 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 	BeforeEach(func() {
 		ctx = context.TODO()
 		buffer = &bytes.Buffer{}
+		denyDirectConnections = false
+		recorder = &capturingRecorder{FakeRecorder: record.NewFakeRecorder(100)}
 		klog.SetOutput(buffer)
 	})
 
 	JustBeforeEach(func() {
 		r := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme.Scheme,
+			Client:                fakeClient,
+			Scheme:                scheme.Scheme,
+			Recorder:              recorder,
+			DenyDirectConnections: denyDirectConnections,
 		}
 		_, err = r.Reconcile(ctx, req)
 		if errors.CheckFakeClientServerSideApplyError(err) {
@@ -513,6 +548,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 					},
 				},
 				Status: networkingv1beta1.ConfigurationStatus{
+					Conditions: cidrsConfiguredConditions(),
 					Remote: &networkingv1beta1.ClusterConfig{
 						CIDR: networkingv1beta1.ClusterConfigCIDR{
 							Pod: cidrutils.FromStrings(remappedPodCIDRs),
@@ -530,6 +566,20 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			jsonBytes, err := d.ToJSON()
 			Expect(err).NotTo(HaveOccurred())
 			return string(jsonBytes)
+		}
+
+		// newDirectProviderConn returns a Connected Connection towards the direct provider:
+		// translation through its Configuration is only attempted once the connection is
+		// confirmed up (see resolveDirectPath in the reconciler), so every fixture in this
+		// block that exercises the remapping needs one.
+		newDirectProviderConn := func() *networkingv1beta1.Connection {
+			return &networkingv1beta1.Connection{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gw-direct-provider", Namespace: shadowEpsNamespace,
+					Labels: map[string]string{consts.RemoteClusterID: directProviderID},
+				},
+				Status: networkingv1beta1.ConnectionStatus{Value: networkingv1beta1.Connected},
+			}
 		}
 
 		BeforeEach(func() {
@@ -560,6 +610,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
 				testShadowEps.DeepCopy(), newFcNetworkingDisabled(),
 				newDirectProviderConf([]string{"10.20.0.0/16"}, []string{"10.30.0.0/16"}),
+				newDirectProviderConn(),
 			).Build()
 		})
 
@@ -607,6 +658,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
 					testShadowEps.DeepCopy(), newFcNetworkingDisabled(),
 					newDirectProviderConf([]string{"10.20.0.0/16"}, []string{"10.30.0.0/16"}),
+					newDirectProviderConn(),
 				).Build()
 			})
 
@@ -650,6 +702,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						[]string{"10.10.0.0/16", "10.20.0.0/16"},
 						[]string{"10.40.0.0/16", "10.30.0.0/16"},
 					),
+					newDirectProviderConn(),
 				).Build()
 			})
 
@@ -659,6 +712,505 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Expect(eps.Endpoints).To(HaveLen(2))
 				Expect(eps.Endpoints[0].Addresses).To(Equal([]string{"10.40.0.1"}))
 				Expect(eps.Endpoints[1].Addresses).To(Equal([]string{"10.30.0.1"}))
+			})
+		})
+	})
+
+	When("the slice takes part in direct connections (readiness failover)", func() {
+		const directProviderID = "direct-provider-id"
+
+		// ForeignCluster with networking module disabled: only the direct-connection remapping
+		// path runs, so the fixtures stay minimal and focused on the readiness behavior.
+		newFcNetworkingDisabled := func() *liqov1beta1.ForeignCluster {
+			return &liqov1beta1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   testFcID,
+					Labels: map[string]string{consts.RemoteClusterID: testFcID},
+				},
+				Spec: liqov1beta1.ForeignClusterSpec{ClusterID: liqov1beta1.ClusterID(testFcID)},
+				Status: liqov1beta1.ForeignClusterStatus{
+					Modules: liqov1beta1.Modules{Networking: liqov1beta1.Module{Enabled: false}},
+					Conditions: []liqov1beta1.Condition{{
+						Type:   liqov1beta1.APIServerStatusCondition,
+						Status: liqov1beta1.ConditionStatusEstablished,
+					}},
+				},
+			}
+		}
+
+		newDirectProviderConf := func() *networkingv1beta1.Configuration {
+			return &networkingv1beta1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "direct-provider-conf", Namespace: shadowEpsNamespace,
+					Labels:     map[string]string{consts.RemoteClusterID: directProviderID},
+					Generation: 1,
+				},
+				Spec: networkingv1beta1.ConfigurationSpec{
+					Remote: networkingv1beta1.ClusterConfig{CIDR: networkingv1beta1.ClusterConfigCIDR{
+						Pod: cidrutils.FromStrings([]string{"10.20.0.0/16"})}},
+				},
+				Status: networkingv1beta1.ConfigurationStatus{
+					Conditions: cidrsConfiguredConditions(),
+					Remote: &networkingv1beta1.ClusterConfig{CIDR: networkingv1beta1.ClusterConfigCIDR{
+						Pod: cidrutils.FromStrings([]string{"10.30.0.0/16"})}},
+				},
+			}
+		}
+
+		directAnnotation := func(addrs ...string) string {
+			d := directconnectioninfo.ClusterAddresses{}
+			d.Add(directProviderID, addrs...)
+			jsonBytes, errJSON := d.ToJSON()
+			Expect(errJSON).NotTo(HaveOccurred())
+			return string(jsonBytes)
+		}
+
+		newConnection := func(status networkingv1beta1.ConnectionStatusValue) *networkingv1beta1.Connection {
+			return &networkingv1beta1.Connection{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gw-direct-provider", Namespace: shadowEpsNamespace,
+					Labels: map[string]string{consts.RemoteClusterID: directProviderID},
+				},
+				Status: networkingv1beta1.ConnectionStatus{Value: status},
+			}
+		}
+
+		// newShadowEpsWithRole forges a direct slice or an indirect companion carrying the
+		// direct-connections data annotation for directProviderID.
+		newShadowEpsWithRole := func(indirect bool, annotation string, addresses ...string) *offloadingv1beta1.ShadowEndpointSlice {
+			shadowLabels := map[string]string{
+				discoveryv1.LabelManagedBy:   forge.EndpointSliceManagedBy,
+				forge.LiqoOriginClusterIDKey: testFcID,
+				discoveryv1.LabelServiceName: "test-service",
+			}
+			if indirect {
+				shadowLabels[forge.IndirectEndpointSliceLabelKey] = "true"
+			}
+			annotations := map[string]string{}
+			if annotation != "" {
+				annotations[consts.DirectConnectionDataAnnotationKey] = annotation
+			}
+			endpoints := make([]discoveryv1.Endpoint, 0, len(addresses))
+			for _, addr := range addresses {
+				endpoints = append(endpoints, discoveryv1.Endpoint{
+					Addresses:  []string{addr},
+					Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+				})
+			}
+			return &offloadingv1beta1.ShadowEndpointSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: shadowEpsName, Namespace: shadowEpsNamespace,
+					Labels: shadowLabels, Annotations: annotations,
+				},
+				Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+					Template: offloadingv1beta1.EndpointSliceTemplate{
+						Endpoints:   endpoints,
+						Ports:       []discoveryv1.EndpointPort{{Name: ptr.To("HTTPS")}},
+						AddressType: discoveryv1.AddressTypeIPv4,
+					},
+				},
+			}
+		}
+
+		expectEndpointsReady := func(ready bool) {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			Expect(eps.Endpoints).NotTo(BeEmpty())
+			for i := range eps.Endpoints {
+				Expect(eps.Endpoints[i].Conditions.Ready).To(PointTo(Equal(ready)))
+			}
+		}
+
+		When("the slice is direct", func() {
+			// The fixture slice is mixed: 10.20.0.1 depends on the direct provider (listed in the
+			// annotation, translated to 10.30.0.1 through its Configuration), while 10.99.0.9 is
+			// path-independent (e.g. hosted on the consumer) and must never be affected by the
+			// state of the direct connections.
+			build := func(objs ...client.Object) {
+				objs = append(objs,
+					newShadowEpsWithRole(false, directAnnotation("10.20.0.1"), "10.20.0.1", "10.99.0.9"),
+					newFcNetworkingDisabled(), newDirectProviderConf())
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(objs...).Build()
+			}
+
+			// expectReadiness asserts the exact set of endpoint addresses and their Ready values.
+			expectReadiness := func(want map[string]bool) {
+				eps := discoveryv1.EndpointSlice{}
+				Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+				got := map[string]bool{}
+				for i := range eps.Endpoints {
+					got[eps.Endpoints[i].Addresses[0]] = *eps.Endpoints[i].Conditions.Ready
+				}
+				Expect(got).To(Equal(want))
+			}
+
+			When("the direct connection is established", func() {
+				BeforeEach(func() { build(newConnection(networkingv1beta1.Connected)) })
+				It("all endpoints should be ready (direct one translated)", func() {
+					expectReadiness(map[string]bool{"10.30.0.1": true, "10.99.0.9": true})
+				})
+			})
+
+			When("the direct connection is in error", func() {
+				BeforeEach(func() { build(newConnection(networkingv1beta1.ConnectionError)) })
+				It("only the direct endpoint should turn not ready, translated address kept (no churn)", func() {
+					expectReadiness(map[string]bool{"10.30.0.1": false, "10.99.0.9": true})
+				})
+				It("should not raise a misconfiguration event (the connection exists, just down)", func() {
+					Expect(recorder.Events).ToNot(Receive())
+				})
+			})
+
+			When("the direct connection does not exist", func() {
+				// Never-peered misconfiguration: the reconcile completes, materializing the slice
+				// WITHOUT the endpoints of the unpeered cluster (their hub copies in the indirect
+				// companion serve the traffic), and surfaces the problem with an event.
+				BeforeEach(func() { build() })
+
+				It("should exclude the unpeered endpoints and keep path-independent ones ready", func() {
+					expectReadiness(map[string]bool{"10.99.0.9": true})
+				})
+				It("should raise a misconfiguration event naming the unpeered cluster", func() {
+					Expect(recorder.Events).To(Receive(SatisfyAll(
+						ContainSubstring(EventReasonDirectConnectionNotPeered),
+						ContainSubstring(directProviderID),
+					)))
+				})
+				It("should fall back to the ShadowEndpointSlice when the Service cannot be resolved", func() {
+					Expect(recorder.Events).To(Receive())
+					Expect(recorder.lastObject).To(BeAssignableToTypeOf(&offloadingv1beta1.ShadowEndpointSlice{}))
+					Expect(recorder.lastObject.GetName()).To(Equal(shadowEpsName))
+				})
+
+				When("the reflected Service exists on this provider", func() {
+					BeforeEach(func() {
+						svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "test-service", Namespace: shadowEpsNamespace}}
+						Expect(fakeClient.Create(ctx, svc)).To(Succeed())
+					})
+
+					It("should raise the event on the Service, not the ShadowEndpointSlice", func() {
+						Expect(recorder.Events).To(Receive(ContainSubstring(EventReasonDirectConnectionNotPeered)))
+						Expect(recorder.lastObject).To(BeAssignableToTypeOf(&corev1.Service{}))
+						Expect(recorder.lastObject.GetName()).To(Equal("test-service"))
+					})
+				})
+
+				When("an endpointslice was previously materialized (peering removed afterwards)", func() {
+					BeforeEach(func() {
+						// Simulates un-peering: the EndpointSlice created while the peering existed
+						// is still there, with the translated direct address marked ready.
+						build(&discoveryv1.EndpointSlice{
+							ObjectMeta: metav1.ObjectMeta{Name: shadowEpsName, Namespace: shadowEpsNamespace},
+							Endpoints: []discoveryv1.Endpoint{{
+								Addresses:  []string{"10.30.0.1"},
+								Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+							}},
+						})
+					})
+
+					It("should flush the stale direct address, keeping the path-independent endpoints", func() {
+						expectReadiness(map[string]bool{"10.99.0.9": true})
+					})
+				})
+			})
+
+			When("direct connections are denied", func() {
+				BeforeEach(func() {
+					denyDirectConnections = true
+					// No Configuration for the direct provider exists either: denying must not
+					// attempt any remapping through it in the first place (the direct endpoint
+					// is dropped before any translation is attempted).
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, directAnnotation("10.20.0.1"), "10.20.0.1", "10.99.0.9"),
+						newFcNetworkingDisabled(), newConnection(networkingv1beta1.Connected)).Build()
+				})
+
+				It("should drop the direct endpoint and keep the path-independent ones ready", func() {
+					// Dropped rather than kept not ready: its direct address is meaningless on a
+					// provider that refuses the direct path, and no dataplane can use it anyway.
+					expectReadiness(map[string]bool{"10.99.0.9": true})
+				})
+				It("should not raise a misconfiguration event (denying is an explicit operator choice)", func() {
+					Expect(recorder.Events).ToNot(Receive())
+				})
+			})
+
+			When("no Configuration exists for the direct peer at all (providers never network-peered)", func() {
+				BeforeEach(func() {
+					// FC networking enabled between consumer and this provider (the common case for
+					// direct connections; requires its own Configuration, unrelated to the direct
+					// peer). No Configuration and no Connection exist at all for the direct peer:
+					// P1 and P2 were simply never network-peered together.
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, directAnnotation("10.20.0.1"), "10.20.0.1"),
+						newFc(true, true), newConfiguration(false)).Build()
+				})
+
+				It("should reconcile without error, excluding the untranslatable endpoints", func() {
+					// The remap through the nonexistent Configuration would fail with an opaque
+					// NotFound: the not-peered endpoints must be excluded before translation.
+					expectReadiness(map[string]bool{})
+				})
+				It("should raise a misconfiguration event naming the unpeered cluster", func() {
+					Expect(recorder.Events).To(Receive(SatisfyAll(
+						ContainSubstring(EventReasonDirectConnectionNotPeered),
+						ContainSubstring(directProviderID),
+					)))
+				})
+			})
+		})
+
+		When("the slice is the indirect companion", func() {
+			// 10.80.0.1 is the hub-and-spoke (consumer-path) copy of an endpoint of the direct provider:
+			// the companion's data is keyed by it, as the virtual kubelet writes it. The consumer peering
+			// has networking enabled, as the consumer path is the one the companion copies take.
+			build := func(annotation string, objs ...client.Object) {
+				objs = append(objs,
+					newShadowEpsWithRole(true, annotation, "10.80.0.1"),
+					newFc(true, true), newConfiguration(false), newDirectProviderConf())
+				fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(objs...).Build()
+			}
+
+			When("the direct connection is established", func() {
+				BeforeEach(func() { build(directAnnotation("10.80.0.1"), newConnection(networkingv1beta1.Connected)) })
+				It("endpoints should be not ready (direct path active)", func() { expectEndpointsReady(false) })
+			})
+
+			When("the direct connection is in error", func() {
+				BeforeEach(func() { build(directAnnotation("10.80.0.1"), newConnection(networkingv1beta1.ConnectionError)) })
+				It("endpoints should be ready (failover to the indirect path)", func() { expectEndpointsReady(true) })
+			})
+
+			When("the direct connection does not exist", func() {
+				BeforeEach(func() { build(directAnnotation("10.80.0.1")) })
+				It("endpoints should be ready (failover to the indirect path)", func() { expectEndpointsReady(true) })
+			})
+
+			When("the direct connection is up, but the network Configuration towards the provider is not ready", func() {
+				// The direct addresses cannot be translated, so the direct path is unusable whatever the
+				// Connection says: the companion must serve.
+				BeforeEach(func() {
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(true, directAnnotation("10.80.0.1"), "10.80.0.1"),
+						newFc(true, true), newConfiguration(false), newConnection(networkingv1beta1.Connected)).Build()
+				})
+				It("endpoints should be ready (failover to the indirect path)", func() { expectEndpointsReady(true) })
+			})
+
+			When("the consumer peering has networking disabled, hence no indirect path exists", func() {
+				BeforeEach(func() {
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(true, directAnnotation("10.80.0.1"), "10.80.0.1"),
+						newFcNetworkingDisabled(), newConnection(networkingv1beta1.ConnectionError)).Build()
+				})
+				It("endpoints should stay not ready even though the direct path is down", func() {
+					expectEndpointsReady(false)
+				})
+			})
+
+			When("the consumer peering network is down", func() {
+				BeforeEach(func() {
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(true, directAnnotation("10.80.0.1"), "10.80.0.1"),
+						newFc(false, true), newConfiguration(false), newConnection(networkingv1beta1.ConnectionError)).Build()
+				})
+				It("endpoints should be not ready (the indirect path is down too)", func() { expectEndpointsReady(false) })
+			})
+
+			When("direct connections are denied", func() {
+				BeforeEach(func() {
+					denyDirectConnections = true
+					build(directAnnotation("10.80.0.1"), newConnection(networkingv1beta1.Connected))
+				})
+				It("endpoints should be ready even though the connection is established", func() {
+					expectEndpointsReady(true)
+				})
+			})
+
+			When("the companion has no direct-connections data", func() {
+				BeforeEach(func() { build("", newConnection(networkingv1beta1.Connected)) })
+				It("endpoints should be not ready (fully overlapping with the direct slice)", func() {
+					expectEndpointsReady(false)
+				})
+			})
+		})
+
+		// A Service whose endpoints span TWO providers, one healthy and one not. Readiness must be
+		// decided per endpoint from the connection towards the provider hosting it: a degraded peer
+		// must not push the endpoints of a healthy peer onto the fallback path.
+		When("the slice spans two direct providers with different health", func() {
+			const secondProviderID = "second-provider-id"
+
+			// 10.20.0.1 is hosted on directProviderID, 10.40.0.1 on secondProviderID,
+			// 10.99.0.9 is path-independent.
+			twoProviderAnnotation := func() string {
+				d := directconnectioninfo.ClusterAddresses{}
+				d.Add(directProviderID, "10.20.0.1")
+				d.Add(secondProviderID, "10.40.0.1")
+				jsonBytes, errJSON := d.ToJSON()
+				Expect(errJSON).NotTo(HaveOccurred())
+				return string(jsonBytes)
+			}
+
+			newSecondProviderConf := func() *networkingv1beta1.Configuration {
+				return &networkingv1beta1.Configuration{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "second-provider-conf", Namespace: shadowEpsNamespace,
+						Labels:     map[string]string{consts.RemoteClusterID: secondProviderID},
+						Generation: 1,
+					},
+					Spec: networkingv1beta1.ConfigurationSpec{
+						Remote: networkingv1beta1.ClusterConfig{CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod: cidrutils.FromStrings([]string{"10.40.0.0/16"})}},
+					},
+					Status: networkingv1beta1.ConfigurationStatus{
+						Conditions: cidrsConfiguredConditions(),
+						Remote: &networkingv1beta1.ClusterConfig{CIDR: networkingv1beta1.ClusterConfigCIDR{
+							Pod: cidrutils.FromStrings([]string{"10.50.0.0/16"})}},
+					},
+				}
+			}
+
+			newSecondConnection := func(status networkingv1beta1.ConnectionStatusValue) *networkingv1beta1.Connection {
+				return &networkingv1beta1.Connection{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gw-second-provider", Namespace: shadowEpsNamespace,
+						Labels: map[string]string{consts.RemoteClusterID: secondProviderID},
+					},
+					Status: networkingv1beta1.ConnectionStatus{Value: status},
+				}
+			}
+
+			// readinessByAddress returns the Ready condition of each endpoint, keyed by address.
+			readinessByAddress := func() map[string]bool {
+				eps := discoveryv1.EndpointSlice{}
+				Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+				got := map[string]bool{}
+				for i := range eps.Endpoints {
+					got[eps.Endpoints[i].Addresses[0]] = *eps.Endpoints[i].Conditions.Ready
+				}
+				return got
+			}
+
+			When("the slice is direct", func() {
+				BeforeEach(func() {
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, twoProviderAnnotation(), "10.20.0.1", "10.40.0.1", "10.99.0.9"),
+						newFcNetworkingDisabled(), newDirectProviderConf(), newSecondProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connecting)).Build()
+				})
+
+				It("should keep the endpoint of the healthy provider ready and only fail over the other", func() {
+					// 10.20.0.1 -> 10.30.0.1 through the healthy peer's Configuration: stays ready.
+					// 10.40.0.1 -> 10.50.0.1 through the degraded peer's: not ready, fails over.
+					// 10.99.0.9 is path-independent: unaffected.
+					Expect(readinessByAddress()).To(Equal(map[string]bool{
+						"10.30.0.1": true, "10.50.0.1": false, "10.99.0.9": true}))
+				})
+			})
+
+			When("the network Configuration towards one provider is missing, while its Connection is up", func() {
+				BeforeEach(func() {
+					// Typical while a network peering is being established or removed.
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, twoProviderAnnotation(), "10.20.0.1", "10.40.0.1", "10.99.0.9"),
+						newFcNetworkingDisabled(), newDirectProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connected)).Build()
+				})
+
+				It("should drop only that provider's endpoint, and keep reconciling the rest of the slice", func() {
+					Expect(readinessByAddress()).To(Equal(map[string]bool{"10.30.0.1": true, "10.99.0.9": true}))
+				})
+				It("should not report it as a missing peering", func() {
+					Expect(recorder.Events).ToNot(Receive())
+				})
+			})
+
+			When("the address of one endpoint cannot be remapped through its provider's Configuration", func() {
+				BeforeEach(func() {
+					// 10.41.0.1 is attributed to the second provider, but lies outside the pod CIDR
+					// that provider advertises (10.40.0.0/16).
+					d := directconnectioninfo.ClusterAddresses{}
+					d.Add(directProviderID, "10.20.0.1")
+					d.Add(secondProviderID, "10.41.0.1")
+					jsonBytes, errJSON := d.ToJSON()
+					Expect(errJSON).NotTo(HaveOccurred())
+
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, string(jsonBytes), "10.20.0.1", "10.41.0.1", "10.99.0.9"),
+						newFc(true, true), newConfiguration(false), newDirectProviderConf(), newSecondProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connected)).Build()
+				})
+
+				It("should exclude only that endpoint, instead of freezing the whole slice", func() {
+					Expect(readinessByAddress()).To(Equal(map[string]bool{"10.30.0.1": true, "10.99.0.9": true}))
+				})
+				It("should report it with a Warning event", func() {
+					Expect(recorder.Events).To(Receive(And(
+						ContainSubstring(EventReasonDirectConnectionRemapFailed), ContainSubstring("10.41.0.1"))))
+				})
+			})
+
+			When("the network of the consumer peering is down", func() {
+				BeforeEach(func() {
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(false, twoProviderAnnotation(), "10.20.0.1", "10.40.0.1", "10.99.0.9"),
+						newFc(false, true), newConfiguration(false), newDirectProviderConf(), newSecondProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connecting)).Build()
+				})
+
+				It("should keep serving through the healthy direct path, which does not traverse the consumer", func() {
+					Expect(readinessByAddress()).To(Equal(map[string]bool{
+						"10.30.0.1": true, "10.50.0.1": false, "10.99.0.9": false}))
+				})
+			})
+
+			When("the slice is the indirect companion", func() {
+				BeforeEach(func() {
+					// The companion's data is keyed by the addresses it carries (already on the
+					// consumer path), which is what lets it attribute them per cluster.
+					d := directconnectioninfo.ClusterAddresses{}
+					d.Add(directProviderID, "10.71.0.1")
+					d.Add(secondProviderID, "10.72.0.1")
+					jsonBytes, errJSON := d.ToJSON()
+					Expect(errJSON).NotTo(HaveOccurred())
+
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(true, string(jsonBytes), "10.71.0.1", "10.72.0.1"),
+						newFc(true, true), newConfiguration(false), newDirectProviderConf(), newSecondProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connecting)).Build()
+				})
+
+				It("should serve only the copy whose direct path is unusable", func() {
+					// Exactly the complement of the direct slice above: per logical backend
+					// exactly one of the two representations is ready at any time.
+					Expect(readinessByAddress()).To(Equal(map[string]bool{
+						"10.71.0.1": false, "10.72.0.1": true}))
+				})
+			})
+
+			When("the companion predates per-endpoint attribution (untranslated addresses)", func() {
+				BeforeEach(func() {
+					// Written by an older virtual kubelet: the annotation lists the direct slice's
+					// addresses, which never match the ones the companion carries.
+					fakeClient = fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
+						newShadowEpsWithRole(true, twoProviderAnnotation(), "10.71.0.1", "10.72.0.1"),
+						newFc(true, true), newConfiguration(false), newDirectProviderConf(), newSecondProviderConf(),
+						newConnection(networkingv1beta1.Connected),
+						newSecondConnection(networkingv1beta1.Connecting)).Build()
+				})
+
+				It("should serve every copy while any direct path is unusable, never stranding a backend", func() {
+					// The degraded provider's backend is served through the consumer, the healthy one's
+					// both directly and through the consumer: duplicated, but never lost.
+					Expect(readinessByAddress()).To(Equal(map[string]bool{
+						"10.71.0.1": true, "10.72.0.1": true}))
+				})
 			})
 		})
 	})
@@ -869,7 +1421,7 @@ var _ = Describe("ShadowEndpointSlice Predicates", func() {
 				},
 			}
 
-			result := r.getShadowEndpointSlicesFromNetworkConfig(ctx, testConf)
+			result := r.getShadowEndpointSlicesByClusterID(ctx, testConf)
 			Expect(result).To(BeNil())
 			klog.Flush()
 			Expect(buffer.String()).To(ContainSubstring("has no label"))
