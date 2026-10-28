@@ -82,7 +82,7 @@ func (r *GeneveTunnelReconciler) initConnCheckerReceiver(ctx context.Context, bi
 	r.connCheckerOnce.Do(func() {
 		opts := r.Options.ConnCheckOptions
 		opts.PingBindIP = bindIP
-		cc, err := conncheck.NewConnChecker(opts)
+		cc, err := conncheck.NewConnChecker("", 1, opts)
 		if err != nil {
 			r.connCheckerErr = fmt.Errorf("creating geneve conncheck receiver: %w", err)
 			return
