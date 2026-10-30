@@ -41,6 +41,9 @@ const (
 	// RemotePodTerminatedReason -> the reason assigned to pods in the local cluster whose remote counterpart has completed,
 	// but it wasn't possible to reflect the real status (e.g. missed completion event), and the shadow pod reports a terminal phase.
 	RemotePodTerminatedReason = "RemotePodTerminated"
+	// RemotePodDeletedReason -> the reason assigned to pods in the local cluster that must never be restarted, whose remote
+	// counterpart has been deleted in the remote cluster (e.g. evicted), hence they failed.
+	RemotePodDeletedReason = "RemotePodDeleted"
 
 	// ServiceAccountVolumeName is the prefix name that will be added to volumes that mount ServiceAccount secrets.
 	// This constant is taken from kubernetes/kubernetes (plugin/pkg/admission/serviceaccount/admission.go).

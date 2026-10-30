@@ -16,10 +16,14 @@ package pod
 
 import (
 	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // IsPodReady returns true if a pod is ready; false otherwise. It also returns a reason (as provided by Kubernetes).
@@ -45,6 +49,47 @@ func GetPodCondition(status *corev1.PodStatus, conditionType corev1.PodCondition
 		}
 	}
 	return nil
+}
+
+// MarkNotReady sets the Ready condition of the given pod status to False, adding it if missing.
+func MarkNotReady(status *corev1.PodStatus) {
+	cond := GetPodCondition(status, corev1.PodReady)
+	if cond == nil {
+		status.Conditions = append(status.Conditions, corev1.PodCondition{
+			Type:               corev1.PodReady,
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.NewTime(time.Now()),
+		})
+		return
+	}
+	cond.Status = corev1.ConditionFalse
+}
+
+// MarkDisrupted sets the DisruptionTarget condition of the given pod status to True with the given reason, adding it if
+// missing: the pod is terminating or failed because of a disruption, not because of its own containers.
+func MarkDisrupted(status *corev1.PodStatus, reason string) {
+	cond := GetPodCondition(status, corev1.DisruptionTarget)
+	if cond == nil {
+		status.Conditions = append(status.Conditions, corev1.PodCondition{
+			Type:               corev1.DisruptionTarget,
+			Status:             corev1.ConditionTrue,
+			Reason:             reason,
+			LastTransitionTime: metav1.NewTime(time.Now()),
+		})
+		return
+	}
+	if cond.Status != corev1.ConditionTrue {
+		cond.LastTransitionTime = metav1.NewTime(time.Now())
+	}
+	cond.Status = corev1.ConditionTrue
+	cond.Reason = reason
+}
+
+// IsDeletedByOthers returns whether the given offloaded pod is being deleted while its shadowpod is not, that is the
+// deletion has not been requested through the shadowpod (e.g., the pod has been deleted or evicted in the remote cluster).
+// Such a pod transiently reaches a terminal phase while terminating, which must not be taken as its completion.
+func IsDeletedByOthers(pod *corev1.Pod, shadow *offloadingv1beta1.ShadowPod) bool {
+	return pod != nil && !pod.DeletionTimestamp.IsZero() && shadow != nil && shadow.DeletionTimestamp.IsZero()
 }
 
 // IsPodSpecEqual returns whether two pod specs are equal according to the fields that

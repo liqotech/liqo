@@ -400,6 +400,21 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 				klog.Errorf("Failed to update local pod %q status: %v", localPodRef, err)
 				return fmt.Errorf("updating local pod %q status: %w", localPodRef, err)
 			}
+		case shadow.DeletionTimestamp.IsZero():
+			// The remote pod is gone while the shadowpod is not terminating, hence the shadowpod controller is going to
+			// recreate it. Mark the local pod as not ready if it was, since no remote copy is serving it until the new one
+			// is up (e.g., the reflection missed the remote pod termination).
+			if ready, _ := pod.IsPodReady(local); !ready {
+				return nil
+			}
+
+			po := local.DeepCopy()
+			pod.MarkNotReady(&po.Status)
+			klog.Infof("Marking local pod %q as not ready, since the remote pod is no longer available", localPodRef)
+			if _, err := npr.localPodsClient.UpdateStatus(ctx, po, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager}); err != nil {
+				klog.Errorf("Failed to update local pod %q status: %v", localPodRef, err)
+				return fmt.Errorf("updating local pod %q status: %w", localPodRef, err)
+			}
 		}
 
 		return nil
@@ -437,15 +452,45 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 		mutators = append(mutators, forge.OpaqueIPTranslationMutator())
 	}
 
-	// Forge the local pod object to update its status.
-	po := forge.LocalPod(local, remote, translator, info.Restarts, mutators...)
-	tracer.Step("Forged the local pod status")
+	var po *corev1.Pod
+	switch {
+	case pod.IsDeletedByOthers(remote, shadow) && local.Spec.RestartPolicy == corev1.RestartPolicyNever:
+		// The remote pod is being deleted, but not by the reflection (the shadowpod is not terminating), and the local
+		// pod must never be restarted, hence it is not going to be recreated. Mark the local pod as failed, never as
+		// completed: the terminal phase the remote pod transiently reaches while terminating is not a completion. The
+		// DisruptionTarget condition tells that the pod failed because of a disruption, which a Job can tolerate through
+		// its pod failure policy.
+		if local.Status.Phase == corev1.PodFailed && local.Status.Reason == forge.RemotePodDeletedReason {
+			// Already marked: forging it again would flip the conditions and rewrite the status at every event.
+			po = local.DeepCopy()
+			break
+		}
+		klog.Infof("Remote pod %q is terminating while its shadowpod is not, marking local pod %q as failed (restart policy %s)",
+			npr.RemoteRef(remote.GetName()), npr.LocalRef(local.GetName()), corev1.RestartPolicyNever)
+		po = forge.LocalRejectedPod(local, corev1.PodFailed, forge.RemotePodDeletedReason)
+		pod.MarkDisrupted(&po.Status, forge.RemotePodDeletedReason)
 
-	// Check whether an error occurred during address translation.
-	if terr != nil {
-		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
-		npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(terr))
-		return terr
+	case pod.IsDeletedByOthers(remote, shadow):
+		// The remote pod is being deleted, but not by the reflection (the shadowpod is not terminating), hence the
+		// shadowpod controller is going to recreate it. Do not reflect its status, as it transiently reaches a terminal
+		// phase while terminating, which would mark the local pod as completed. Keep the current phase instead, and mark
+		// the local pod as not ready, since no remote copy is serving it until the new one is up.
+		klog.Infof("Remote pod %q is terminating while its shadowpod is not, keeping the phase of local pod %q",
+			npr.RemoteRef(remote.GetName()), npr.LocalRef(local.GetName()))
+		po = local.DeepCopy()
+		pod.MarkNotReady(&po.Status)
+
+	default:
+		// Forge the local pod object to update its status.
+		po = forge.LocalPod(local, remote, translator, info.Restarts, mutators...)
+		tracer.Step("Forged the local pod status")
+
+		// Check whether an error occurred during address translation.
+		if terr != nil {
+			klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
+			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(terr))
+			return terr
+		}
 	}
 
 	// Update Ready condition to False if pod has the remote unavailable label. The label indicate that the status can be modified
@@ -454,16 +499,7 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// is necessary to prevent services redirecting traffic to not ready pods (since the endpointslice controller keeps
 	// in sync the endpointslice Ready condition with the associated pod Ready condition).
 	if podstatusctrl.HasRemoteUnavailableLabel(local) {
-		cond := pod.GetPodCondition(&po.Status, corev1.PodReady)
-		if cond == nil {
-			po.Status.Conditions = append(po.Status.Conditions, corev1.PodCondition{
-				Type:               corev1.PodReady,
-				Status:             corev1.ConditionFalse,
-				LastTransitionTime: metav1.NewTime(time.Now()),
-			})
-		} else {
-			cond.Status = corev1.ConditionFalse
-		}
+		pod.MarkNotReady(&po.Status)
 	}
 
 	// Do not attempt to perform an update if not necessary.

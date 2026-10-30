@@ -40,6 +40,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
+	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -105,6 +106,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				"Failed to update pod: %v", err)
 			klog.Errorf("unable to update pod %q: %v", klog.KObj(&existingPod), err)
 			return ctrl.Result{}, err
+		}
+
+		// The existing pod is being deleted, but not because of the shadowpod: its status is not copied, as it transiently
+		// reaches a terminal phase while terminating, which is not a completion.
+		if pod.IsDeletedByOthers(&existingPod, &shadowPod) {
+			if shadowPod.Spec.Pod.RestartPolicy != corev1.RestartPolicyNever {
+				// The pod deletion event triggers a new reconciliation, which recreates it.
+				klog.Infof("pod %q is terminating while its shadowpod is not, will recreate it once deleted",
+					klog.KObj(&existingPod))
+				return ctrl.Result{}, nil
+			}
+
+			// A pod that must never be restarted is not run again: it failed, whatever phase it reached while terminating.
+			klog.Infof("pod %q is terminating while its shadowpod is not, marking the shadowpod as failed (restart policy %s)",
+				klog.KObj(&existingPod), corev1.RestartPolicyNever)
+			shadowPod.Status.Phase = corev1.PodFailed
+			if err := r.Client.Status().Update(ctx, &shadowPod); err != nil {
+				klog.Errorf("unable to update shadowpod %q status: %v", klog.KObj(&shadowPod), err)
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
 		}
 
 		// Update ShadowPod status same as Pod status

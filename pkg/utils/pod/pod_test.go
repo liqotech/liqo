@@ -15,13 +15,17 @@
 package pod_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 )
 
@@ -55,6 +59,72 @@ var _ = Describe("Pod utility functions", func() {
 			Entry("When the pod is ready", IsPodReadyCase{Pod: PodGenerator(corev1.ConditionTrue), Expected: true}),
 			Entry("When the pod is not ready", IsPodReadyCase{Pod: PodGenerator(corev1.ConditionFalse), Expected: false}),
 			Entry("When the pod has no conditions", IsPodReadyCase{Pod: PodGeneratorWithoutConditions(), Expected: false}),
+		)
+	})
+
+	Describe("The MarkNotReady function", func() {
+		It("should set an existing Ready condition to False, keeping the other ones", func() {
+			status := corev1.PodStatus{Conditions: []corev1.PodCondition{
+				{Type: "foo", Status: corev1.ConditionTrue},
+				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			}}
+			pod.MarkNotReady(&status)
+			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions[0].Status).To(Equal(corev1.ConditionTrue))
+			Expect(pod.GetPodCondition(&status, corev1.PodReady).Status).To(Equal(corev1.ConditionFalse))
+		})
+
+		It("should add a False Ready condition when missing", func() {
+			status := corev1.PodStatus{}
+			pod.MarkNotReady(&status)
+			Expect(status.Conditions).To(HaveLen(1))
+			Expect(status.Conditions[0].Type).To(Equal(corev1.PodReady))
+			Expect(status.Conditions[0].Status).To(Equal(corev1.ConditionFalse))
+			Expect(status.Conditions[0].LastTransitionTime.IsZero()).To(BeFalse())
+		})
+	})
+
+	Describe("The MarkDisrupted function", func() {
+		It("should add a True DisruptionTarget condition with the reason when missing", func() {
+			status := corev1.PodStatus{}
+			pod.MarkDisrupted(&status, "SomeReason")
+			cond := pod.GetPodCondition(&status, corev1.DisruptionTarget)
+			Expect(cond).ToNot(BeNil())
+			Expect(cond.Status).To(Equal(corev1.ConditionTrue))
+			Expect(cond.Reason).To(Equal("SomeReason"))
+			Expect(cond.LastTransitionTime.IsZero()).To(BeFalse())
+		})
+
+		It("should set an existing DisruptionTarget condition to True, keeping the other ones", func() {
+			status := corev1.PodStatus{Conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+				{Type: corev1.DisruptionTarget, Status: corev1.ConditionFalse},
+			}}
+			pod.MarkDisrupted(&status, "SomeReason")
+			Expect(status.Conditions).To(HaveLen(2))
+			Expect(pod.GetPodCondition(&status, corev1.PodReady).Status).To(Equal(corev1.ConditionTrue))
+			Expect(pod.GetPodCondition(&status, corev1.DisruptionTarget).Status).To(Equal(corev1.ConditionTrue))
+		})
+	})
+
+	Describe("The IsDeletedByOthers function", func() {
+		deleting := func() *metav1.Time { return &metav1.Time{Time: time.Now()} }
+		podWith := func(deletion *metav1.Time) *corev1.Pod {
+			return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: deletion}}
+		}
+		shadowWith := func(deletion *metav1.Time) *offloadingv1beta1.ShadowPod {
+			return &offloadingv1beta1.ShadowPod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: deletion}}
+		}
+
+		DescribeTable("Should return the correct output",
+			func(po *corev1.Pod, shadow *offloadingv1beta1.ShadowPod, expected bool) {
+				Expect(pod.IsDeletedByOthers(po, shadow)).To(Equal(expected))
+			},
+			Entry("pod deleted, shadowpod not deleted", podWith(deleting()), shadowWith(nil), true),
+			Entry("pod and shadowpod both deleted", podWith(deleting()), shadowWith(deleting()), false),
+			Entry("pod not deleted", podWith(nil), shadowWith(nil), false),
+			Entry("pod deleted, no shadowpod", podWith(deleting()), nil, false),
+			Entry("no pod", nil, shadowWith(nil), false),
 		)
 	})
 
