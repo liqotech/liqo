@@ -73,6 +73,10 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"Name of the real load balancer class to use for the actual load balancer")
 	flags.BoolVar(&o.EnableMetrics, "metrics-enabled", false, "Enable the metrics server")
 	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8082", "The address to listen to for metrics requests")
+	flags.DurationVar(&o.MetricsProxyCacheTTL, "metrics-proxy-cache-ttl", o.MetricsProxyCacheTTL,
+		"The time-to-live of the cached responses of the metrics proxy routes (/metrics, /metrics/cadvisor, /metrics/resource, /metrics/probes)")
+	flags.DurationVar(&o.StatsSummaryCacheTTL, "stats-summary-cache-ttl", o.StatsSummaryCacheTTL,
+		"The time-to-live of the cached node stats summary served at /stats/summary")
 	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",
 		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",

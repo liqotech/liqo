@@ -43,6 +43,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/utils/cache"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
@@ -77,7 +78,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector)
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID(), metricsNodeSelector, cfg.MetricsProxyCacheTTL)
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -193,8 +194,22 @@ func setupHealthServer() {
 	}
 }
 
+const (
+	// metricsProxyErrorCacheTTL is the time-to-live of failed metrics proxy responses. Errors are
+	// cached briefly (much shorter than successful ones), so that a persistently failing scraping
+	// is not retried at each request, while still allowing a prompt recovery once solved.
+	// The time-to-live of successful responses is configurable through the metrics-proxy-cache-ttl flag.
+	metricsProxyErrorCacheTTL = 5 * time.Second
+)
+
+// scrapeResponse is the cached outcome of a proxied scrape: the response body and the status code.
+type scrapeResponse struct {
+	data       []byte
+	statusCode int
+}
+
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface,
-	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string) {
+	localClusterID liqov1beta1.ClusterID, metricsNodeSelector string, cacheTTL time.Duration) {
 	// Restrict the scraping to the remote nodes matching the given label selector (i.e., the ones
 	// targeted by this virtual kubelet through its offloading patch), so that node and pod metrics
 	// are not aggregated over the whole remote cluster. An empty selector preserves the aggregated
@@ -203,6 +218,10 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 	if metricsNodeSelector != "" {
 		query.Add("nodeSelector", metricsNodeSelector)
 	}
+
+	// scrapeCache collapses concurrent and near-duplicate scrapes into a single remote sweep. The
+	// key is the full outgoing URI, hence requests differing in path or query do not alias.
+	scrapeCache := cache.New[scrapeResponse](cacheTTL, metricsProxyErrorCacheTTL)
 
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s from %s (user-agent: %q)", r.RequestURI, r.RemoteAddr, r.UserAgent())
@@ -221,26 +240,35 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 			uri += "?" + reqQuery.Encode()
 		}
 
-		res := cl.Get().RequestURI(uri).Do(ctx)
-		err := res.Error()
+		// ctx is the server-lifetime context (not r.Context()), hence deliberately shared across all
+		// scrapes: the singleflight computation below is therefore never tied to a single client, so
+		// one disconnecting caller cannot abort it for the others waiting on the same key. Keep it
+		// this way: using r.Context() would let the first caller's cancellation poison the shared
+		// result for every waiter.
+		resp, err := scrapeCache.Do(ctx, uri, func(ctx context.Context) (scrapeResponse, error) {
+			res := cl.Get().RequestURI(uri).Do(ctx)
+			if err := res.Error(); err != nil {
+				return scrapeResponse{}, err
+			}
+
+			var statusCode int
+			res.StatusCode(&statusCode)
+
+			data, err := res.Raw()
+			if err != nil {
+				return scrapeResponse{}, err
+			}
+
+			return scrapeResponse{data: data, statusCode: statusCode}, nil
+		})
 		if err != nil {
 			klog.Error(err)
 			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 		}
 
-		var statusCode int
-		res.StatusCode(&statusCode)
-
-		data, err := res.Raw()
-		if err != nil {
-			klog.Error(err)
-			http.Error(w, "Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(statusCode)
-		if _, err = w.Write(data); err != nil {
+		w.WriteHeader(resp.statusCode)
+		if _, err = w.Write(resp.data); err != nil {
 			klog.Error(err)
 		}
 	}
