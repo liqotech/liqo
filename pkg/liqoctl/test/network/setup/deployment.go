@@ -100,6 +100,23 @@ func CreateDeployment(ctx context.Context, cl ctrlclient.Client, replicas int32,
 				},
 				Spec: corev1.PodSpec{
 					HostNetwork: hostnetwork,
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+								{
+									Weight: 100,
+									PodAffinityTerm: corev1.PodAffinityTerm{
+										LabelSelector: &metav1.LabelSelector{
+											MatchLabels: map[string]string{
+												PodLabelAppCluster: deploymentName + "-" + suffix,
+											},
+										},
+										TopologyKey: "kubernetes.io/hostname",
+									},
+								},
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:    "netshoot",
