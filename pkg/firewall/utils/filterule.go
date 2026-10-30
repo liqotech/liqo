@@ -131,7 +131,7 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 	if err != nil {
 		return fmt.Errorf("cannot convert value to int: %w", err)
 	}
-	if valueInt < 0 || valueInt > math.MaxUint32 {
+	if valueInt < 0 || int64(valueInt) > math.MaxUint32 {
 		return fmt.Errorf("value %d is out of range for a uint32 mark", valueInt)
 	}
 	rule.Exprs = append(rule.Exprs,
@@ -263,7 +263,7 @@ func applySetMetaMarkAction(value *string, rule *nftables.Rule) error {
 	if err != nil {
 		return fmt.Errorf("cannot convert value to int: %w", err)
 	}
-	if valueInt < 0 || valueInt > math.MaxUint32 {
+	if valueInt < 0 || int64(valueInt) > math.MaxUint32 {
 		return fmt.Errorf("value %d is out of range for a uint32 mark", valueInt)
 	}
 	rule.Exprs = append(rule.Exprs,

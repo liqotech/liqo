@@ -158,9 +158,9 @@ func (r *Receiver) Run(ctx context.Context) {
 func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
-	threshold := r.opts.PingLossThreshold
-	if threshold > uint(math.MaxInt64) {
-		threshold = uint(math.MaxInt64)
+	threshold := uint64(r.opts.PingLossThreshold)
+	if threshold > math.MaxInt64 {
+		threshold = math.MaxInt64
 	}
 	thresholdDuration := time.Duration(threshold)
 	err := wait.PollUntilContextCancel(ctx, thresholdDuration*r.opts.PingInterval/10, true,
