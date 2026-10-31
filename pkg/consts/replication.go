@@ -64,6 +64,14 @@ const (
 	// AllowReflectionAnnotationKey is the annotation key used to indicate that a given object should be reflected into a remote cluster.
 	AllowReflectionAnnotationKey = "liqo.io/allow-reflection"
 
+	// AllowReflectionClustersAnnotationKey is the annotation key used to indicate the (comma-separated) IDs of the only remote
+	// clusters a given object should be reflected into. It takes precedence over the reflection policy and the allow/skip annotations.
+	AllowReflectionClustersAnnotationKey = "liqo.io/allow-reflection-clusters"
+
+	// SkipReflectionClustersAnnotationKey is the annotation key used to indicate the (comma-separated) IDs of the remote clusters
+	// a given object should not be reflected into. It takes precedence over all the other reflection annotations and policies.
+	SkipReflectionClustersAnnotationKey = "liqo.io/skip-reflection-clusters"
+
 	// PodAntiAffinityPresetKey is the annotation key used to express an anti-affinity preset to apply to offloaded pods.
 	PodAntiAffinityPresetKey = "liqo.io/anti-affinity-preset"
 

@@ -212,6 +212,36 @@ function wait_kyverno() {
   fi
 }
 
+function install_gateway_api_crds() {
+  local kubeconfig=$1
+  local version=$2
+
+  "${KUBECTL}" apply --server-side --kubeconfig "${kubeconfig}" \
+    -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${version}/standard-install.yaml"
+}
+
+function get_cluster_domain() {
+  local kubeconfig=$1
+  local domain
+
+  # The cluster domain is retrieved from the CoreDNS configuration, falling back to the default one.
+  domain=$("${KUBECTL}" get configmap coredns -n kube-system --kubeconfig "${kubeconfig}" \
+    -o jsonpath='{.data.Corefile}' 2>/dev/null | awk '$1 == "kubernetes" {print $2; exit}' || true)
+  echo "${domain:-cluster.local}"
+}
+
+function install_envoy_gateway() {
+  local kubeconfig=$1
+  local version=$2
+
+  # The chart also installs the Gateway API CRDs, in the version supported by Envoy Gateway.
+  # The cluster domain shall be configured, since the proxies connect to the control plane through its fully qualified name,
+  # and the testing clusters might not use the default one (the resolution would be otherwise forwarded to the upstream servers).
+  "${HELM}" install eg oci://docker.io/envoyproxy/gateway-helm --version "${version}" \
+    --set "kubernetesClusterDomain=$(get_cluster_domain "${kubeconfig}")" \
+    -n envoy-gateway-system --create-namespace --wait --timeout 10m --kubeconfig "${kubeconfig}"
+}
+
 function install_clusterctl() {
   local os=$1
   local arch=$2

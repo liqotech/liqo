@@ -75,6 +75,10 @@ type InitConfig struct {
 	RemoteRealIngressClassName      string
 	EnableLoadBalancer              bool
 	RemoteRealLoadBalancerClassName string
+	EnableGatewayAPI                bool
+	RemoteSharedGatewayEnabled      bool
+	VirtualGatewayClassName         string
+	RemoteRealGatewayClassName      string
 	EnableMetrics                   bool
 
 	HomeAPIServerHost string
@@ -161,6 +165,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 			cfg.EnableStorage, ptr.To(cfg.ReflectorsConfigs[resources.PersistentVolumeClaim]))).
 		With(event.NewEventReflector(ptr.To(cfg.ReflectorsConfigs[resources.Event]))).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
+
+	if cfg.EnableGatewayAPI {
+		if err := setupGatewayAPIReflection(cfg, localClient, remoteClient, reflectionManager); err != nil {
+			return nil, err
+		}
+	}
 
 	if !cfg.DisableIPReflection {
 		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDRs, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))

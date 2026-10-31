@@ -17,12 +17,14 @@ package mapper
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	adminssionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -70,7 +73,7 @@ func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schem
 }
 
 // add most used groups to the mapper, this includes all Liqo groups with core/v1, apps/v1 and rbac/v1.
-func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMapper) error {
+func addDefaults(dClient discovery.DiscoveryInterface, mapper *meta.DefaultRESTMapper) error {
 	var err error
 
 	// Liqo groups
@@ -109,9 +112,18 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, adminssionregistrationv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
+	if err = addGroup(dClient, netv1.SchemeGroupVersion, mapper, GroupOptional); err != nil {
+		return err
+	}
 
 	// Prometheus operator group
 	if err = addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional); err != nil {
+		return err
+	}
+
+	// Gateway API group, whose resources are reflected and whose status is aggregated, if available.
+	gatewayAPIGroupVersion := schema.GroupVersion{Group: gwv1.GroupName, Version: gwv1.GroupVersion.Version}
+	if err = addGroup(dClient, gatewayAPIGroupVersion, mapper, GroupOptional); err != nil {
 		return err
 	}
 
@@ -131,7 +143,7 @@ const (
 )
 
 // add all the resources in the specified groupVersion to the mapper.
-func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion,
+func addGroup(dClient discovery.DiscoveryInterface, groupVersion schema.GroupVersion,
 	mapper *meta.DefaultRESTMapper, required bool) error {
 	res, err := dClient.ServerResourcesForGroupVersion(groupVersion.String())
 	var dErr *apierrors.StatusError
@@ -145,17 +157,29 @@ func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersi
 	}
 	for i := range res.APIResources {
 		apiRes := &res.APIResources[i]
+		// Subresources (e.g., status) share the kind of the parent resource, hence they are skipped.
+		if strings.Contains(apiRes.Name, "/") {
+			continue
+		}
+
 		var scope meta.RESTScope
 		if apiRes.Namespaced {
 			scope = meta.RESTScopeNamespace
 		} else {
 			scope = meta.RESTScopeRoot
 		}
-		mapper.Add(schema.GroupVersionKind{
+
+		// The resource names are retrieved from the discovery, as the ones guessed from the kind may be wrong
+		// (e.g., the plural of "Gateway" would be guessed as "gatewaies").
+		singular := apiRes.SingularName
+		if singular == "" {
+			singular = strings.ToLower(apiRes.Kind)
+		}
+		mapper.AddSpecific(schema.GroupVersionKind{
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,
 			Kind:    apiRes.Kind,
-		}, scope)
+		}, groupVersion.WithResource(apiRes.Name), groupVersion.WithResource(singular), scope)
 		mapper.Add(schema.GroupVersionKind{
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,

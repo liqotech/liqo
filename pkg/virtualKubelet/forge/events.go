@@ -16,6 +16,7 @@ package forge
 
 import (
 	"fmt"
+	"strings"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -28,11 +29,17 @@ const (
 	// EventFailedReflection -> the reason for the event when the reflection fails.
 	EventFailedReflection = "FailedReflection"
 
+	// EventPartialReflection -> the reason for the event when the reflection completes, but some references have been dropped.
+	EventPartialReflection = "PartialReflection"
+
 	// EventFailedDeletion -> the reason for the event when the deletion of an object fails.
 	EventFailedDeletion = "FailedDeletion"
 
 	// EventReflectionDisabled -> the reason for the event when reflection is disabled for the given namespace/object.
 	EventReflectionDisabled = "ReflectionDisabled"
+
+	// EventMappedToSharedGateway -> the reason for the event when a Gateway is mapped to the shared Gateway of the remote cluster.
+	EventMappedToSharedGateway = "MappedToSharedGateway"
 
 	// EventSuccessfulSATokensReflection -> the reason for the event when the reflection of service account tokens completes successfully.
 	EventSuccessfulSATokensReflection = "SuccessfulSATokensReflection"
@@ -102,4 +109,35 @@ func EventObjectReflectionDisabledMsg(reflectionType offloadingv1beta1.Reflectio
 // EventSAReflectionDisabledMsg returns the message for the event when service account reflection is disabled.
 func EventSAReflectionDisabledMsg() string {
 	return fmt.Sprintf("Reflection to cluster %q disabled for secrets holding service account tokens", RemoteCluster)
+}
+
+// EventGatewayAPIUnavailableMsg returns the message for the event when the reflection of a Gateway API resource is not possible,
+// since the resource is not available in the given (i.e., local or remote) cluster.
+func EventGatewayAPIUnavailableMsg(resource, cluster string) string {
+	return fmt.Sprintf("Reflection to cluster %q (virtual node %q) disabled: resource %s not available in the %s cluster",
+		RemoteCluster, LiqoNodeName, resource, cluster)
+}
+
+// EventGatewayAPIForbiddenMsg returns the message for the event when the reflection of a Gateway API resource is not possible,
+// since the virtual kubelet is not allowed to operate on it in the remote cluster.
+func EventGatewayAPIForbiddenMsg(resource string) string {
+	return fmt.Sprintf("Reflection to cluster %q (virtual node %q) disabled: not allowed to list and watch resource %s in the remote cluster "+
+		"(the Liqo version installed in the remote cluster might not support its reflection)", RemoteCluster, LiqoNodeName, resource)
+}
+
+// EventPartialReflectionMsg returns the message for the event when the reflection completes, but some references have been dropped.
+func EventPartialReflectionMsg(details []string) string {
+	return fmt.Sprintf("Object reflected to cluster %q (virtual node %q), but some references could not be translated: %s",
+		RemoteCluster, LiqoNodeName, strings.Join(details, "; "))
+}
+
+// EventMappedToSharedGatewayMsg returns the message for the event when a Gateway is mapped to the shared Gateway of the remote cluster.
+func EventMappedToSharedGatewayMsg() string {
+	return fmt.Sprintf("Gateway mapped to the shared Gateway of cluster %q (virtual node %q): the attached routes are reflected towards it",
+		RemoteCluster, LiqoNodeName)
+}
+
+// EventReflectionNotPossibleMsg returns the message for the event when the object cannot be reflected, for the given reason.
+func EventReflectionNotPossibleMsg(reason string) string {
+	return fmt.Sprintf("Object not reflected to cluster %q (virtual node %q): %s", RemoteCluster, LiqoNodeName, reason)
 }

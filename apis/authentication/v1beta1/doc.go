@@ -13,4 +13,6 @@
 // limitations under the License.
 
 // Package v1beta1 contains API Schema definitions for the authentication v1beta1 API group
+//
+// +groupName=authentication.liqo.io
 package v1beta1

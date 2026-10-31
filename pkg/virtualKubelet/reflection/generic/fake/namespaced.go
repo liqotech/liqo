@@ -46,3 +46,6 @@ func (r *NamespacedReflector) SetReady() { r.ready = true }
 
 // List returns the list of handled namespaces.
 func (r *NamespacedReflector) List() ([]interface{}, error) { return []interface{}{}, nil }
+
+// Cleanup is a no-op for the fake NamespacedReflector.
+func (r *NamespacedReflector) Cleanup(_ context.Context, _, _ string) error { return nil }

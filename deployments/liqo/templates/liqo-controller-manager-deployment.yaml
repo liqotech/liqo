@@ -126,6 +126,8 @@ spec:
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
           {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.offloading.reflection.service.loadBalancerClasses }}
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
+          {{- $d := dict "commandName" "--gateway-classes" "list" .Values.offloading.reflection.gateway.gatewayClasses }}
+          {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
           {{- if .Values.controllerManager.config.enableNodeFailureController }}
           - --enable-node-failure-controller
           {{- end }}

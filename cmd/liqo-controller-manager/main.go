@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
@@ -58,6 +59,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	gwutils "github.com/liqotech/liqo/pkg/utils/gatewayapi"
 	grpcutils "github.com/liqotech/liqo/pkg/utils/grpc"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
@@ -82,6 +84,7 @@ func init() {
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = networkingv1beta1.AddToScheme(scheme)
 	_ = authv1beta1.AddToScheme(scheme)
+	_ = gwv1.Install(scheme)
 }
 
 func main() {
@@ -209,6 +212,13 @@ func run(cmd *cobra.Command, _ []string) error {
 		}
 
 		authOpts := modules.NewAuthOption(idProvider, namespaceManager, clusterID, opts)
+
+		// The shared Gateways are offered to the consumer clusters only if the Gateway API resources are available.
+		gatewayAPI, err := gwutils.Detect(clientset.Discovery())
+		if err != nil {
+			return fmt.Errorf("unable to detect the Gateway API resources: %w", err)
+		}
+		authOpts.SliceStatusOptions.GatewayAPIEnabled = gatewayAPI.Has(gwutils.GatewaysGVR)
 
 		if err := modules.SetupAuthenticationModule(cmd.Context(), mgr, uncachedClient, authOpts); err != nil {
 			return fmt.Errorf("unable to setup the authentication module: %w", err)

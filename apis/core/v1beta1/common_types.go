@@ -37,3 +37,23 @@ type LoadBalancerType struct {
 	// Default indicates whether this load balancer class is the default load balancer class for Liqo.
 	Default bool `json:"default,omitempty"`
 }
+
+// GatewayClassType defines the Gateway API GatewayClass offered by a resource offer,
+// which is used for the Gateways reflected from the remote clusters.
+type GatewayClassType struct {
+	// GatewayClassName indicates the name of the GatewayClass.
+	GatewayClassName string `json:"gatewayClassName"`
+	// Default indicates whether this GatewayClass is the default GatewayClass for Liqo.
+	Default bool `json:"default,omitempty"`
+}
+
+// SharedGatewayType defines a Gateway API Gateway offered by a resource offer,
+// which the routes reflected from the remote clusters are attached to.
+type SharedGatewayType struct {
+	// Namespace indicates the namespace of the Gateway.
+	Namespace string `json:"namespace"`
+	// Name indicates the name of the Gateway.
+	Name string `json:"name"`
+	// Default indicates whether this Gateway is the default shared Gateway for Liqo.
+	Default bool `json:"default,omitempty"`
+}

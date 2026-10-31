@@ -84,6 +84,11 @@ type VirtualNodeSpec struct {
 	StorageClasses []liqov1beta1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
 	IngressClasses []liqov1beta1.IngressType `json:"ingressClasses,omitempty"`
+	// GatewayClasses contains the list of the Gateway API GatewayClasses offered by the cluster.
+	GatewayClasses []liqov1beta1.GatewayClassType `json:"gatewayClasses,omitempty"`
+	// SharedGateways contains the list of the Gateway API Gateways offered by the cluster,
+	// which the reflected routes can be attached to.
+	SharedGateways []liqov1beta1.SharedGatewayType `json:"sharedGateways,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
 	LoadBalancerClasses []liqov1beta1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	// VkOptionsTemplateRef contains the namespaced reference to the VkOptionsTemplate.

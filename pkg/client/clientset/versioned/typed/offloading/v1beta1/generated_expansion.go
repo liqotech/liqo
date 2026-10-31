@@ -20,7 +20,15 @@ type NamespaceMapExpansion interface{}
 
 type ShadowEndpointSliceExpansion interface{}
 
+type ShadowGatewayStatusExpansion interface{}
+
+type ShadowIngressStatusExpansion interface{}
+
+type ShadowListenerSetStatusExpansion interface{}
+
 type ShadowPodExpansion interface{}
+
+type ShadowRouteStatusExpansion interface{}
 
 type VirtualNodeExpansion interface{}
 

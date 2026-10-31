@@ -60,6 +60,33 @@ func getDefaultIngressClass(ingressClasses []liqov1beta1.IngressType) liqov1beta
 	return ingressClasses[0]
 }
 
+func getDefaultGatewayClass(gatewayClasses []liqov1beta1.GatewayClassType) liqov1beta1.GatewayClassType {
+	for _, gatewayClass := range gatewayClasses {
+		if gatewayClass.Default {
+			return gatewayClass
+		}
+	}
+	return gatewayClasses[0]
+}
+
+// appendArgsGatewayAPI enables the Gateway API reflection if the remote cluster offers any GatewayClass or shared Gateway.
+// The shared Gateways are not passed to the virtual kubelet, as the routes refer to them through a placeholder, which is
+// replaced by the remote cluster: hence, the virtual kubelet is not restarted when the offered shared Gateways change.
+func appendArgsGatewayAPI(args []string, gatewayClasses []liqov1beta1.GatewayClassType, sharedGateways []liqov1beta1.SharedGatewayType) []string {
+	if len(gatewayClasses) == 0 && len(sharedGateways) == 0 {
+		return args
+	}
+
+	args = append(args, string(EnableGatewayAPI))
+	if len(gatewayClasses) > 0 {
+		args = append(args, StringifyArgument(string(RemoteRealGatewayClassName), getDefaultGatewayClass(gatewayClasses).GatewayClassName))
+	}
+	if len(sharedGateways) > 0 {
+		args = append(args, string(EnableRemoteSharedGateway))
+	}
+	return args
+}
+
 func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1beta1.LoadBalancerType) liqov1beta1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
@@ -82,6 +109,8 @@ func forgeVKContainers(
 	storageClasses := virtualNode.Spec.StorageClasses
 	ingressClasses := virtualNode.Spec.IngressClasses
 	loadBalancerClasses := virtualNode.Spec.LoadBalancerClasses
+	gatewayClasses := virtualNode.Spec.GatewayClasses
+	sharedGateways := virtualNode.Spec.SharedGateways
 
 	args := []string{
 		StringifyArgument(string(ForeignClusterID), string(remoteCluster)),
@@ -118,6 +147,8 @@ func forgeVKContainers(
 			StringifyArgument(string(RemoteRealLoadBalancerClassName),
 				getDefaultLoadBalancerClass(loadBalancerClasses).LoadBalancerClassName))
 	}
+
+	args = appendArgsGatewayAPI(args, gatewayClasses, sharedGateways)
 
 	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsConfig)
 	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsConfig)

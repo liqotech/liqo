@@ -84,6 +84,25 @@ spec:
                   DisableNetworkCheck disables the check of the liqo networking.
                   If check is disabled, the network status will not be added to node conditions.
                 type: boolean
+              gatewayClasses:
+                description: GatewayClasses contains the list of the Gateway API GatewayClasses
+                  offered by the cluster.
+                items:
+                  description: |-
+                    GatewayClassType defines the Gateway API GatewayClass offered by a resource offer,
+                    which is used for the Gateways reflected from the remote clusters.
+                  properties:
+                    default:
+                      description: Default indicates whether this GatewayClass is
+                        the default GatewayClass for Liqo.
+                      type: boolean
+                    gatewayClassName:
+                      description: GatewayClassName indicates the name of the GatewayClass.
+                      type: string
+                  required:
+                  - gatewayClassName
+                  type: object
+                type: array
               images:
                 description: Images is the list of the images already stored in the
                   cluster.
@@ -502,6 +521,30 @@ spec:
                     type: array
                     x-kubernetes-list-type: atomic
                 type: object
+              sharedGateways:
+                description: |-
+                  SharedGateways contains the list of the Gateway API Gateways offered by the cluster,
+                  which the reflected routes can be attached to.
+                items:
+                  description: |-
+                    SharedGatewayType defines a Gateway API Gateway offered by a resource offer,
+                    which the routes reflected from the remote clusters are attached to.
+                  properties:
+                    default:
+                      description: Default indicates whether this Gateway is the default
+                        shared Gateway for Liqo.
+                      type: boolean
+                    name:
+                      description: Name indicates the name of the Gateway.
+                      type: string
+                    namespace:
+                      description: Namespace indicates the namespace of the Gateway.
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                type: array
               storageClasses:
                 description: StorageClasses contains the list of the storage classes
                   offered by the cluster.

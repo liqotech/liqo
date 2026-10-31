@@ -626,6 +626,10 @@ liqoctl create virtualnode [flags]
 
 >Disable the network status check
 
+`--gateway-classes` _strings_:
+
+>The Gateway API GatewayClasses offered by the remote cluster. The first one will be used as default
+
 `--ingress-classes` _strings_:
 
 >The ingress classes offered by the remote cluster. The first one will be used as default
@@ -673,6 +677,10 @@ liqoctl create virtualnode [flags]
 `--runtime-class-name` _string_:
 
 >The runtimeClass the pods should have on the target remote cluster
+
+`--shared-gateways` _strings_:
+
+>The Gateway API Gateways (in the form <namespace>/<name>) shared by the remote cluster, which the reflected routes can be attached to. The actual Gateway is selected by the remote cluster
 
 `--storage-classes` _strings_:
 
