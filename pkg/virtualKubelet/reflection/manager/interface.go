@@ -84,5 +84,16 @@ type FallbackReflector interface {
 // for a Namespace that has been marked for resources reflection.
 type NamespaceHandler interface {
 	// Start starts the NamespaceHandler.
-	Start(context.Context, NamespaceStartStopper)
+	Start(context.Context, NamespaceStartStopper) error
+}
+
+// NamespaceMapper is implemented by NamespaceHandlers able to report whether a local namespace is
+// currently mapped to a remote namespace in accepted phase. Fallback reflectors may use it to avoid
+// erroneously rejecting pods whose namespace reflection is only transiently stopped. An error
+// indicates the mapping state is uncertain: callers should retry rather than taking irreversible
+// actions on potentially incomplete information.
+type NamespaceMapper interface {
+	// IsNamespaceMapped returns whether the given local namespace is currently mapped to a remote namespace
+	// in accepted phase.
+	IsNamespaceMapped(namespace string) (bool, error)
 }
