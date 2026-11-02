@@ -235,6 +235,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 		tenant.Status.AuthParams = authParams
 
+		// The delay computed above refers to the previous certificate and is zero when a renewal just took place.
+		// Recompute it from the newly signed certificate, so that the next renewal check is always scheduled.
+		if requeueIn, err = certificate.NextRenewalRequeue(authParams.SignedCRT); err != nil {
+			klog.Errorf("Unable to compute the next certificate renewal check for the Tenant %q: %s", req.Name, err)
+			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "CertificateRenewalCheckFailed", err.Error())
+			return ctrl.Result{}, err
+		}
+
 		// bind permissions
 
 		_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID, tenant, r.tenantClusterRoles...)

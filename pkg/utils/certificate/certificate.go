@@ -24,6 +24,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// RenewalRetryInterval is the delay after which a certificate that is already due for renewal is checked again.
+const RenewalRetryInterval = time.Minute
+
 // ShouldRenewCertificate calculates the certificate's lifetime and determines if a renewal is required
 // based on the 2/3 life rule. If the certificate does not need to be renewed, it also returns the duration
 // until the next renewal check should be performed.
@@ -45,6 +48,20 @@ func ShouldRenewCertificate(pemCert []byte) (bool, time.Duration, error) {
 
 	klog.V(4).Infof("Certificate not ready for renewal, will check again in %v", requeueIn)
 	return false, requeueIn, nil
+}
+
+// NextRenewalRequeue returns the delay until the next renewal check for the given certificate.
+func NextRenewalRequeue(pemCert []byte) (time.Duration, error) {
+	shouldRenew, requeueIn, err := ShouldRenewCertificate(pemCert)
+	if err != nil {
+		return 0, err
+	}
+
+	if shouldRenew {
+		return RenewalRetryInterval, nil
+	}
+
+	return requeueIn, nil
 }
 
 // NextRenewalCheck returns the duration until the next certificate renewal check
