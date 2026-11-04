@@ -70,6 +70,14 @@ spec:
                       description: Resource is the plural resource name of the custom
                         resource (e.g., "widgets").
                       type: string
+                    statusSync:
+                      description: |-
+                        StatusSync enables the synchronization of the remote status back to the local object (opt-in, default false).
+                        It requires the CRD to expose the status subresource.
+                        WARNING: with multiple providers serving the offloaded namespace, the reflectors may compete writing the local status,
+                        causing infinite reconciles and stress on the API server. Set this to "true" only if you are sure no multiple providers
+                        will compete with the status.
+                      type: boolean
                     type:
                       description: Type of reflection.
                       enum:

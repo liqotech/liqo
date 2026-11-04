@@ -209,7 +209,7 @@ Liqo can optionally reflect **arbitrary namespaced custom resources** between of
 When enabled for a given Group/Version/Resource (GVR):
 
 * the **spec** is propagated **local → remote**;
-* the **status** is propagated **remote → local**.
+* the **status** is propagated **remote → local**, but only when explicitly enabled through the `statusSync` option (see below).
 
 No application CRDs are hardcoded in Liqo: you configure the GVRs you need.
 Liqo does **not** install CRDs; compatible CRDs must already exist on both clusters.
@@ -227,6 +227,7 @@ offloading:
         resource: widgets   # plural resource name
         workers: 2
         type: AllowList     # recommended default
+        statusSync: true     # opt-in, see "Status synchronization"
 ```
 
 Then upgrade Liqo on the **consumer** cluster (VK config + RBAC) and ensure the **provider** tenant permissions include the same GVRs (the chart templates the remote Virtual Kubelet ClusterRole from the same list when Liqo is installed/upgraded there).
@@ -239,13 +240,21 @@ metadata:
     liqo.io/allow-reflection: "true"
 ```
 
+### Status synchronization
+
+The remote→local status propagation is **opt-in** (`statusSync: true`, default `false`) and requires the CRD to expose the **status subresource** (verified at Virtual Kubelet startup: if the subresource is absent, the status sync is disabled with a warning in the logs).
+
+Status synchronization is only safe when the controller for the reflected type runs on **one side only**.
+In particular, when the offloaded namespace is served by **multiple providers** whose controllers write different statuses, the reflectors would compete writing the local status (last-write-wins, with no possibility to merge them).
+Rather than racing, this situation should be avoided — enable `statusSync` only when the remote status has a single legitimate writer.
+
 ### Operations checklist
 
 1. Install the relevant CRDs (and controllers, if needed) on both clusters as appropriate.
 2. Set `offloading.reflection.customResources` to the desired GVR list; upgrade Liqo on the **consumer**.
 3. Ensure **provider** tenant permissions include those GVRs (re-upgrade Liqo on the provider, or apply equivalent Role/ClusterRole rules).
 4. Offload the namespace; annotate CR instances with `liqo.io/allow-reflection: "true"`.
-5. Verify the remote twin exists and that status written remotely appears on the local object.
+5. If needed, enable `statusSync` and verify that the status written remotely appears on the local object.
 
 ````{warning}
 * Existing VirtualNodes may need recreate/restart so the Virtual Kubelet picks up new flags and RBAC after changing the list.

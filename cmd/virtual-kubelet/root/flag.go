@@ -51,8 +51,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	setReflectorsType(flags, o)
 
 	flags.StringArrayVar(&o.CustomResources, "custom-resource-reflection", o.CustomResources,
-		"Reflect a custom resource GVR (format: group/version/resource[,workers[,type]]). "+
-			"May be repeated. Default workers=2, default type=AllowList. Empty list disables the feature.")
+		"Reflect a custom resource GVR (format: group/version/resource[,workers[,type[,statusSync]]]). "+
+			"May be repeated. Default workers=2, type=AllowList, statusSync=false. Empty list disables the feature.")
 
 	flags.DurationVar(&o.NodeLeaseDuration, "node-lease-duration", o.NodeLeaseDuration, "The duration of the node leases")
 	flags.DurationVar(&o.NodePingInterval, "node-ping-interval", o.NodePingInterval,

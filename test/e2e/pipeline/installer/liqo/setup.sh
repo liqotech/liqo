@@ -76,10 +76,16 @@ do
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
 
-  # Install the e2e Widget CRD before Liqo so Virtual Kubelets can discover it at startup.
+  # Install the e2e CRDs before Liqo so Virtual Kubelets can discover them at startup.
   WIDGET_CRD="${SCRIPT_DIR}/../../../manifests/example-widget/crd.yaml"
   "${KUBECTL}" apply -f "${WIDGET_CRD}"
   "${KUBECTL}" wait --for=condition=Established --timeout=60s crd/widgets.example.io
+
+  # The gadget CRD is configured with statusSync=false, to e2e test the opt-in
+  # behavior of the remote→local status synchronization.
+  GADGET_CRD="${SCRIPT_DIR}/../../../manifests/example-gadget/crd.yaml"
+  "${KUBECTL}" apply -f "${GADGET_CRD}"
+  "${KUBECTL}" wait --for=condition=Established --timeout=60s crd/gadgets.other.io
 
   COMMON_ARGS=(--cluster-id "${CLUSTER_NAME}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set metrics.enabled=true
@@ -87,7 +93,14 @@ do
     --set offloading.reflection.customResources[0].version=v1
     --set offloading.reflection.customResources[0].resource=widgets
     --set offloading.reflection.customResources[0].workers=2
-    --set offloading.reflection.customResources[0].type=AllowList)
+    --set offloading.reflection.customResources[0].type=AllowList
+    --set offloading.reflection.customResources[0].statusSync=true
+    --set offloading.reflection.customResources[1].group=other.io
+    --set offloading.reflection.customResources[1].version=v1
+    --set offloading.reflection.customResources[1].resource=gadgets
+    --set offloading.reflection.customResources[1].workers=2
+    --set offloading.reflection.customResources[1].type=AllowList
+    --set offloading.reflection.customResources[1].statusSync=false)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi

@@ -436,8 +436,8 @@ func effectiveOffloadingPatch(vn *offloadingv1beta1.VirtualNode) *offloadingv1be
 const defaultCustomResourceWorkers uint = 2
 
 // parseCustomResources parses --custom-resource-reflection flag values.
-// Format: group/version/resource[,workers[,type]]
-// Defaults: workers=defaultCustomResourceWorkers, type=AllowList.
+// Format: group/version/resource[,workers[,type[,statusSync]]]
+// Defaults: workers=defaultCustomResourceWorkers, type=AllowList, statusSync=false.
 func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceReflectorConfig, error) {
 	if len(values) == 0 {
 		return nil, nil
@@ -466,6 +466,7 @@ func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceRe
 				NumWorkers: defaultCustomResourceWorkers,
 				Type:       offloadingv1beta1.AllowList,
 			},
+			StatusSync: false,
 		}
 
 		if len(parts) >= 2 && parts[1] != "" {
@@ -488,7 +489,15 @@ func parseCustomResources(values []string) ([]offloadingv1beta1.CustomResourceRe
 			cfg.Type = reflectionType
 		}
 
-		if len(parts) > 3 {
+		if len(parts) >= 4 && parts[3] != "" {
+			statusSync, err := strconv.ParseBool(parts[3])
+			if err != nil {
+				return nil, fmt.Errorf("invalid statusSync in custom-resource-reflection %q: %w", value, err)
+			}
+			cfg.StatusSync = statusSync
+		}
+
+		if len(parts) > 4 {
 			return nil, fmt.Errorf("invalid custom-resource-reflection %q: too many fields", value)
 		}
 

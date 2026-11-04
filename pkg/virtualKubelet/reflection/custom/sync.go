@@ -17,7 +17,6 @@ package custom
 import (
 	"context"
 	"fmt"
-	"maps"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,48 +45,19 @@ func getNestedMap(unstr *unstructured.Unstructured, key string) (map[string]inte
 	return nested, nil
 }
 
-// createRemoteObject creates the remote twin of a local custom resource.
-func createRemoteObject(ctx context.Context, client dynamic.ResourceInterface,
+// applyRemoteObject creates or updates the remote twin of a local custom resource
+// through server-side apply, mirroring the approach of the built-in reflectors:
+// the reflector owns the spec and the reflected metadata, while fields owned by
+// other field managers (e.g. annotations added on the remote twin by other
+// controllers) are preserved. The remote status is not part of the applied
+// configuration, hence it is never overwritten.
+func applyRemoteObject(ctx context.Context, client dynamic.ResourceInterface,
 	local *unstructured.Unstructured, remoteNamespace string, forgingOpts *forge.ForgingOpts) (*unstructured.Unstructured, error) {
 	remote, err := RemoteCustomResource(local, remoteNamespace, forgingOpts)
 	if err != nil {
 		return nil, err
 	}
-	return client.Create(ctx, remote, metav1.CreateOptions{})
-}
-
-// updateRemoteObjectSpec updates remote metadata and spec from the local object.
-// It skips the API call when nothing changed.
-func updateRemoteObjectSpec(ctx context.Context, client dynamic.ResourceInterface,
-	local, remote *unstructured.Unstructured, forgingOpts *forge.ForgingOpts) (*unstructured.Unstructured, error) {
-	oldLabels := maps.Clone(remote.GetLabels())
-	oldAnnotations := maps.Clone(remote.GetAnnotations())
-	ApplyRemoteMetadata(local, remote, forgingOpts)
-
-	specLocal, err := getNestedMap(local, specKey)
-	if err != nil {
-		return remote, err
-	}
-	specRemote, err := getNestedMap(remote, specKey)
-	if err != nil {
-		return remote, err
-	}
-
-	specChanged := !reflect.DeepEqual(specLocal, specRemote)
-	metaChanged := !reflect.DeepEqual(oldLabels, remote.GetLabels()) ||
-		!reflect.DeepEqual(oldAnnotations, remote.GetAnnotations())
-
-	if !specChanged && !metaChanged {
-		return remote, nil
-	}
-
-	if specChanged {
-		if err = unstructured.SetNestedMap(remote.Object, specLocal, specKey); err != nil {
-			return remote, err
-		}
-	}
-
-	return client.Update(ctx, remote, metav1.UpdateOptions{})
+	return client.Apply(ctx, local.GetName(), remote, forge.ApplyOptions())
 }
 
 // updateObjectStatusShared syncs status from source (remote) to destination (local) — OwnershipShared direction.
