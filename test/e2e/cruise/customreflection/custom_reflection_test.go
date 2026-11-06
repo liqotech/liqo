@@ -51,6 +51,9 @@ const (
 
 	gadgetName = "test-gadget"
 
+	clusterWidgetName        = "test-cluster-widget"
+	clusterWidgetSkippedName = "test-cluster-widget-skipped"
+
 	foreignAnnotationKey   = "test.liqo.io/foreign-annotation"
 	foreignAnnotationValue = "added-remotely"
 	foreignLabelKey        = "test.liqo.io/foreign-label"
@@ -69,6 +72,13 @@ var (
 	// reflected and the remote status is not synchronized back to the local object.
 	gadgetGVR = schema.GroupVersionResource{Group: "other.io", Version: "v1", Resource: "gadgets"}
 	gadgetGVK = schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Gadget"}
+
+	// The clusterwidget GVR is cluster-scoped and configured with statusSync=true,
+	// to e2e test the reflection of cluster-scoped custom resources: a single
+	// reflector instance per remote cluster runs for the whole peering lifetime,
+	// independently of the offloaded namespaces.
+	clusterWidgetGVR = schema.GroupVersionResource{Group: "example.io", Version: "v1", Resource: "clusterwidgets"}
+	clusterWidgetGVK = schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "ClusterWidget"}
 
 	ctx           = context.Background()
 	testContext   = tester.GetTester(ctx)
@@ -145,6 +155,106 @@ func ensureCRDeleted(gvr schema.GroupVersionResource, name string) {
 			return err
 		}, timeout, interval).Should(BeNotFound())
 	}
+}
+
+func newClusterScopedCR(gvk schema.GroupVersionKind, name string, allowReflection bool) *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+	obj.SetName(name)
+	if allowReflection {
+		obj.SetAnnotations(map[string]string{
+			consts.AllowReflectionAnnotationKey: "true",
+		})
+	}
+	Expect(unstructured.SetNestedField(obj.Object, specValue, "spec", "value")).To(Succeed())
+	return obj
+}
+
+func getClusterScopedCR(dyn dynamic.Interface, gvr schema.GroupVersionResource, name string) (*unstructured.Unstructured, error) {
+	return dyn.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+}
+
+func createClusterScopedCR(dyn dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured) *unstructured.Unstructured {
+	created, err := dyn.Resource(gvr).Create(ctx, obj, metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	return created
+}
+
+func updateClusterScopedCR(dyn dynamic.Interface, gvr schema.GroupVersionResource, name string,
+	mutate func(*unstructured.Unstructured), subresources ...string) {
+	obj, err := getClusterScopedCR(dyn, gvr, name)
+	Expect(err).ToNot(HaveOccurred())
+	mutate(obj)
+	_, err = dyn.Resource(gvr).Update(ctx, obj, metav1.UpdateOptions{}, subresources...)
+	Expect(err).ToNot(HaveOccurred())
+}
+
+func ensureClusterScopedCRDeleted(gvr schema.GroupVersionResource, name string) {
+	err := consumerDyn.Resource(gvr).Delete(ctx, name, metav1.DeleteOptions{})
+	Expect(ignoreNotFound(err)).To(Succeed())
+
+	Eventually(func() error {
+		_, err := getClusterScopedCR(consumerDyn, gvr, name)
+		return err
+	}, timeout, interval).Should(BeNotFound())
+
+	for _, provider := range providers {
+		Eventually(func() error {
+			_, err := getClusterScopedCR(providerDyn[provider.Cluster], gvr, name)
+			return err
+		}, timeout, interval).Should(BeNotFound())
+	}
+}
+
+// multiProviderStatusStability implements the multi-provider status synchronization scenario,
+// shared by the namespaced and the cluster-scoped custom resource reflection tests. The
+// create, ensureDeleted, get and update functions abstract the resource scope.
+func multiProviderStatusStability(name string, createAnnotatedCR, ensureCRDeleted func(),
+	getCRByScope func(dyn dynamic.Interface, resourceName string) (*unstructured.Unstructured, error),
+	updateCRByScope func(dyn dynamic.Interface, resourceName string, mutate func(*unstructured.Unstructured), subresources ...string)) {
+	BeforeEach(func() {
+		if len(providers) < 2 {
+			Skip("this scenario requires multiple providers")
+		}
+		createAnnotatedCR()
+	})
+
+	AfterEach(func() { ensureCRDeleted() })
+
+	It("Should sync the status from the provider running the controller and keep it stable", func() {
+		By("waiting for the remote twins to be created on all providers")
+		for _, provider := range providers {
+			Eventually(func() error {
+				_, err := getCRByScope(providerDyn[provider.Cluster], name)
+				return err
+			}, timeout, interval).Should(Succeed())
+		}
+
+		By("setting the status on a single provider's twin, simulating the controller running on one side only")
+		updateCRByScope(providerDyn[providers[0].Cluster], name, func(obj *unstructured.Unstructured) {
+			Expect(unstructured.SetNestedField(obj.Object, statusPhase, "status", "phase")).To(Succeed())
+		}, "status")
+
+		By("waiting for the status to be synced back to the local object")
+		Eventually(func(g Gomega) {
+			local, err := getCRByScope(consumerDyn, name)
+			g.Expect(err).ToNot(HaveOccurred())
+			phase, found, err := unstructured.NestedString(local.Object, "status", "phase")
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(found).To(BeTrue())
+			g.Expect(phase).To(Equal(statusPhase))
+		}, timeout, interval).Should(Succeed())
+
+		By("checking that the status remains stable, as the reflectors of the other providers must not overwrite it")
+		Consistently(func(g Gomega) {
+			local, err := getCRByScope(consumerDyn, name)
+			g.Expect(err).ToNot(HaveOccurred())
+			phase, found, err := unstructured.NestedString(local.Object, "status", "phase")
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(found).To(BeTrue())
+			g.Expect(phase).To(Equal(statusPhase))
+		}, shortTimeout, interval).Should(Succeed())
+	})
 }
 
 var _ = BeforeSuite(func() {
@@ -333,51 +443,15 @@ var _ = Describe("Liqo E2E", func() {
 		})
 
 		When("the namespace is offloaded to multiple providers", func() {
-			BeforeEach(func() {
-				if len(providers) < 2 {
-					Skip("this scenario requires multiple providers")
-				}
-				createCR(consumerDyn, widgetGVR, newCR(widgetGVK, widgetName, true))
-			})
-
-			AfterEach(func() {
-				ensureCRDeleted(widgetGVR, widgetName)
-			})
-
-			It("Should sync the status from the provider running the controller and keep it stable", func() {
-				By("waiting for the remote twins to be created on all providers")
-				for _, provider := range providers {
-					Eventually(func() error {
-						_, err := getCR(providerDyn[provider.Cluster], widgetGVR, widgetName)
-						return err
-					}, timeout, interval).Should(Succeed())
-				}
-
-				By("setting the status on a single provider's twin, simulating the controller running on one side only")
-				updateCR(providerDyn[providers[0].Cluster], widgetGVR, widgetName, func(obj *unstructured.Unstructured) {
-					Expect(unstructured.SetNestedField(obj.Object, statusPhase, "status", "phase")).To(Succeed())
-				}, "status")
-
-				By("waiting for the status to be synced back to the local Widget")
-				Eventually(func(g Gomega) {
-					local, err := getCR(consumerDyn, widgetGVR, widgetName)
-					g.Expect(err).ToNot(HaveOccurred())
-					phase, found, err := unstructured.NestedString(local.Object, "status", "phase")
-					g.Expect(err).ToNot(HaveOccurred())
-					g.Expect(found).To(BeTrue())
-					g.Expect(phase).To(Equal(statusPhase))
-				}, timeout, interval).Should(Succeed())
-
-				By("checking that the status remains stable, as the reflectors of the other providers must not overwrite it")
-				Consistently(func(g Gomega) {
-					local, err := getCR(consumerDyn, widgetGVR, widgetName)
-					g.Expect(err).ToNot(HaveOccurred())
-					phase, found, err := unstructured.NestedString(local.Object, "status", "phase")
-					g.Expect(err).ToNot(HaveOccurred())
-					g.Expect(found).To(BeTrue())
-					g.Expect(phase).To(Equal(statusPhase))
-				}, shortTimeout, interval).Should(Succeed())
-			})
+			multiProviderStatusStability(widgetName,
+				func() { createCR(consumerDyn, widgetGVR, newCR(widgetGVK, widgetName, true)) },
+				func() { ensureCRDeleted(widgetGVR, widgetName) },
+				func(dyn dynamic.Interface, name string) (*unstructured.Unstructured, error) {
+					return getCR(dyn, widgetGVR, name)
+				},
+				func(dyn dynamic.Interface, name string, mutate func(*unstructured.Unstructured), subresources ...string) {
+					updateCR(dyn, widgetGVR, name, mutate, subresources...)
+				})
 		})
 
 		When("the statusSync option is disabled for a custom resource", func() {
@@ -418,6 +492,144 @@ var _ = Describe("Liqo E2E", func() {
 					g.Expect(err).ToNot(HaveOccurred())
 					g.Expect(found).To(BeFalse())
 				}, shortTimeout, interval).Should(Succeed())
+			})
+		})
+
+		Context("Cluster-scoped custom resource reflection", func() {
+			When("Creating an annotated ClusterWidget on the consumer", func() {
+				BeforeEach(func() {
+					createClusterScopedCR(consumerDyn, clusterWidgetGVR, newClusterScopedCR(clusterWidgetGVK, clusterWidgetName, true))
+				})
+
+				AfterEach(func() {
+					ensureClusterScopedCRDeleted(clusterWidgetGVR, clusterWidgetName)
+				})
+
+				It("Should reflect the local spec to the remote provider clusters", func() {
+					for _, provider := range providers {
+						Eventually(func(g Gomega) {
+							remote, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName)
+							g.Expect(err).ToNot(HaveOccurred())
+							g.Expect(remote.GetNamespace()).To(BeEmpty())
+							g.Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(consumer.Cluster)))
+							g.Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(provider.Cluster)))
+
+							value, found, err := unstructured.NestedString(remote.Object, "spec", "value")
+							g.Expect(err).ToNot(HaveOccurred())
+							g.Expect(found).To(BeTrue())
+							g.Expect(value).To(Equal(specValue))
+						}, timeout, interval).Should(Succeed())
+					}
+				})
+
+				It("Should sync the remote status back to the local ClusterWidget", func() {
+					Expect(providers).ToNot(BeEmpty())
+					provider := providers[0]
+					Eventually(func() error {
+						_, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName)
+						return err
+					}, timeout, interval).Should(Succeed())
+
+					updateClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName, func(obj *unstructured.Unstructured) {
+						Expect(unstructured.SetNestedField(obj.Object, statusPhase, "status", "phase")).To(Succeed())
+					}, "status")
+
+					Eventually(func(g Gomega) {
+						local, err := getClusterScopedCR(consumerDyn, clusterWidgetGVR, clusterWidgetName)
+						g.Expect(err).ToNot(HaveOccurred())
+						phase, found, err := unstructured.NestedString(local.Object, "status", "phase")
+						g.Expect(err).ToNot(HaveOccurred())
+						g.Expect(found).To(BeTrue())
+						g.Expect(phase).To(Equal(statusPhase))
+					}, timeout, interval).Should(Succeed())
+				})
+
+				It("Should delete the remote twin when the local ClusterWidget is deleted", func() {
+					for _, provider := range providers {
+						Eventually(func() error {
+							_, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName)
+							return err
+						}, timeout, interval).Should(Succeed())
+					}
+
+					ensureClusterScopedCRDeleted(clusterWidgetGVR, clusterWidgetName)
+				})
+
+				It("Should preserve annotations and labels added on the remote twin by other controllers", func() {
+					By("waiting for the remote twin to be created")
+					provider := providers[0]
+					Eventually(func() error {
+						_, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName)
+						return err
+					}, timeout, interval).Should(Succeed())
+
+					By("adding a foreign annotation and label on the remote twin, simulating another controller")
+					updateClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName, func(obj *unstructured.Unstructured) {
+						annotations := obj.GetAnnotations()
+						annotations[foreignAnnotationKey] = foreignAnnotationValue
+						obj.SetAnnotations(annotations)
+						labels := obj.GetLabels()
+						labels[foreignLabelKey] = foreignLabelValue
+						obj.SetLabels(labels)
+					})
+
+					By("modifying the local spec, forcing the reflector to reconcile the remote twin")
+					updateClusterScopedCR(consumerDyn, clusterWidgetGVR, clusterWidgetName, func(obj *unstructured.Unstructured) {
+						Expect(unstructured.SetNestedField(obj.Object, updatedSpecValue, "spec", "value")).To(Succeed())
+					})
+
+					By("checking that the remote twin is updated while preserving the remote-added metadata")
+					Eventually(func(g Gomega) {
+						remote, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetName)
+						g.Expect(err).ToNot(HaveOccurred())
+
+						value, found, err := unstructured.NestedString(remote.Object, "spec", "value")
+						g.Expect(err).ToNot(HaveOccurred())
+						g.Expect(found).To(BeTrue())
+						g.Expect(value).To(Equal(updatedSpecValue))
+
+						g.Expect(remote.GetAnnotations()).To(HaveKeyWithValue(foreignAnnotationKey, foreignAnnotationValue))
+						g.Expect(remote.GetLabels()).To(HaveKeyWithValue(foreignLabelKey, foreignLabelValue))
+					}, timeout, interval).Should(Succeed())
+				})
+			})
+
+			When("Creating a ClusterWidget without the allow-reflection annotation", func() {
+				BeforeEach(func() {
+					createClusterScopedCR(consumerDyn, clusterWidgetGVR, newClusterScopedCR(clusterWidgetGVK, clusterWidgetSkippedName, false))
+				})
+
+				AfterEach(func() {
+					err := consumerDyn.Resource(clusterWidgetGVR).Delete(ctx, clusterWidgetSkippedName, metav1.DeleteOptions{})
+					Expect(ignoreNotFound(err)).To(Succeed())
+					Eventually(func() error {
+						_, err := getClusterScopedCR(consumerDyn, clusterWidgetGVR, clusterWidgetSkippedName)
+						return err
+					}, timeout, interval).Should(BeNotFound())
+				})
+
+				It("Should not reflect the ClusterWidget to remote provider clusters", func() {
+					for _, provider := range providers {
+						Consistently(func() error {
+							_, err := getClusterScopedCR(providerDyn[provider.Cluster], clusterWidgetGVR, clusterWidgetSkippedName)
+							return err
+						}, shortTimeout, interval).Should(BeNotFound())
+					}
+				})
+			})
+
+			When("the consumer is peered with multiple providers", func() {
+				multiProviderStatusStability(clusterWidgetName,
+					func() {
+						createClusterScopedCR(consumerDyn, clusterWidgetGVR, newClusterScopedCR(clusterWidgetGVK, clusterWidgetName, true))
+					},
+					func() { ensureClusterScopedCRDeleted(clusterWidgetGVR, clusterWidgetName) },
+					func(dyn dynamic.Interface, name string) (*unstructured.Unstructured, error) {
+						return getClusterScopedCR(dyn, clusterWidgetGVR, name)
+					},
+					func(dyn dynamic.Interface, name string, mutate func(*unstructured.Unstructured), subresources ...string) {
+						updateClusterScopedCR(dyn, clusterWidgetGVR, name, mutate, subresources...)
+					})
 			})
 		})
 	})

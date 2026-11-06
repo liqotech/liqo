@@ -44,6 +44,19 @@ type ReflectorOpts struct {
 	LocalPodInformer corev1informers.PodInformer
 	EventBroadcaster record.EventBroadcaster
 
+	// LocalDynamicClient and RemoteDynamicClient, together with the cluster-wide dynamic
+	// informer factories, are used by the reflectors of cluster-scoped custom resources.
+	// They are only populated when custom resource reflection is configured.
+	LocalDynamicClient   dynamic.Interface
+	RemoteDynamicClient  dynamic.Interface
+	LocalDynamicFactory  dynamicinformer.DynamicSharedInformerFactory
+	RemoteDynamicFactory dynamicinformer.DynamicSharedInformerFactory
+
+	// ReflectionType and ForgingOpts configure the reflection of cluster-scoped resources,
+	// which is not associated with any namespace pair.
+	ReflectionType offloadingv1beta1.ReflectionType
+	ForgingOpts    *forge.ForgingOpts
+
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
 	Ready func() bool
@@ -66,9 +79,37 @@ func (ro *ReflectorOpts) WithReadinessFunc(ready func() bool) *ReflectorOpts {
 	return ro
 }
 
-// WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
+// WithEventBroadcaster configures the event broadcaster of the ReflectorOpts.
 func (ro *ReflectorOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *ReflectorOpts {
 	ro.EventBroadcaster = broadcaster
+	return ro
+}
+
+// WithDynamicLocal configures the local dynamic client and informer factory of the ReflectorOpts.
+func (ro *ReflectorOpts) WithDynamicLocal(client dynamic.Interface,
+	factory dynamicinformer.DynamicSharedInformerFactory) *ReflectorOpts {
+	ro.LocalDynamicClient = client
+	ro.LocalDynamicFactory = factory
+	return ro
+}
+
+// WithDynamicRemote configures the remote dynamic client and informer factory of the ReflectorOpts.
+func (ro *ReflectorOpts) WithDynamicRemote(client dynamic.Interface,
+	factory dynamicinformer.DynamicSharedInformerFactory) *ReflectorOpts {
+	ro.RemoteDynamicClient = client
+	ro.RemoteDynamicFactory = factory
+	return ro
+}
+
+// WithReflectionType configures the reflection type of the ReflectorOpts.
+func (ro *ReflectorOpts) WithReflectionType(reflectionType offloadingv1beta1.ReflectionType) *ReflectorOpts {
+	ro.ReflectionType = reflectionType
+	return ro
+}
+
+// WithForgingOpts configures the forging options of the ReflectorOpts.
+func (ro *ReflectorOpts) WithForgingOpts(opts *forge.ForgingOpts) *ReflectorOpts {
+	ro.ForgingOpts = opts
 	return ro
 }
 

@@ -199,12 +199,12 @@ var _ = Describe("GVR Reflection", func() {
 	Describe("NewGVRReflector", func() {
 		It("should create a non-nil reflector", func() {
 			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1, Type: offloadingv1beta1.AllowList}
-			Expect(custom.NewGVRReflector(gvr, cfg, true)).NotTo(BeNil())
+			Expect(custom.NewGVRReflector(gvr, cfg, true, true)).NotTo(BeNil())
 		})
 
 		It("should default to AllowList when type is empty", func() {
 			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1}
-			Expect(custom.NewGVRReflector(gvr, cfg, false)).NotTo(BeNil())
+			Expect(custom.NewGVRReflector(gvr, cfg, false, true)).NotTo(BeNil())
 		})
 	})
 
@@ -540,6 +540,318 @@ var _ = Describe("GVR Reflection", func() {
 					remote := GetRemote(WidgetName)
 					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
 					Expect(spec).To(HaveKeyWithValue("replicas", int64(2)))
+				})
+			})
+		})
+	})
+})
+
+var _ = Describe("Cluster-Scoped GVR Reflection", func() {
+	Describe("NewGVRReflector", func() {
+		It("should create a non-nil reflector for namespaced resources", func() {
+			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1, Type: offloadingv1beta1.AllowList}
+			Expect(custom.NewGVRReflector(gvr, cfg, true, true)).NotTo(BeNil())
+		})
+
+		It("should create a non-nil reflector for cluster-scoped resources", func() {
+			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1, Type: offloadingv1beta1.AllowList}
+			Expect(custom.NewGVRReflector(gvr, cfg, true, false)).NotTo(BeNil())
+		})
+	})
+
+	Describe("Handle", func() {
+		var (
+			reflector         manager.NamespacedReflector
+			reflectionType    offloadingv1beta1.ReflectionType
+			statusSyncEnabled bool
+			err               error
+		)
+
+		GetClusterRemote := func(name string) *unstructured.Unstructured {
+			obj, getErr := remoteClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+			Expect(getErr).ToNot(HaveOccurred())
+			return obj
+		}
+
+		GetClusterLocal := func(name string) *unstructured.Unstructured {
+			obj, getErr := localClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+			Expect(getErr).ToNot(HaveOccurred())
+			return obj
+		}
+
+		CreateClusterLocal := func(obj *unstructured.Unstructured) *unstructured.Unstructured {
+			created, createErr := localClient.Resource(gvr).Create(ctx, obj, metav1.CreateOptions{})
+			Expect(createErr).ToNot(HaveOccurred())
+			return created
+		}
+
+		CreateClusterRemote := func(obj *unstructured.Unstructured) *unstructured.Unstructured {
+			created, createErr := remoteClient.Resource(gvr).Create(ctx, obj, metav1.CreateOptions{})
+			Expect(createErr).ToNot(HaveOccurred())
+			return created
+		}
+
+		BeforeEach(func() {
+			reflectionType = offloadingv1beta1.AllowList
+			statusSyncEnabled = true
+		})
+
+		JustBeforeEach(func() {
+			localFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localClient, 0, "", nil)
+			remoteFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(remoteClient, 0, "", nil)
+
+			reflector = custom.NewClusterGVRReflector(gvr, statusSyncEnabled)(options.New(nil, nil).
+				WithDynamicLocal(localClient, localFactory).
+				WithDynamicRemote(remoteClient, remoteFactory).
+				WithHandlerFactory(FakeEventHandler).
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
+				WithForgingOpts(FakeForgingOpts()))
+
+			Expect(reflector).To(BeAssignableToTypeOf(&custom.ClusterScopedGVRReflector{}))
+
+			localFactory.Start(ctx.Done())
+			remoteFactory.Start(ctx.Done())
+			localFactory.WaitForCacheSync(ctx.Done())
+			remoteFactory.WaitForCacheSync(ctx.Done())
+
+			Eventually(reflector.Ready).Should(BeTrue())
+			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("CustomResource")), WidgetName)
+		})
+
+		When("the local object does not exist", func() {
+			When("the remote object does not exist", func() {
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			})
+
+			When("the remote object exists and is reflected", func() {
+				BeforeEach(func() {
+					CreateClusterRemote(newWidget("", forge.ReflectionLabels(), nil,
+						map[string]interface{}{"value": "v1"}, nil))
+				})
+
+				It("should succeed and delete the remote object", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+			})
+		})
+
+		When("the local object exists with allow annotation", func() {
+			BeforeEach(func() {
+				CreateClusterLocal(newWidget("",
+					map[string]string{"app": "demo", FakeNotReflectedLabelKey: "true"},
+					map[string]string{consts.AllowReflectionAnnotationKey: "true", "anno": "val", FakeNotReflectedAnnotKey: "true"},
+					map[string]interface{}{"replicas": int64(3)},
+					nil))
+			})
+
+			When("the remote object does not exist", func() {
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+
+				It("should create the remote twin with local spec and reflection labels", func() {
+					remote := GetClusterRemote(WidgetName)
+					Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
+					Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+					Expect(remote.GetLabels()).To(HaveKeyWithValue("app", "demo"))
+					Expect(remote.GetLabels()).ToNot(HaveKey(FakeNotReflectedLabelKey))
+					Expect(remote.GetAnnotations()).To(HaveKeyWithValue("anno", "val"))
+					Expect(remote.GetAnnotations()).ToNot(HaveKey(FakeNotReflectedAnnotKey))
+					Expect(remote.GetNamespace()).To(BeEmpty())
+
+					spec, found, specErr := unstructured.NestedMap(remote.Object, "spec")
+					Expect(specErr).ToNot(HaveOccurred())
+					Expect(found).To(BeTrue())
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
+				})
+			})
+
+			When("remote apply is forbidden", func() {
+				BeforeEach(func() {
+					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "widgets",
+						func(_ clienttesting.Action) (bool, runtime.Object, error) {
+							return true, nil, kerrors.NewForbidden(gvr.GroupResource(), WidgetName, fmt.Errorf("denied"))
+						})
+				})
+
+				It("should soft-fail without creating a remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+			})
+
+			When("remote apply returns not found (CRD missing)", func() {
+				BeforeEach(func() {
+					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "widgets",
+						func(_ clienttesting.Action) (bool, runtime.Object, error) {
+							return true, nil, kerrors.NewNotFound(gvr.GroupResource(), WidgetName)
+						})
+				})
+
+				It("should soft-fail without creating a remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+			})
+
+			When("the remote twin carries annotations added by other controllers", func() {
+				BeforeEach(func() {
+					CreateClusterRemote(newWidget("", forge.ReflectionLabels(),
+						map[string]string{"foreign.example.com/added-remotely": "keep-me"},
+						map[string]interface{}{"replicas": int64(1)},
+						nil))
+				})
+
+				It("should update the remote twin preserving the remote-added annotations", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetClusterRemote(WidgetName)
+					Expect(remote.GetAnnotations()).To(HaveKeyWithValue("foreign.example.com/added-remotely", "keep-me"))
+					Expect(remote.GetAnnotations()).To(HaveKeyWithValue("anno", "val"))
+					Expect(remote.GetAnnotations()).ToNot(HaveKey(FakeNotReflectedAnnotKey))
+
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
+				})
+			})
+
+			When("the remote object exists and is reflected", func() {
+				BeforeEach(func() {
+					CreateClusterRemote(newWidget("", forge.ReflectionLabels(), nil,
+						map[string]interface{}{"replicas": int64(1)},
+						map[string]interface{}{"ready": true}))
+				})
+
+				It("should succeed and update the remote spec", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetClusterRemote(WidgetName)
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
+				})
+
+				It("should sync status from remote to local", func() {
+					Expect(err).ToNot(HaveOccurred())
+					local := GetClusterLocal(WidgetName)
+					status, found, statusErr := unstructured.NestedMap(local.Object, "status")
+					Expect(statusErr).ToNot(HaveOccurred())
+					Expect(found).To(BeTrue())
+					Expect(status).To(HaveKeyWithValue("ready", true))
+				})
+			})
+
+			When("status sync is disabled", func() {
+				BeforeEach(func() {
+					statusSyncEnabled = false
+					CreateClusterRemote(newWidget("", forge.ReflectionLabels(), nil,
+						map[string]interface{}{"replicas": int64(1)},
+						map[string]interface{}{"ready": true}))
+				})
+
+				It("should update the remote spec without syncing the status to local", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetClusterRemote(WidgetName)
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
+
+					local := GetClusterLocal(WidgetName)
+					_, found, statusErr := unstructured.NestedMap(local.Object, "status")
+					Expect(statusErr).ToNot(HaveOccurred())
+					Expect(found).To(BeFalse())
+				})
+			})
+
+			When("the remote object exists but is not managed by us", func() {
+				BeforeEach(func() {
+					CreateClusterRemote(newWidget("",
+						map[string]string{"foreign": "true"}, nil,
+						map[string]interface{}{"replicas": int64(9)}, nil))
+				})
+
+				It("should succeed without modifying the remote object", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetClusterRemote(WidgetName)
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(9)))
+					Expect(remote.GetLabels()).To(HaveKeyWithValue("foreign", "true"))
+				})
+			})
+		})
+
+		When("the local object exists without allow annotation (AllowList)", func() {
+			BeforeEach(func() {
+				CreateClusterLocal(newWidget("", nil, nil,
+					map[string]interface{}{"replicas": int64(1)}, nil))
+			})
+
+			It("should succeed without creating a remote twin", func() {
+				Expect(err).ToNot(HaveOccurred())
+				_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+				Expect(getErr).To(BeNotFound())
+			})
+
+			When("a remote twin already exists", func() {
+				BeforeEach(func() {
+					CreateClusterRemote(newWidget("", forge.ReflectionLabels(), nil,
+						map[string]interface{}{"replicas": int64(1)}, nil))
+				})
+
+				It("should delete the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+			})
+		})
+
+		When("the reflection type is DenyList", func() {
+			BeforeEach(func() {
+				reflectionType = offloadingv1beta1.DenyList
+			})
+
+			When("the local object has no annotations", func() {
+				BeforeEach(func() {
+					CreateClusterLocal(newWidget("", nil, nil,
+						map[string]interface{}{"replicas": int64(2)}, nil))
+				})
+
+				It("should create the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetClusterRemote(WidgetName)
+					Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
+
+					spec, found, specErr := unstructured.NestedMap(remote.Object, "spec")
+					Expect(specErr).ToNot(HaveOccurred())
+					Expect(found).To(BeTrue())
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(2)))
+				})
+			})
+
+			When("the local object is marked with the skip annotation", func() {
+				BeforeEach(func() {
+					CreateClusterLocal(newWidget("", nil,
+						map[string]string{consts.SkipReflectionAnnotationKey: "true"},
+						map[string]interface{}{"replicas": int64(2)}, nil))
+				})
+
+				It("should not create the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+
+				When("a remote twin already exists", func() {
+					BeforeEach(func() {
+						CreateClusterRemote(newWidget("", forge.ReflectionLabels(), nil,
+							map[string]interface{}{"replicas": int64(1)}, nil))
+					})
+
+					It("should delete the remote twin", func() {
+						Expect(err).ToNot(HaveOccurred())
+						_, getErr := remoteClient.Resource(gvr).Get(ctx, WidgetName, metav1.GetOptions{})
+						Expect(getErr).To(BeNotFound())
+					})
 				})
 			})
 		})

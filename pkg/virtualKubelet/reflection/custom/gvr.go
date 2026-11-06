@@ -24,22 +24,33 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 )
 
-// NewGVRReflector builds a Reflector for the given GroupVersionResource.
-// Spec is synced local→remote, while status is synced remote→local only when
-// statusSyncEnabled is true (i.e. the statusSync option is set and the CRD exposes
+// NewGVRReflector builds a Reflector for the given GroupVersionResource, either namespaced
+// or cluster-scoped depending on the scope of the corresponding CRD (detected at provider
+// startup through API discovery). Spec is synced local→remote, while status is synced remote→local
+// only when statusSyncEnabled is true (i.e. the statusSync option is set and the CRD exposes
 // the status subresource, verified at provider startup through API discovery).
 // The default reflection type is AllowList when not specified.
 func NewGVRReflector(gvr schema.GroupVersionResource, reflectorConfig *offloadingv1beta1.ReflectorConfig,
-	statusSyncEnabled bool) manager.Reflector {
+	statusSyncEnabled, namespaced bool) manager.Reflector {
 	reflectionType := reflectorConfig.Type
 	if reflectionType == "" {
 		reflectionType = offloadingv1beta1.AllowList
 	}
 
 	name := fmt.Sprintf("CustomResource[%s]", gvr.String())
-	return generic.NewReflector(name,
-		NewNamespacedGVRReflector(gvr, statusSyncEnabled),
-		generic.WithoutFallback(),
+	if namespaced {
+		return generic.NewReflector(name,
+			NewNamespacedGVRReflector(gvr, statusSyncEnabled),
+			generic.WithoutFallback(),
+			reflectorConfig.NumWorkers,
+			reflectionType,
+			generic.ConcurrencyModeLeader)
+	}
+
+	// Cluster-scoped reflection is not associated with any namespace pair: a single
+	// reflector instance is registered at startup, for the lifetime of the virtual-kubelet.
+	return generic.NewClusterReflector(name,
+		NewClusterGVRReflector(gvr, statusSyncEnabled),
 		reflectorConfig.NumWorkers,
 		reflectionType,
 		generic.ConcurrencyModeLeader)

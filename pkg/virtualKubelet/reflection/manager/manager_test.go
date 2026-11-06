@@ -147,6 +147,12 @@ var _ = Describe("Manager tests", func() {
 					Expect(reflector.Opts.LocalPodInformer).ToNot(BeNil())
 					Expect(reflector.Opts.HandlerFactory).To(BeNil())
 					Expect(reflector.Opts.Ready).ToNot(BeNil())
+					// The cluster-wide dynamic clients and factories are propagated to support
+					// the reflection of cluster-scoped custom resources.
+					Expect(reflector.Opts.LocalDynamicClient).To(Equal(localDynamic))
+					Expect(reflector.Opts.LocalDynamicFactory).ToNot(BeNil())
+					Expect(reflector.Opts.RemoteDynamicClient).To(Equal(remoteDynamic))
+					Expect(reflector.Opts.RemoteDynamicFactory).ToNot(BeNil())
 				})
 				It("should panic if started twice", func() { Expect(func() { mgr.Start(ctx) }).To(Panic()) })
 
