@@ -140,3 +140,45 @@ var _ = Describe("ShouldRenewCertificate", func() {
 		})
 	})
 })
+
+var _ = Describe("NextRenewalRequeue", func() {
+	Context("invalid input", func() {
+		It("should return an error for non-PEM input", func() {
+			_, err := NextRenewalRequeue([]byte("not a pem"))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to decode PEM block"))
+		})
+	})
+
+	Context("certificate not due for renewal", func() {
+		It("should return the same delay of the next renewal check", func() {
+			// Mimic a 10 minute certificate issued by the Kubernetes CSR signer: NotBefore is
+			// backdated by 5 minutes and NotAfter is 10 minutes ahead, hence the next check is
+			// scheduled 330s after the issuance (2/3 of the 900s x509 lifetime, plus a 10% buffer).
+			now := time.Now()
+			cert := generateCertificate(now.Add(-5*time.Minute), now.Add(10*time.Minute))
+
+			requeueIn, err := NextRenewalRequeue(cert)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(requeueIn).To(BeNumerically("~", 330*time.Second, 5*time.Second))
+		})
+	})
+
+	Context("certificate already due for renewal", func() {
+		It("should return a positive delay instead of zero", func() {
+			cert := generateCertificate(time.Now().Add(-50*time.Minute), time.Now().Add(10*time.Minute))
+
+			requeueIn, err := NextRenewalRequeue(cert)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(requeueIn).To(Equal(RenewalRetryInterval))
+		})
+
+		It("should return a positive delay for an expired certificate", func() {
+			cert := generateCertificate(time.Now().Add(-time.Hour), time.Now().Add(-10*time.Minute))
+
+			requeueIn, err := NextRenewalRequeue(cert)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(requeueIn).To(Equal(RenewalRetryInterval))
+		})
+	})
+})

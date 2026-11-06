@@ -234,6 +234,14 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 
 	resourceSlice.Status.AuthParams = authParams
 
+	// The delay computed above refers to the previous certificate and is zero when a renewal just took place.
+	// Recompute it from the newly signed certificate, so that the next renewal check is always scheduled.
+	if requeueIn, err = certificate.NextRenewalRequeue(authParams.SignedCRT); err != nil {
+		klog.Errorf("unable to compute the next certificate renewal check for ResourceSlice %q: %v", client.ObjectKeyFromObject(resourceSlice), err)
+		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "FailedCheckCertificateRenewal", err.Error())
+		return requeueIn, err
+	}
+
 	// accept the authentication
 	acceptAuthentication(resourceSlice, r.eventRecorder)
 	if shouldRenew {
