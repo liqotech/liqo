@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package custom implements a generic GVR reflector for arbitrary namespaced custom resources.
-// Spec is synced local→remote and status remote→local (OwnershipShared).
+// Package custom implements a generic GVR reflector for arbitrary custom resources,
+// either namespaced or cluster-scoped. Spec is synced local→remote and status remote→local (OwnershipShared).
 package custom
