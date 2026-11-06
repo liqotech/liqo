@@ -121,15 +121,38 @@ func (m *manager) Start(ctx context.Context) {
 
 	klog.Info("Starting the reflection manager...")
 	ready := false
+
+	// The cluster-wide dynamic informer factories, used by the reflectors of cluster-scoped
+	// custom resources. They are only created when custom resource reflection is configured.
+	var localDynamicFactory, remoteDynamicFactory dynamicinformer.DynamicSharedInformerFactory
+	if m.localDynamic != nil && m.remoteDynamic != nil {
+		localDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.localDynamic, m.resync, "", nil)
+		remoteDynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(m.remoteDynamic, m.resync, "", nil)
+	}
+
 	for _, reflector := range m.reflectors {
 		opts := options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()).
-			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
+			WithReadinessFunc(func() bool { return ready }).
+			WithEventBroadcaster(m.eventBroadcaster).
+			WithForgingOpts(&m.forgingOpts)
+		if localDynamicFactory != nil {
+			opts = opts.WithDynamicLocal(m.localDynamic, localDynamicFactory).
+				WithDynamicRemote(m.remoteDynamic, remoteDynamicFactory)
+		}
 		reflector.Start(ctx, opts)
 	}
 
 	// This is a no-op in case no informers/listers have been retrieved.
 	m.localPodInformerFactory.Start(ctx.Done())
 	m.localPodInformerFactory.WaitForCacheSync(ctx.Done())
+
+	// The cluster reflectors gate the reconciliation on the readiness of the informer caches
+	// (in addition to the manager readiness flag), hence there is no need to block here
+	// waiting for their synchronization.
+	if localDynamicFactory != nil {
+		localDynamicFactory.Start(ctx.Done())
+		remoteDynamicFactory.Start(ctx.Done())
+	}
 
 	m.started = true
 

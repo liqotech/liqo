@@ -11,6 +11,7 @@ metadata:
     {{- include "liqo.labels" $virtualKubeletConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfig))) }}
 {{- range .Values.offloading.reflection.customResources }}
+{{- if not .clusterScoped }}
 - apiGroups:
   - {{ .group | quote }}
   resources:
@@ -24,6 +25,7 @@ metadata:
   - update
   - watch
 {{- end }}
+{{- end }}
 
 ---
 
@@ -34,3 +36,19 @@ metadata:
   labels:
     {{- include "liqo.labels" $virtualKubeletConfigClusterWide | nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfigClusterWide))) }}
+{{- range .Values.offloading.reflection.customResources }}
+{{- if .clusterScoped }}
+- apiGroups:
+  - {{ .group | quote }}
+  resources:
+  - {{ .resource }}
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+{{- end }}
+{{- end }}
