@@ -435,6 +435,13 @@ spec:
                       type: object
                     type: array
                 type: object
+              providerID:
+                description: 'ProviderID to assigned to the node. It can be empty
+                  or in the format: <ProviderName>://<ProviderSpecificNodeID>.'
+                type: string
+                x-kubernetes-validations:
+                - message: ProviderID is immutable once set
+                  rule: self == oldSelf || oldSelf == ""
               resourceQuota:
                 description: ResourceQuota contains the quantity of resources assigned
                   to the VirtualNode.
