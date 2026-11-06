@@ -172,7 +172,7 @@ var _ = Describe("Validating webhook", func() {
 				Expect(response.Result.Code).To(BeNumerically("==", http.StatusOK))
 				Expect(peeringInfo.usedQuota).To(Equal(*freeQuotaZero))
 				ns := types.NamespacedName{Name: fakeNewShadowPod.Name, Namespace: fakeNewShadowPod.Namespace}
-				Expect(peeringInfo.shadowPods[ns.String()].running).To(BeFalse())
+				Expect(peeringInfo.shadowPods[ns.String()].active).To(BeFalse())
 			})
 		})
 		When("The Quota exists but the ShadowPod Description does not exist", func() {
