@@ -81,6 +81,8 @@ type Options struct {
 
 	// Basic
 	Basic bool
+	// Enable curl from node to pod
+	NodePod bool
 	// Enable curl from external to nodeport service
 	NodePortExt bool
 	// Select nodes type for NodePort tests.

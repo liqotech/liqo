@@ -16,13 +16,14 @@
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 set_certificate_renewal_policy() {
   local POLICY_MANIFEST
-  POLICY_MANIFEST=$(cat <<'EOF'
+  POLICY_MANIFEST=$(
+    cat <<'EOF'
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -50,10 +51,9 @@ spec:
           spec:
             expirationSeconds: 600
 EOF
-)
+  )
 
-  for i in $(seq 1 "${CLUSTER_NUMBER}")
-  do
+  for i in $(seq 1 "${CLUSTER_NUMBER}"); do
     export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
     echo "Applying Kyverno ClusterPolicy on cluster ${i} to set the CSR expiration time to 600 seconds"
     echo "${POLICY_MANIFEST}" | "${KUBECTL}" apply -f -
@@ -63,13 +63,13 @@ EOF
 }
 
 error() {
-   local sourcefile=$1
-   local lineno=$2
-   echo "An error occurred at $sourcefile:$lineno."
+  local sourcefile=$1
+  local lineno=$2
+  echo "An error occurred at $sourcefile:$lineno."
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 # shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "${SCRIPT_DIR}/../../utils.sh"
@@ -79,8 +79,7 @@ set_certificate_renewal_policy
 
 mkdir -p "${TMPDIR}/kubeconfigs/generated"
 CLUSTER_ID=$(forge_clustername 1)
-for i in $(seq 2 "${CLUSTER_NUMBER}")
-do
+for i in $(seq 2 "${CLUSTER_NUMBER}"); do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   export PROVIDER_KUBECONFIG_ADMIN="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
@@ -89,7 +88,7 @@ do
     PROVIDER_KUBECONFIG=$PROVIDER_KUBECONFIG_ADMIN
   else
     echo "Generating kubeconfig for consumer cluster 1 on provider cluster ${i}"
-    "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" > "${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
+    "${LIQOCTL}" generate peering-user --kubeconfig "${PROVIDER_KUBECONFIG_ADMIN}" --consumer-cluster-id "${CLUSTER_ID}" >"${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
     PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/generated/liqo_kubeconf_${i}"
   fi
 
