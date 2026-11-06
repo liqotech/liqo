@@ -20,18 +20,19 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
+	typedoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 )
 
 // fakeShadowPods implements ShadowPodInterface
 type fakeShadowPods struct {
-	*gentype.FakeClientWithList[*v1beta1.ShadowPod, *v1beta1.ShadowPodList]
+	*gentype.FakeClientWithListAndApply[*v1beta1.ShadowPod, *v1beta1.ShadowPodList, *offloadingv1beta1.ShadowPodApplyConfiguration]
 	Fake *FakeOffloadingV1beta1
 }
 
-func newFakeShadowPods(fake *FakeOffloadingV1beta1, namespace string) offloadingv1beta1.ShadowPodInterface {
+func newFakeShadowPods(fake *FakeOffloadingV1beta1, namespace string) typedoffloadingv1beta1.ShadowPodInterface {
 	return &fakeShadowPods{
-		gentype.NewFakeClientWithList[*v1beta1.ShadowPod, *v1beta1.ShadowPodList](
+		gentype.NewFakeClientWithListAndApply[*v1beta1.ShadowPod, *v1beta1.ShadowPodList, *offloadingv1beta1.ShadowPodApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1beta1.SchemeGroupVersion.WithResource("shadowpods"),

@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	applyconfigurationoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -46,18 +47,21 @@ type NamespaceMapInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.NamespaceMapList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.NamespaceMap, err error)
+	Apply(ctx context.Context, namespaceMap *applyconfigurationoffloadingv1beta1.NamespaceMapApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.NamespaceMap, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, namespaceMap *applyconfigurationoffloadingv1beta1.NamespaceMapApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.NamespaceMap, err error)
 	NamespaceMapExpansion
 }
 
 // namespaceMaps implements NamespaceMapInterface
 type namespaceMaps struct {
-	*gentype.ClientWithList[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList]
+	*gentype.ClientWithListAndApply[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList, *applyconfigurationoffloadingv1beta1.NamespaceMapApplyConfiguration]
 }
 
 // newNamespaceMaps returns a NamespaceMaps
 func newNamespaceMaps(c *OffloadingV1beta1Client, namespace string) *namespaceMaps {
 	return &namespaceMaps{
-		gentype.NewClientWithList[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList](
+		gentype.NewClientWithListAndApply[*offloadingv1beta1.NamespaceMap, *offloadingv1beta1.NamespaceMapList, *applyconfigurationoffloadingv1beta1.NamespaceMapApplyConfiguration](
 			"namespacemaps",
 			c.RESTClient(),
 			scheme.ParameterCodec,

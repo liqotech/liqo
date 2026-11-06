@@ -190,3 +190,8 @@ func (ncr *NamespacedConfigMapReflector) List() ([]interface{}, error) {
 		ncr.remoteConfigMaps,
 	)
 }
+
+// Cleanup is a no-op for this reflector.
+func (ncr *NamespacedConfigMapReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}

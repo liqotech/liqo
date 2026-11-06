@@ -20,18 +20,19 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	v1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/ipam/v1alpha1"
+	typedipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1"
 )
 
 // fakeIPs implements IPInterface
 type fakeIPs struct {
-	*gentype.FakeClientWithList[*v1alpha1.IP, *v1alpha1.IPList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.IP, *v1alpha1.IPList, *ipamv1alpha1.IPApplyConfiguration]
 	Fake *FakeIpamV1alpha1
 }
 
-func newFakeIPs(fake *FakeIpamV1alpha1, namespace string) ipamv1alpha1.IPInterface {
+func newFakeIPs(fake *FakeIpamV1alpha1, namespace string) typedipamv1alpha1.IPInterface {
 	return &fakeIPs{
-		gentype.NewFakeClientWithList[*v1alpha1.IP, *v1alpha1.IPList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.IP, *v1alpha1.IPList, *ipamv1alpha1.IPApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("ips"),
