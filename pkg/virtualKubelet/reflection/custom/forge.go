@@ -23,8 +23,11 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// RemoteCustomResource forges a remote unstructured object from the local one.
-// Only metadata (filtered labels/annotations) and the spec are copied.
+// RemoteCustomResource forges the apply configuration of the remote twin
+// from the local one (server-side apply). Only metadata (filtered labels/annotations)
+// and the spec are declared, hence owned by the reflector: fields owned by other
+// field managers (e.g. the remote status, or annotations added remotely by other
+// controllers) are preserved by the apply semantics.
 // OwnerReferences are intentionally not propagated across clusters.
 func RemoteCustomResource(local *unstructured.Unstructured, targetNamespace string,
 	forgingOpts *forge.ForgingOpts) (*unstructured.Unstructured, error) {
@@ -49,14 +52,6 @@ func RemoteCustomResource(local *unstructured.Unstructured, targetNamespace stri
 	}
 
 	return remote, nil
-}
-
-// ApplyRemoteMetadata updates labels and annotations on an existing remote object from the local one.
-func ApplyRemoteMetadata(local, remote *unstructured.Unstructured, forgingOpts *forge.ForgingOpts) {
-	labelsNotReflected, annotationsNotReflected := notReflectedKeys(forgingOpts)
-	filteredLabels := forge.FilterNotReflected(local.GetLabels(), labelsNotReflected)
-	remote.SetLabels(labels.Merge(filteredLabels, forge.ReflectionLabels()))
-	remote.SetAnnotations(forge.FilterNotReflected(local.GetAnnotations(), annotationsNotReflected))
 }
 
 func notReflectedKeys(forgingOpts *forge.ForgingOpts) (labelsNotReflected, annotationsNotReflected []string) {

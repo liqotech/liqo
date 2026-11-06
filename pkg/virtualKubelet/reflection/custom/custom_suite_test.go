@@ -16,7 +16,9 @@ package custom_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -85,6 +88,11 @@ var _ = BeforeEach(func() {
 	}
 	localClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 	remoteClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+
+	// The fake dynamic client does not implement the server-side apply semantics
+	// (it neither creates missing objects nor supports unstructured payloads),
+	// hence the reflector applies are emulated through a dedicated reactor.
+	registerApplyEmulation(remoteClient.(*dynamicfake.FakeDynamicClient), gvr)
 })
 
 var _ = AfterEach(func() { cancel() })
@@ -113,24 +121,99 @@ var FakeEventHandler = func(options.Keyer, ...options.EventFilter) cache.Resourc
 	}
 }
 
+// registerApplyEmulation makes the fake dynamic client emulate the API server behavior
+// for the server-side applies issued by the reflector. The applied configuration
+// (metadata + spec) is created if the object is absent, otherwise merged on top of
+// the live object: metadata keys are merged with the applied ones winning, the spec
+// is replaced, and fields not included in the configuration (e.g. the status, or
+// annotations added on the remote twin by other controllers) are preserved.
+func registerApplyEmulation(client *dynamicfake.FakeDynamicClient, gvr schema.GroupVersionResource) {
+	client.PrependReactor("patch", gvr.Resource, func(action clienttesting.Action) (bool, runtime.Object, error) {
+		patchAction, ok := action.(clienttesting.PatchAction)
+		if !ok || patchAction.GetPatchType() != types.ApplyPatchType {
+			return false, nil, nil
+		}
+
+		var payload unstructured.Unstructured
+		if err := json.Unmarshal(patchAction.GetPatch(), &payload); err != nil {
+			return true, nil, err
+		}
+
+		ns, name := action.GetNamespace(), patchAction.GetName()
+		tracker := client.Tracker()
+
+		existing, err := tracker.Get(gvr, ns, name, metav1.GetOptions{})
+		if kerrors.IsNotFound(err) {
+			// An apply creates the object if absent.
+			if err := tracker.Create(gvr, &payload, ns, metav1.CreateOptions{}); err != nil {
+				return true, nil, err
+			}
+			return true, &payload, nil
+		}
+		if err != nil {
+			return true, nil, err
+		}
+
+		live, ok := existing.(*unstructured.Unstructured)
+		if !ok {
+			return true, nil, fmt.Errorf("unexpected object type %T", existing)
+		}
+		live = live.DeepCopy()
+
+		// Merge the metadata: the applied keys win, keys owned by others are preserved.
+		live.SetLabels(mergeMaps(live.GetLabels(), payload.GetLabels()))
+		live.SetAnnotations(mergeMaps(live.GetAnnotations(), payload.GetAnnotations()))
+
+		// Replace the spec, which is fully owned by the reflector.
+		spec, found, err := unstructured.NestedMap(payload.Object, "spec")
+		if err != nil {
+			return true, nil, err
+		}
+		if found {
+			if err := unstructured.SetNestedMap(live.Object, spec, "spec"); err != nil {
+				return true, nil, err
+			}
+		}
+
+		if err := tracker.Update(gvr, live, ns, metav1.UpdateOptions{}); err != nil {
+			return true, nil, err
+		}
+		return true, live, nil
+	})
+}
+
+func mergeMaps(base, overlay map[string]string) map[string]string {
+	if len(base) == 0 {
+		return overlay
+	}
+	if len(overlay) == 0 {
+		return base
+	}
+	merged := make(map[string]string, len(base)+len(overlay))
+	maps.Copy(merged, base)
+	maps.Copy(merged, overlay)
+	return merged
+}
+
 var _ = Describe("GVR Reflection", func() {
 	Describe("NewGVRReflector", func() {
 		It("should create a non-nil reflector", func() {
 			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1, Type: offloadingv1beta1.AllowList}
-			Expect(custom.NewGVRReflector(gvr, cfg)).NotTo(BeNil())
+			Expect(custom.NewGVRReflector(gvr, cfg, true)).NotTo(BeNil())
 		})
 
 		It("should default to AllowList when type is empty", func() {
 			cfg := &offloadingv1beta1.ReflectorConfig{NumWorkers: 1}
-			Expect(custom.NewGVRReflector(gvr, cfg)).NotTo(BeNil())
+			Expect(custom.NewGVRReflector(gvr, cfg, false)).NotTo(BeNil())
 		})
 	})
 
 	Describe("Handle", func() {
 		var (
-			reflector      manager.NamespacedReflector
-			reflectionType offloadingv1beta1.ReflectionType
-			err            error
+			reflector         manager.NamespacedReflector
+			reflectionType    offloadingv1beta1.ReflectionType
+			statusSyncEnabled bool
+			err               error
 		)
 
 		GetRemote := func(name string) *unstructured.Unstructured {
@@ -159,13 +242,14 @@ var _ = Describe("GVR Reflection", func() {
 
 		BeforeEach(func() {
 			reflectionType = offloadingv1beta1.AllowList
+			statusSyncEnabled = true
 		})
 
 		JustBeforeEach(func() {
 			localFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localClient, 0, LocalNamespace, nil)
 			remoteFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(remoteClient, 0, RemoteNamespace, nil)
 
-			reflector = custom.NewNamespacedGVRReflector(gvr)(options.NewNamespaced().
+			reflector = custom.NewNamespacedGVRReflector(gvr, statusSyncEnabled)(options.NewNamespaced().
 				WithLocal(LocalNamespace, nil, nil).
 				WithRemote(RemoteNamespace, nil, nil).
 				WithDynamicLocal(localClient, localFactory).
@@ -230,9 +314,9 @@ var _ = Describe("GVR Reflection", func() {
 				})
 			})
 
-			When("remote create is forbidden", func() {
+			When("remote apply is forbidden", func() {
 				BeforeEach(func() {
-					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("create", "widgets",
+					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "widgets",
 						func(_ clienttesting.Action) (bool, runtime.Object, error) {
 							return true, nil, kerrors.NewForbidden(gvr.GroupResource(), WidgetName, fmt.Errorf("denied"))
 						})
@@ -245,9 +329,9 @@ var _ = Describe("GVR Reflection", func() {
 				})
 			})
 
-			When("remote create returns not found (CRD missing)", func() {
+			When("remote apply returns not found (CRD missing)", func() {
 				BeforeEach(func() {
-					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("create", "widgets",
+					remoteClient.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "widgets",
 						func(_ clienttesting.Action) (bool, runtime.Object, error) {
 							return true, nil, kerrors.NewNotFound(gvr.GroupResource(), WidgetName)
 						})
@@ -257,6 +341,26 @@ var _ = Describe("GVR Reflection", func() {
 					Expect(err).ToNot(HaveOccurred())
 					_, getErr := remoteClient.Resource(gvr).Namespace(RemoteNamespace).Get(ctx, WidgetName, metav1.GetOptions{})
 					Expect(getErr).To(BeNotFound())
+				})
+			})
+
+			When("the remote twin carries annotations added by other controllers", func() {
+				BeforeEach(func() {
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(),
+						map[string]string{"foreign.example.com/added-remotely": "keep-me"},
+						map[string]interface{}{"replicas": int64(1)},
+						nil))
+				})
+
+				It("should update the remote twin preserving the remote-added annotations", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetRemote(WidgetName)
+					Expect(remote.GetAnnotations()).To(HaveKeyWithValue("foreign.example.com/added-remotely", "keep-me"))
+					Expect(remote.GetAnnotations()).To(HaveKeyWithValue("anno", "val"))
+					Expect(remote.GetAnnotations()).ToNot(HaveKey(FakeNotReflectedAnnotKey))
+
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
 				})
 			})
 
@@ -284,7 +388,7 @@ var _ = Describe("GVR Reflection", func() {
 				})
 			})
 
-			When("local status update is method not supported", func() {
+			When("local status update fails", func() {
 				BeforeEach(func() {
 					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
 						map[string]interface{}{"replicas": int64(1)},
@@ -295,7 +399,30 @@ var _ = Describe("GVR Reflection", func() {
 						})
 				})
 
-				It("should succeed, update remote spec, and skip status sync", func() {
+				It("should update remote spec and surface the status sync error for requeue", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(kerrors.IsMethodNotSupported(err)).To(BeTrue())
+
+					remote := GetRemote(WidgetName)
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(3)))
+
+					local := GetLocal(WidgetName)
+					_, found, statusErr := unstructured.NestedMap(local.Object, "status")
+					Expect(statusErr).ToNot(HaveOccurred())
+					Expect(found).To(BeFalse())
+				})
+			})
+
+			When("status sync is disabled", func() {
+				BeforeEach(func() {
+					statusSyncEnabled = false
+					CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
+						map[string]interface{}{"replicas": int64(1)},
+						map[string]interface{}{"ready": true}))
+				})
+
+				It("should update the remote spec without syncing the status to local", func() {
 					Expect(err).ToNot(HaveOccurred())
 					remote := GetRemote(WidgetName)
 					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
@@ -347,6 +474,72 @@ var _ = Describe("GVR Reflection", func() {
 					Expect(err).ToNot(HaveOccurred())
 					_, getErr := remoteClient.Resource(gvr).Namespace(RemoteNamespace).Get(ctx, WidgetName, metav1.GetOptions{})
 					Expect(getErr).To(BeNotFound())
+				})
+			})
+		})
+
+		When("the reflection type is DenyList", func() {
+			BeforeEach(func() {
+				reflectionType = offloadingv1beta1.DenyList
+			})
+
+			When("the local object has no annotations", func() {
+				BeforeEach(func() {
+					CreateLocal(newWidget(LocalNamespace, nil, nil,
+						map[string]interface{}{"replicas": int64(2)}, nil))
+				})
+
+				It("should create the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetRemote(WidgetName)
+					Expect(remote.GetLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
+
+					spec, found, specErr := unstructured.NestedMap(remote.Object, "spec")
+					Expect(specErr).ToNot(HaveOccurred())
+					Expect(found).To(BeTrue())
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(2)))
+				})
+			})
+
+			When("the local object is marked with the skip annotation", func() {
+				BeforeEach(func() {
+					CreateLocal(newWidget(LocalNamespace, nil,
+						map[string]string{consts.SkipReflectionAnnotationKey: "true"},
+						map[string]interface{}{"replicas": int64(2)}, nil))
+				})
+
+				It("should not create the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					_, getErr := remoteClient.Resource(gvr).Namespace(RemoteNamespace).Get(ctx, WidgetName, metav1.GetOptions{})
+					Expect(getErr).To(BeNotFound())
+				})
+
+				When("a remote twin already exists", func() {
+					BeforeEach(func() {
+						CreateRemote(newWidget(RemoteNamespace, forge.ReflectionLabels(), nil,
+							map[string]interface{}{"replicas": int64(1)}, nil))
+					})
+
+					It("should delete the remote twin", func() {
+						Expect(err).ToNot(HaveOccurred())
+						_, getErr := remoteClient.Resource(gvr).Namespace(RemoteNamespace).Get(ctx, WidgetName, metav1.GetOptions{})
+						Expect(getErr).To(BeNotFound())
+					})
+				})
+			})
+
+			When("the local object is marked with the skip annotation set to false", func() {
+				BeforeEach(func() {
+					CreateLocal(newWidget(LocalNamespace, nil,
+						map[string]string{consts.SkipReflectionAnnotationKey: "false"},
+						map[string]interface{}{"replicas": int64(2)}, nil))
+				})
+
+				It("should still create the remote twin", func() {
+					Expect(err).ToNot(HaveOccurred())
+					remote := GetRemote(WidgetName)
+					spec, _, _ := unstructured.NestedMap(remote.Object, "spec")
+					Expect(spec).To(HaveKeyWithValue("replicas", int64(2)))
 				})
 			})
 		})

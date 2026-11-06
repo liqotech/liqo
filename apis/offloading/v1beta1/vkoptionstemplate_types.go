@@ -60,12 +60,18 @@ type CustomResourceReflectorConfig struct {
 	Version string `json:"version"`
 	// Resource is the plural resource name of the custom resource (e.g., "widgets").
 	Resource string `json:"resource"`
+	// StatusSync enables the synchronization of the remote status back to the local object (opt-in, default false).
+	// It requires the CRD to expose the status subresource.
+	// WARNING: with multiple providers serving the offloaded namespace, the reflectors may compete writing the local status,
+	// causing infinite reconciles and stress on the API server. Set this to "true" only if you are sure no multiple providers
+	// will compete with the status.
+	StatusSync bool `json:"statusSync,omitempty"`
 	// ReflectorConfig contains the common reflector configuration (workers, type).
 	ReflectorConfig `json:",inline"`
 }
 
 // GVR returns the GroupVersionResource for this custom resource configuration.
-func (c CustomResourceReflectorConfig) GVR() schema.GroupVersionResource {
+func (c *CustomResourceReflectorConfig) GVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    c.Group,
 		Version:  c.Version,

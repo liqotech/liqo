@@ -182,7 +182,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	for i := range cfg.CustomResources {
 		cr := &cfg.CustomResources[i]
 		gvr := cr.GVR()
-		available, err := isGVRAvailable(localClient, gvr)
+		available, statusSubresource, err := discoverGVR(localClient, gvr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to discover custom resource %s", gvr)
 		}
@@ -190,12 +190,19 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 			klog.Warningf("Skipping custom resource reflector for %s: CRD not found in the local cluster", gvr)
 			continue
 		}
+		// The status sync is performed only when explicitly requested, and only if the
+		// CRD exposes the status subresource (probed once through API discovery).
+		statusSyncEnabled := cr.StatusSync && statusSubresource
+		if cr.StatusSync && !statusSubresource {
+			klog.Warningf("Status sync requested for custom resource %s, but the CRD does not expose the status subresource: disabling it", gvr)
+		}
 		reflectionType := cr.Type
 		if reflectionType == "" {
 			reflectionType = offloadingv1beta1.AllowList
 		}
-		klog.Infof("Registering custom resource reflector for %s (workers=%d, type=%s)", gvr, cr.NumWorkers, reflectionType)
-		reflectionManager.With(custom.NewGVRReflector(gvr, &cr.ReflectorConfig))
+		klog.Infof("Registering custom resource reflector for %s (workers=%d, type=%s, statusSync=%t)",
+			gvr, cr.NumWorkers, reflectionType, statusSyncEnabled)
+		reflectionManager.With(custom.NewGVRReflector(gvr, &cr.ReflectorConfig, statusSyncEnabled))
 	}
 
 	reflectionManager.Start(ctx)
@@ -226,23 +233,29 @@ func isSATokenAPISupport(localClient kubernetes.Interface) (bool, error) {
 	return false, nil
 }
 
-// isGVRAvailable returns whether the given GVR is served by the cluster API.
-// A missing group/version (NotFound) means the CRD is absent. Other discovery
-// errors are returned so callers can fail closed instead of silently skipping.
-func isGVRAvailable(client kubernetes.Interface, gvr schema.GroupVersionResource) (bool, error) {
+// discoverGVR returns whether the given GVR is served by the cluster API, and whether
+// the corresponding CRD exposes the status subresource (i.e. an APIResource entry
+// named "<resource>/status" is served, as CRD subresources are advertised in discovery).
+// A missing group/version (NotFound) means the CRD is absent. Other discovery errors are
+// returned so callers can fail closed instead of silently skipping.
+func discoverGVR(client kubernetes.Interface, gvr schema.GroupVersionResource) (available, statusSupported bool, err error) {
 	res, err := client.Discovery().ServerResourcesForGroupVersion(gvr.GroupVersion().String())
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return false, nil
+			return false, false, nil
 		}
-		return false, fmt.Errorf("discover %s: %w", gvr.GroupVersion(), err)
+		return false, false, fmt.Errorf("discover %s: %w", gvr.GroupVersion(), err)
 	}
+
 	for i := range res.APIResources {
-		if res.APIResources[i].Name == gvr.Resource {
-			return true, nil
+		switch res.APIResources[i].Name {
+		case gvr.Resource:
+			available = true
+		case gvr.Resource + "/status":
+			statusSupported = true
 		}
 	}
-	return false, nil
+	return available, statusSupported, nil
 }
 
 // Resync force the resync of all informers contained in the reflection manager.

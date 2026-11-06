@@ -77,6 +77,7 @@ spec:
       resource: {{ .resource | quote }}
       workers: {{ .workers | default 2 }}
       type: {{ .type | default "AllowList" | quote }}
+      statusSync: {{ .statusSync | default false }}
     {{- end }}
   {{- end }}
   {{- if .Values.virtualKubelet.extra.resources }}

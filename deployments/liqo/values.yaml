@@ -416,9 +416,13 @@ offloading:
       # -- The type of reflection used for the events reflector. Admitted values: "DenyList", "AllowList".
       type: DenyList
     # -- List of custom resources to reflect between offloaded namespaces.
-    # Spec is synced local→remote and status remote→local. Default empty (feature off).
+    # Spec is synced local→remote and status remote→local (opt-in via statusSync). Default empty (feature off).
     # CRDs must already exist on both clusters; Liqo does not install them.
-    # Default reflection type per entry is AllowList (annotate instances with liqo.io/allow-reflection: "true").
+    # Default reflection type per entry is "AllowList" (annotate instances with liqo.io/allow-reflection: "true").
+    # WARNING: if consumer is peered with multiple providers serving the offloaded namespace, the reflectors may
+    # compete writing the local status, causing infinite reconciles and stress on the API server.
+    # Set this to "true" only if you are sure no multiple providers will compete with the status
+    # and if the CRD expose the status subresource.
     # Example:
     # customResources:
     # - group: example.io
@@ -426,6 +430,7 @@ offloading:
     #   resource: widgets
     #   workers: 2
     #   type: AllowList
+    #   statusSync: false
     customResources: []
 
 storage:

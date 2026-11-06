@@ -25,9 +25,12 @@ import (
 )
 
 // NewGVRReflector builds a Reflector for the given GroupVersionResource.
-// Spec is synced local→remote and status remote→local (OwnershipShared).
+// Spec is synced local→remote, while status is synced remote→local only when
+// statusSyncEnabled is true (i.e. the statusSync option is set and the CRD exposes
+// the status subresource, verified at provider startup through API discovery).
 // The default reflection type is AllowList when not specified.
-func NewGVRReflector(gvr schema.GroupVersionResource, reflectorConfig *offloadingv1beta1.ReflectorConfig) manager.Reflector {
+func NewGVRReflector(gvr schema.GroupVersionResource, reflectorConfig *offloadingv1beta1.ReflectorConfig,
+	statusSyncEnabled bool) manager.Reflector {
 	reflectionType := reflectorConfig.Type
 	if reflectionType == "" {
 		reflectionType = offloadingv1beta1.AllowList
@@ -35,7 +38,7 @@ func NewGVRReflector(gvr schema.GroupVersionResource, reflectorConfig *offloadin
 
 	name := fmt.Sprintf("CustomResource[%s]", gvr.String())
 	return generic.NewReflector(name,
-		NewNamespacedGVRReflector(gvr),
+		NewNamespacedGVRReflector(gvr, statusSyncEnabled),
 		generic.WithoutFallback(),
 		reflectorConfig.NumWorkers,
 		reflectionType,

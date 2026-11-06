@@ -300,7 +300,7 @@ func appendArgsCustomResources(args []string, customResources []offloadingv1beta
 		if reflectionType == "" {
 			reflectionType = offloadingv1beta1.AllowList
 		}
-		value := fmt.Sprintf("%s/%s/%s,%d,%s", cr.Group, cr.Version, cr.Resource, cr.NumWorkers, reflectionType)
+		value := fmt.Sprintf("%s/%s/%s,%d,%s,%t", cr.Group, cr.Version, cr.Resource, cr.NumWorkers, reflectionType, cr.StatusSync)
 		args = append(args, StringifyArgument(string(CustomResourceReflection), value))
 	}
 	return args

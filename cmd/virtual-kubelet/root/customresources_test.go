@@ -44,16 +44,33 @@ func TestParseCustomResources(t *testing.T) {
 		g.Expect(got[0].Resource).To(Equal("widgets"))
 		g.Expect(got[0].NumWorkers).To(Equal(defaultCustomResourceWorkers))
 		g.Expect(got[0].Type).To(Equal(offloadingv1beta1.AllowList))
+		g.Expect(got[0].StatusSync).To(BeFalse())
 	})
 
 	t.Run("full form", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
-		got, err := parseCustomResources([]string{"other.io/v1alpha1/gadgets,5,DenyList"})
+		got, err := parseCustomResources([]string{"other.io/v1alpha1/gadgets,5,DenyList,true"})
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).To(HaveLen(1))
 		g.Expect(got[0].NumWorkers).To(Equal(uint(5)))
 		g.Expect(got[0].Type).To(Equal(offloadingv1beta1.DenyList))
+		g.Expect(got[0].StatusSync).To(BeTrue())
+	})
+
+	t.Run("status sync defaults to false", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+		got, err := parseCustomResources([]string{"example.io/v1/widgets,2,AllowList,false"})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(got[0].StatusSync).To(BeFalse())
+	})
+
+	t.Run("invalid statusSync", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+		_, err := parseCustomResources([]string{"example.io/v1/widgets,2,AllowList,yes"})
+		g.Expect(err).To(HaveOccurred())
 	})
 
 	t.Run("invalid gvr", func(t *testing.T) {

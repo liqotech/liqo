@@ -17,7 +17,6 @@ package custom
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,11 +51,17 @@ type NamespacedGVRReflector struct {
 	localClient  dynamic.ResourceInterface
 	remoteClient dynamic.ResourceInterface
 
-	statusSupported atomic.Bool
+	// statusSyncEnabled indicates whether the remote→local status sync is active,
+	// i.e. the statusSync option is set and the CRD exposes the status subresource.
+	// It is immutable: when false, the status sync is skipped entirely.
+	statusSyncEnabled bool
 }
 
 // NewNamespacedGVRReflector returns a function generating NamespacedGVRReflector instances for the given GVR.
-func NewNamespacedGVRReflector(gvr schema.GroupVersionResource) func(*options.NamespacedOpts) manager.NamespacedReflector {
+// statusSyncEnabled indicates whether the remote→local status sync is active (opt-in
+// configuration and status subresource availability verified at provider startup):
+// when false, the status sync is skipped.
+func NewNamespacedGVRReflector(gvr schema.GroupVersionResource, statusSyncEnabled bool) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		localInformer := opts.LocalDynamicFactory.ForResource(gvr)
 		remoteInformer := opts.RemoteDynamicFactory.ForResource(gvr)
@@ -73,8 +78,8 @@ func NewNamespacedGVRReflector(gvr schema.GroupVersionResource) func(*options.Na
 			remoteLister:        remoteInformer.Lister().ByNamespace(opts.RemoteNamespace),
 			localClient:         opts.LocalDynamicClient.Resource(gvr).Namespace(opts.LocalNamespace),
 			remoteClient:        opts.RemoteDynamicClient.Resource(gvr).Namespace(opts.RemoteNamespace),
+			statusSyncEnabled:   statusSyncEnabled,
 		}
-		ncr.statusSupported.Store(true)
 		return ncr
 	}
 }
@@ -152,30 +157,21 @@ func (ncr *NamespacedGVRReflector) Handle(ctx context.Context, name string) erro
 		return nil
 	}
 
-	// Ensure the remote twin exists with the local spec.
-	var err error
-	if kerrors.IsNotFound(rerr) {
-		klog.Infof("Creating remote %v %q (local: %q)", ncr.gvr, ncr.RemoteRef(name), ncr.LocalRef(name))
-		remote, err = createRemoteObject(ctx, ncr.remoteClient, local, ncr.RemoteNamespace(), ncr.ForgingOpts)
-		if err != nil {
-			return ncr.handleRemoteError(local, "create", err)
-		}
-	} else {
-		remote, err = updateRemoteObjectSpec(ctx, ncr.remoteClient, local, remote.DeepCopy(), ncr.ForgingOpts)
-		if err != nil {
-			return ncr.handleRemoteError(local, "update", err)
-		}
+	// Ensure the remote twin matches the local spec through server-side apply: the
+	// reflector owns the spec and the reflected metadata, while fields owned by other
+	// field managers (e.g. annotations added on the remote twin by other controllers)
+	// are preserved.
+	klog.V(4).Infof("Enforcing remote %v %q (local: %q)", ncr.gvr, ncr.RemoteRef(name), ncr.LocalRef(name))
+	remote, err := applyRemoteObject(ctx, ncr.remoteClient, local, ncr.RemoteNamespace(), ncr.ForgingOpts)
+	if err != nil {
+		return ncr.handleRemoteError(local, err)
 	}
 	tracer.Step("Ensured the remote object")
 
-	// Sync status from remote → local (OwnershipShared), if supported.
-	if ncr.statusSupported.Load() {
+	// Sync status from remote → local (OwnershipShared), if the status sync is enabled.
+	if ncr.statusSyncEnabled {
 		if err = updateObjectStatusShared(ctx, ncr.localClient, ncr.gvr, remote, local.DeepCopy()); err != nil {
 			switch {
-			case kerrors.IsMethodNotSupported(err):
-				if ncr.statusSupported.CompareAndSwap(true, false) {
-					klog.Warningf("Status subresource not supported for %v, skipping status sync", ncr.gvr)
-				}
 			case kerrors.IsNotFound(err):
 				// Object vanished between get and UpdateStatus; retry via workqueue.
 				return err
@@ -197,19 +193,22 @@ func (ncr *NamespacedGVRReflector) Handle(ctx context.Context, name string) erro
 	return nil
 }
 
-func (ncr *NamespacedGVRReflector) handleRemoteError(local *unstructured.Unstructured, op string, err error) error {
+func (ncr *NamespacedGVRReflector) handleRemoteError(local *unstructured.Unstructured, err error) error {
 	if kerrors.IsForbidden(err) {
-		klog.Infof("Cannot %s remote %v %q (forbidden): %v", op, ncr.gvr, ncr.RemoteRef(local.GetName()), err)
+		klog.Infof("Cannot apply remote %v %q (forbidden): %v", ncr.gvr, ncr.RemoteRef(local.GetName()), err)
 		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return nil
 	}
-	if op == "create" && kerrors.IsNotFound(err) {
-		// CRD missing on the remote cluster.
-		klog.Warningf("Cannot create remote %v %q (CRD may be missing): %v", ncr.gvr, ncr.RemoteRef(local.GetName()), err)
+	if kerrors.IsNotFound(err) {
+		// An apply creates the twin if absent, hence a NotFound error means the
+		// CRD (or the remote namespace) is missing on the remote cluster.
+		klog.Warningf("Cannot apply remote %v %q (CRD may be missing on the remote cluster): %v",
+			ncr.gvr, ncr.RemoteRef(local.GetName()), err)
 		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return nil
 	}
-	klog.Errorf("Failed to %s remote %v %q (local: %q): %v", op, ncr.gvr, ncr.RemoteRef(local.GetName()), ncr.LocalRef(local.GetName()), err)
+	klog.Errorf("Failed to apply remote %v %q (local: %q): %v",
+		ncr.gvr, ncr.RemoteRef(local.GetName()), ncr.LocalRef(local.GetName()), err)
 	ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 	return err
 }
