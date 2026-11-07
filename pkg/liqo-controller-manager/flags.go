@@ -118,7 +118,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.ShadowEndpointSliceWorkers, "shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 	flagset.BoolVar(&opts.DenyDirectConnections, "deny-direct-connections", false,
-		"Prevents the usage of direct connections between provider clusters.")
+		"Never use direct connections between provider clusters: Services always route cross-provider traffic through the consumer cluster.")
 	flagset.StringSliceVar(&opts.LocalPodCIDRs, "podcidr", nil, "The CIDRs to use for the pod network")
 	flagset.StringVar(&opts.VkOptionsDefaultTemplate, "vk-options-default-template", "",
 		"Namespaced name of the default virtual-kubelet options template")

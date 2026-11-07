@@ -97,6 +97,17 @@ var _ = Describe("MapAddressWithConfiguration", func() {
 		_, err := MapAddressWithConfiguration(cfg, "10.10.5.10")
 		Expect(err).To(MatchError("configuration not remapped yet"))
 	})
+
+	It("errors, instead of panicking, when the status lags behind a newly added spec CIDR", func() {
+		// The second pod CIDR has just been added to the spec and is not remapped yet. Such a status is
+		// also what ForceMapAddressWithConfiguration meets, as it does not check the condition at all.
+		cfg.Status.Remote.CIDR.Pod = cidrutils.FromStrings([]string{"10.30.0.0/16"})
+
+		Expect(func() {
+			_, err := MapAddressWithConfiguration(cfg, "10.20.5.10")
+			Expect(err).To(MatchError(ContainSubstring("has not been remapped yet")))
+		}).NotTo(Panic())
+	})
 })
 
 var _ = Describe("RemapMask", func() {

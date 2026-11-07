@@ -56,8 +56,9 @@ networking:
   enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
-  # -- Prevents the usage of direct connections by provider clusters.
-  # When enabled, the provider cluster will not route traffic directed to another provider through their direct connection.
+  # -- Never use direct connections between provider clusters.
+  # When enabled, Services always route cross-provider traffic through the consumer cluster (indirect endpoints),
+  # even for Services annotated with liqo.io/use-direct-connections.
   denyDirectConnections: false
   # -- Access remote API server through its Kubernetes service EndpointSlices instead of its ClusterIP.
   # This is useful when the consumer CNI or VPC security groups are preventing the access to the remote API server through its ClusterIP service; known examples are GKE dataplane v2 and EKS.
