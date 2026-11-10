@@ -285,7 +285,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		BeforeEach(func() {
 			ports := []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
-			fakeClient = fake.NewSimpleClientset(
+			fakeClient = fake.NewClientset(
 				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}, Spec: corev1.ServiceSpec{Ports: ports}},
 				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels()},
 					Spec: corev1.ServiceSpec{Ports: ports}},

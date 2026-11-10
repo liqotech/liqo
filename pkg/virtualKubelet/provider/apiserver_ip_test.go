@@ -55,7 +55,9 @@ var _ = Describe("Kubernetes service IP mapper", func() {
 		for _, ip := range ips {
 			liqoObjs = append(liqoObjs, ip)
 		}
-		mapper := newKubernetesServiceIPMapper(fake.NewSimpleClientset(svc), liqofake.NewSimpleClientset(liqoObjs...), liqoNamespace)
+		// The generated Liqo fake clientset has no NewClientset (no apply configurations).
+		liqoClient := liqofake.NewSimpleClientset(liqoObjs...) //nolint:staticcheck // see above
+		mapper := newKubernetesServiceIPMapper(fake.NewClientset(svc), liqoClient, liqoNamespace)
 
 		res, err := mapper(context.Background())
 		if expectErr {

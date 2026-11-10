@@ -127,7 +127,7 @@ func (r *EndpointSliceIPReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// The Liqo network fabric is IPv4 only: skip the EndpointSlices of other address types
 	// (e.g., the IPv6 slice of the kubernetes service on IPv6-primary dual-stack clusters).
-	// IPs are labelled with the name of the slice they belong to, hence nothing owned by IPv4 slices is touched.
+	// IPs are labeled with the name of the slice they belong to, hence nothing owned by IPv4 slices is touched.
 	if eps.AddressType != discoveryv1.AddressTypeIPv4 {
 		klog.V(4).Infof("Skipping EndpointSlice %q: address type %q is not supported", req.String(), eps.AddressType)
 		return ctrl.Result{}, nil
