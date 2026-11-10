@@ -16,6 +16,8 @@ package exposition
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -157,6 +159,16 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 
 	defer tracer.Step("Enforced the correctness of the remote object")
 	if _, err := nsr.remoteServicesClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
+		// The primary IP family and the cluster IPs of a service are immutable. If the remote service was previously
+		// reflected with different ones (e.g., with an IPv6 primary family on an IPv6-primary dual-stack cluster), it
+		// cannot be patched: delete it (it is managed by the reflection, as checked above), so that it gets recreated.
+		// The deletion of the remote object triggers a new reconciliation, which recreates it with the expected IP families.
+		if rerr == nil && isIPFamilyConflict(err) {
+			klog.Infof("Deleting remote Service %q (local: %q), as its IP families or cluster IPs cannot be updated in place: %v",
+				nsr.RemoteRef(name), nsr.LocalRef(name), err)
+			return nsr.DeleteRemote(ctx, nsr.remoteServicesClient, ServiceReflectorName, name, remote.GetUID())
+		}
+
 		klog.Errorf("Failed to enforce remote Service %q (local: %q): %v", nsr.RemoteRef(name), nsr.LocalRef(name), err)
 		nsr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
@@ -166,6 +178,24 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 	nsr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
 	return nil
+}
+
+// isIPFamilyConflict returns whether the error is an invalid one, caused (also) by the IP families,
+// the IP family policy or the cluster IPs of the service.
+func isIPFamilyConflict(err error) bool {
+	var statusErr *kerrors.StatusError
+	if !kerrors.IsInvalid(err) || !errors.As(err, &statusErr) || statusErr.ErrStatus.Details == nil {
+		return false
+	}
+
+	for _, cause := range statusErr.ErrStatus.Details.Causes {
+		for _, prefix := range []string{"spec.ipFamilies", "spec.ipFamilyPolicy", "spec.clusterIPs", "spec.clusterIP"} {
+			if strings.HasPrefix(cause.Field, prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // List returns the list of services to be reflected.

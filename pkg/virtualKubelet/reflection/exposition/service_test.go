@@ -15,6 +15,7 @@
 package exposition_test
 
 import (
+	"errors"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -23,8 +24,12 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
@@ -236,5 +241,83 @@ var _ = Describe("Service Reflection Tests", func() {
 				})
 			})
 		})
+	})
+
+	Describe("the remote service apply fails", func() {
+		const ServiceName = "name"
+
+		var (
+			fakeClient *fake.Clientset
+			applyErr   error
+			err        error
+		)
+
+		invalid := func(fields ...string) error {
+			errs := make(field.ErrorList, 0, len(fields))
+			for _, f := range fields {
+				errs = append(errs, field.Invalid(field.NewPath("spec", f), "value", "may not change once set"))
+			}
+			return kerrors.NewInvalid(corev1.SchemeGroupVersion.WithKind("Service").GroupKind(), ServiceName, errs)
+		}
+
+		remoteExists := func() bool {
+			_, errget := fakeClient.CoreV1().Services(RemoteNamespace).Get(ctx, ServiceName, metav1.GetOptions{})
+			return errget == nil
+		}
+
+		WhenApplyFails := func(description string, apiErr func() error, expectDeleted bool) {
+			When(description, func() {
+				BeforeEach(func() { applyErr = apiErr() })
+
+				if expectDeleted {
+					It("should delete the remote object, to let it be recreated", func() {
+						Expect(err).ToNot(HaveOccurred())
+						Expect(remoteExists()).To(BeFalse())
+					})
+				} else {
+					It("should return the error and keep the remote object", func() {
+						Expect(err).To(HaveOccurred())
+						Expect(remoteExists()).To(BeTrue())
+					})
+				}
+			})
+		}
+
+		BeforeEach(func() {
+			ports := []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
+			fakeClient = fake.NewSimpleClientset(
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}, Spec: corev1.ServiceSpec{Ports: ports}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels()},
+					Spec: corev1.ServiceSpec{Ports: ports}},
+			)
+			fakeClient.PrependReactor("patch", "services", func(clienttesting.Action) (bool, runtime.Object, error) {
+				return true, nil, applyErr
+			})
+		})
+
+		JustBeforeEach(func() {
+			factory := informers.NewSharedInformerFactory(fakeClient, 10*time.Hour)
+			reflector := exposition.NewNamespacedServiceReflector(false, "")(options.NewNamespaced().
+				WithLocal(LocalNamespace, fakeClient, factory).
+				WithRemote(RemoteNamespace, fakeClient, factory).
+				WithHandlerFactory(FakeEventHandler).
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(root.DefaultReflectorsTypes[resources.Service]).
+				WithForgingOpts(FakeForgingOpts()))
+
+			factory.Start(ctx.Done())
+			factory.WaitForCacheSync(ctx.Done())
+
+			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("Service")), ServiceName)
+		})
+
+		WhenApplyFails("the immutable primary IP family is changed", func() error { return invalid("ipFamilies[0]") }, true)
+		WhenApplyFails("the IP family policy prevents releasing the secondary family", func() error { return invalid("ipFamilyPolicy") }, true)
+		WhenApplyFails("the cluster IPs are changed", func() error { return invalid("clusterIPs[0]") }, true)
+		WhenApplyFails("the error concerns also other fields", func() error { return invalid("ports[0].port", "ipFamilies") }, true)
+		WhenApplyFails("the error concerns only other fields", func() error { return invalid("ports[0].port") }, false)
+		WhenApplyFails("the error is not an invalid one", func() error {
+			return kerrors.NewForbidden(corev1.Resource("services"), ServiceName, errors.New("forbidden"))
+		}, false)
 	})
 })

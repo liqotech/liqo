@@ -295,6 +295,28 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 			})
 
+			When("the local object does exist, but its address type is IPv6", func() {
+				BeforeEach(func() {
+					local.AddressType = discoveryv1.AddressTypeIPv6
+					local.Endpoints = []discoveryv1.Endpoint{{NodeName: ptr.To(LocalClusterNodeName), Addresses: []string{"fd00::25"}}}
+					CreateEndpointSlice(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, but its address type is FQDN", func() {
+				BeforeEach(func() {
+					local.AddressType = discoveryv1.AddressTypeFQDN
+					local.Endpoints = []discoveryv1.Endpoint{{Addresses: []string{"example.com"}}}
+					CreateEndpointSlice(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
 			When("the local object does exist, but the associated service has the skip annotation", func() {
 				BeforeEach(func() {
 					local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
