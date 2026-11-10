@@ -150,6 +150,37 @@ var _ = Describe("Services Forging", func() {
 		}))
 	})
 
+	Describe("the RemoteServiceSpec IP families", func() {
+		const (
+			v4 = corev1.IPv4Protocol
+			v6 = corev1.IPv6Protocol
+		)
+		pol := func(p corev1.IPFamilyPolicy) *corev1.IPFamilyPolicy { return &p }
+
+		DescribeTable("should forge the IP families", func(spec corev1.ServiceSpec, expected []corev1.IPFamily) {
+			output := forge.RemoteServiceSpec(spec.DeepCopy(), false, false, "")
+			if expected == nil {
+				Expect(output.IPFamilies).To(BeEmpty())
+			} else {
+				Expect(output.IPFamilies).To(Equal(expected))
+			}
+		},
+			Entry("IPv4 single-stack", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicySingleStack), IPFamilies: []corev1.IPFamily{v4}}, []corev1.IPFamily{v4}),
+			Entry("IPv4 single-stack, headless", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP, ClusterIP: corev1.ClusterIPNone,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicySingleStack), IPFamilies: []corev1.IPFamily{v4}}, []corev1.IPFamily{v4}),
+			Entry("IPv4 family with PreferDualStack policy", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicyPreferDualStack), IPFamilies: []corev1.IPFamily{v4}}, []corev1.IPFamily{v4}),
+			Entry("dual-stack, IPv4 primary", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicyRequireDualStack), IPFamilies: []corev1.IPFamily{v4, v6}}, []corev1.IPFamily{v4}),
+			Entry("dual-stack, IPv6 primary", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicyPreferDualStack), IPFamilies: []corev1.IPFamily{v6, v4}}, []corev1.IPFamily{v4}),
+			Entry("IPv6 single-stack", corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP,
+				IPFamilyPolicy: pol(corev1.IPFamilyPolicySingleStack), IPFamilies: []corev1.IPFamily{v6}}, nil),
+			Entry("ExternalName", corev1.ServiceSpec{Type: corev1.ServiceTypeExternalName, ExternalName: "external-name"}, nil),
+		)
+	})
+
 	Describe("the RemoteServicePorts function", func() {
 		var (
 			input               corev1.ServicePort

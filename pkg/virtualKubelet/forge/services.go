@@ -50,6 +50,7 @@ func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort,
 	remote.ExternalTrafficPolicy = &local.ExternalTrafficPolicy
 	remote.InternalTrafficPolicy = local.InternalTrafficPolicy
 	remote.IPFamilyPolicy = local.IPFamilyPolicy
+	remote.IPFamilies = remoteIPFamilies(local)
 	remote.LoadBalancerSourceRanges = local.LoadBalancerSourceRanges
 	remote.PublishNotReadyAddresses = &local.PublishNotReadyAddresses
 	remote.SessionAffinity = &local.SessionAffinity
@@ -65,6 +66,20 @@ func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort,
 	}
 
 	return remote
+}
+
+// remoteIPFamilies returns the IP families of the reflected service. The Liqo network fabric is IPv4 only, and the reflected
+// endpointslices are IPv4: if the local service has an IPv4 family, only IPv4 is enforced in the remote service, to prevent it
+// from getting an IPv6 primary ClusterIP on IPv6-primary dual-stack clusters (which would have no endpoints). The IPFamilyPolicy
+// is propagated as is, hence the remote apiserver adds the secondary family by itself, if needed and supported.
+// Otherwise, it returns nil, leaving the choice to the remote cluster.
+func remoteIPFamilies(local *corev1.ServiceSpec) []corev1.IPFamily {
+	for _, family := range local.IPFamilies {
+		if family == corev1.IPv4Protocol {
+			return []corev1.IPFamily{corev1.IPv4Protocol}
+		}
+	}
+	return nil
 }
 
 // RemoteServicePorts forges the apply patch for the ports of the reflected service, given the local ones.
