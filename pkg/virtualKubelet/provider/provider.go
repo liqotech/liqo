@@ -39,6 +39,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	"github.com/liqotech/liqo/pkg/consts"
+	serviceutils "github.com/liqotech/liqo/pkg/utils/service"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/custom"
@@ -97,6 +98,45 @@ type LiqoProvider struct {
 	podHandler        workload.PodHandler
 }
 
+// newKubernetesServiceIPMapper returns the function retrieving the remapped IPs of the local kubernetes.default service.
+// On dual-stack clusters with IPv6 as primary family the kubernetes service has no IPv4 ClusterIP, hence the IPv4-only
+// network fabric cannot remap it and no IP resource is ever created: in that case no addresses are returned (and no
+// host alias is forged), instead of failing the reflection of every pod while waiting for a mapping that will never exist.
+func newKubernetesServiceIPMapper(localClient kubernetes.Interface, localLiqoClient liqoclient.Interface,
+	liqoNamespace string) func(ctx context.Context) ([]string, error) {
+	return func(ctx context.Context) ([]string, error) {
+		ips, err := localLiqoClient.IpamV1alpha1().IPs(liqoNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: consts.IPTypeLabelKey + "=" + consts.IPTypeAPIServer,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var result []string
+		for i := range ips.Items {
+			ip := ips.Items[i].Status.IP.String()
+			if ip != "" {
+				result = append(result, ip)
+			}
+		}
+
+		if len(result) > 0 {
+			return result, nil
+		}
+
+		svc, err := localClient.CoreV1().Services(metav1.NamespaceDefault).Get(ctx, "kubernetes", metav1.GetOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "no IP mapping found for the remote cluster API server, and unable to get the kubernetes service")
+		}
+		if _, err := serviceutils.IPv4ClusterIP(svc); errors.Is(err, serviceutils.ErrNoIPv4ClusterIP) {
+			klog.V(4).Infof("The kubernetes service has no IPv4 ClusterIP: the API server IP remapping is skipped")
+			return nil, nil
+		}
+
+		return nil, errors.New("no IP mapping found for the remote cluster API server")
+	}
+}
+
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadcaster) (*LiqoProvider, error) {
 	forge.Init(cfg.LocalCluster, cfg.RemoteCluster, cfg.NodeName, cfg.NodeIP)
@@ -128,33 +168,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	}
 
 	podReflectorConfig := workload.PodReflectorConfig{
-		APIServerSupport:    apiServerSupport,
-		DisableIPReflection: cfg.DisableIPReflection,
-		HomeAPIServerHost:   cfg.HomeAPIServerHost,
-		HomeAPIServerPort:   cfg.HomeAPIServerPort,
-		KubernetesServiceIPMapper: func(ctx context.Context) ([]string, error) {
-			ips, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).List(ctx, metav1.ListOptions{
-				LabelSelector: consts.IPTypeLabelKey + "=" + consts.IPTypeAPIServer,
-			})
-			if err != nil {
-				return nil, err
-			}
-
-			var result []string
-			for i := range ips.Items {
-				ip := ips.Items[i].Status.IP.String()
-				if ip != "" {
-					result = append(result, ip)
-				}
-			}
-
-			if len(result) == 0 {
-				return nil, errors.New("no IP mapping found for the remote cluster API server")
-			}
-
-			return result, nil
-		},
-		NetConfiguration: cfg.NetConfiguration,
+		APIServerSupport:          apiServerSupport,
+		DisableIPReflection:       cfg.DisableIPReflection,
+		HomeAPIServerHost:         cfg.HomeAPIServerHost,
+		HomeAPIServerPort:         cfg.HomeAPIServerPort,
+		KubernetesServiceIPMapper: newKubernetesServiceIPMapper(localClient, localLiqoClient, cfg.LiqoNamespace),
+		NetConfiguration:          cfg.NetConfiguration,
 	}
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, &podReflectorConfig, ptr.To(cfg.ReflectorsConfigs[resources.Pod]))
