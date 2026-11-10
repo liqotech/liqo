@@ -16,6 +16,7 @@ package gwmasqbypass
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 var (
@@ -91,15 +93,28 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
 
-	if pod.Spec.NodeName == "" || pod.Status.PodIP == "" {
-		// If the pod is not yet scheduled or does not have an IP address, we cannot enforce its firewall configuration.
+	if pod.Spec.NodeName == "" {
+		// If the pod is not yet scheduled, we cannot enforce its firewall configuration.
 		// It will be reconciled again when available.
 		return ctrl.Result{}, nil
 	}
 
+	podIP, err := podutils.IPv4(pod)
+	switch {
+	case errors.Is(err, podutils.ErrNoIPAddress):
+		// The pod does not have an IP address yet, we cannot enforce its firewall configuration.
+		// It will be reconciled again when available.
+		return ctrl.Result{}, nil
+	case errors.Is(err, podutils.ErrNoIPv4Address):
+		klog.Warningf("Skipping firewall rule for pod %s: it has no IPv4 address (the Liqo network fabric is IPv4 only)", req.String())
+		return ctrl.Result{}, nil
+	case err != nil:
+		return ctrl.Result{}, fmt.Errorf("unable to get the IPv4 address of pod %q: %w", req.NamespacedName, err)
+	}
+
 	PopulatePodKeyToNodeMap(pod)
 
-	op, err := enforceFirewallPodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
+	op, err := enforceFirewallPodPresence(ctx, r.Client, r.Scheme, r.Options, pod, podIP)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(3).Infof("there is no internalnode %s. Retrying later...", pod.Spec.NodeName)
