@@ -33,20 +33,16 @@ var _ = Describe("Address", func() {
 		expectedAddress string
 	}
 
-	ForgeNode := func(label string) *corev1.Node {
+	ForgeNode := func(label string, addresses ...corev1.NodeAddress) *corev1.Node {
+		if len(addresses) == 0 {
+			addresses = []corev1.NodeAddress{{Type: corev1.NodeExternalIP, Address: "1.2.3.4"}}
+		}
 		return &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "master-1",
 				Labels: map[string]string{label: ""},
 			},
-			Status: corev1.NodeStatus{
-				Addresses: []corev1.NodeAddress{
-					{
-						Type:    corev1.NodeExternalIP,
-						Address: "1.2.3.4",
-					},
-				},
-			},
+			Status: corev1.NodeStatus{Addresses: addresses},
 		}
 	}
 
@@ -79,6 +75,19 @@ var _ = Describe("Address", func() {
 		Entry("RKE control plane node", addressTestcase{
 			node:            ForgeNode("node-role.kubernetes.io/controlplane"),
 			expectedAddress: "https://1.2.3.4:6443",
+		}),
+
+		Entry("IPv6-only node", addressTestcase{
+			node: ForgeNode("node-role.kubernetes.io/control-plane",
+				corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: "fd00::1"}),
+			expectedAddress: "https://[fd00::1]:6443",
+		}),
+
+		Entry("dual-stack node with IPv6 first", addressTestcase{
+			node: ForgeNode("node-role.kubernetes.io/control-plane",
+				corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: "fd00::1"},
+				corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: "10.0.0.1"}),
+			expectedAddress: "https://10.0.0.1:6443",
 		}),
 	)
 })

@@ -301,4 +301,88 @@ var _ = Describe("NodeUtils", func() {
 
 	})
 
+	Context("GetAddressFromNodeList", func() {
+
+		type getAddressTestcase struct {
+			nodes           []v1.Node
+			expectedAddress string
+			expectedError   bool
+		}
+
+		forgeNode := func(addresses ...v1.NodeAddress) v1.Node {
+			return v1.Node{Status: v1.NodeStatus{Addresses: addresses}}
+		}
+
+		DescribeTable("GetAddressFromNodeList table",
+			func(c getAddressTestcase) {
+				address, err := GetAddressFromNodeList(c.nodes)
+				if c.expectedError {
+					Expect(err).To(HaveOccurred())
+					return
+				}
+				Expect(err).ToNot(HaveOccurred())
+				Expect(address).To(Equal(c.expectedAddress))
+			},
+
+			Entry("no nodes", getAddressTestcase{expectedError: true}),
+
+			Entry("IPv4 internal address only", getAddressTestcase{
+				nodes:           []v1.Node{forgeNode(v1.NodeAddress{Type: v1.NodeInternalIP, Address: "10.0.0.1"})},
+				expectedAddress: "10.0.0.1",
+			}),
+
+			Entry("IPv6 internal address only", getAddressTestcase{
+				nodes:           []v1.Node{forgeNode(v1.NodeAddress{Type: v1.NodeInternalIP, Address: "fd00::1"})},
+				expectedAddress: "fd00::1",
+			}),
+
+			Entry("IPv6 listed before IPv4 within the same type", getAddressTestcase{
+				nodes: []v1.Node{forgeNode(
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "fd00::1"},
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "10.0.0.1"},
+				)},
+				expectedAddress: "10.0.0.1",
+			}),
+
+			Entry("IPv4 listed before IPv6 within the same type", getAddressTestcase{
+				nodes: []v1.Node{forgeNode(
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "10.0.0.1"},
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "fd00::1"},
+				)},
+				expectedAddress: "10.0.0.1",
+			}),
+
+			Entry("multiple IPv6 addresses only, the first one is returned", getAddressTestcase{
+				nodes: []v1.Node{forgeNode(
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "fd00::1"},
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "fd00::2"},
+				)},
+				expectedAddress: "fd00::1",
+			}),
+
+			Entry("the type order wins over the IP family", getAddressTestcase{
+				nodes: []v1.Node{forgeNode(
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "10.0.0.1"},
+					v1.NodeAddress{Type: v1.NodeExternalIP, Address: "2001:db8::1"},
+				)},
+				expectedAddress: "2001:db8::1",
+			}),
+
+			Entry("an IPv4 address of the same type is preferred over the IPv6 address of the same type", getAddressTestcase{
+				nodes: []v1.Node{forgeNode(
+					v1.NodeAddress{Type: v1.NodeHostName, Address: "node-1"},
+					v1.NodeAddress{Type: v1.NodeExternalIP, Address: "2001:db8::1"},
+					v1.NodeAddress{Type: v1.NodeExternalIP, Address: "203.0.113.1"},
+					v1.NodeAddress{Type: v1.NodeInternalIP, Address: "10.0.0.1"},
+				)},
+				expectedAddress: "203.0.113.1",
+			}),
+
+			Entry("the hostname is returned as is", getAddressTestcase{
+				nodes:           []v1.Node{forgeNode(v1.NodeAddress{Type: v1.NodeHostName, Address: "node-1"})},
+				expectedAddress: "node-1",
+			}),
+		)
+	})
+
 })

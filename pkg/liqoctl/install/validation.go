@@ -27,11 +27,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
-	netutils "k8s.io/utils/net"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
+	svcutils "github.com/liqotech/liqo/pkg/utils/service"
 )
 
 // validate validates the correctness of the different parameters.
@@ -226,29 +226,18 @@ func (o *Options) validateServiceCIDR(ctx context.Context) error {
 	}
 
 	for i := range services.Items {
-		clusterIP := serviceIPv4(&services.Items[i])
-		if clusterIP != "" && !svcNet.Contains(net.ParseIP(clusterIP)) {
+		// Liqo uses the IPv4 family only: services without an IPv4 ClusterIP (e.g., headless or IPv6-only) are skipped.
+		clusterIP, err := svcutils.IPv4ClusterIP(&services.Items[i])
+		if err != nil {
+			continue
+		}
+		if !svcNet.Contains(net.ParseIP(clusterIP)) {
 			return fmt.Errorf(
 				"service %q does not match the provided Service CIDR (IP: %v)", services.Items[i].GetName(), clusterIP)
 		}
 	}
 
 	return nil
-}
-
-// serviceIPv4 returns the IPv4 ClusterIP of the service, or an empty string if it has none
-// (e.g., headless or IPv6 single-stack services). On dual-stack clusters with IPv6 as primary family,
-// the IPv4 address is only listed in spec.clusterIPs.
-func serviceIPv4(svc *corev1.Service) string {
-	for _, ip := range svc.Spec.ClusterIPs {
-		if netutils.IsIPv4String(ip) {
-			return ip
-		}
-	}
-	if netutils.IsIPv4String(svc.Spec.ClusterIP) {
-		return svc.Spec.ClusterIP
-	}
-	return ""
 }
 
 // validateOutputValues validates the flags related to values.

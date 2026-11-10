@@ -16,6 +16,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -269,7 +270,11 @@ func run(cmd *cobra.Command, _ []string) error {
 
 		if !opts.APIServerIPUseEndpointSlices {
 			if err := ipamips.EnforceAPIServerIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
-				return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
+				if !errors.Is(err, ipamips.ErrAPIServerNoIPv4ClusterIP) {
+					return fmt.Errorf("unable to enforce the API server IP remapping: %w", err)
+				}
+				// IPv6-primary dual-stack clusters have an IPv6 single-stack kubernetes service: keep starting without the remapping.
+				klog.Warningf("Skipping the API server IP remapping: %v", err)
 			}
 		} else {
 			// To not watch all the EndpointSlices in the cluster, we create custom cache to watch only endpointslices in default namespace.
@@ -291,7 +296,10 @@ func run(cmd *cobra.Command, _ []string) error {
 
 		if opts.EnableAPIServerProxyIPRemapping {
 			if err := ipamips.EnforceAPIServerProxyIPRemapping(cmd.Context(), uncachedClient, opts.LiqoNamespace); err != nil {
-				return fmt.Errorf("unable to enforce the API server proxy IP remapping: %w", err)
+				if !errors.Is(err, ipamips.ErrAPIServerNoIPv4ClusterIP) {
+					return fmt.Errorf("unable to enforce the API server proxy IP remapping: %w", err)
+				}
+				klog.Warningf("Skipping the API server proxy IP remapping: %v", err)
 			}
 		}
 	}
