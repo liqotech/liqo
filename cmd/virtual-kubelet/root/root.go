@@ -84,6 +84,11 @@ func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 }
 
 func runRootCommand(ctx context.Context, c *Opts) error {
+	// Cancel the context on exit, so that the controllers started below (e.g. the leader election) are stopped and
+	// their resources released also when the setup fails and the function returns before the end.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if c.ForeignCluster.GetClusterID() == "" {
 		return errors.New("cluster id is mandatory")
 	}
@@ -165,7 +170,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 	if !leader {
 		klog.Error("This virtual-kubelet is not the leader")
-		os.Exit(1)
+		return fmt.Errorf("shutting down before acquiring leadership")
 	}
 
 	// Retrieve the virtual node and the network configuration only after the leadership has
@@ -311,39 +316,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 			localClient.CoreV1().Nodes(),
 			node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), int32(c.NodeLeaseDuration.Seconds())),
 			node.WithNodePingInterval(c.NodePingInterval), node.WithNodePingTimeout(c.NodePingTimeout),
-			node.WithNodeStatusUpdateErrorHandler(
-				func(ctx context.Context, _ error) error {
-					klog.Info("node setting up")
-					newNode := nodeProvider.GetNode().DeepCopy()
-					newNode.ResourceVersion = ""
-
-					if nodeProvider.IsTerminating() {
-						// this avoids the re-creation of terminated nodes
-						klog.V(4).Info("skipping: node is in terminating phase")
-						return nil
-					}
-
-					oldNode, newErr := localClient.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
-					if newErr != nil {
-						if !k8serrors.IsNotFound(newErr) {
-							klog.Error(newErr, "node error")
-							return newErr
-						}
-						_, newErr = localClient.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
-						klog.Info("new node created")
-					} else {
-						oldNode.Status = newNode.Status
-						_, newErr = localClient.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
-						if newErr != nil {
-							klog.Info("node updated")
-						}
-					}
-
-					if newErr != nil {
-						return newErr
-					}
-					return nil
-				}),
+			node.WithNodeStatusUpdateErrorHandler(nodeProvider.HandleNodeStatusUpdateError),
 		)
 		if err != nil {
 			return err
@@ -357,6 +330,15 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		}()
 
 		<-nodeRunner.Ready()
+
+		// The virtual kubelet runs no CSI driver, but a CSINode object is expected to exist for a registered node.
+		err := nodeProvider.EnsureCSINode(ctx)
+		if err != nil {
+			return fmt.Errorf("setting up the CSINode object for node %q: %w", c.NodeName, err)
+		}
+
+		klog.Infof("CSINode object for node %q correctly set up", c.NodeName)
+
 		close(nodeReady)
 	}
 
