@@ -265,16 +265,44 @@ var _ = Describe("Service Reflection Tests", func() {
 			return errget == nil
 		}
 
-		WhenApplyFails := func(description string, apiErr func() error, expectDeleted bool) {
-			When(description, func() {
-				BeforeEach(func() { applyErr = apiErr() })
+		var (
+			v4v6 = []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}
+			v6v4 = []corev1.IPFamily{corev1.IPv6Protocol, corev1.IPv4Protocol}
+			v4   = []corev1.IPFamily{corev1.IPv4Protocol}
+		)
 
-				if expectDeleted {
+		// remoteFamilies are the IP families of the existing remote service (nil: no remote service).
+		// The local service has the IPv4 family, hence the expected remote primary family is IPv4.
+		WhenApplyFails := func(description string, remoteFamilies []corev1.IPFamily, apiErr func() error, expectDeleted bool) {
+			When(description, func() {
+				BeforeEach(func() {
+					applyErr = apiErr()
+					ports := []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
+					objects := []runtime.Object{&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace},
+						Spec: corev1.ServiceSpec{Ports: ports, IPFamilies: v4}}}
+					if remoteFamilies != nil {
+						objects = append(objects, &corev1.Service{
+							ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels()},
+							Spec:       corev1.ServiceSpec{Ports: ports, IPFamilies: remoteFamilies}})
+					}
+					fakeClient = fake.NewClientset(objects...)
+					fakeClient.PrependReactor("patch", "services", func(clienttesting.Action) (bool, runtime.Object, error) {
+						return true, nil, applyErr
+					})
+				})
+
+				switch {
+				case expectDeleted:
 					It("should delete the remote object, to let it be recreated", func() {
 						Expect(err).ToNot(HaveOccurred())
 						Expect(remoteExists()).To(BeFalse())
 					})
-				} else {
+				case remoteFamilies == nil:
+					It("should return the error and not create the remote object", func() {
+						Expect(err).To(HaveOccurred())
+						Expect(remoteExists()).To(BeFalse())
+					})
+				default:
 					It("should return the error and keep the remote object", func() {
 						Expect(err).To(HaveOccurred())
 						Expect(remoteExists()).To(BeTrue())
@@ -282,18 +310,6 @@ var _ = Describe("Service Reflection Tests", func() {
 				}
 			})
 		}
-
-		BeforeEach(func() {
-			ports := []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
-			fakeClient = fake.NewClientset(
-				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}, Spec: corev1.ServiceSpec{Ports: ports}},
-				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace, Labels: forge.ReflectionLabels()},
-					Spec: corev1.ServiceSpec{Ports: ports}},
-			)
-			fakeClient.PrependReactor("patch", "services", func(clienttesting.Action) (bool, runtime.Object, error) {
-				return true, nil, applyErr
-			})
-		})
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(fakeClient, 10*time.Hour)
@@ -311,13 +327,21 @@ var _ = Describe("Service Reflection Tests", func() {
 			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("Service")), ServiceName)
 		})
 
-		WhenApplyFails("the immutable primary IP family is changed", func() error { return invalid("ipFamilies[0]") }, true)
-		WhenApplyFails("the IP family policy prevents releasing the secondary family", func() error { return invalid("ipFamilyPolicy") }, true)
-		WhenApplyFails("the cluster IPs are changed", func() error { return invalid("clusterIPs[0]") }, true)
-		WhenApplyFails("the error concerns also other fields", func() error { return invalid("ports[0].port", "ipFamilies") }, true)
-		WhenApplyFails("the error concerns only other fields", func() error { return invalid("ports[0].port") }, false)
-		WhenApplyFails("the error is not an invalid one", func() error {
+		WhenApplyFails("the immutable primary IP family is changed", v6v4, func() error { return invalid("ipFamilies[0]") }, true)
+		WhenApplyFails("the IP family policy is rejected while the primary family changes", v6v4,
+			func() error { return invalid("ipFamilyPolicy") }, true)
+		WhenApplyFails("the cluster IPs are changed", v6v4, func() error { return invalid("clusterIPs[0]") }, true)
+		WhenApplyFails("the error concerns also other fields", v6v4, func() error { return invalid("ports[0].port", "ipFamilies") }, true)
+		WhenApplyFails("the error concerns only other fields", v6v4, func() error { return invalid("ports[0].port") }, false)
+		WhenApplyFails("the error is not an invalid one", v6v4, func() error {
 			return kerrors.NewForbidden(corev1.Resource("services"), ServiceName, errors.New("forbidden"))
 		}, false)
+		// The remote cluster cannot satisfy the families (e.g., IPv6 single-stack): deleting would not help, and would loop.
+		WhenApplyFails("the IP families are rejected, but the primary family is already IPv4", v4,
+			func() error { return invalid("ipFamilies[1]") }, false)
+		WhenApplyFails("the IP family policy is rejected, but the primary family is already IPv4", v4v6,
+			func() error { return invalid("ipFamilyPolicy") }, false)
+		WhenApplyFails("the remote object does not exist and the IP families are rejected", nil,
+			func() error { return invalid("ipFamilies[0]") }, false)
 	})
 })

@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
@@ -163,7 +164,9 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 		// reflected with different ones (e.g., with an IPv6 primary family on an IPv6-primary dual-stack cluster), it
 		// cannot be patched: delete it (it is managed by the reflection, as checked above), so that it gets recreated.
 		// The deletion of the remote object triggers a new reconciliation, which recreates it with the expected IP families.
-		if rerr == nil && isIPFamilyConflict(err) {
+		// The remote object is deleted only if its primary family differs from the expected one: if the remote cluster cannot
+		// satisfy the IP families at all (e.g., IPv6 single-stack), recreating it would not help, and would loop forever.
+		if rerr == nil && isIPFamilyConflict(err) && primaryIPFamilyChanged(remote, mutation) {
 			klog.Infof("Deleting remote Service %q (local: %q), as its IP families or cluster IPs cannot be updated in place: %v",
 				nsr.RemoteRef(name), nsr.LocalRef(name), err)
 			return nsr.DeleteRemote(ctx, nsr.remoteServicesClient, ServiceReflectorName, name, remote.GetUID())
@@ -196,6 +199,14 @@ func isIPFamilyConflict(err error) bool {
 		}
 	}
 	return false
+}
+
+// primaryIPFamilyChanged returns whether the desired primary IP family is set and differs from the one of the existing service.
+func primaryIPFamilyChanged(existing *corev1.Service, desired *corev1apply.ServiceApplyConfiguration) bool {
+	if desired.Spec == nil || len(desired.Spec.IPFamilies) == 0 || len(existing.Spec.IPFamilies) == 0 {
+		return false
+	}
+	return existing.Spec.IPFamilies[0] != desired.Spec.IPFamilies[0]
 }
 
 // List returns the list of services to be reflected.
