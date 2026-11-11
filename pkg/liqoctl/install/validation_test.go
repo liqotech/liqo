@@ -204,6 +204,24 @@ var _ = Describe("Validation", func() {
 				Expect(err).To(c.expectedOutput)
 			},
 
+			Entry("IPv6-primary dual-stack and IPv6-only services", serviceCIDRValidatorTestcase{
+				serviceList: []runtime.Object{
+					getDualStackSvc("svc-1", "fd00:10:96::1", "10.80.0.1"),
+					getDualStackSvc("svc-2", "fd00:10:96::2", "10.80.0.2"),
+					getDualStackSvc("svc-3", "fd00:10:96::3"),
+					getSvc("svc-4", "fd00:10:96::4"),
+					getSvc("svc-5", "None"),
+				},
+				expectedOutput: Succeed(),
+			}),
+
+			Entry("IPv6-primary dual-stack service outside the IPv4 CIDR", serviceCIDRValidatorTestcase{
+				serviceList: []runtime.Object{
+					getDualStackSvc("svc-1", "fd00:10:96::1", "10.99.0.1"),
+				},
+				expectedOutput: HaveOccurred(),
+			}),
+
 			Entry("valid service CIDR", serviceCIDRValidatorTestcase{
 				serviceList: []runtime.Object{
 					getSvc("svc-1", "10.80.0.1"),
@@ -312,6 +330,27 @@ var _ = Describe("Validation", func() {
 				expectedOutput: Succeed(),
 			}),
 
+			Entry("IPv6-primary dual-stack and IPv6-only pods", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
+				podList: []runtime.Object{
+					getDualStackPod("pod-1", "fd00:10:244::1", "10.0.0.1"),
+					getDualStackPod("pod-2", "fd00:10:244::2", "10.0.0.2"),
+					getDualStackPod("pod-3", "fd00:10:244::3"),
+					getPod("pod-4", "fd00:10:244::4", false, false),
+				},
+				expectedOutput: Succeed(),
+			}),
+
+			Entry("IPv6-primary dual-stack pod outside the IPv4 pod CIDR", podCIDRValidatorTestcase{
+				podCIDRs:    []string{podCIDR},
+				serviceCIDR: serviceCIDR,
+				podList: []runtime.Object{
+					getDualStackPod("pod-1", "fd00:10:244::1", "172.31.0.1"),
+				},
+				expectedOutput: HaveOccurred(),
+			}),
+
 			Entry("valid multiple pod CIDRs", podCIDRValidatorTestcase{
 				podCIDRs:    []string{"10.0.0.0/16", "10.1.0.0/16"},
 				serviceCIDR: serviceCIDR,
@@ -360,6 +399,24 @@ func getPod(name, ip string, hostNetwork, offloaded bool) *v1.Pod {
 
 	if offloaded {
 		pod.Labels = map[string]string{consts.LocalPodLabelKey: "true"}
+	}
+	return pod
+}
+
+func getDualStackSvc(name string, clusterIPs ...string) *v1.Service {
+	return &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec:       v1.ServiceSpec{ClusterIP: clusterIPs[0], ClusterIPs: clusterIPs},
+	}
+}
+
+func getDualStackPod(name string, ips ...string) *v1.Pod {
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status:     v1.PodStatus{PodIP: ips[0]},
+	}
+	for _, ip := range ips {
+		pod.Status.PodIPs = append(pod.Status.PodIPs, v1.PodIP{IP: ip})
 	}
 	return pod
 }

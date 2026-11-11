@@ -19,6 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	netutils "k8s.io/utils/net"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -55,11 +56,24 @@ func GetAddress(node *corev1.Node) (string, error) {
 	})
 }
 
+// getAddressByType returns an address of the given type, preferring an IPv4 address over the other ones
+// (e.g., on dual-stack nodes whose primary IP family is IPv6), and falling back to the first one of that type.
 func getAddressByType(node *corev1.Node, addrType corev1.NodeAddressType) (string, error) {
+	first := ""
+	found := false
 	for _, addr := range node.Status.Addresses {
-		if addr.Type == addrType {
+		if addr.Type != addrType {
+			continue
+		}
+		if netutils.IsIPv4String(addr.Address) {
 			return addr.Address, nil
 		}
+		if !found {
+			first, found = addr.Address, true
+		}
+	}
+	if found {
+		return first, nil
 	}
 	return "", fmt.Errorf("no address with type %v found in node %v", addrType, node.Name)
 }

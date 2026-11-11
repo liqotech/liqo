@@ -31,6 +31,18 @@ import (
 // and the values are the endpoints from their point of view.
 type Targets map[string][]string
 
+// filterIPv4Slices returns only the EndpointSlices of the IPv4 address type.
+// The Liqo network fabric is IPv4 only, hence the slices of other address types (e.g., IPv6) are not relevant for the checks.
+func filterIPv4Slices(items []discoveryv1.EndpointSlice) []discoveryv1.EndpointSlice {
+	filtered := make([]discoveryv1.EndpointSlice, 0, len(items))
+	for i := range items {
+		if items[i].AddressType == discoveryv1.AddressTypeIPv4 {
+			filtered = append(filtered, items[i])
+		}
+	}
+	return filtered
+}
+
 // ForgePodTargets creates a map of targets for the pod-to-pod tests.
 func ForgePodTargets(ctx context.Context, cl *client.Client, totalReplicas int32) (Targets, error) {
 	var target Targets = make(map[string][]string)
@@ -62,6 +74,7 @@ func ForgePodTargetForProvider(ctx context.Context, cl *client.Client, name stri
 		); err != nil {
 			return false, err
 		}
+		eps.Items = filterIPv4Slices(eps.Items)
 		return len(eps.Items) == 2, nil
 	}); err != nil {
 		if len(eps.Items) != 2 {
@@ -100,6 +113,7 @@ func ForgePodTargetForConsumer(ctx context.Context, cl *client.Client, totalRepl
 		); err != nil {
 			return false, err
 		}
+		eps.Items = filterIPv4Slices(eps.Items)
 		return len(eps.Items) == 1, nil
 	}); err != nil {
 		if len(eps.Items) != 1 {

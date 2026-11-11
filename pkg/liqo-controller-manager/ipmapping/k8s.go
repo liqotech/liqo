@@ -27,27 +27,33 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
 // CreateOrUpdateIP creates or updates an IP resource for the given pod.
 func CreateOrUpdateIP(ctx context.Context, cl client.Client, scheme *runtime.Scheme, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+	podIP, err := podutils.IPv4(pod)
+	if err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
 		},
 	}
-	return resource.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, scheme))
+	return resource.CreateOrUpdate(ctx, cl, ip, mutateIP(ip, pod, podIP, scheme))
 }
 
-func mutateIP(ip *ipamv1alpha1.IP, pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
+func mutateIP(ip *ipamv1alpha1.IP, pod *corev1.Pod, podIP string, scheme *runtime.Scheme) controllerutil.MutateFn {
 	return func() error {
 		if err := controllerutil.SetOwnerReference(pod, ip, scheme); err != nil {
 			return fmt.Errorf("unable to set owner reference for IP %q: %w", ip.Name, err)
 		}
 		ip.SetLabels(labels.Merge(ip.GetLabels(), forgeIPLabels(pod)))
-		ip.Spec.IP = networkingv1beta1.IP(pod.Status.PodIP)
+		ip.Spec.IP = networkingv1beta1.IP(podIP)
 		return nil
 	}
 }

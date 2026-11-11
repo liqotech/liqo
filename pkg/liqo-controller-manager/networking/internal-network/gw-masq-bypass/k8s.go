@@ -44,7 +44,7 @@ func getNodeFromFirewallConfigurationName(name string) string {
 }
 
 func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
-	opts *Options, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+	opts *Options, pod *corev1.Pod, podIP string) (controllerutil.OperationResult, error) {
 	internalnode := &networkingv1beta1.InternalNode{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -56,7 +56,7 @@ func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *r
 	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
-	op, err := resource.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
+	op, err := resource.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, podIP, scheme, opts.GenevePort))
 	if err != nil {
 		return "", fmt.Errorf("enforcing firewall configuration %s: %w", fwcfg.GetName(), err)
 	}
@@ -104,7 +104,7 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 }
 
 func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode,
-	fwcfg *networkingv1beta1.FirewallConfiguration, pod *corev1.Pod, scheme *runtime.Scheme, genevePort uint16) controllerutil.MutateFn {
+	fwcfg *networkingv1beta1.FirewallConfiguration, pod *corev1.Pod, podIP string, scheme *runtime.Scheme, genevePort uint16) controllerutil.MutateFn {
 	return func() error {
 		if err := controllerutil.SetOwnerReference(internalnode, fwcfg, scheme); err != nil {
 			return err
@@ -128,9 +128,9 @@ func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode
 		rules := &fwcfg.Spec.Table.Chains[0].Rules.NatRules
 
 		if rule, exists := rulesContainsPod(pod, *rules); exists {
-			updatePodToFw(pod, rule, genevePort)
+			updatePodToFw(pod, podIP, rule, genevePort)
 		} else {
-			addPodToFw(pod, rules, genevePort)
+			addPodToFw(pod, podIP, rules, genevePort)
 		}
 		return nil
 	}
@@ -173,16 +173,16 @@ func rulesContainsPod(pod *corev1.Pod, rules []firewall.NatRule) (*firewall.NatR
 	return nil, false
 }
 
-func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule, genevePort uint16) {
+func addPodToFw(pod *corev1.Pod, podIP string, rules *[]firewall.NatRule, genevePort uint16) {
 	*rules = append(*rules, firewall.NatRule{
 		Name:    &pod.Name,
 		NatType: firewall.NatTypeSource,
-		To:      ptr.To(pod.Status.PodIP),
+		To:      ptr.To(podIP),
 		Match: []firewall.Match{
 			{
 				Op: firewall.MatchOperationEq,
 				IP: &firewall.MatchIP{
-					Value:    pod.Status.PodIP,
+					Value:    podIP,
 					Position: firewall.MatchPositionSrc,
 				},
 				Port: &firewall.MatchPort{
@@ -198,15 +198,15 @@ func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule, genevePort uint16) {
 	})
 }
 
-func updatePodToFw(pod *corev1.Pod, rule *firewall.NatRule, genevePort uint16) {
+func updatePodToFw(pod *corev1.Pod, podIP string, rule *firewall.NatRule, genevePort uint16) {
 	rule.Name = ptr.To(pod.Name)
 	rule.NatType = firewall.NatTypeSource
-	rule.To = ptr.To(pod.Status.PodIP)
+	rule.To = ptr.To(podIP)
 	rule.Match = []firewall.Match{
 		{
 			Op: firewall.MatchOperationEq,
 			IP: &firewall.MatchIP{
-				Value:    pod.Status.PodIP,
+				Value:    podIP,
 				Position: firewall.MatchPositionSrc,
 			},
 			Port: &firewall.MatchPort{

@@ -24,6 +24,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/utils"
+	"github.com/liqotech/liqo/pkg/utils/cidr"
 )
 
 var _ install.Provider = (*Options)(nil)
@@ -80,10 +81,18 @@ func (o *Options) Initialize(ctx context.Context) error {
 	}
 
 	command := cm.Items[0].Spec.Containers[0].Command
-	o.ServiceCIDR = utils.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
+	// On dual-stack clusters the flags are comma-separated lists. Liqo uses the IPv4 family only.
+	serviceCIDRs, err := cidr.IPv4Only(utils.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR))
+	if err != nil {
+		return fmt.Errorf("service CIDR: %w", err)
+	}
+	o.ServiceCIDR = serviceCIDRs[0]
 
-	podCidr := utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
-	o.PodCIDRs = []string{podCidr}
+	podCIDRs, err := cidr.IPv4Only(utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR))
+	if err != nil {
+		return fmt.Errorf("pod CIDR: %w", err)
+	}
+	o.PodCIDRs = podCIDRs
 
 	return nil
 }

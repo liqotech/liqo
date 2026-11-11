@@ -16,6 +16,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 var (
@@ -90,10 +92,27 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
 
-	if pod.Spec.NodeName == "" || pod.Status.PodIP == "" {
-		// If the pod is not yet scheduled or does not have an IP address, we cannot enforce its route configuration.
+	if pod.Spec.NodeName == "" {
+		// If the pod is not yet scheduled, we cannot enforce its route configuration.
 		// It will be reconciled again when available.
 		return ctrl.Result{}, nil
+	}
+
+	podIP, err := podutils.IPv4(pod)
+	switch {
+	case errors.Is(err, podutils.ErrNoIPAddress):
+		// The pod does not have an IP address yet, we cannot enforce its route configuration.
+		// It will be reconciled again when available.
+		return ctrl.Result{}, nil
+	case errors.Is(err, podutils.ErrNoIPv4Address):
+		if !pod.Spec.HostNetwork {
+			klog.Warningf("Skipping route for pod %s: it has no IPv4 address (the Liqo network fabric is IPv4 only)", req.String())
+			return ctrl.Result{}, nil
+		}
+		// Host network pods do not need a pod route, but the route towards their node must be enforced anyway.
+		podIP = ""
+	case err != nil:
+		return ctrl.Result{}, fmt.Errorf("unable to get the IPv4 address of pod %q: %w", req.NamespacedName, err)
 	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
@@ -106,7 +125,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	PopulatePodKeyToNodeMap(pod)
 
-	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
+	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod, podIP)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(3).Infof("there is no internalnode %s. Retrying later...", pod.Spec.NodeName)

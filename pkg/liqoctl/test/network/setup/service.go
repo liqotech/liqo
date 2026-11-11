@@ -20,11 +20,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 )
+
+// forgeIPv4SingleStack sets the service IP family fields to IPv4 single-stack.
+// The Liqo network fabric is IPv4 only: without this, the services would be IPv6 single-stack
+// on dual-stack clusters whose primary IP family is IPv6.
+func forgeIPv4SingleStack(spec *corev1.ServiceSpec) {
+	spec.IPFamilyPolicy = ptr.To(corev1.IPFamilyPolicySingleStack)
+	spec.IPFamilies = []corev1.IPFamily{corev1.IPv4Protocol}
+}
 
 // CreateService creates a service resource.
 func CreateService(ctx context.Context, cl *client.Client, opts *flags.Options) error {
@@ -38,6 +47,7 @@ func CreateService(ctx context.Context, cl *client.Client, opts *flags.Options) 
 			Ports:    []corev1.ServicePort{{Port: 80, TargetPort: intstr.IntOrString{IntVal: 80}}},
 		},
 	}
+	forgeIPv4SingleStack(&svc.Spec)
 	if err := cl.Consumer.Create(ctx, svc); err != nil && ctrlclient.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
@@ -53,6 +63,7 @@ func CreateService(ctx context.Context, cl *client.Client, opts *flags.Options) 
 			Ports:    []corev1.ServicePort{{Port: 80, TargetPort: intstr.IntOrString{IntVal: 80}}},
 		},
 	}
+	forgeIPv4SingleStack(&svcnp.Spec)
 	if err := cl.Consumer.Create(ctx, svcnp); err != nil && ctrlclient.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
@@ -69,6 +80,7 @@ func CreateService(ctx context.Context, cl *client.Client, opts *flags.Options) 
 				Ports:    []corev1.ServicePort{{Port: 80, TargetPort: intstr.IntOrString{IntVal: 80}}},
 			},
 		}
+		forgeIPv4SingleStack(&svclb.Spec)
 		if err := cl.Consumer.Create(ctx, svclb); err != nil && ctrlclient.IgnoreAlreadyExists(err) != nil {
 			return err
 		}
