@@ -196,10 +196,13 @@ function login_az() {
 
 function install_kyverno() {
   local kubeconfig=$1
+  # Chart 3.9.2 installs Kyverno v1.19.2, the last release with full support
+  # for the legacy policy types.
+  local chart_version=${KYVERNO_CHART_VERSION:-3.9.2}
 
   "${HELM}" repo add kyverno https://kyverno.github.io/kyverno/
   "${HELM}" repo update
-  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}"
+  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --version "${chart_version}" --kubeconfig "${kubeconfig}"
 }
 
 function wait_kyverno() {
