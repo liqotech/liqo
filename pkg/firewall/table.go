@@ -60,6 +60,7 @@ func cleanTable(nftconn *nftables.Conn, table *firewallapi.Table) error {
 	if err != nil {
 		return err
 	}
+
 	// Cycle on chains that are applied on nftable.
 	for i := range nftChains {
 		// We need to filter the chains which are contained in the table.
@@ -78,6 +79,12 @@ func cleanTable(nftconn *nftables.Conn, table *firewallapi.Table) error {
 			return err
 		}
 	}
+
+	// Delete sets that are not used anymore in the table.
+	if err := cleanSets(nftconn, table); err != nil {
+		return err
+	}
+
 	return nil
 }
 

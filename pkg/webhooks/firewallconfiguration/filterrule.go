@@ -20,19 +20,19 @@ import (
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
-func checkFilterRulesInChain(chain *firewallapi.Chain) error {
+func checkFilterRulesInChain(chain *firewallapi.Chain, sets []firewallapi.Set) error {
 	filterRules := chain.Rules.FilterRules
 	for i := range filterRules {
-		if err := checkFilterRule(&filterRules[i]); err != nil {
+		if err := checkFilterRule(&filterRules[i], sets); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkFilterRule(r *firewallapi.FilterRule) error {
+func checkFilterRule(r *firewallapi.FilterRule, sets []firewallapi.Set) error {
 	for _, match := range r.Match {
-		if err := checkRuleMatch(&match); err != nil {
+		if err := checkRuleMatch(&match, sets); err != nil {
 			return fmt.Errorf("filterrule %s: %v", *r.Name, err)
 		}
 	}
