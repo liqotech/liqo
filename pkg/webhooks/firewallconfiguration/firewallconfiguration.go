@@ -146,7 +146,7 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
 		case firewallapi.ChainTypeFilter:
-			if err := checkFilterRules(chain.Rules.FilterRules); err != nil {
+			if err := checkFilterRulesInChain(&chain); err != nil {
 				return admission.Denied(forgeChainError(&chain, err).Error())
 			}
 		}

@@ -29,6 +29,11 @@ func checkNatRulesInChain(chain *firewallapi.Chain) error {
 		if err := checkNatRuleTo(&natrules[i]); err != nil {
 			return err
 		}
+		for _, match := range natrules[i].Match {
+			if err := checkRuleMatch(&match); err != nil {
+				return fmt.Errorf("natrule %s: %v", *natrules[i].Name, err)
+			}
+		}
 	}
 	return nil
 }
