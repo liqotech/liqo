@@ -29,6 +29,7 @@ type OffloadingV1beta1Interface interface {
 	RESTClient() rest.Interface
 	NamespaceMapsGetter
 	ShadowEndpointSlicesGetter
+	ShadowIngressStatusesGetter
 	ShadowPodsGetter
 	VirtualNodesGetter
 	VkOptionsTemplatesGetter
@@ -45,6 +46,10 @@ func (c *OffloadingV1beta1Client) NamespaceMaps(namespace string) NamespaceMapIn
 
 func (c *OffloadingV1beta1Client) ShadowEndpointSlices(namespace string) ShadowEndpointSliceInterface {
 	return newShadowEndpointSlices(c, namespace)
+}
+
+func (c *OffloadingV1beta1Client) ShadowIngressStatuses(namespace string) ShadowIngressStatusInterface {
+	return newShadowIngressStatuses(c, namespace)
 }
 
 func (c *OffloadingV1beta1Client) ShadowPods(namespace string) ShadowPodInterface {

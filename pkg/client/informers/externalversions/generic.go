@@ -61,6 +61,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().NamespaceMaps().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("shadowendpointslices"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowEndpointSlices().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("shadowingressstatuses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowIngressStatuses().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("shadowpods"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1beta1().ShadowPods().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("virtualnodes"):

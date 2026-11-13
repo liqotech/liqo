@@ -297,6 +297,11 @@ func (nsar *NamespacedServiceAccountReflector) List() ([]interface{}, error) {
 	)
 }
 
+// Cleanup is a no-op for this reflector.
+func (nsar *NamespacedServiceAccountReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}
+
 // Handle operates as fallback to reconcile pod objects not managed by namespaced handlers.
 func (fsar *FallbackServiceAccountReflector) Handle(ctx context.Context, key types.NamespacedName) error {
 	// No operation needs to be performed here, as the fallback reflector is only used to reenqueue possible already

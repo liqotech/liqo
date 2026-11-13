@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	applyconfigurationoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -46,18 +47,21 @@ type ShadowPodInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.ShadowPodList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.ShadowPod, err error)
+	Apply(ctx context.Context, shadowPod *applyconfigurationoffloadingv1beta1.ShadowPodApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.ShadowPod, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, shadowPod *applyconfigurationoffloadingv1beta1.ShadowPodApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.ShadowPod, err error)
 	ShadowPodExpansion
 }
 
 // shadowPods implements ShadowPodInterface
 type shadowPods struct {
-	*gentype.ClientWithList[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList]
+	*gentype.ClientWithListAndApply[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList, *applyconfigurationoffloadingv1beta1.ShadowPodApplyConfiguration]
 }
 
 // newShadowPods returns a ShadowPods
 func newShadowPods(c *OffloadingV1beta1Client, namespace string) *shadowPods {
 	return &shadowPods{
-		gentype.NewClientWithList[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList](
+		gentype.NewClientWithListAndApply[*offloadingv1beta1.ShadowPod, *offloadingv1beta1.ShadowPodList, *applyconfigurationoffloadingv1beta1.ShadowPodApplyConfiguration](
 			"shadowpods",
 			c.RESTClient(),
 			scheme.ParameterCodec,

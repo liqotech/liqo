@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	applyconfigurationoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -44,18 +45,19 @@ type VkOptionsTemplateInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.VkOptionsTemplateList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.VkOptionsTemplate, err error)
+	Apply(ctx context.Context, vkOptionsTemplate *applyconfigurationoffloadingv1beta1.VkOptionsTemplateApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.VkOptionsTemplate, err error)
 	VkOptionsTemplateExpansion
 }
 
 // vkOptionsTemplates implements VkOptionsTemplateInterface
 type vkOptionsTemplates struct {
-	*gentype.ClientWithList[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList]
+	*gentype.ClientWithListAndApply[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList, *applyconfigurationoffloadingv1beta1.VkOptionsTemplateApplyConfiguration]
 }
 
 // newVkOptionsTemplates returns a VkOptionsTemplates
 func newVkOptionsTemplates(c *OffloadingV1beta1Client, namespace string) *vkOptionsTemplates {
 	return &vkOptionsTemplates{
-		gentype.NewClientWithList[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList](
+		gentype.NewClientWithListAndApply[*offloadingv1beta1.VkOptionsTemplate, *offloadingv1beta1.VkOptionsTemplateList, *applyconfigurationoffloadingv1beta1.VkOptionsTemplateApplyConfiguration](
 			"vkoptionstemplates",
 			c.RESTClient(),
 			scheme.ParameterCodec,
