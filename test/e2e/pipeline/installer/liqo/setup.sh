@@ -87,8 +87,17 @@ do
   "${KUBECTL}" apply -f "${GADGET_CRD}"
   "${KUBECTL}" wait --for=condition=Established --timeout=60s crd/gadgets.other.io
 
+  # The clusterwidget CRD is cluster-scoped, to e2e test the reflection of
+  # cluster-scoped custom resources (configured with statusSync=true, and with
+  # clusterScoped=true to grant the remote cluster-wide RBAC permissions).
+  CLUSTERWIDGET_CRD="${SCRIPT_DIR}/../../../manifests/example-clusterwidget/crd.yaml"
+  "${KUBECTL}" apply -f "${CLUSTERWIDGET_CRD}"
+  "${KUBECTL}" wait --for=condition=Established --timeout=60s crd/clusterwidgets.example.io
+
   COMMON_ARGS=(--cluster-id "${CLUSTER_NAME}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set metrics.enabled=true
+    --set "offloading.reflection.skip.labels[0]=test.liqo.io/not-reflected-label"
+    --set "offloading.reflection.skip.annotations[0]=test.liqo.io/not-reflected-annotation"
     --set offloading.reflection.customResources[0].group=example.io
     --set offloading.reflection.customResources[0].version=v1
     --set offloading.reflection.customResources[0].resource=widgets
@@ -100,7 +109,14 @@ do
     --set offloading.reflection.customResources[1].resource=gadgets
     --set offloading.reflection.customResources[1].workers=2
     --set offloading.reflection.customResources[1].type=AllowList
-    --set offloading.reflection.customResources[1].statusSync=false)
+    --set offloading.reflection.customResources[1].statusSync=false
+    --set offloading.reflection.customResources[2].group=example.io
+    --set offloading.reflection.customResources[2].version=v1
+    --set offloading.reflection.customResources[2].resource=clusterwidgets
+    --set offloading.reflection.customResources[2].clusterScoped=true
+    --set offloading.reflection.customResources[2].workers=2
+    --set offloading.reflection.customResources[2].type=AllowList
+    --set offloading.reflection.customResources[2].statusSync=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi

@@ -19,6 +19,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/informers"
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -38,6 +42,21 @@ var _ = Describe("Options", func() {
 	hf := func(options.Keyer, ...options.EventFilter) cache.ResourceEventHandler {
 		return cache.ResourceEventHandlerFuncs{}
 	}
+
+	var (
+		dynamicClient  dynamic.Interface
+		dynamicFactory dynamicinformer.DynamicSharedInformerFactory
+
+		reflectionType offloadingv1beta1.ReflectionType
+		forgingOpts    *forge.ForgingOpts
+	)
+
+	BeforeEach(func() {
+		dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+		dynamicFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, "", nil)
+		reflectionType = offloadingv1beta1.CustomLiqo
+		forgingOpts = &forge.ForgingOpts{}
+	})
 
 	Describe("The New function", func() {
 		var (
@@ -95,6 +114,54 @@ var _ = Describe("Options", func() {
 			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
 			It("should return the same pointer of the receiver", func() { Expect(opts).To(BeIdenticalTo(opts)) })
 			It("should correctly set the event broadcaster value", func() { Expect(opts.EventBroadcaster).To(BeIdenticalTo(broadcaster)) })
+		})
+
+		Describe("The WithDynamicLocal function", func() {
+			JustBeforeEach(func() { returned = opts.WithDynamicLocal(dynamicClient, dynamicFactory) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+			It("should correctly set the local dynamic client and factory values", func() {
+				Expect(opts.LocalDynamicClient).To(BeIdenticalTo(dynamicClient))
+				Expect(opts.LocalDynamicFactory).To(BeIdenticalTo(dynamicFactory))
+			})
+			It("should leave the remote dynamic fields unset", func() {
+				Expect(opts.RemoteDynamicClient).To(BeNil())
+				Expect(opts.RemoteDynamicFactory).To(BeNil())
+			})
+		})
+
+		Describe("The WithDynamicRemote function", func() {
+			JustBeforeEach(func() { returned = opts.WithDynamicRemote(dynamicClient, dynamicFactory) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+			It("should correctly set the remote dynamic client and factory values", func() {
+				Expect(opts.RemoteDynamicClient).To(BeIdenticalTo(dynamicClient))
+				Expect(opts.RemoteDynamicFactory).To(BeIdenticalTo(dynamicFactory))
+			})
+			It("should leave the local dynamic fields unset", func() {
+				Expect(opts.LocalDynamicClient).To(BeNil())
+				Expect(opts.LocalDynamicFactory).To(BeNil())
+			})
+		})
+
+		Describe("The WithReflectionType function", func() {
+			JustBeforeEach(func() { returned = opts.WithReflectionType(reflectionType) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+			It("should correctly set the reflection type value", func() { Expect(opts.ReflectionType).To(Equal(reflectionType)) })
+			It("should leave the forging options unset", func() { Expect(opts.ForgingOpts).To(BeNil()) })
+		})
+
+		Describe("The WithForgingOpts function", func() {
+			JustBeforeEach(func() { returned = opts.WithForgingOpts(forgingOpts) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+			It("should correctly set the forging options value", func() { Expect(opts.ForgingOpts).To(BeIdenticalTo(forgingOpts)) })
+			It("should leave the reflection type unset", func() { Expect(opts.ReflectionType).To(BeEmpty()) })
 		})
 	})
 

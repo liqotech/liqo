@@ -44,8 +44,13 @@ import (
 var _ manager.Reflector = (*reflector)(nil)
 var _ manager.Reflector = (*dummyreflector)(nil)
 
-// NamespacedReflectorFactoryFunc represents the function type to create a new NamespacedReflector.
+// NamespacedReflectorFactoryFunc represents the function type to create a new NamespacedReflector
+// instance handling namespaced resources.
 type NamespacedReflectorFactoryFunc func(*options.NamespacedOpts) manager.NamespacedReflector
+
+// ClusterReflectorFactoryFunc represents the function type to create a new NamespacedReflector
+// instance handling cluster-scoped resources.
+type ClusterReflectorFactoryFunc func(*options.ReflectorOpts) manager.NamespacedReflector
 
 // FallbackReflectorFactoryFunc represents the function type to create a new FallbackReflector.
 type FallbackReflectorFactoryFunc func(*options.ReflectorOpts) manager.FallbackReflector
@@ -63,6 +68,7 @@ type reflector struct {
 	fallback   manager.FallbackReflector
 
 	namespacedFactory NamespacedReflectorFactoryFunc
+	clusterFactory    ClusterReflectorFactoryFunc
 	fallbackFactory   FallbackReflectorFactoryFunc
 
 	concurrencyMode ConcurrencyMode
@@ -114,10 +120,46 @@ func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 	}
 }
 
+// NewClusterReflector returns a new reflector to implement the reflection of cluster-scoped
+// resources towards a remote cluster, or a dummy one if no workers are specified. Cluster-scoped
+// reflection is not associated with any namespace pair: a single reflector instance is registered
+// at startup (keyed by the empty namespace, which cannot collide with real namespaces), and the
+// namespace-based start/stop operations are no-ops.
+func NewClusterReflector(name string, cluster ClusterReflectorFactoryFunc, workers uint,
+	reflectionType offloadingv1beta1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	if workers == 0 {
+		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the informers.
+		return &dummyreflector{name: name}
+	}
+
+	return newClusterReflector(name, cluster, workers, reflectionType, concurrencyMode)
+}
+
+// newClusterReflector returns a new reflector to implement the reflection of cluster-scoped
+// resources towards a remote cluster, registering a single reflector instance (not associated
+// with any namespace pair) at startup.
+func newClusterReflector(name string, cluster ClusterReflectorFactoryFunc, workers uint,
+	reflectionType offloadingv1beta1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	r := newReflector(name, nil, WithoutFallback(), workers, reflectionType, concurrencyMode).(*reflector)
+	r.clusterFactory = cluster
+	return r
+}
+
 // Start starts the reflector.
 func (gr *reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
 	klog.Infof("Starting the %v reflector with %v workers (policy: %v)", gr.name, gr.workers, gr.reflectionType)
 	gr.fallback = gr.fallbackFactory(opts.WithHandlerFactory(gr.handlers))
+
+	// In case of cluster-scoped reflection, register the single reflector instance, which is
+	// then active for the whole lifetime of the virtual-kubelet, independently of the namespaces.
+	if gr.clusterFactory != nil {
+		gr.Lock()
+		gr.reflectors[""] = gr.clusterFactory(opts.
+			WithHandlerFactory(gr.handlers).
+			WithReflectionType(gr.reflectionType))
+		gr.Unlock()
+		klog.Infof("Started %v cluster-scoped reflection", gr.name)
+	}
 
 	for i := uint(0); i < gr.workers; i++ {
 		go wait.Until(gr.runWorker, time.Second, ctx.Done())
@@ -134,6 +176,12 @@ func (gr *reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
 func (gr *reflector) StartNamespace(opts *options.NamespacedOpts) {
 	gr.Lock()
 	defer gr.Unlock()
+
+	// Cluster-scoped reflection is not associated with any namespace pair.
+	if gr.clusterFactory != nil {
+		klog.V(4).Infof("Skipping starting namespace for %q as cluster-scoped", gr.name)
+		return
+	}
 
 	klog.Infof("Starting %v reflection between local namespace %q and remote namespace %q",
 		gr.name, opts.LocalNamespace, opts.RemoteNamespace)
@@ -162,6 +210,12 @@ func (gr *reflector) StartNamespace(opts *options.NamespacedOpts) {
 func (gr *reflector) StopNamespace(local, remote string) {
 	gr.Lock()
 	defer gr.Unlock()
+
+	// Cluster-scoped reflection is not associated with any namespace pair.
+	if gr.clusterFactory != nil {
+		klog.V(4).Infof("Skipping stopping namespace for %q as cluster-scoped", gr.name)
+		return
+	}
 
 	klog.Infof("Stopping %v reflection between local namespace %q and remote namespace %q", gr.name, local, remote)
 	_, found := gr.reflectors[local]

@@ -62,6 +62,19 @@ func NewNamespacedReflector(opts *options.NamespacedOpts, name string) Namespace
 	}
 }
 
+// NewReflectorBase returns a new NamespacedReflector base for the reflection of
+// cluster-scoped resources, i.e. not associated with any namespace pair: the local
+// and remote namespaces are empty, so that the object refs correctly identify
+// cluster-scoped resources.
+func NewReflectorBase(opts *options.ReflectorOpts, name string) NamespacedReflector {
+	return NamespacedReflector{
+		EventRecorder:  opts.EventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "liqo-" + strings.ToLower(name) + "-reflection"}),
+		ready:          opts.Ready,
+		reflectionType: opts.ReflectionType,
+		ForgingOpts:    opts.ForgingOpts,
+	}
+}
+
 // Ready returns whether the NamespacedReflector is completely initialized.
 func (gnr *NamespacedReflector) Ready() bool {
 	return gnr.ready()

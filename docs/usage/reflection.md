@@ -9,7 +9,7 @@ Briefly, the set of supported resources includes (by category):
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PersistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
-* [**Custom Resources**](UsageReflectionCustomResources): *arbitrary namespaced GVRs* (opt-in)
+* [**Custom Resources**](UsageReflectionCustomResources): *arbitrary GVRs, either namespaced or cluster-scoped* (opt-in)
 
 (UsageReflectionPolicies)=
 
@@ -205,7 +205,9 @@ Local events are not reflected to the remote cluster.
 
 ## Custom resources (opt-in)
 
-Liqo can optionally reflect **arbitrary namespaced custom resources** between offloaded namespaces.
+Liqo can optionally reflect **arbitrary custom resources**: **namespaced** ones between offloaded namespaces, and **cluster-scoped** ones cluster-wide.
+The scope of each configured GVR is **automatically detected** from the corresponding CRD at Virtual Kubelet startup (no configuration needed).
+
 When enabled for a given Group/Version/Resource (GVR):
 
 * the **spec** is propagated **local → remote**;
@@ -222,15 +224,24 @@ Configure the list through the Helm value `offloading.reflection.customResources
 offloading:
   reflection:
     customResources:
+      # Namespaced custom resource: reflected between offloaded namespace pairs.
       - group: example.io
         version: v1
         resource: widgets   # plural resource name
         workers: 2
         type: AllowList     # recommended default
         statusSync: true     # opt-in, see "Status synchronization"
+      # Cluster-scoped custom resource: reflected once per remote cluster.
+      - group: example.io
+        version: v1
+        resource: clusterwidgets
+        clusterScoped: true  # required for the remote RBAC, see "Cluster-scoped custom resources"
+        workers: 2
+        type: AllowList
+        statusSync: true
 ```
 
-Then upgrade Liqo on the **consumer** cluster (VK config + RBAC) and ensure the **provider** tenant permissions include the same GVRs (the chart templates the remote Virtual Kubelet ClusterRole from the same list when Liqo is installed/upgraded there).
+Then upgrade Liqo on the **consumer** cluster (VK config + RBAC) and on the **provider** cluster (the chart templates the remote Virtual Kubelet RBAC from the same list: tenant-namespace permissions for namespaced entries, cluster-wide permissions for `clusterScoped` ones).
 
 The default reflection policy for custom resources is **AllowList**. Annotate individual instances to opt in:
 
@@ -248,19 +259,27 @@ Status synchronization is only safe when the controller for the reflected type r
 In particular, when the offloaded namespace is served by **multiple providers** whose controllers write different statuses, the reflectors would compete writing the local status (last-write-wins, with no possibility to merge them).
 Rather than racing, this situation should be avoided — enable `statusSync` only when the remote status has a single legitimate writer.
 
+### Cluster-scoped custom resources
+
+Cluster-scoped custom resources are supported and configured through the same list; their behavior differs from the namespaced case as follows:
+
+* a **single reflector instance per remote cluster** is started for the whole Virtual Kubelet lifetime, running on the leader node: the reflection is **not** tied to namespace offloading, and remote twins are created/deleted independently of the offloaded namespaces;
+* the same `liqo.io/allow-reflection`/`liqo.io/skip-reflection` policies and `statusSync` semantics apply.
+
 ### Operations checklist
 
 1. Install the relevant CRDs (and controllers, if needed) on both clusters as appropriate.
-2. Set `offloading.reflection.customResources` to the desired GVR list; upgrade Liqo on the **consumer**.
-3. Ensure **provider** tenant permissions include those GVRs (re-upgrade Liqo on the provider, or apply equivalent Role/ClusterRole rules).
-4. Offload the namespace; annotate CR instances with `liqo.io/allow-reflection: "true"`.
-5. If needed, enable `statusSync` and verify that the status written remotely appears on the local object.
+2. Set `offloading.reflection.customResources` to the desired GVR list (marking `clusterScoped: true` the entries whose CRD is cluster-scoped); upgrade Liqo on the **consumer**.
+3. Ensure the **provider** permissions include those GVRs (re-upgrade Liqo on the provider with the same values, or apply equivalent Role/ClusterRole rules).
+4. Offload the namespace (not needed for the cluster-scoped ones, which require no namespace).
+5. Annotate CR instances with `liqo.io/allow-reflection: "true"`.
+6. If needed, enable `statusSync` and verify that the status written remotely appears on the local object.
 
 ````{warning}
 * Existing VirtualNodes may need recreate/restart so the Virtual Kubelet picks up new flags and RBAC after changing the list.
 * Run the controller for a reflected type on **one** side only to avoid double reconcile fights.
 * Spec ownership is local-only: remote edits to `spec` are overwritten by the Virtual Kubelet.
-* Cluster-scoped custom resources are **not** supported.
+* Cluster-scoped remote twins are **not** garbage-collected upon unpeering (differently from the namespaced ones, which are removed with the remote namespace): clean them up manually if needed.
 * Cross-references and hardcoded namespaces in the CR `spec` are copied as-is and may be invalid remotely.
 ````
 

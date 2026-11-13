@@ -15,46 +15,17 @@
 package custom
 
 import (
-	"context"
-	"fmt"
-
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
-	"k8s.io/utils/trace"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
-// NamespacedGVRReflector manages the reflection of a single GVR between paired namespaces.
+// NamespacedGVRReflector manages the reflection of a single namespaced GVR between paired namespaces.
 type NamespacedGVRReflector struct {
-	generic.NamespacedReflector
-
-	gvr schema.GroupVersionResource
-
-	localLister  cache.GenericNamespaceLister
-	remoteLister cache.GenericNamespaceLister
-
-	localClient  dynamic.ResourceInterface
-	remoteClient dynamic.ResourceInterface
-
-	// statusSyncEnabled indicates whether the remote→local status sync is active,
-	// i.e. the statusSync option is set and the CRD exposes the status subresource.
-	// It is immutable: when false, the status sync is skipped entirely.
-	statusSyncEnabled bool
+	gvrReflector
 }
 
 // NewNamespacedGVRReflector returns a function generating NamespacedGVRReflector instances for the given GVR.
@@ -71,187 +42,21 @@ func NewNamespacedGVRReflector(gvr schema.GroupVersionResource, statusSyncEnable
 		_, err = remoteInformer.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
-		ncr := &NamespacedGVRReflector{
-			NamespacedReflector: generic.NewNamespacedReflector(opts, "CustomResource["+gvr.String()+"]"),
-			gvr:                 gvr,
-			localLister:         localInformer.Lister().ByNamespace(opts.LocalNamespace),
-			remoteLister:        remoteInformer.Lister().ByNamespace(opts.RemoteNamespace),
-			localClient:         opts.LocalDynamicClient.Resource(gvr).Namespace(opts.LocalNamespace),
-			remoteClient:        opts.RemoteDynamicClient.Resource(gvr).Namespace(opts.RemoteNamespace),
-			statusSyncEnabled:   statusSyncEnabled,
-		}
-		return ncr
-	}
-}
-
-// Handle is responsible for reconciling the given object and ensuring it is correctly reflected.
-func (ncr *NamespacedGVRReflector) Handle(ctx context.Context, name string) error {
-	tracer := trace.FromContext(ctx)
-
-	klog.V(4).Infof("Handling reflection of local %v %q (remote: %q)", ncr.gvr, ncr.LocalRef(name), ncr.RemoteRef(name))
-
-	localObj, lerr := ncr.localLister.Get(name)
-	utilruntime.Must(client.IgnoreNotFound(lerr))
-	remoteObj, rerr := ncr.remoteLister.Get(name)
-	utilruntime.Must(client.IgnoreNotFound(rerr))
-	tracer.Step("Retrieved the local and remote objects")
-
-	var local, remote *unstructured.Unstructured
-	if lerr == nil {
-		var ok bool
-		local, ok = localObj.(*unstructured.Unstructured)
-		if !ok {
-			return fmt.Errorf("unexpected local object type %T for %v %q", localObj, ncr.gvr, ncr.LocalRef(name))
+		return &NamespacedGVRReflector{
+			gvrReflector: gvrReflector{
+				NamespacedReflector: generic.NewNamespacedReflector(opts, "CustomResource["+gvr.String()+"]"),
+				gvr:                 gvr,
+				localLister:         localInformer.Lister().ByNamespace(opts.LocalNamespace),
+				remoteLister:        remoteInformer.Lister().ByNamespace(opts.RemoteNamespace),
+				localClient:         opts.LocalDynamicClient.Resource(gvr).Namespace(opts.LocalNamespace),
+				remoteClient:        opts.RemoteDynamicClient.Resource(gvr).Namespace(opts.RemoteNamespace),
+				statusSyncEnabled:   statusSyncEnabled,
+			},
 		}
 	}
-	if rerr == nil {
-		var ok bool
-		remote, ok = remoteObj.(*unstructured.Unstructured)
-		if !ok {
-			return fmt.Errorf("unexpected remote object type %T for %v %q", remoteObj, ncr.gvr, ncr.RemoteRef(name))
-		}
-	}
-
-	// Abort the reflection if the remote object is not managed by us.
-	if rerr == nil && !forge.IsReflected(remote) {
-		if lerr == nil {
-			klog.Infof("Skipping reflection of local %v %q as remote already exists and is not managed by us",
-				ncr.gvr, ncr.LocalRef(name))
-			ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
-		}
-		return nil
-	}
-
-	// Abort the reflection if the local object should be skipped by policy.
-	if !kerrors.IsNotFound(lerr) {
-		skipReflection, err := ncr.ShouldSkipReflection(local)
-		if err != nil {
-			klog.Errorf("Failed to check whether local %v %q should be reflected: %v", ncr.gvr, ncr.LocalRef(name), err)
-			return err
-		}
-		if skipReflection {
-			if ncr.GetReflectionType() == offloadingv1beta1.DenyList {
-				klog.Infof("Skipping reflection of local %v %q as marked with the skip annotation", ncr.gvr, ncr.LocalRef(name))
-			} else {
-				klog.Infof("Skipping reflection of local %v %q as not marked with the allow annotation", ncr.gvr, ncr.LocalRef(name))
-			}
-			ncr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(ncr.GetReflectionType()))
-			if kerrors.IsNotFound(rerr) {
-				return nil
-			}
-			// Pretend the local object does not exist so that the remote twin is deleted.
-			lerr = kerrors.NewNotFound(ncr.gvr.GroupResource(), name)
-		}
-	}
-
-	tracer.Step("Performed the sanity checks")
-
-	if kerrors.IsNotFound(lerr) {
-		defer tracer.Step("Ensured the absence of the remote object")
-		if !kerrors.IsNotFound(rerr) {
-			klog.V(4).Infof("Deleting remote %v %q, since local %q does no longer exist",
-				ncr.gvr, ncr.RemoteRef(name), ncr.LocalRef(name))
-			return ncr.deleteRemote(ctx, remote)
-		}
-		klog.V(4).Infof("Local %v %q and remote %q both vanished", ncr.gvr, ncr.LocalRef(name), ncr.RemoteRef(name))
-		return nil
-	}
-
-	// Ensure the remote twin matches the local spec through server-side apply: the
-	// reflector owns the spec and the reflected metadata, while fields owned by other
-	// field managers (e.g. annotations added on the remote twin by other controllers)
-	// are preserved.
-	klog.V(4).Infof("Enforcing remote %v %q (local: %q)", ncr.gvr, ncr.RemoteRef(name), ncr.LocalRef(name))
-	remote, err := applyRemoteObject(ctx, ncr.remoteClient, local, ncr.RemoteNamespace(), ncr.ForgingOpts)
-	if err != nil {
-		return ncr.handleRemoteError(local, err)
-	}
-	tracer.Step("Ensured the remote object")
-
-	// Sync status from remote → local (OwnershipShared), if the status sync is enabled.
-	if ncr.statusSyncEnabled {
-		if err = updateObjectStatusShared(ctx, ncr.localClient, ncr.gvr, remote, local.DeepCopy()); err != nil {
-			switch {
-			case kerrors.IsNotFound(err):
-				// Object vanished between get and UpdateStatus; retry via workqueue.
-				return err
-			case kerrors.IsForbidden(err):
-				klog.Infof("Cannot update status of local %v %q (forbidden): %v", ncr.gvr, ncr.LocalRef(name), err)
-				ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-				return nil
-			default:
-				klog.Errorf("Failed to update status of local %v %q: %v", ncr.gvr, ncr.LocalRef(name), err)
-				ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-				return err
-			}
-		}
-	}
-	tracer.Step("Ensured the status is synchronized")
-
-	klog.Infof("Remote %v %q successfully enforced (local: %q)", ncr.gvr, ncr.RemoteRef(name), ncr.LocalRef(name))
-	ncr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
-	return nil
-}
-
-func (ncr *NamespacedGVRReflector) handleRemoteError(local *unstructured.Unstructured, err error) error {
-	if kerrors.IsForbidden(err) {
-		klog.Infof("Cannot apply remote %v %q (forbidden): %v", ncr.gvr, ncr.RemoteRef(local.GetName()), err)
-		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-		return nil
-	}
-	if kerrors.IsNotFound(err) {
-		// An apply creates the twin if absent, hence a NotFound error means the
-		// CRD (or the remote namespace) is missing on the remote cluster.
-		klog.Warningf("Cannot apply remote %v %q (CRD may be missing on the remote cluster): %v",
-			ncr.gvr, ncr.RemoteRef(local.GetName()), err)
-		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-		return nil
-	}
-	klog.Errorf("Failed to apply remote %v %q (local: %q): %v",
-		ncr.gvr, ncr.RemoteRef(local.GetName()), ncr.LocalRef(local.GetName()), err)
-	ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-	return err
-}
-
-func (ncr *NamespacedGVRReflector) deleteRemote(ctx context.Context, remote *unstructured.Unstructured) error {
-	err := ncr.remoteClient.Delete(ctx, remote.GetName(), *metav1.NewPreconditionDeleteOptions(string(remote.GetUID())))
-	if err != nil && !kerrors.IsNotFound(err) {
-		if kerrors.IsForbidden(err) {
-			klog.Infof("Cannot delete remote %v %q (forbidden): %v", ncr.gvr, ncr.RemoteRef(remote.GetName()), err)
-			return nil
-		}
-		klog.Errorf("Failed to delete remote %v %q: %v", ncr.gvr, ncr.RemoteRef(remote.GetName()), err)
-		return err
-	}
-	klog.Infof("Remote %v %q successfully deleted", ncr.gvr, ncr.RemoteRef(remote.GetName()))
-	return nil
 }
 
 // List returns the list of objects to be reflected.
-func (ncr *NamespacedGVRReflector) List() ([]interface{}, error) {
-	localObjs, err := ncr.localLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	remoteObjs, err := ncr.remoteLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-
-	list := make([]interface{}, 0, len(localObjs)+len(remoteObjs))
-	for _, obj := range localObjs {
-		meta, ok := obj.(metav1.Object)
-		if !ok {
-			continue
-		}
-		list = append(list, types.NamespacedName{Name: meta.GetName(), Namespace: ncr.LocalNamespace()})
-	}
-	for _, obj := range remoteObjs {
-		meta, ok := obj.(metav1.Object)
-		if !ok {
-			continue
-		}
-		list = append(list, types.NamespacedName{Name: meta.GetName(), Namespace: ncr.LocalNamespace()})
-	}
-	return list, nil
+func (ncr *NamespacedGVRReflector) List() ([]any, error) {
+	return ncr.list(ncr.LocalNamespace())
 }

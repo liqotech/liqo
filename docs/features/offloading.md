@@ -84,6 +84,7 @@ Additional details concerning how pods are propagated to remote clusters are pro
 
 The **resource reflection** process is responsible for the propagation and synchronization of selected control plane information into remote clusters, to enable the seamless execution of offloaded pods.
 Liqo supports the reflection of the resources dealing with **service exposition** (i.e., *Ingresses*, *Services* and *EndpointSlices*), **persistent storage** (i.e., *PersistentVolumeClaims* and *PersistentVolumes*), as well as those storing **configuration data** (i.e., *ConfigMaps* and *Secrets*).
+Additionally, **arbitrary custom resources** — either namespaced or cluster-scoped — can be reflected upon explicit configuration (see the [custom resources usage section](UsageReflectionCustomResources)).
 
 All resources of the above types that live in a **namespace selected for offloading** are automatically propagated into the corresponding twin namespaces created in the selected remote clusters.
 Specifically, the local copy of each resource is the source of trust leveraged to realign the content of the **shadow copy** reflected remotely.
