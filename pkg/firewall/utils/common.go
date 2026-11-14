@@ -125,14 +125,14 @@ func GetIPValueNamedSet(s string) (string, error) {
 }
 
 // GetCIDRRange calculates the start and end IP addresses of a CIDR block.
-func GetCIDRRange(cidr string) (net.IP, net.IP, error) {
+func GetCIDRRange(cidr string) (startIP, endIP net.IP, err error) {
 	ip, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid CIDR format: %s", cidr)
 	}
 
-	startIP := ip.Mask(ipNet.Mask)
-	endIP := make(net.IP, len(startIP))
+	startIP = ip.Mask(ipNet.Mask)
+	endIP = make(net.IP, len(startIP))
 	copy(endIP, startIP)
 
 	for i := range endIP {

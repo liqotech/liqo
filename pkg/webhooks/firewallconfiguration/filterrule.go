@@ -33,7 +33,7 @@ func checkFilterRulesInChain(chain *firewallapi.Chain, sets []firewallapi.Set) e
 func checkFilterRule(r *firewallapi.FilterRule, sets []firewallapi.Set) error {
 	for _, match := range r.Match {
 		if err := checkRuleMatch(&match, sets); err != nil {
-			return fmt.Errorf("filterrule %s: %v", *r.Name, err)
+			return fmt.Errorf("filterrule %s: %w", *r.Name, err)
 		}
 	}
 
