@@ -333,6 +333,86 @@ var _ = Describe("Match Functions", func() {
 		})
 	})
 
+	Context("applyMatch with named set", func() {
+		DescribeTable("should generate payload + lookup expressions",
+			func(op firewallv1beta1.MatchOperation, pos firewallv1beta1.MatchPosition, expOffset uint32, expInvert bool) {
+				match := &firewallv1beta1.Match{
+					Op: op,
+					IP: &firewallv1beta1.MatchIP{
+						Value:    "@allowed_ips",
+						Position: pos,
+					},
+				}
+				Expect(applyMatch(match, rule)).To(Succeed())
+
+				// Find the payload + lookup pair (applyMatch may prepend protocol checks).
+				Expect(len(rule.Exprs)).To(BeNumerically(">=", 2))
+				payload, ok := rule.Exprs[len(rule.Exprs)-2].(*expr.Payload)
+				Expect(ok).To(BeTrue())
+				Expect(payload.Base).To(Equal(expr.PayloadBaseNetworkHeader))
+				Expect(payload.Offset).To(Equal(expOffset))
+				Expect(payload.Len).To(Equal(uint32(4)))
+				Expect(payload.DestRegister).To(Equal(uint32(1)))
+
+				lookup, ok := rule.Exprs[len(rule.Exprs)-1].(*expr.Lookup)
+				Expect(ok).To(BeTrue())
+				Expect(lookup.SetName).To(Equal("allowed_ips"))
+				Expect(lookup.SourceRegister).To(Equal(uint32(1)))
+				Expect(lookup.Invert).To(Equal(expInvert))
+			},
+			Entry("src eq", firewallv1beta1.MatchOperationEq, firewallv1beta1.MatchPositionSrc, uint32(12), false),
+			Entry("dst eq", firewallv1beta1.MatchOperationEq, firewallv1beta1.MatchPositionDst, uint32(16), false),
+			Entry("src neq", firewallv1beta1.MatchOperationNeq, firewallv1beta1.MatchPositionSrc, uint32(12), true),
+			Entry("dst neq", firewallv1beta1.MatchOperationNeq, firewallv1beta1.MatchPositionDst, uint32(16), true),
+		)
+
+		It("should combine named set with port and proto matches", func() {
+			matches := []firewallv1beta1.Match{
+				{
+					Op:    firewallv1beta1.MatchOperationEq,
+					Proto: &firewallv1beta1.MatchProto{Value: firewallv1beta1.L4ProtoTCP},
+				},
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					IP: &firewallv1beta1.MatchIP{
+						Value:    "@blocked",
+						Position: firewallv1beta1.MatchPositionSrc,
+					},
+				},
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					Port: &firewallv1beta1.MatchPort{
+						Value:    "443",
+						Position: firewallv1beta1.MatchPositionDst,
+					},
+				},
+			}
+			for i := range matches {
+				Expect(applyMatch(&matches[i], rule)).To(Succeed())
+			}
+
+			lookups := 0
+			for _, e := range rule.Exprs {
+				if l, ok := e.(*expr.Lookup); ok {
+					lookups++
+					Expect(l.SetName).To(Equal("blocked"))
+				}
+			}
+			Expect(lookups).To(Equal(1))
+		})
+
+		It("should error on named set without name", func() {
+			match := &firewallv1beta1.Match{
+				Op: firewallv1beta1.MatchOperationEq,
+				IP: &firewallv1beta1.MatchIP{
+					Value:    "@",
+					Position: firewallv1beta1.MatchPositionSrc,
+				},
+			}
+			Expect(applyMatch(match, rule)).NotTo(Succeed())
+		})
+	})
+
 	Context("Error cases", func() {
 		It("should error on invalid match operation", func() {
 			match := &firewallv1beta1.Match{

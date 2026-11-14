@@ -68,6 +68,69 @@ var _ = Describe("Common Utils", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(valType).To(Equal(firewallv1beta1.IPValueTypeVoid))
 			})
+
+			It("should detect NamedSet", func() {
+				val := "@allowed_ips"
+				valType, err := GetIPValueType(&val)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(valType).To(Equal(firewallv1beta1.IPValueTypeNamedSet))
+			})
+
+			It("should error on named set without name", func() {
+				val := "@"
+				valType, err := GetIPValueType(&val)
+				Expect(err).To(HaveOccurred())
+				Expect(valType).To(Equal(firewallv1beta1.IPValueTypeVoid))
+			})
+		})
+
+		Describe("GetIPValueNamedSet", func() {
+			It("should return the set name", func() {
+				name, err := GetIPValueNamedSet("@my_set")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(name).To(Equal("my_set"))
+			})
+
+			It("should error when the @ prefix is missing", func() {
+				_, err := GetIPValueNamedSet("my_set")
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should error on empty set name", func() {
+				_, err := GetIPValueNamedSet("@")
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should error on empty string", func() {
+				_, err := GetIPValueNamedSet("")
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Describe("GetCIDRRange", func() {
+			DescribeTable("should compute the first and last address of the CIDR",
+				func(cidr, expStart, expEnd string) {
+					start, end, err := GetCIDRRange(cidr)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(start.String()).To(Equal(expStart))
+					Expect(end.String()).To(Equal(expEnd))
+				},
+				Entry("/24", "192.168.1.0/24", "192.168.1.0", "192.168.1.255"),
+				Entry("/8", "10.0.0.0/8", "10.0.0.0", "10.255.255.255"),
+				Entry("/32", "10.1.2.3/32", "10.1.2.3", "10.1.2.3"),
+				Entry("/0", "0.0.0.0/0", "0.0.0.0", "255.255.255.255"),
+				Entry("/20 not aligned", "172.16.5.7/20", "172.16.0.0", "172.16.15.255"),
+			)
+
+			It("should error on invalid CIDR", func() {
+				_, _, err := GetCIDRRange("10.0.0.0/33")
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should error on plain IP", func() {
+				_, _, err := GetCIDRRange("10.0.0.1")
+				Expect(err).To(HaveOccurred())
+			})
 		})
 
 		Describe("GetIPValueRange", func() {
