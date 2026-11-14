@@ -266,6 +266,37 @@ var _ = Describe("NatRuleWrapper", func() {
 		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
 	})
 
+	It("Equal should return true for SNAT rule matching a named set", func() {
+		nr := &firewallv1beta1.NatRule{
+			Name:    ptr.To("snat-named-set-rule"),
+			NatType: firewallv1beta1.NatTypeSource,
+			To:      ptr.To("10.0.0.1"),
+			Match: []firewallv1beta1.Match{
+				{
+					Op: firewallv1beta1.MatchOperationEq,
+					IP: &firewallv1beta1.MatchIP{
+						Value:    "@remote_cidrs",
+						Position: firewallv1beta1.MatchPositionSrc,
+					},
+				},
+				{
+					Op: firewallv1beta1.MatchOperationNeq,
+					IP: &firewallv1beta1.MatchIP{
+						Value:    "@excluded",
+						Position: firewallv1beta1.MatchPositionDst,
+					},
+				},
+			},
+		}
+		wrapper := &NatRuleWrapper{NatRule: nr}
+
+		expectedRule, err := forgeNatRule(nr, chain)
+		Expect(err).NotTo(HaveOccurred())
+		expectedRule.Table = table
+
+		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+	})
+
 	Context("Error handling", func() {
 		It("should error when 'to' is empty string for SNAT (IP type)", func() {
 			nr := &firewallv1beta1.NatRule{
