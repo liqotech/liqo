@@ -71,10 +71,8 @@ func checkSetElements(set *firewallapi.Set) error {
 			if _, _, err := firewallutils.ConvertSetData(element.Data, set.DataType); err != nil {
 				return err
 			}
-		} else {
-			if element.Data != nil {
-				return fmt.Errorf("set element with key %s should not have data", element.Key)
-			}
+		} else if element.Data != nil {
+			return fmt.Errorf("set element with key %s should not have data", element.Key)
 		}
 	}
 

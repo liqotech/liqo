@@ -23,7 +23,8 @@ import (
 )
 
 // ConvertSetData converts a set element data to a byte slice based on the provided data type.
-func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []byte, error) {
+// For ipv4_cidr values, it also returns the (exclusive) interval end, which is nil if the interval reaches the end of the address space.
+func ConvertSetData(data *string, dataType *firewallapi.SetDataType) (value, intervalEnd []byte, err error) {
 	if dataType == nil {
 		if data != nil {
 			return nil, nil, fmt.Errorf("set element has data but no data type is specified")
@@ -50,19 +51,41 @@ func ConvertSetData(data *string, dataType *firewallapi.SetDataType) ([]byte, []
 
 	case firewallapi.SetDataTypeIPAddr:
 		ip := net.ParseIP(*data)
-		if ip == nil {
-			return nil, nil, fmt.Errorf("set element has invalid IP value %s", *data)
+		if ip == nil || ip.To4() == nil {
+			return nil, nil, fmt.Errorf("set element has invalid IPv4 value %s", *data)
 		}
 		return ip.To4(), nil, nil
 
 	case firewallapi.SetDataTypeIPCIDR:
 		startIP, endIP, err := GetCIDRRange(*data)
 		if err != nil {
-			return nil, nil, fmt.Errorf("set element has invalid CIDR value %s: %v", *data, err)
+			return nil, nil, fmt.Errorf("set element has invalid CIDR value %s: %w", *data, err)
 		}
-		return startIP.To4(), endIP.To4(), nil
+		if startIP.To4() == nil {
+			return nil, nil, fmt.Errorf("set element has invalid IPv4 CIDR value %s", *data)
+		}
+		// nftables interval ends are exclusive: the end key must be the first address after the range.
+		// If the range reaches the end of the address space, no end key is needed.
+		return startIP.To4(), nextIPv4(endIP.To4()), nil
 
 	default:
 		return nil, nil, fmt.Errorf("invalid set value type %s", *dataType)
 	}
+}
+
+// nextIPv4 returns the IPv4 address following ip, or nil if ip is the last IPv4 address (or not a valid IPv4).
+func nextIPv4(ip net.IP) []byte {
+	if ip == nil {
+		return nil
+	}
+	next := make([]byte, len(ip))
+	copy(next, ip)
+	for i := len(next) - 1; i >= 0; i-- {
+		next[i]++
+		if next[i] != 0 {
+			return next
+		}
+	}
+	// Overflow: ip was 255.255.255.255.
+	return nil
 }

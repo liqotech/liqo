@@ -23,7 +23,8 @@ import (
 	"github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
-// cleanSets removes the sets that are no longer used in the firewall configuration and updates the existing ones if their elements differ from the wanted elements.
+// cleanSets removes the sets that are no longer used in the firewall configuration
+// and updates the existing ones if their elements differ from the wanted elements.
 func cleanSets(nftconn *nftables.Conn, table *firewallapi.Table) error {
 	// Find the table by name and family
 	nftTables, err := nftconn.ListTablesOfFamily(getTableFamily(*table.Family))
@@ -112,10 +113,10 @@ func updateSetElements(nftconn *nftables.Conn, nftSets []*nftables.Set, table *f
 
 		// Check if the set is outdated
 		if isSetOutdated(existingElements, wantedElements) {
-			// Remove the existing elements and add the wanted ones
-			if err := nftconn.SetDeleteElements(nftSet, existingElements); err != nil {
-				return err
-			}
+			// Remove the existing elements and add the wanted ones.
+			// The set is flushed instead of deleting the existing elements one by one, since the kernel
+			// rejects the deletion of interval elements when the interval end precedes the interval start.
+			nftconn.FlushSet(nftSet)
 			if err := nftconn.SetAddElements(nftSet, wantedElements); err != nil {
 				return err
 			}
@@ -126,22 +127,27 @@ func updateSetElements(nftconn *nftables.Conn, nftSets []*nftables.Set, table *f
 }
 
 // isSetOutdated checks if the existing set elements differ from the wanted set elements.
-func isSetOutdated(existingElements []nftables.SetElement, wantedElements []nftables.SetElement) bool {
+func isSetOutdated(existingElements, wantedElements []nftables.SetElement) bool {
 	// If the lengths differ, the set is outdated.
 	if len(existingElements) != len(wantedElements) {
 		return true
 	}
 
 	// Build a map of existing elements for quick lookup.
-	existingElementsMap := make(map[string]string)
-	for _, element := range existingElements {
-		existingElementsMap[string(element.Key)] = string(element.Val)
+	// The interval end flag is part of the key, since an interval end can share the key with the start of the next interval.
+	type elementKey struct {
+		key         string
+		intervalEnd bool
+	}
+	existingElementsMap := make(map[elementKey]string)
+	for i := range existingElements {
+		existingElementsMap[elementKey{string(existingElements[i].Key), existingElements[i].IntervalEnd}] = string(existingElements[i].Val)
 	}
 
 	// Check if any wanted element is missing or differs in value.
-	for _, wantedElement := range wantedElements {
-		val, exists := existingElementsMap[string(wantedElement.Key)]
-		if !exists || val != string(wantedElement.Val) {
+	for i := range wantedElements {
+		val, exists := existingElementsMap[elementKey{string(wantedElements[i].Key), wantedElements[i].IntervalEnd}]
+		if !exists || val != string(wantedElements[i].Val) {
 			return true
 		}
 	}
@@ -151,9 +157,29 @@ func isSetOutdated(existingElements []nftables.SetElement, wantedElements []nfta
 
 // addSets adds the sets that are missing in the nftables configuration.
 func addSets(nftconn *nftables.Conn, sets []firewallapi.Set, nftTable *nftables.Table) error {
-	nftSets, err := nftconn.GetSets(nftTable)
+	if len(sets) == 0 {
+		return nil
+	}
+
+	// The table may not exist yet in the kernel (its creation could be still queued in the current batch):
+	// in that case there are no existing sets.
+	nftTables, err := nftconn.ListTablesOfFamily(nftTable.Family)
 	if err != nil {
 		return err
+	}
+	tableExists := false
+	for _, t := range nftTables {
+		if t.Name == nftTable.Name {
+			tableExists = true
+			break
+		}
+	}
+
+	var nftSets []*nftables.Set
+	if tableExists {
+		if nftSets, err = nftconn.GetSets(nftTable); err != nil {
+			return err
+		}
 	}
 	existingSetNames := make(map[string]struct{})
 	for _, nftSet := range nftSets {
@@ -188,6 +214,7 @@ func addSet(nftconn *nftables.Conn, table *nftables.Table, set *firewallapi.Set)
 		Name:     set.Name,
 		KeyType:  keyType,
 		DataType: dataType,
+		IsMap:    set.DataType != nil,
 		Interval: interval,
 	}
 
@@ -209,12 +236,12 @@ func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
 	for _, element := range set.Elements {
 		data, _, err := utils.ConvertSetData(element.Data, set.DataType)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert set element data: %v", err)
+			return nil, fmt.Errorf("unable to convert set element data: %w", err)
 		}
 
 		key, keyEnd, err := utils.ConvertSetData(&element.Key, &set.KeyType)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert set element key: %v", err)
+			return nil, fmt.Errorf("unable to convert set element key: %w", err)
 		}
 
 		setData = append(setData, nftables.SetElement{
@@ -234,7 +261,7 @@ func genSetElements(set *firewallapi.Set) ([]nftables.SetElement, error) {
 }
 
 // getSetDataType converts the SetDataType from the firewall API to the corresponding nftables.SetDatatype.
-// It retuns as second return value a boolean indicating whether the data type is a range (true for CIDR) or not (false for integer and IP address).
+// It returns as second return value a boolean indicating whether the data type is a range (true for CIDR) or not (false for integer and IP address).
 func getSetDataType(dataType *firewallapi.SetDataType) (nftables.SetDatatype, bool, error) {
 	if dataType == nil {
 		return nftables.SetDatatype{}, false, nil
