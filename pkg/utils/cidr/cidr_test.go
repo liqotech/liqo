@@ -78,3 +78,24 @@ var _ = Describe("CIDR utils", func() {
 		})
 	})
 })
+
+var _ = Describe("IPv4Only", func() {
+	DescribeTable("filters the IPv4 CIDRs",
+		func(in string, expected []string, expectErr bool) {
+			out, err := cidrutils.IPv4Only(in)
+			if expectErr {
+				Expect(err).To(HaveOccurred())
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(Equal(expected))
+		},
+		Entry("IPv4 only", "10.244.0.0/16", []string{"10.244.0.0/16"}, false),
+		Entry("dual-stack IPv6 first", "fd00:10:244::/56,10.244.0.0/16", []string{"10.244.0.0/16"}, false),
+		Entry("dual-stack IPv4 first", "10.244.0.0/16,fd00:10:244::/56", []string{"10.244.0.0/16"}, false),
+		Entry("multiple IPv4", "10.1.0.0/16,fd00::/56,10.2.0.0/16", []string{"10.1.0.0/16", "10.2.0.0/16"}, false),
+		Entry("whitespace", " fd00::/56 , 10.244.0.0/16 ", []string{"10.244.0.0/16"}, false),
+		Entry("IPv6 only", "fd00:10:244::/56", nil, true),
+		Entry("empty", "", nil, true),
+	)
+})

@@ -16,6 +16,7 @@ package ipmapping
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 // OffloadedPodReconciler manage offloaded pods lifecycle.
@@ -66,12 +68,15 @@ func (r *OffloadedPodReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	klog.V(4).Infof("Reconciling pod %s", req.String())
 
-	if pod.Status.PodIP == "" {
-		return ctrl.Result{RequeueAfter: time.Second}, nil
-	}
-
 	op, err := CreateOrUpdateIP(ctx, r.Client, r.Scheme, pod)
 	if err != nil {
+		if errors.Is(err, podutils.ErrNoIPAddress) {
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		if errors.Is(err, podutils.ErrNoIPv4Address) {
+			klog.Warningf("Skipping IP for pod %s: it has no IPv4 address (the Liqo network fabric is IPv4 only)", req.String())
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, fmt.Errorf("creating or updating IP for pod %s: %w", req.String(), err)
 	}
 	if op != controllerutil.OperationResultNone {

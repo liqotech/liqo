@@ -16,6 +16,7 @@ package sourcedetector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/gateway"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 // GatewayReconciler manage gateway.
@@ -71,11 +73,18 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("unable to get the gateway pod %q: %w", req.NamespacedName, err)
 	}
 
-	if pod.Status.PodIP == "" {
+	podIP, err := podutils.IPv4(pod)
+	switch {
+	case errors.Is(err, podutils.ErrNoIPAddress):
 		// If the pod does not have an IP address, we cannot determine the source IP for the internal node.
 		// It will be reconciled again when the IP becomes available.
 		klog.V(4).Infof("Gateway pod %s has no IP. Checking later", req.String())
 		return ctrl.Result{}, nil
+	case errors.Is(err, podutils.ErrNoIPv4Address):
+		klog.Warningf("Gateway pod %s has no IPv4 address (the Liqo network fabric is IPv4 only)", req.String())
+		return ctrl.Result{}, nil
+	case err != nil:
+		return ctrl.Result{}, fmt.Errorf("unable to get the IPv4 address of gateway pod %q: %w", req.NamespacedName, err)
 	}
 
 	internalnode := &networkingv1beta1.InternalNode{}
@@ -88,7 +97,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	klog.V(4).Infof("Reconciling gateway pod %s", req.String())
 
-	src, err := GetSrcIPFromDstIP(pod.Status.PodIP)
+	src, err := GetSrcIPFromDstIP(podIP)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

@@ -43,6 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/utils/resource"
 )
 
@@ -459,8 +460,13 @@ func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Con
 		return fmt.Errorf("retrieving active gateway pods: %w", err)
 	}
 
+	gwPodIP, err := podutils.IPv4(gwPod)
+	if err != nil {
+		return fmt.Errorf("retrieving IPv4 address of gateway pod %s: %w", client.ObjectKeyFromObject(gwPod), err)
+	}
+
 	wgServer.Status.InternalEndpoint = &networkingv1beta1.InternalGatewayEndpoint{
-		IP:   ptr.To(networkingv1beta1.IP(gwPod.Status.PodIP)),
+		IP:   ptr.To(networkingv1beta1.IP(gwPodIP)),
 		Node: &gwPod.Spec.NodeName,
 	}
 	return nil

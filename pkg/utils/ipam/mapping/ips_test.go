@@ -15,16 +15,89 @@
 package mapping
 
 import (
+	"context"
 	"fmt"
 	"net"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	cidrutils "github.com/liqotech/liqo/pkg/utils/cidr"
 )
+
+const liqoNamespace = "liqo"
+
+var _ = Describe("API server IP remapping", func() {
+	var scheme *runtime.Scheme
+
+	forgeService := func(name, namespace string, labels map[string]string, clusterIP string, clusterIPs ...string) *corev1.Service {
+		return &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: labels},
+			Spec:       corev1.ServiceSpec{ClusterIP: clusterIP, ClusterIPs: clusterIPs},
+		}
+	}
+
+	getIP := func(cl client.Client, name string) string {
+		var ip ipamv1alpha1.IP
+		Expect(cl.Get(context.Background(), client.ObjectKey{Name: name, Namespace: liqoNamespace}, &ip)).To(Succeed())
+		return string(ip.Spec.IP)
+	}
+
+	BeforeEach(func() {
+		scheme = runtime.NewScheme()
+		Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+		Expect(ipamv1alpha1.AddToScheme(scheme)).To(Succeed())
+	})
+
+	DescribeTable("EnforceAPIServerIPRemapping",
+		func(svc *corev1.Service, expectedIP string, expectNoIPv4 bool) {
+			cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(svc).Build()
+			err := EnforceAPIServerIPRemapping(context.Background(), cl, liqoNamespace)
+			if expectNoIPv4 {
+				Expect(err).To(MatchError(ErrAPIServerNoIPv4ClusterIP))
+				Expect(err.Error()).To(ContainSubstring("apiServerAccessThroughEndpointSlices"))
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+			Expect(getIP(cl, consts.IPTypeAPIServer)).To(Equal(expectedIP))
+		},
+		Entry("IPv4 single-stack", forgeService("kubernetes", "default", nil, "10.96.0.1", "10.96.0.1"), "10.96.0.1", false),
+		Entry("IPv4-primary dual-stack", forgeService("kubernetes", "default", nil, "10.96.0.1", "10.96.0.1", "fd00:10:96::1"),
+			"10.96.0.1", false),
+		Entry("IPv6-primary dual-stack with IPv4 ClusterIP", forgeService("kubernetes", "default", nil, "fd00:10:96::1",
+			"fd00:10:96::1", "10.96.0.1"), "10.96.0.1", false),
+		Entry("IPv6 single-stack kubernetes service", forgeService("kubernetes", "default", nil, "fd00:10:96::1", "fd00:10:96::1"),
+			"", true),
+	)
+
+	DescribeTable("EnforceAPIServerProxyIPRemapping",
+		func(svc *corev1.Service, expectedIP string, expectedErr error) {
+			cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(svc).Build()
+			err := EnforceAPIServerProxyIPRemapping(context.Background(), cl, liqoNamespace)
+			if expectedErr != nil {
+				Expect(err).To(MatchError(expectedErr))
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+			Expect(getIP(cl, consts.IPTypeAPIServerProxy)).To(Equal(expectedIP))
+		},
+		Entry("IPv4 single-stack", forgeService("proxy", liqoNamespace, map[string]string{consts.K8sAppNameKey: "proxy"},
+			"10.96.0.5", "10.96.0.5"), "10.96.0.5", nil),
+		Entry("IPv6-primary dual-stack with IPv4 ClusterIP", forgeService("proxy", liqoNamespace,
+			map[string]string{consts.K8sAppNameKey: "proxy"}, "fd00:10:96::5", "fd00:10:96::5", "10.96.0.5"), "10.96.0.5", nil),
+		Entry("IPv6 single-stack", forgeService("proxy", liqoNamespace, map[string]string{consts.K8sAppNameKey: "proxy"},
+			"fd00:10:96::5", "fd00:10:96::5"), "", ErrAPIServerNoIPv4ClusterIP),
+	)
+})
 
 var _ = Describe("MapAddressWithConfiguration", func() {
 	var cfg *networkingv1beta1.Configuration

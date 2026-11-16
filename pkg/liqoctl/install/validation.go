@@ -30,6 +30,8 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
+	svcutils "github.com/liqotech/liqo/pkg/utils/service"
 )
 
 // validate validates the correctness of the different parameters.
@@ -169,8 +171,15 @@ func (o *Options) validatePodCIDRs(ctx context.Context) error {
 
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-		podIP := pod.Status.PodIP
-		if podIP != "" && !pod.Spec.HostNetwork && !containsIP(podNets, podIP) {
+		if pod.Spec.HostNetwork {
+			continue
+		}
+		// Liqo uses the IPv4 family only: pods without an IPv4 address (e.g., IPv6-only) are skipped.
+		podIP, err := podutils.IPv4(pod)
+		if err != nil {
+			continue
+		}
+		if !containsIP(podNets, podIP) {
 			return fmt.Errorf(
 				"pod %q does not match the provided Pod CIDRs (IP: %v)", pod.GetName(), podIP)
 		}
@@ -217,8 +226,12 @@ func (o *Options) validateServiceCIDR(ctx context.Context) error {
 	}
 
 	for i := range services.Items {
-		clusterIP := services.Items[i].Spec.ClusterIP
-		if clusterIP != "None" && clusterIP != "" && !svcNet.Contains(net.ParseIP(clusterIP)) {
+		// Liqo uses the IPv4 family only: services without an IPv4 ClusterIP (e.g., headless or IPv6-only) are skipped.
+		clusterIP, err := svcutils.IPv4ClusterIP(&services.Items[i])
+		if err != nil {
+			continue
+		}
+		if !svcNet.Contains(net.ParseIP(clusterIP)) {
 			return fmt.Errorf(
 				"service %q does not match the provided Service CIDR (IP: %v)", services.Items[i].GetName(), clusterIP)
 		}

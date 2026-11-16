@@ -16,6 +16,7 @@ package wireguard
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -37,6 +38,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 const (
@@ -268,8 +270,11 @@ func listActiveGatewayPod(ctx context.Context, cl client.Client, namespace strin
 		return nil, fmt.Errorf("multiple (%d) active gateway pods found in namespace %q", len(activePods), namespace)
 	}
 
-	if activePods[0].Status.PodIP == "" {
-		return nil, fmt.Errorf("active gateway pod %s does not have IP assigned yet. Retry later", client.ObjectKeyFromObject(&activePods[0]))
+	if _, err := podutils.IPv4(&activePods[0]); err != nil {
+		if errors.Is(err, podutils.ErrNoIPAddress) {
+			return nil, fmt.Errorf("active gateway pod %s does not have IP assigned yet. Retry later", client.ObjectKeyFromObject(&activePods[0]))
+		}
+		return nil, fmt.Errorf("active gateway pod %s: %w", client.ObjectKeyFromObject(&activePods[0]), err)
 	}
 
 	return &activePods[0], nil

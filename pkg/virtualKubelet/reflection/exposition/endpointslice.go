@@ -178,6 +178,19 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 	}
 
+	// Do not reflect non-IPv4 endpointslices (i.e., IPv6 or FQDN), as the Liqo network fabric is IPv4 only and
+	// the translation of their addresses would fail forever.
+	if localExists && local.AddressType != discoveryv1.AddressTypeIPv4 {
+		klog.V(4).Infof("Skipping reflection of local EndpointSlice %q as its address type is %q, while only %q is supported",
+			ner.LocalRef(name), local.AddressType, discoveryv1.AddressTypeIPv4)
+		if !remoteExists { // The shadow object does not already exist, hence no further action is required.
+			return nil
+		}
+
+		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+		localExists = false
+	}
+
 	tracer.Step("Performed the sanity checks")
 
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
