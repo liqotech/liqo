@@ -21,6 +21,7 @@ spec:
           filterRules:
             - action: tcpmssclamp
               value: {{ .Values.networking.gateway.mssclamp.value | toString | quote }}
+              counter: true
               match:
                 - op: eq
                   dev:
