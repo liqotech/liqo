@@ -61,7 +61,6 @@ Set up your playground and check out the getting started examples, which will gu
 * [Offloading a Service](https://docs.liqo.io/en/stable/examples/service-offloading.html): learn how to create a multi-cluster service, and how to consume it from each connected cluster.
 * [Stateful Applications](https://docs.liqo.io/en/stable/examples/stateful-applications.html): find out how to deploy a database across a multi-cluster environment, leveraging the Liqo storage fabric.
 * [Replicated Deployments](https://docs.liqo.io/en/stable/examples/replicated-deployments.html): learn how to deploy an application by replicating it on multiple remote clusters.
-* [Provision with Terraform](https://docs.liqo.io/en/stable/examples/provision-with-terraform.html): explore Liqo Terraform provider capabilities.
 
 ### Going Further
 
