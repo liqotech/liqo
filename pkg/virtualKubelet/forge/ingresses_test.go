@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	"github.com/onsi/gomega/types"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	netv1apply "k8s.io/client-go/applyconfigurations/networking/v1"
@@ -92,7 +93,20 @@ var _ = Describe("Ingresses Forging", func() {
 			ForgeIngressSpec(input)
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteIngress(input, "reflected", false, "", forgingOpts) })
+		var (
+			enableIngress              bool
+			remoteRealIngressClassName string
+		)
+
+		BeforeEach(func() {
+			enableIngress = false
+			remoteRealIngressClassName = ""
+			input.Spec.IngressClassName = pointer.String("nginx")
+		})
+
+		JustBeforeEach(func() {
+			output = forge.RemoteIngress(input, "reflected", enableIngress, remoteRealIngressClassName, forgingOpts)
+		})
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -107,8 +121,26 @@ var _ = Describe("Ingresses Forging", func() {
 		})
 		It("should correctly set the annotations", func() {
 			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
-			Expect(output.Annotations).ToNot(HaveKey("kubernetes.io/ingress.class"))
+			Expect(output.Annotations).To(HaveKeyWithValue("kubernetes.io/ingress.class", "nginx"))
 			Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
+		})
+		It("should reflect the ingress class as-is", func() {
+			Expect(output.Spec.IngressClassName).To(PointTo(Equal("nginx")))
+		})
+
+		When("a remote ingress class is enforced", func() {
+			BeforeEach(func() {
+				enableIngress = true
+				remoteRealIngressClassName = "remote-class"
+			})
+
+			It("should set the remote ingress class", func() {
+				Expect(output.Spec.IngressClassName).To(PointTo(Equal("remote-class")))
+			})
+			It("should remove the ingress class annotation", func() {
+				Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+				Expect(output.Annotations).ToNot(HaveKey("kubernetes.io/ingress.class"))
+			})
 		})
 		It("should correctly set the spec", func() {
 			Expect(output.Spec.DefaultBackend).To(PointTo(Equal(netv1apply.IngressBackendApplyConfiguration{
@@ -136,19 +168,31 @@ var _ = Describe("Ingresses Forging", func() {
 		)
 
 		type remoteIngressTestcase struct {
-			input *netv1.IngressSpec
+			input                      *netv1.IngressSpec
+			enableIngress              bool
+			remoteRealIngressClassName string
+			expected                   types.GomegaMatcher
 		}
 
 		DescribeTable("RemoteIngressSpec table", func(c remoteIngressTestcase) {
-			output := forge.RemoteIngressSpec(c.input.DeepCopy(), false, "")
-
-			By("should not replicate the ingress class name", func() {
-				Expect(output.IngressClassName).To(BeNil())
-			})
-		}, Entry("Ingress with IngressClass", remoteIngressTestcase{
-			input: getIngress(pointer.String("nginx")),
-		}), Entry("Ingress without IngressClass", remoteIngressTestcase{
-			input: getIngress(nil),
+			output := forge.RemoteIngressSpec(c.input.DeepCopy(), c.enableIngress, c.remoteRealIngressClassName)
+			Expect(output.IngressClassName).To(c.expected)
+		}, Entry("Ingress with IngressClass, no remote class enforced", remoteIngressTestcase{
+			input:    getIngress(pointer.String("nginx")),
+			expected: PointTo(Equal("nginx")),
+		}), Entry("Ingress without IngressClass, no remote class enforced", remoteIngressTestcase{
+			input:    getIngress(nil),
+			expected: BeNil(),
+		}), Entry("Ingress with IngressClass, remote class enforced", remoteIngressTestcase{
+			input:                      getIngress(pointer.String("nginx")),
+			enableIngress:              true,
+			remoteRealIngressClassName: "remote-class",
+			expected:                   PointTo(Equal("remote-class")),
+		}), Entry("Ingress without IngressClass, remote class enforced", remoteIngressTestcase{
+			input:                      getIngress(nil),
+			enableIngress:              true,
+			remoteRealIngressClassName: "remote-class",
+			expected:                   PointTo(Equal("remote-class")),
 		}))
 	})
 
