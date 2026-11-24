@@ -1,4 +1,4 @@
-Sphinx==9.1.0
+Sphinx==9.2.0
 myst-parser==5.0.0
 sphinx-copybutton==0.5.2
 sphinx-design==0.7.0
