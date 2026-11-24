@@ -108,17 +108,33 @@ func (pi *peeringInfo) addUsedResources(resources corev1.ResourceList) {
 
 func (pi *peeringInfo) addShadowPod(spd *Description) {
 	pi.shadowPods[spd.namespacedName.String()] = spd
-	pi.addUsedResources(spd.quota)
+	// Only active shadow pods consume resources: any non-terminal phase (Pending, Running, ...) has to be
+	// accounted in the used quota, while pods in a terminal phase (Succeeded or Failed) must not, otherwise
+	// they keep occupying the offer indefinitely.
+	if spd.active {
+		pi.addUsedResources(spd.quota)
+	}
 }
 
 func (pi *peeringInfo) terminateShadowPod(spd *Description) {
+	wasActive := spd.active
 	spd.terminate()
 	pi.shadowPods[spd.namespacedName.String()] = spd
-	pi.subUsedResources(spd.quota)
+	// Release the quota only if it was previously accounted, to avoid a double release (e.g. when a
+	// shadow pod is already marked as terminated by the cache refresh, and then a deletion is received).
+	if wasActive {
+		pi.subUsedResources(spd.quota)
+	}
 }
 
 func (pi *peeringInfo) removeShadowPod(spd *Description) {
 	delete(pi.shadowPods, spd.namespacedName.String())
+}
+
+// isTerminalPodPhase returns true if the given pod phase is terminal, meaning the pod is not
+// consuming resources anymore and its quota should no longer be accounted.
+func isTerminalPodPhase(phase corev1.PodPhase) bool {
+	return phase == corev1.PodSucceeded || phase == corev1.PodFailed
 }
 
 func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Client,
