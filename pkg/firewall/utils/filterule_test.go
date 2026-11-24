@@ -409,6 +409,76 @@ var _ = Describe("FilterRuleWrapper", func() {
 		Expect(wrapper.Equal(expectedRule)).To(BeTrue())
 	})
 
+	Context("Named sets", func() {
+		forgeNamedSetRule := func(value string, op firewallv1beta1.MatchOperation) *firewallv1beta1.FilterRule {
+			return &firewallv1beta1.FilterRule{
+				Name: ptr.To("named-set-rule"),
+				Match: []firewallv1beta1.Match{
+					{
+						Op: op,
+						IP: &firewallv1beta1.MatchIP{
+							Value:    value,
+							Position: firewallv1beta1.MatchPositionSrc,
+						},
+					},
+				},
+				Action: firewallv1beta1.ActionDrop,
+			}
+		}
+
+		It("Equal should return true for rule matching a named set", func() {
+			fr := forgeNamedSetRule("@blocked_ips", firewallv1beta1.MatchOperationEq)
+			wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+			expectedRule, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+			expectedRule.Table = table
+
+			Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+		})
+
+		It("Equal should return true for rule not matching a named set (neq)", func() {
+			fr := forgeNamedSetRule("@allowed_ips", firewallv1beta1.MatchOperationNeq)
+			wrapper := &FilterRuleWrapper{FilterRule: fr}
+
+			expectedRule, err := forgeFilterRule(fr, chain)
+			Expect(err).NotTo(HaveOccurred())
+			expectedRule.Table = table
+
+			Expect(wrapper.Equal(expectedRule)).To(BeTrue())
+		})
+
+		It("Equal should return false when the referenced set changes", func() {
+			wrapper := &FilterRuleWrapper{FilterRule: forgeNamedSetRule("@set_a", firewallv1beta1.MatchOperationEq)}
+
+			other, err := forgeFilterRule(forgeNamedSetRule("@set_b", firewallv1beta1.MatchOperationEq), chain)
+			Expect(err).NotTo(HaveOccurred())
+			other.Table = table
+
+			Expect(wrapper.Equal(other)).To(BeFalse())
+		})
+
+		It("Equal should return false when the operation changes", func() {
+			wrapper := &FilterRuleWrapper{FilterRule: forgeNamedSetRule("@set_a", firewallv1beta1.MatchOperationEq)}
+
+			other, err := forgeFilterRule(forgeNamedSetRule("@set_a", firewallv1beta1.MatchOperationNeq), chain)
+			Expect(err).NotTo(HaveOccurred())
+			other.Table = table
+
+			Expect(wrapper.Equal(other)).To(BeFalse())
+		})
+
+		It("Equal should return false when the rule matches a plain IP instead of a set", func() {
+			wrapper := &FilterRuleWrapper{FilterRule: forgeNamedSetRule("@set_a", firewallv1beta1.MatchOperationEq)}
+
+			other, err := forgeFilterRule(forgeNamedSetRule("10.0.0.1", firewallv1beta1.MatchOperationEq), chain)
+			Expect(err).NotTo(HaveOccurred())
+			other.Table = table
+
+			Expect(wrapper.Equal(other)).To(BeFalse())
+		})
+	})
+
 	Context("Error handling", func() {
 		It("should handle invalid CtMark value", func() {
 			fr := &firewallv1beta1.FilterRule{
