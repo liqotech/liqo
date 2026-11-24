@@ -17,6 +17,7 @@ package mapping
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 
@@ -31,7 +32,15 @@ import (
 	networkingutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/resource"
+	serviceutils "github.com/liqotech/liqo/pkg/utils/service"
 )
+
+// ErrAPIServerNoIPv4ClusterIP is returned when the Service exposing the API server (or its proxy) has no IPv4 ClusterIP,
+// hence it cannot be remapped through the IPv4 network fabric (e.g., the kubernetes Service of IPv6 single-stack clusters,
+// which are the default on dual-stack clusters with IPv6 as primary family).
+var ErrAPIServerNoIPv4ClusterIP = errors.New("no IPv4 ClusterIP found, " +
+	"hence the API server cannot be remapped through the IPv4 network fabric " +
+	"(networking.apiServerAccessThroughEndpointSlices may help, only if the API server has an IPv4 endpoint)")
 
 // EnforceAPIServerIPRemapping creates or updates the IP resource for the API server IP remapping.
 func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoNamespace string) error {
@@ -41,6 +50,11 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 		Namespace: "default",
 	}, &k8sSvc); err != nil {
 		return fmt.Errorf("unable to get the kubernetes service: %w", err)
+	}
+
+	clusterIP, err := ipv4ClusterIP(&k8sSvc)
+	if err != nil {
+		return err
 	}
 
 	ip := &ipamv1alpha1.IP{
@@ -60,7 +74,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 		}
 		ip.Annotations[consts.PreinstalledAnnotKey] = consts.PreinstalledAnnotValue
 
-		ip.Spec.IP = networkingv1beta1.IP(k8sSvc.Spec.ClusterIP)
+		ip.Spec.IP = networkingv1beta1.IP(clusterIP)
 
 		return nil
 	}); err != nil {
@@ -93,6 +107,11 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 		return fmt.Errorf("the proxy service has no cluster IP")
 	}
 
+	clusterIP, err := ipv4ClusterIP(&proxySvc)
+	if err != nil {
+		return err
+	}
+
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consts.IPTypeAPIServerProxy,
@@ -110,7 +129,7 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 		}
 		ip.Annotations[consts.PreinstalledAnnotKey] = consts.PreinstalledAnnotValue
 
-		ip.Spec.IP = networkingv1beta1.IP(proxySvc.Spec.ClusterIP)
+		ip.Spec.IP = networkingv1beta1.IP(clusterIP)
 
 		return nil
 	}); err != nil {
@@ -118,6 +137,15 @@ func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liq
 	}
 
 	return nil
+}
+
+// ipv4ClusterIP returns the IPv4 ClusterIP of the service, or an error wrapping ErrAPIServerNoIPv4ClusterIP if it has none.
+func ipv4ClusterIP(svc *corev1.Service) (string, error) {
+	ip, err := serviceutils.IPv4ClusterIP(svc)
+	if err != nil {
+		return "", fmt.Errorf("service %s/%s: %w", svc.Namespace, svc.Name, ErrAPIServerNoIPv4ClusterIP)
+	}
+	return ip, nil
 }
 
 // MapAddress maps the address with the network configuration of the cluster.

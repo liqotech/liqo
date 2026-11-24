@@ -71,6 +71,43 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
+	Describe("the LocalPodStatus function IP selection", func() {
+		var status corev1.PodStatus
+		Translator := func(input string) string { return input + "-reflected" }
+		ips := func(addrs ...string) (out []corev1.PodIP) {
+			for _, a := range addrs {
+				out = append(out, corev1.PodIP{IP: a})
+			}
+			return out
+		}
+
+		DescribeTable("should select the address to reflect",
+			func(podIP string, podIPs []corev1.PodIP, expected string) {
+				status = forge.LocalPodStatus(&corev1.PodStatus{PodIP: podIP, PodIPs: podIPs}, Translator, 0)
+				if expected == "" {
+					Expect(status.PodIP).To(BeEmpty())
+					Expect(status.PodIPs).To(BeEmpty())
+					return
+				}
+				Expect(status.PodIP).To(Equal(expected))
+				Expect(status.PodIPs).To(ConsistOf(corev1.PodIP{IP: expected}))
+			},
+			Entry("IPv4 single-stack", "10.0.0.1", ips("10.0.0.1"), "10.0.0.1-reflected"),
+			Entry("IPv4 single-stack, PodIPs unset", "10.0.0.1", nil, "10.0.0.1-reflected"),
+			Entry("IPv6-primary dual-stack", "fd00::1", ips("fd00::1", "10.0.0.1"), "10.0.0.1-reflected"),
+			Entry("IPv4-primary dual-stack", "10.0.0.1", ips("10.0.0.1", "fd00::1"), "10.0.0.1-reflected"),
+			Entry("IPv6 single-stack", "fd00::1", ips("fd00::1"), "fd00::1-reflected"),
+			Entry("no IP", "", nil, ""),
+		)
+
+		It("should leave the IP empty when the opaque mutator is used", func() {
+			status = forge.LocalPodStatus(&corev1.PodStatus{PodIP: "fd00::1", PodIPs: ips("fd00::1", "10.0.0.1")},
+				Translator, 0, forge.OpaqueIPTranslationMutator())
+			Expect(status.PodIP).To(BeEmpty())
+			Expect(status.PodIPs).To(BeEmpty())
+		})
+	})
+
 	Describe("the LocalPodOffloadedLabel function", func() {
 		var (
 			local       *corev1.Pod

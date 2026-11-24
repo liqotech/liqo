@@ -17,6 +17,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ func GetAddressFromMasterNode(ctx context.Context, cl client.Client) (address st
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("https://%v:6443", host), nil
+	return fmt.Sprintf("https://%v", net.JoinHostPort(host, "6443")), nil
 }
 
 func getMasterNodes(ctx context.Context, cl client.Client) (*v1.NodeList, error) {

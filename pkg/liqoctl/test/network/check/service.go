@@ -18,11 +18,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	netutils "k8s.io/utils/net"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -41,15 +43,31 @@ var preferOrder = []corev1.NodeAddressType{
 }
 
 // GetNodeAddress returns the address of the node.
+// Among the addresses of the same type, IPv4 ones are preferred, since the Liqo network fabric is IPv4 only.
 func GetNodeAddress(node *corev1.Node) string {
 	for _, addrType := range preferOrder {
+		first := ""
 		for _, addr := range node.Status.Addresses {
-			if addr.Type == addrType {
+			if addr.Type != addrType {
+				continue
+			}
+			if netutils.IsIPv4String(addr.Address) {
 				return addr.Address
 			}
+			if first == "" {
+				first = addr.Address
+			}
+		}
+		if first != "" {
+			return first
 		}
 	}
 	return ""
+}
+
+// nodeURL returns the HTTP URL of the given node address and port, handling IPv6 addresses.
+func nodeURL(nodeip string, port int32) string {
+	return fmt.Sprintf("http://%s", net.JoinHostPort(nodeip, strconv.Itoa(int(port))))
 }
 
 // RunCheckPodToClusterIPService runs all the checks from the pod to the cluster IP service.
@@ -116,7 +134,7 @@ func RunCheckExternalToNodePortServiceWithClient(ctx context.Context, cl ctrlcli
 				continue
 			}
 			nodeip := GetNodeAddress(&nodes.Items[i])
-			ok, err := httpclient.Curl(ctx, fmt.Sprintf("http://%s:%d", nodeip, nodeport), !opts.Topts.Verbose, opts.Topts.LocalFactory.Printer.Logger)
+			ok, err := httpclient.Curl(ctx, nodeURL(nodeip, nodeport), !opts.Topts.Verbose, opts.Topts.LocalFactory.Printer.Logger)
 			successCount, errorCount, err = utils.ManageResults(opts.Topts.FailFast, err, ok, successCount, errorCount)
 			if err != nil {
 				return successCount, errorCount, err
@@ -272,7 +290,7 @@ func RunsCheckPodToNodePortServiceWithClient(ctx context.Context, cl ctrlclient.
 			}
 			nodeip := GetNodeAddress(&nodes.Items[i])
 			successCount, errorCount, err = RunCheckToTargets(ctx, cl, cfg[name],
-				opts, name, []string{fmt.Sprintf("http://%s:%d", nodeip, nodeport)}, false, ExecCurl)
+				opts, name, []string{nodeURL(nodeip, nodeport)}, false, ExecCurl)
 			successCountTot += successCount
 			errorCountTot += errorCount
 			if err != nil {

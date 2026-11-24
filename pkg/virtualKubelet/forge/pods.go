@@ -31,6 +31,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/maps"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 const (
@@ -101,9 +102,15 @@ func LocalPodOffloadedLabel(local *corev1.Pod) (*corev1apply.PodApplyConfigurati
 
 // LocalPodStatus forges the status of the local pod, given the remote one.
 func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restarts int32, mutators ...RemotePodStatusMutator) corev1.PodStatus {
-	// Translate the relevant IPs
+	// Translate the relevant IPs. The Liqo network fabric is IPv4 only, hence the IPv4 address is reflected if present
+	// (on dual-stack clusters with IPv6 as primary family, it is only listed in PodIPs). Otherwise, the primary IP is
+	// reflected as it is, preserving the behavior on single-stack clusters.
 	if remote.PodIP != "" {
-		remote.PodIP = translator(remote.PodIP)
+		ip := remote.PodIP
+		if ipv4, err := podutils.IPv4FromStatus(remote); err == nil {
+			ip = ipv4
+		}
+		remote.PodIP = translator(ip)
 		remote.PodIPs = []corev1.PodIP{{IP: remote.PodIP}}
 	}
 	remote.HostIP = LiqoNodeIP
