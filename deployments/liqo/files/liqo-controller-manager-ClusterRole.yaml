@@ -283,6 +283,7 @@ rules:
   - offloading.liqo.io
   resources:
   - namespacemaps/finalizers
+  - namespacemaps/status
   - namespaceoffloadings/finalizers
   - shadowpods/finalizers
   - shadowpods/status

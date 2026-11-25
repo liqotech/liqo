@@ -68,6 +68,9 @@ type Controller struct {
 
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch
+// copy the status set by the provider into the local replicated resources, which live in the tenant namespaces
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices/status;renews/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps/status,verbs=get;update;patch
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list;watch
 

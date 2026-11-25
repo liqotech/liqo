@@ -272,7 +272,7 @@ Consistently, `spec.class` is immutable: attempting to change it on an existing 
 
 ```{admonition} Writing a custom resource class controller
 :class: note
-The class actually in use is the one reported in `status.class`, which the provider always fills in. Custom class controllers must select the `ResourceSlice`s they are responsible for through `status.class`, and not through `spec.class`, otherwise they will not see the requests remapped by the provider.
+The class actually in use is the one reported in `status.class`, which the provider always fills in. Only the provider writes the status of a `ResourceSlice`: the consumer can edit the spec, but not the status, so it can change neither the class nor the resources and conditions the provider decided. Custom class controllers must select the `ResourceSlice`s they are responsible for through `status.class`, and not through `spec.class`, otherwise they will not see the requests remapped by the provider.
 ```
 
 (ResourceReservationSuspendReclaim)=
