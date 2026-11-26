@@ -218,8 +218,10 @@ function wait_kyverno() {
 function install_clusterctl() {
   local os=$1
   local arch=$2
+  # Keep in sync with the Cluster API version of the management cluster
+  local CLUSTERCTL_VERSION="v1.13.7"
 
-  curl -L "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.5/clusterctl-${os}-${arch}" -o clusterctl
+  curl -L "https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL_VERSION}/clusterctl-${os}-${arch}" -o clusterctl
   sudo install -o root -g root -m 0755 clusterctl /usr/local/bin/clusterctl
   clusterctl version
 }

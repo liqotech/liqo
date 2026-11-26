@@ -67,12 +67,15 @@ for i in $(seq 1 "${CLUSTER_NUMBER}"); do
   POD_CIDR_ESC_2=$(echo $POD_CIDR | cut -d'/' -f2)
   POD_CIDR_ESC="${POD_CIDR_ESC_1}\/${POD_CIDR_ESC_2}"
 
-  clusterctl generate cluster "${CAPI_CLUSTER_NAME}" \
+   clusterctl generate cluster "${CAPI_CLUSTER_NAME}" \
     --kubernetes-version "$K8S_VERSION" \
     --control-plane-machine-count 1 \
     --worker-machine-count 2 \
     --target-namespace "$TARGET_NAMESPACE" \
-    --infrastructure kubevirt:v0.1.9 | sed "s/10.243.0.0\/16/$POD_CIDR_ESC/g" | ${KUBECTL} apply -f -
+    --infrastructure kubevirt:v0.11.2 |
+    sed -e "s/10.243.0.0\/16/$POD_CIDR_ESC/g" \
+        -e "s|kubeletExtraArgs: {}|criSocket: ${CRI_PATH}|" |
+    ${KUBECTL} apply -f -
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}"); do
@@ -81,8 +84,9 @@ for i in $(seq 1 "${CLUSTER_NUMBER}"); do
     # this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
     export POD_CIDR="10.$((i * 10)).0.0/16"
   fi
-  echo "Waiting for cluster ${CAPI_CLUSTER_NAME} to be ready"
-  "${KUBECTL}" wait --for condition=Ready=true -n "$TARGET_NAMESPACE" "clusters.cluster.x-k8s.io/${CAPI_CLUSTER_NAME}" --timeout=-1s
+  # Wait for the control plane only: nodes stay NotReady until the CNI is installed below
+  echo "Waiting for cluster ${CAPI_CLUSTER_NAME} control plane to be initialized"
+  "${KUBECTL}" wait --for condition=ControlPlaneInitialized=true -n "$TARGET_NAMESPACE" "clusters.cluster.x-k8s.io/${CAPI_CLUSTER_NAME}" --timeout=30m
 
   echo "Getting kubeconfig for cluster ${CAPI_CLUSTER_NAME}"
   mkdir -p "${TMPDIR}/kubeconfigs"
@@ -102,6 +106,10 @@ for i in $(seq 1 "${CLUSTER_NUMBER}"); do
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}"); do
+  CAPI_CLUSTER_NAME=$(forge_clustername "${i}")
   echo "Waiting for cluster ${CAPI_CLUSTER_NAME} CNI to be ready"
   "wait_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  echo "Waiting for cluster ${CAPI_CLUSTER_NAME} to be available"
+  "${KUBECTL}" wait --for condition=Available=true -n "$TARGET_NAMESPACE" "clusters.cluster.x-k8s.io/${CAPI_CLUSTER_NAME}" --timeout=15m
 done
