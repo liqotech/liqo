@@ -88,8 +88,18 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	}
 }
 
+// Validate checks that the values provided for the gateway port flags are in their valid ranges.
+func (o *Options) Validate() error {
+	return network.ValidatePorts(o.ServerServicePort, o.ServerServiceNodePort, o.ClientConnectPort)
+}
+
 // RunPeer implements the peer command.
 func (o *Options) RunPeer(ctx context.Context) error {
+	if err := o.Validate(); err != nil {
+		o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to validate the arguments: %v", err)
+		return err
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 

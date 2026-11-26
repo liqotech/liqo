@@ -16,6 +16,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -71,6 +72,31 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	}
 }
 
+// Validate checks that the values provided for the gateway port flags are in their valid ranges.
+func (o *Options) Validate() error {
+	return ValidatePorts(o.ServerServicePort, o.ServerServiceNodePort, o.ClientConnectPort)
+}
+
+// ValidatePorts checks that the given gateway ports are in their valid ranges:
+// the server service port must be a valid port (1-65535), while the server service NodePort
+// and the client connect port accept 0 as unset value (i.e., let Kubernetes allocate a random
+// NodePort, and use the port retrieved from the GatewayServer status, respectively).
+// A non-zero NodePort must additionally fall in the default Kubernetes NodePort range (30000-32767).
+func ValidatePorts(serverServicePort, serverServiceNodePort, clientConnectPort int32) error {
+	if serverServicePort < 1 || serverServicePort > 65535 {
+		return fmt.Errorf("invalid value %d for flag --gw-server-service-port: must be in range 1-65535", serverServicePort)
+	}
+	if serverServiceNodePort != 0 && (serverServiceNodePort < 30000 || serverServiceNodePort > 32767) {
+		return fmt.Errorf("invalid value %d for flag --gw-server-service-nodeport: must be 0 (i.e., let Kubernetes "+
+			"allocate a random NodePort) or in the default NodePort range 30000-32767", serverServiceNodePort)
+	}
+	if clientConnectPort != 0 && (clientConnectPort < 1 || clientConnectPort > 65535) {
+		return fmt.Errorf("invalid value %d for flag --gw-client-port: must be 0 (i.e., use the port retrieved "+
+			"from the GatewayServer status) or in range 1-65535", clientConnectPort)
+	}
+	return nil
+}
+
 // RunReset reset the liqo networking between two clusters.
 // If the clusters are still connected through the gateways, it deletes them before removing network Configurations.
 func (o *Options) RunReset(ctx context.Context) error {
@@ -105,6 +131,11 @@ func (o *Options) RunReset(ctx context.Context) error {
 
 // RunConnect connect two clusters using liqo networking.
 func (o *Options) RunConnect(ctx context.Context) error {
+	if err := o.Validate(); err != nil {
+		o.LocalFactory.PrinterGlobal.Error.Printfln("Unable to validate the arguments: %v", err)
+		return err
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
