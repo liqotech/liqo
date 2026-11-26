@@ -1,3 +1,5 @@
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
+
 {{- if and .Values.networking.enabled .Values.openshiftConfig.enabled }}
 
 apiVersion: security.openshift.io/v1
@@ -5,7 +7,7 @@ kind: SecurityContextConstraints
 metadata:
   name: liqo-gateway
   labels:
-    {{- include "liqo.labels" . | nindent 4 }}
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
 allowHostDirVolumePlugin: false
 allowHostIPC: false
 allowHostNetwork: false

@@ -15,12 +15,19 @@
 package openshift
 
 import (
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1api "github.com/openshift/api/config/v1"
+	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/engine"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
@@ -63,5 +70,28 @@ var _ = Describe("Extract elements from OpenShift", func() {
 		}
 
 		Expect(options.parseNetworkConfig(networkConfig)).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("Render the chart for OpenShift", func() {
+	It("should label the gateway SCC as a gateway resource", func() {
+		chart, err := loader.LoadDir(filepath.Join("..", "..", "..", "..", "deployments", "liqo"))
+		Expect(err).ToNot(HaveOccurred())
+
+		values := New(&install.Options{}).Values()
+		values["tag"] = "v1.2.0"
+		release := chartutil.ReleaseOptions{Name: install.LiqoReleaseName, Namespace: consts.DefaultLiqoNamespace}
+		renderValues, err := chartutil.ToRenderValues(chart, values, release, nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		manifests, err := engine.Render(chart, renderValues)
+		Expect(err).ToNot(HaveOccurred())
+
+		var scc metav1.PartialObjectMetadata
+		Expect(yaml.Unmarshal([]byte(manifests["liqo/templates/liqo-gateway-scc.yaml"]), &scc)).To(Succeed())
+
+		Expect(scc.Labels).To(HaveKeyWithValue(consts.K8sAppNameKey, "gateway"))
+		Expect(scc.Labels).To(HaveKeyWithValue(consts.K8sAppInstanceKey, "liqo-gateway"))
+		Expect(scc.Labels).To(HaveKeyWithValue(consts.K8sAppComponentKey, "networking"))
 	})
 })
