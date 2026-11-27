@@ -21,6 +21,17 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
+// LiqoIngressClassName is the name of the ingress class managed by Liqo, whose ingresses report the aggregated status
+// of the ones reflected in the remote clusters.
+const LiqoIngressClassName = "liqo"
+
+// IsLiqoIngress returns whether the given ingress belongs to the ingress class managed by Liqo,
+// either through the ingressClassName field or the legacy annotation.
+func IsLiqoIngress(ingress *netv1.Ingress) bool {
+	return (ingress.Spec.IngressClassName != nil && *ingress.Spec.IngressClassName == LiqoIngressClassName) ||
+		ingress.Annotations["kubernetes.io/ingress.class"] == LiqoIngressClassName
+}
+
 // RemoteIngress forges the apply patch for the reflected ingress, given the local one.
 func RemoteIngress(local *netv1.Ingress, targetNamespace string, enableIngress bool, remoteRealIngressClassName string,
 	forgingOpts *ForgingOpts) *netv1apply.IngressApplyConfiguration {

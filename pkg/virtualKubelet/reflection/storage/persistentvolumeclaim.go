@@ -222,3 +222,8 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) List() ([]interface{}, er
 		npvcr.remotePersistentVolumeClaims,
 	)
 }
+
+// Cleanup is a no-op for this reflector.
+func (npvcr *NamespacedPersistentVolumeClaimReflector) Cleanup(_ context.Context, _, _ string) error {
+	return nil
+}

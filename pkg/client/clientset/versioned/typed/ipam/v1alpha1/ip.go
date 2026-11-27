@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	applyconfigurationipamv1alpha1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/ipam/v1alpha1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -46,18 +47,21 @@ type IPInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*ipamv1alpha1.IPList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *ipamv1alpha1.IP, err error)
+	Apply(ctx context.Context, iP *applyconfigurationipamv1alpha1.IPApplyConfiguration, opts v1.ApplyOptions) (result *ipamv1alpha1.IP, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, iP *applyconfigurationipamv1alpha1.IPApplyConfiguration, opts v1.ApplyOptions) (result *ipamv1alpha1.IP, err error)
 	IPExpansion
 }
 
 // iPs implements IPInterface
 type iPs struct {
-	*gentype.ClientWithList[*ipamv1alpha1.IP, *ipamv1alpha1.IPList]
+	*gentype.ClientWithListAndApply[*ipamv1alpha1.IP, *ipamv1alpha1.IPList, *applyconfigurationipamv1alpha1.IPApplyConfiguration]
 }
 
 // newIPs returns a IPs
 func newIPs(c *IpamV1alpha1Client, namespace string) *iPs {
 	return &iPs{
-		gentype.NewClientWithList[*ipamv1alpha1.IP, *ipamv1alpha1.IPList](
+		gentype.NewClientWithListAndApply[*ipamv1alpha1.IP, *ipamv1alpha1.IPList, *applyconfigurationipamv1alpha1.IPApplyConfiguration](
 			"ips",
 			c.RESTClient(),
 			scheme.ParameterCodec,

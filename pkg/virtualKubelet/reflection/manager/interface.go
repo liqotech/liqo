@@ -66,6 +66,9 @@ type NamespacedReflector interface {
 	Ready() bool
 	// List returns the list of objects to be reflected.
 	List() ([]interface{}, error)
+	// Cleanup is responsible for cleaning up resources created by the reflector
+	// when the reflection for the given namespace is stopped.
+	Cleanup(ctx context.Context, local, remote string) error
 }
 
 // FallbackReflector implements fallback reflection for "orphan" local objects not managed by namespaced reflectors.

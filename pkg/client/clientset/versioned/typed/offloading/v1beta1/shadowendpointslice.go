@@ -25,6 +25,7 @@ import (
 	gentype "k8s.io/client-go/gentype"
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	applyconfigurationoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/applyconfiguration/offloading/v1beta1"
 	scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -44,18 +45,19 @@ type ShadowEndpointSliceInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*offloadingv1beta1.ShadowEndpointSliceList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *offloadingv1beta1.ShadowEndpointSlice, err error)
+	Apply(ctx context.Context, shadowEndpointSlice *applyconfigurationoffloadingv1beta1.ShadowEndpointSliceApplyConfiguration, opts v1.ApplyOptions) (result *offloadingv1beta1.ShadowEndpointSlice, err error)
 	ShadowEndpointSliceExpansion
 }
 
 // shadowEndpointSlices implements ShadowEndpointSliceInterface
 type shadowEndpointSlices struct {
-	*gentype.ClientWithList[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList]
+	*gentype.ClientWithListAndApply[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList, *applyconfigurationoffloadingv1beta1.ShadowEndpointSliceApplyConfiguration]
 }
 
 // newShadowEndpointSlices returns a ShadowEndpointSlices
 func newShadowEndpointSlices(c *OffloadingV1beta1Client, namespace string) *shadowEndpointSlices {
 	return &shadowEndpointSlices{
-		gentype.NewClientWithList[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList](
+		gentype.NewClientWithListAndApply[*offloadingv1beta1.ShadowEndpointSlice, *offloadingv1beta1.ShadowEndpointSliceList, *applyconfigurationoffloadingv1beta1.ShadowEndpointSliceApplyConfiguration](
 			"shadowendpointslices",
 			c.RESTClient(),
 			scheme.ParameterCodec,
