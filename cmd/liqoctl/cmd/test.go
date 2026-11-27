@@ -31,7 +31,9 @@ import (
 
 const liqoctlTestNetworkLongHelp = `Launch network E2E tests.
 
-WARNING: to run the tests you need to have kyverno installed on every cluster https://kyverno.io/docs/installation/methods/ .
+WARNING: to run the tests you need to have Kyverno v1.13 or later installed on every cluster
+(https://kyverno.io/docs/installation/methods/). The tests rely on the policies.kyverno.io/v1
+NamespacedMutatingPolicy API, which is not available in earlier Kyverno versions.
 
 This command allows to launch E2E tests, which are used to check the network functionalities between the clusters.
 The command needs to be run on the cluster that will act as the consumer,
@@ -43,6 +45,8 @@ Examples:
   $ {{ .Executable }} test network --remote-kubeconfigs $HOME/.kube/config2,$HOME/.kube/config3
 or
   $ {{ .Executable }} test network --remote-kubeconfigs $HOME/.kube/config2,$HOME/.kube/config3 --basic
+or
+  $ {{ .Executable }} test network --remote-kubeconfigs $HOME/.kube/config2,$HOME/.kube/config3 --node-pod
 or
   $ {{ .Executable }} test network --remote-kubeconfigs $HOME/.kube/config2,$HOME/.kube/config3 --np-nodes all --np-ext --pod-np
 or
