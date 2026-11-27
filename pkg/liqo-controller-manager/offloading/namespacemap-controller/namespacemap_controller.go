@@ -47,6 +47,7 @@ type NamespaceMapReconciler struct {
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch;create;delete
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps/finalizers,verbs=get;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps/status,verbs=get;update;patch
 
 // needed to approve the certificates
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch

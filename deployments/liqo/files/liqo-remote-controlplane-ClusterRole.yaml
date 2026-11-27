@@ -3,9 +3,7 @@ rules:
   - authentication.liqo.io
   resources:
   - renews
-  - renews/status
   - resourceslices
-  - resourceslices/status
   verbs:
   - create
   - delete
@@ -19,7 +17,6 @@ rules:
   - offloading.liqo.io
   resources:
   - namespacemaps
-  - namespacemaps/status
   verbs:
   - create
   - delete
