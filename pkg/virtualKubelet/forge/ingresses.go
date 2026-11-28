@@ -22,11 +22,17 @@ import (
 )
 
 // RemoteIngress forges the apply patch for the reflected ingress, given the local one.
+// If enableIngress is true, the ingress class is forced to remoteRealIngressClassName, and the legacy
+// ingress class annotation is removed. Otherwise, the ingress class is reflected as-is.
 func RemoteIngress(local *netv1.Ingress, targetNamespace string, enableIngress bool, remoteRealIngressClassName string,
 	forgingOpts *ForgingOpts) *netv1apply.IngressApplyConfiguration {
+	annotations := local.GetAnnotations()
+	if enableIngress {
+		annotations = FilterIngressAnnotations(annotations)
+	}
 	return netv1apply.Ingress(local.GetName(), targetNamespace).
 		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
-		WithAnnotations(FilterNotReflected(FilterIngressAnnotations(local.GetAnnotations()), forgingOpts.AnnotationsNotReflected)).
+		WithAnnotations(FilterNotReflected(annotations, forgingOpts.AnnotationsNotReflected)).
 		WithSpec(RemoteIngressSpec(local.Spec.DeepCopy(), enableIngress, remoteRealIngressClassName))
 }
 
@@ -37,6 +43,7 @@ func FilterIngressAnnotations(local map[string]string) map[string]string {
 
 // RemoteIngressSpec forges the apply patch for the specs of the reflected ingress, given the local one.
 // It expects the local object to be a deepcopy, as it is mutated.
+// If enableIngress is true, the ingress class is set to remoteRealIngressClassName; otherwise, it is reflected as-is.
 func RemoteIngressSpec(local *netv1.IngressSpec, enableIngress bool, remoteRealIngressClassName string) *netv1apply.IngressSpecApplyConfiguration {
 	ret := netv1apply.IngressSpec().
 		WithDefaultBackend(RemoteIngressBackend(local.DefaultBackend)).
@@ -44,6 +51,8 @@ func RemoteIngressSpec(local *netv1.IngressSpec, enableIngress bool, remoteRealI
 		WithTLS(RemoteIngressTLS(local.TLS)...)
 	if enableIngress {
 		ret.WithIngressClassName(remoteRealIngressClassName)
+	} else {
+		ret.IngressClassName = local.IngressClassName
 	}
 	return ret
 }

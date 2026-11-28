@@ -151,8 +151,8 @@ Even in a scenario where a single cluster is peered with multiple remote ones, t
 ### Ingresses
 
 The propagation of **Ingress** resources enables the configuration of multiple points of entrance for **external traffic**.
-*Ingress* resources are propagated **verbatim** into remote clusters, except for the *IngressClassName* field, which is left empty.
-Hence, selecting the default *ingress class* in the remote cluster, as the local one (i.e., the one in the origin cluster) might not be present.
+*Ingress* resources are propagated **verbatim** into remote clusters, including the *IngressClassName* field.
+If the provider cluster offers a list of ingress classes (i.e., `offloading.reflection.ingress.ingressClasses` is not empty), the *IngressClassName* field is instead set to the default class offered by the provider, and the `kubernetes.io/ingress.class` annotation is removed.
 
 (UsageReflectionStorage)=
 
